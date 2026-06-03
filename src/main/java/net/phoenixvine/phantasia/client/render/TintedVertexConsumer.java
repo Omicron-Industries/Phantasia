@@ -1,20 +1,15 @@
 package net.phoenixvine.phantasia.client.render;
 
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.minecraft.client.renderer.RenderType;
 
 /**
  * Thin {@link VertexConsumer} wrapper that applies a per-block alpha tint.
- *
- * Used by {@link PhantasiaWorldRenderer} to instantly hide or fade blocks
- * without requiring a VBO rebake — we just set {@code alpha} to 0 for blocks
- * that should be invisible, and interpolate toward 1 for blocks fading in.
- *
- * The offset fields replicate LDLib's VertexConsumerWrapper behaviour for
- * fluid chunk offsets (fluids need a sub-chunk origin shift applied to vertices).
  */
 public final class TintedVertexConsumer implements VertexConsumer {
 
     private final VertexConsumer delegate;
+    private RenderType currentRenderType; // Tracks the drawing layer safely
 
     // Per-fluid-chunk offset (cleared after each block)
     private double offsetX, offsetY, offsetZ;
@@ -24,6 +19,13 @@ public final class TintedVertexConsumer implements VertexConsumer {
 
     public TintedVertexConsumer(VertexConsumer delegate) {
         this.delegate = delegate;
+    }
+
+    /**
+     * Updates the context with the active RenderType being drawn by the pipeline.
+     */
+    public void setCurrentRenderType(RenderType renderType) {
+        this.currentRenderType = renderType;
     }
 
     // ── Tint control ──────────────────────────────────────────────────────────
@@ -78,6 +80,9 @@ public final class TintedVertexConsumer implements VertexConsumer {
 
     @Override
     public VertexConsumer uv(float u, float v) {
+        // ─── REMOVED REFLECTION/SPRITE MARKING INTERCEPTIONS ──────────────
+        // All tracking blocks are completely axed. Direct straight-line proxy.
+        // ──────────────────────────────────────────────────────────────────
         return delegate.uv(u, v);
     }
 

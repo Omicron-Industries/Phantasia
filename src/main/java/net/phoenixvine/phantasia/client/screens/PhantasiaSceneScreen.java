@@ -11,6 +11,7 @@ import com.gregtechceu.gtceu.api.pattern.MultiblockShapeInfo;
 
 import com.lowdragmc.lowdraglib.utils.BlockInfo;
 
+import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
@@ -273,11 +274,11 @@ public class PhantasiaSceneScreen extends Screen {
                 renderer.setControllerWorldPos(pattern.controllerWorldPos);
             }
         }
-        // Wire the controller machine into the renderer so IRenderer.renderTick()
-        // is driven each frame (fusion ring rotation, material color, etc.).
-        // Also clear stale entities from the previous pattern before doing so.
+        // Initialise the isolated particle engine for this scene.
+        // Must be called each time the scene opens (not just when renderer is new)
+        // so the engine is fresh and providers are current.
+        net.phoenixvine.phantasia.client.render.PhantasiaParticleEngine.init();
         SHARED_LEVEL.entities.clear();
-        renderer.setControllerMachine(pattern != null ? pattern.controller : null);
 
         // ── Camera ────────────────────────────────────────────────────────────
         if (camera == null) {
@@ -425,21 +426,10 @@ public class PhantasiaSceneScreen extends Screen {
     // ─────────────────────────────────────────────────────────────────────────
 
     private PhantasiaLoadedPattern loadPattern(MultiblockShapeInfo shape) {
-        // Place blocks near the player's current position so Embeddium's chunk
-        // visibility system keeps their textures animated and particles active.
-        // (0, 50, 0) is unloaded for most TFG players who spawn far from world origin.
-        // We snap to chunk boundaries to avoid straddling chunk section borders,
-        // which would cause Embeddium to rebuild two sections instead of one.
-        Minecraft mc = Minecraft.getInstance();
-        BlockPos playerPos = mc.player != null
-                ? mc.player.blockPosition()
-                : (mc.level != null ? BlockPos.ZERO : BlockPos.ZERO);
-        // Snap to 16-block (chunk) boundary, place 3 chunks away in +X so the
-        // dummy blocks don't overlap any real terrain the player is standing in.
-        int ox = ((playerPos.getX() >> 4) + 3) << 4;
-        int oz = (playerPos.getZ() >> 4) << 4;
-        // Use y=50 as a safe height above bedrock that exists in all dimension types.
-        BlockPos origin = new BlockPos(ox, 50, oz);
+        // Fixed origin — Embeddium cannot see these blocks because getChunkSource()
+        // in PhantasiaTrackedDummyWorld returns DummyWorld's own isolated chunk
+        // source rather than the real ClientLevel's, so player position is irrelevant.
+        BlockPos origin = new BlockPos(0, 50, 0);
 
         SHARED_LEVEL.renderedBlocks.clear();
         SHARED_LEVEL.blockEntities.clear();
@@ -697,6 +687,20 @@ public class PhantasiaSceneScreen extends Screen {
             tickAmbientEffects(SHARED_LEVEL.getRandom());
         }
 
+        // Emit script-defined particle effects for the active step.
+        if (SHARED_LEVEL != null && !scrubbing && playing && script != null) {
+            PhantasiaScript.Step step = script.getActiveStep(playbackTick);
+            if (step != null && !step.particleEffects().isEmpty()) {
+                long gameTick = net.minecraft.client.Minecraft.getInstance().level != null
+                        ? net.minecraft.client.Minecraft.getInstance().level.getGameTime() : 0;
+                BlockPos origin = getOriginForCurrentPattern();
+                for (net.phoenixvine.phantasia.common.PhantasiaParticleEffect fx : step.particleEffects()) {
+                    BlockPos worldPos = fx.localPos().offset(origin);
+                    fx.emit(SHARED_LEVEL, worldPos, gameTick, SHARED_LEVEL.getRandom());
+                }
+            }
+        }
+
         if (!playing || scrubbing || buildOrderMode || script == null || viewFilter != ViewFilter.ALL) return;
 
         int prevTick = playbackTick;
@@ -839,10 +843,24 @@ public class PhantasiaSceneScreen extends Screen {
         machineWorking = working;
         applyActiveStateToWorld(working);
 
+        // Trigger a rebake so the new ACTIVE block states (coils, controller overlay)
+        // are reflected in the VBO. Without this the rendered geometry stays frozen
+        // with the pre-working states even though renderedBlocks has been updated.
+        if (renderer != null) renderer.requestBake();
+
         var rs = pattern.controller.getRenderState();
         var ap = com.gregtechceu.gtceu.api.machine.property.GTMachineModelProperties.IS_ACTIVE;
-        if (rs.hasProperty(ap) && rs.getValue(ap) != working)
+        if (rs.hasProperty(ap) && rs.getValue(ap) != working) {
             pattern.controller.setRenderState(rs.setValue(ap, working));
+            // Notify the BER that render state changed — in a real game this is done
+            // via LDLib's @RequireRerender syncdata sync, which is a no-op in the dummy
+            // world. Sending a block update forces the BER to re-read the render state.
+            if (SHARED_LEVEL != null && pattern.controllerWorldPos != null) {
+                SHARED_LEVEL.sendBlockUpdated(pattern.controllerWorldPos,
+                        SHARED_LEVEL.getBlockState(pattern.controllerWorldPos),
+                        SHARED_LEVEL.getBlockState(pattern.controllerWorldPos), 3);
+            }
+        }
     }
 
     private void injectFakeRecipe(RecipeLogic logic, String rid) {
@@ -905,10 +923,8 @@ public class PhantasiaSceneScreen extends Screen {
         if (renderer != null) renderer.invalidate();
 
         // Determine working state so coil blocks get the right ACTIVE value immediately.
-        boolean currentlyWorking = script != null
-                && script.getActiveStep(playbackTick) != null
-                && script.getActiveStep(playbackTick).working()
-                && playbackTick < script.getTotalTicks();
+        boolean currentlyWorking = script != null && script.getActiveStep(playbackTick) != null &&
+                script.getActiveStep(playbackTick).working() && playbackTick < script.getTotalTicks();
 
         for (Map.Entry<BlockPos, BlockInfo> e : pattern.blockMap.entrySet()) {
             if (e.getValue().getBlockState().getBlock() instanceof com.gregtechceu.gtceu.common.block.CoilBlock) {
@@ -932,6 +948,17 @@ public class PhantasiaSceneScreen extends Screen {
     @Override
     public void render(@NotNull GuiGraphics g, int mx, int my, float partial) {
         activeButtons.clear();
+
+
+        // ── FIX EMBEDDIUM CONTROLLER SHADER ANIMATION FREEZE ──
+        // Embeddium relies on RenderSystem's Shader Game Time uniform to animate
+        // LDLib/GregTech controller overlays. Since standard Screen rendering freezes
+        // this timer uniform, we manually calculate and push the active engine time here.
+        if (Minecraft.getInstance().level != null) {
+            long gameTime = Minecraft.getInstance().level.getGameTime();
+            RenderSystem.setShaderGameTime(gameTime, partial);
+        }
+        // ──────────────────────────────────────────────────────
 
         int pw = getCurrentPanelWidth();
         int sw = this.width - pw;
@@ -1530,7 +1557,8 @@ public class PhantasiaSceneScreen extends Screen {
             renderer.close();
             renderer = null;
         }
-        machineWorking = false; // reset so next screen open starts fresh
+        net.phoenixvine.phantasia.client.render.PhantasiaParticleEngine.destroy();
+        machineWorking = false;
         invalidateSharedLevel();
         Minecraft.getInstance().setScreen(parent);
     }

@@ -7,6 +7,7 @@ import com.lowdragmc.lowdraglib.utils.BlockInfo;
 import com.lowdragmc.lowdraglib.utils.TrackedDummyWorld;
 
 import net.minecraft.client.Camera;
+import net.phoenixvine.phantasia.client.camera.CameraView;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
@@ -26,7 +27,9 @@ import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
-import net.phoenixvine.phantasia.client.camera.CameraView;
+import net.minecraft.client.renderer.texture.TextureAtlasSprite;
+import net.phoenixvine.phantasia.client.render.PhantasiaSpriteMarker;
+import net.phoenixvine.phantasia.client.render.PhantasiaParticleEngine;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.*;
@@ -122,6 +125,17 @@ public final class PhantasiaWorldRenderer {
     private final VertexBuffer[] back;
 
     private volatile boolean backReady = false;
+
+    /**
+     * Sprites collected from block quads during the last completed bake.
+     * Swapped atomically with the VBOs in swapBuffers(). Read each render
+     * frame by PhantasiaSpriteMarker.markAll() to keep Embeddium animating
+     * the dummy world's block textures and particles.
+     * Only animated sprites are stored — PhantasiaSpriteMarker.hasAnimation()
+     * filters during the bake so markAll() doesn't need to check each frame.
+     */
+    private Set<TextureAtlasSprite> activeSprites = Set.of();
+    private volatile Set<TextureAtlasSprite> pendingSprites = Set.of();
     private volatile Set<BlockPos> backTileEntities = null;
     private Set<BlockPos> frontTileEntities = Collections.emptySet();
 
@@ -130,6 +144,11 @@ public final class PhantasiaWorldRenderer {
     private final AtomicReference<Set<BlockPos>> pendingBakeMask = new AtomicReference<>(Collections.emptySet());
 
     private volatile boolean rebakeNeeded = false;
+
+    /** Schedules a VBO rebake on the next render frame. Used when block states change (e.g. ACTIVE toggle). */
+    public void requestBake() {
+        rebakeNeeded = true;
+    }
 
     /**
      * Tracks how many per-layer recordRenderCall() uploads are still pending
@@ -223,7 +242,6 @@ public final class PhantasiaWorldRenderer {
      * IRenderer.renderTick() each frame without scanning frontTileEntities.
      */
     @Nullable
-    private Object controllerMachine = null;
 
     private int guiMouseX, guiMouseY;
 
@@ -261,7 +279,6 @@ public final class PhantasiaWorldRenderer {
      * restore the original level immediately after.
      */
     @Nullable
-    private net.minecraft.client.multiplayer.ClientLevel particleProxyLevel;
 
     // ── Bake thread ───────────────────────────────────────────────────────────
 
@@ -294,23 +311,6 @@ public final class PhantasiaWorldRenderer {
     /** Tell the renderer where the controller lives so misplaced render entities can be corrected. */
     public void setControllerWorldPos(@Nullable BlockPos pos) {
         this.controllerWorldPos = pos;
-    }
-
-    /**
-     * Pass the GT MetaMachine instance for the controller so IRenderer.renderTick()
-     * can be driven each frame without relying on reflection over frontTileEntities.
-     *
-     * Called from PhantasiaSceneScreen after onStructureFormed() succeeds, where
-     * mbe.getMetaMachine() is already available as a typed reference.
-     * Pass null to clear (e.g. when the scene is reset).
-     */
-    public void setControllerMachine(@Nullable Object machine) {
-        this.controllerMachine = machine;
-        // Force re-resolution of the IRenderer chain against the new machine.
-        gtRendererChainResolved = false;
-        gtRenderTickMethod = null;
-        gtGetDefinitionMethod = null;
-        gtGetRendererMethod = null;
     }
 
     /**
@@ -415,6 +415,10 @@ public final class PhantasiaWorldRenderer {
         // 2. Swap back→front if a bake finished.
         if (backReady) swapBuffers();
 
+        // 3. Mark animated sprites active for Embeddium each frame.
+        // No-op when Embeddium/Rubidium is not loaded.
+        PhantasiaSpriteMarker.markAll(activeSprites);
+
         // 3. Start bake if transitions done and one is pending.
         if (rebakeNeeded && !hasTransitions && (bakeFuture == null || bakeFuture.isDone())) {
             rebakeNeeded = false;
@@ -476,84 +480,49 @@ public final class PhantasiaWorldRenderer {
         turnOnLight(partial);
         float camX = view.eyeX(), camY = view.eyeY(), camZ = view.eyeZ();
 
-        // Drive GT IRenderer.renderTick() on controller BEs before rendering.
-        // This is what updates the fusion ring rotation, material color, and all
-        // other controller-side procedural animations. Without it the ring never
-        // moves and the output fluid color is never applied to the ring geometry.
-        driveIRendererTick(partial);
-
         drawTileEntities(buffers, partial, camX, camY, camZ);
         drawEntities(buffers, partial, camX, camY, camZ);
 
         // Flush all BE/entity geometry BEFORE rendering particles so depth is correct.
         buffers.endBatch();
 
-        // ─── PARTICLE RENDER ─────────────────────────────────────────────────
-        // Particles enter mc.particleEngine from two sources:
-        //   1. GT BER particles — be.setLevel(particleProxyLevel) causes addParticle
-        //      to route to mc.particleEngine (has GT's MufflerParticle.Provider).
-        //   2. animateTick particles — PhantasiaTrackedDummyWorld.addParticle()
-        //      override routes directly to mc.particleEngine.createParticle().
-        //
-        // PARTICLE TICK: mc.particleEngine.tick() must be called at 20/s.
-        // Despite isPauseScreen()=false, Minecraft.tick() skips particleEngine.tick()
-        // whenever a Screen is open (it gates on `this.level != null && screen == null`
-        // in some versions, or skips the clientPacketListener tick branch). Without
-        // this call, particles are created at age=0 but never aged — MufflerParticle
-        // getQuadSize() returns 0 at age=0 so they're invisible, and they never expire.
-        //
-        // ENTITY TICK: world.getAllEntities() entities (the fusion ring, laser arc,
-        // etc.) must also be ticked each game tick. The ring entity accumulates its
-        // rotation angle in tick() via tickCount++. Without this, tickCount=0 forever,
-        // the ring never rotates, and xOld/yOld/zOld are never updated so lerp gives
-        // no interpolation benefit either.
-        //
-        // Both are gated to one call per game tick via shouldTickParticles (already
-        // computed above in drawTileEntities — reuse that flag here by promoting it
-        // to a field so the particle render block can read it).
+        // ─── PARTICLE TICK & RENDER ──────────────────────────────────────────
+        // Oculus mixins target ParticleEngine.render() and SingleQuadParticle.render()
+        // at the class level — so even our isolated PhantasiaParticleEngine instance
+        // gets intercepted. We bypass this by rendering particles ourselves directly,
+        // grouping by ParticleRenderType and calling each particle's render() method
+        // without going through ParticleEngine.render() at all.
         if (tickedThisFrame) {
-            mc.particleEngine.tick();
-            // tickWorld() ticks all entities in world.entities (incrementing tickCount,
-            // saving old pos/rot, calling entity.tick()) and all BE tickers.
-            // This is exactly what we need: ring entity tickCount++ drives rotation,
-            // and muffler clientTick() is driven separately via driveClientTick().
+            PhantasiaParticleEngine.tick();
             world.tickWorld();
-            if (DEBUG_RENDER) {
-                LOGGER.info("[Phantasia] ticked: entities={}", world.getAllEntities().size());
+            // Drive animateTick for visible blocks so blocks that emit particles via
+            // Block.animateTick() (fire, furnaces, etc.) work correctly.
+            // PhantasiaTrackedDummyWorld.tickAnimateForPos() temporarily hides the BE
+            // so hasTicker guards in blocks like TFG's ActiveParticleBlock don't bail early.
+            if (world instanceof PhantasiaTrackedDummyWorld ptdw) {
+                RandomSource animRandom = RandomSource.createNewThreadLocalInstance();
+                for (BlockPos pos : targetVisible) {
+                    ptdw.tickAnimateForPos(pos, animRandom);
+                }
             }
-        } else if (DEBUG_RENDER && debugFrameCounter % 60 == 0) {
-            LOGGER.info("[Phantasia] tickedThisFrame=false, gameTime={}, mc.level={}",
-                    mc.level != null ? mc.level.getGameTime() : "null(no level!)",
-                    mc.level != null ? "present" : "NULL");
-            LOGGER.info("[Phantasia] dummy world entities={}", world.getAllEntities().size());
         }
-        //
-        // CAMERA POSITION COMPENSATION:
-        // Particle.render() computes vertex = (p_world - camera.getPosition()) × billboard.
-        // Our gluLookAt model-view is M = R × T(-eye).
-        // Shader applies: M × vertex = R × T(-eye) × (p_world - camera.pos).
-        // If camera.pos == scene_eye, the eye is subtracted twice — particles appear
-        // at (p_world - 2×eye), which is far below/away from the scene.
-        //
-        // Fix: push T(+eye) onto the model-view stack before the render call so:
-        //   M' = M × T(+eye) = R × T(-eye) × T(+eye) = R
-        //   M' × vertex = R × (p_world - eye)  ← correct camera-relative position
-        //
-        try {
-            var camPos = this.camera.getPosition();
-            PoseStack mv = RenderSystem.getModelViewStack();
-            mv.pushPose();
-            mv.translate(camPos.x, camPos.y, camPos.z);
-            RenderSystem.applyModelViewMatrix();
 
-            mc.particleEngine.render(new PoseStack(), buffers,
-                    mc.gameRenderer.lightTexture(), this.camera, partial);
-            buffers.endBatch();
-
-            mv.popPose();
-            RenderSystem.applyModelViewMatrix();
-        } catch (Exception e) {
-            LOGGER.error("[Phantasia] particle render failed", e);
+        // Skip particle rendering when Oculus shader pipeline is active — Oculus
+        // intercepts both ParticleEngine.render() and Particle.render() at the class
+        // level, making it impossible to render particles outside its pipeline.
+        // NOTE: No camera translate is applied here. setupCamera() builds the view
+        // matrix via gluLookAt which already places the camera at the origin in
+        // model-view space. Particle.render() subtracts camera.getPosition() from
+        // each vertex internally — adding a +camPos translate on top would
+        // double-offset every particle two camera-distances off screen.
+        if (!PhantasiaParticleEngine.isOculusBlockingParticles()) {
+            try {
+                PhantasiaParticleEngine.renderDirect(buffers, mc.gameRenderer.lightTexture(),
+                        this.camera, partial);
+                buffers.endBatch();
+            } catch (Exception e) {
+                LOGGER.error("[Phantasia] particle render failed", e);
+            }
         }
         // ────────────────────────────────────────────────────────────────────
 
@@ -597,13 +566,10 @@ public final class PhantasiaWorldRenderer {
         }
         bakedVisible = pendingBakeMask.get();
         frontTileEntities = backTileEntities != null ? backTileEntities : Collections.emptySet();
-        // Suppressed positions that are now absent from the new front[] can be cleared.
         suppressedPositions.removeIf(p -> !bakedVisible.contains(p));
         backReady = false;
         backTileEntities = null;
-        // Reset the IRenderer reflection chain so driveIRendererTick() re-resolves
-        // against the new frontTileEntities on next frame (BEs may have changed type).
-        gtRendererChainResolved = false;
+        activeSprites = pendingSprites;
     }
 
     // ── Bake ─────────────────────────────────────────────────────────────────
@@ -673,6 +639,11 @@ public final class PhantasiaWorldRenderer {
             }
 
             try {
+                // Collect animated sprites for Embeddium's per-frame marking.
+                // Only needed when Embeddium/Rubidium is present — skipped otherwise.
+                Set<TextureAtlasSprite> sprites = PhantasiaSpriteMarker.EMBEDDIUM_PRESENT
+                        ? new java.util.HashSet<>() : Set.of();
+
                 for (int i = 0; i < LAYER_COUNT; i++) {
                     if (Thread.interrupted()) return;
                     RenderType layer = LAYERS.get(i);
@@ -682,7 +653,8 @@ public final class PhantasiaWorldRenderer {
                     TintedVertexConsumer wrap = new TintedVertexConsumer(bb);
                     bakeLayer(brd, random, ps, layer, wrap,
                             solidBuckets.getOrDefault(layer, List.of()),
-                            fluidBuckets.getOrDefault(layer, List.of()));
+                            fluidBuckets.getOrDefault(layer, List.of()),
+                            sprites);
                     BufferBuilder.RenderedBuffer rb = bb.end();
                     final int fi = i;
                     RenderSystem.recordRenderCall(() -> {
@@ -696,6 +668,7 @@ public final class PhantasiaWorldRenderer {
                         }
                     });
                 }
+                pendingSprites = sprites;
             } finally {
                 ModelBlockRenderer.clearCache();
                 // Always restore hidden blocks, even if bake was interrupted.
@@ -754,7 +727,8 @@ public final class PhantasiaWorldRenderer {
                            PoseStack ps, RenderType layer,
                            TintedVertexConsumer wrapper,
                            List<BlockPos> solidBlocks,
-                           List<BlockPos> fluidBlocks) {
+                           List<BlockPos> fluidBlocks,
+                           Set<TextureAtlasSprite> sprites) {
         // Solid / cutout / translucent block geometry
         for (BlockPos pos : solidBlocks) {
             BlockState state = world.getBlockState(pos);
@@ -767,10 +741,29 @@ public final class PhantasiaWorldRenderer {
             }
             ps.popPose();
             wrapper.resetTint();
+
+            // Collect animated sprites for Embeddium per-frame marking.
+            // Routed through PhantasiaSpriteMarker to avoid loading EmbeddiumCompat
+            // when Embeddium is absent (direct class reference would fail at link time).
+            if (PhantasiaSpriteMarker.EMBEDDIUM_PRESENT) {
+                try {
+                    var model = brd.getBlockModel(state);
+                    var modelData = net.minecraftforge.client.model.data.ModelData.EMPTY;
+                    for (var face : net.minecraft.core.Direction.values()) {
+                        for (var quad : model.getQuads(state, face, random, modelData, layer)) {
+                            var sprite = quad.getSprite();
+                            if (sprite != null) PhantasiaSpriteMarker.addIfAnimated(sprite, sprites);
+                        }
+                    }
+                    for (var quad : model.getQuads(state, null, random, modelData, layer)) {
+                        var sprite = quad.getSprite();
+                        if (sprite != null) PhantasiaSpriteMarker.addIfAnimated(sprite, sprites);
+                    }
+                } catch (Exception ignored) {}
+            }
         }
 
-        // Fluid geometry (water, lava) — these blocks are already in the correct
-        // layer bucket so no layer check needed here either.
+        // Fluid geometry
         for (BlockPos pos : fluidBlocks) {
             BlockState state = world.getBlockState(pos);
             FluidState fluid = state.getFluidState();
@@ -909,9 +902,6 @@ public final class PhantasiaWorldRenderer {
     private void drawTileEntities(MultiBufferSource.BufferSource buffers, float partial,
                                   float camX, float camY, float camZ) {
         Minecraft mc = Minecraft.getInstance();
-        // Use the real ClientLevel as a proxy so BER addParticle calls reach
-        // mc.particleEngine (which has GT's MufflerParticle.Provider registered).
-        particleProxyLevel = mc.level;
 
         // MufflerPartMachine.clientTick() is what calls emitPollutionParticles() →
         // level.addParticle(). The dummy world never ticks its BEs, so clientTick()
@@ -955,173 +945,91 @@ public final class PhantasiaWorldRenderer {
             // fresh PoseStack per entity, translated to absolute world pos.
             // No camera-relative offset — the VBO/shader pipeline handles that
             // through the model-view matrix set up in setupCamera().
-            PoseStack ps = new PoseStack();
+            com.mojang.blaze3d.vertex.PoseStack ps = new com.mojang.blaze3d.vertex.PoseStack();
             ps.translate(pos.getX(), pos.getY(), pos.getZ());
 
             try {
-                // Temporarily proxy the BE's level so addParticle/addAlwaysVisibleParticle
-                // calls route to mc.particleEngine (which has all provider registrations,
-                // including GT's MufflerParticle). The LDLib ParticleManager only knows
-                // about vanilla particle types and misses GT custom ones entirely.
-                // We restore the real level after the render call.
-                var realLevel = be.getLevel();
-                try {
-                    be.setLevel(particleProxyLevel != null ? particleProxyLevel : realLevel);
-                    ber.render(be, partial, ps, buffers, 15728880, OverlayTexture.NO_OVERLAY);
+                // The BlockEntity's internal level reference is already our custom
+                // PhantasiaTrackedDummyWorld. Since that world completely overrides
+                // addParticle and routes them cleanly into our isolated particle engine,
+                // we no longer need to perform any complex proxy swapping logic here.
+                ber.render(be, partial, ps, buffers, 15728880, OverlayTexture.NO_OVERLAY);
 
-                    // Drive clientTick() for BEs that emit particles outside their BER.
-                    // MufflerPartMachine emits via clientTick() → emitPollutionParticles()
-                    // → level.addParticle(). With the proxy level still set, addParticle
-                    // routes correctly to mc.particleEngine. Gated by shouldTickParticles
-                    // so this fires at 20/s regardless of render framerate.
-                    //
-                    // We use reflection rather than a direct cast to avoid a hard compile
-                    // dependency on GT's MufflerPartMachine class. The method lookup is
-                    // cached after the first successful resolve.
-                    if (tickedThisFrame) {
-                        driveClientTick(be);
-                    }
-                } finally {
-                    be.setLevel(realLevel);
-                }
-            } catch (Exception ignored) {}
-        }
-        particleProxyLevel = null;
-    }
-
-    // ── Reflection-safe clientTick driver ────────────────────────────────────
-
-    /**
-     * Cached Method handle for clientTick() on GT BE classes that need it driven
-     * manually (MufflerPartMachine, etc.). Looked up once on first call.
-     * Maps Class → Method so different BE types each get their own cached entry.
-     */
-    private static final java.util.Map<Class<?>, java.lang.reflect.Method> clientTickCache =
-            new java.util.concurrent.ConcurrentHashMap<>();
-    private static final java.lang.reflect.Method CLIENT_TICK_SENTINEL;
-    static {
-        try { CLIENT_TICK_SENTINEL = Object.class.getMethod("hashCode"); }
-        catch (NoSuchMethodException e) { throw new RuntimeException(e); }
-    }
-
-    /**
-     * Calls clientTick() on {@code be} if it has one, using a cached reflection
-     * lookup so there is no hard compile dependency on GT internal classes.
-     *
-     * Only BEs that declare clientTick() themselves (not inherited from a class
-     * that does nothing) need this — we check for MufflerPartMachine specifically
-     * by class simple-name to avoid classloading issues.
-     */
-    private static void driveClientTick(BlockEntity be) {
-        String name = be.getClass().getSimpleName();
-        if (!name.contains("Muffler")) return;
-
-        Class<?> cls = be.getClass();
-        java.lang.reflect.Method m = clientTickCache.computeIfAbsent(cls, c -> {
-            for (Class<?> cur = c; cur != null; cur = cur.getSuperclass()) {
-                try {
-                    java.lang.reflect.Method found = cur.getDeclaredMethod("clientTick");
-                    found.setAccessible(true);
-                    LOGGER.info("[Phantasia] driveClientTick: found clientTick() on {}", cur.getSimpleName());
-                    return found;
-                } catch (NoSuchMethodException ignored) {}
-            }
-            LOGGER.warn("[Phantasia] driveClientTick: no clientTick() found on {}", cls.getName());
-            return CLIENT_TICK_SENTINEL;
-        });
-        if (m == CLIENT_TICK_SENTINEL) return;
-        try {
-            m.invoke(be);
-        } catch (Exception e) {
-            LOGGER.warn("[Phantasia] driveClientTick: invoke failed: {}", e.getMessage());
-        }
-    }
-
-    // ── IRenderer.renderTick driver ──────────────────────────────────────────
-
-    /**
-     * Drives GT's IRenderer.renderTick() on controller BEs each frame.
-     *
-     * GT multiblock controllers have an IRenderer retrieved via
-     * {@code machine.getDefinition().getRenderer()}. That renderer's
-     * {@code renderTick()} method drives all controller-side animations:
-     *   - Fusion reactor plasma ring rotation and material color update
-     *   - Working-state model swaps (active/inactive overlays)
-     *   - Laser arc, plasma stream, and other procedural entity spawns
-     *
-     * Without this call, the IRenderer is never ticked so the ring never
-     * rotates and the output fluid material color is never applied — the
-     * ring stays in its default idle state regardless of recipe state.
-     *
-     * We use reflection to avoid a hard dependency on GT's IRenderer and
-     * MetaMachine classes. The lookup is cached per BE class.
-     */
-    private static java.lang.reflect.Method gtGetDefinitionMethod = null;
-    private static java.lang.reflect.Method gtGetRendererMethod = null;
-    private static java.lang.reflect.Method gtRenderTickMethod = null;
-    private static boolean gtRendererChainResolved = false;
-
-    private void driveIRendererTick(float partial) {
-        if (controllerMachine == null) return;
-
-        // Resolve getDefinition() → getRenderer() → renderTick() once, then cache.
-        // controllerMachine is set directly from PhantasiaSceneScreen.loadPattern()
-        // via setControllerMachine(), so no BE scanning is needed here.
-        if (!gtRendererChainResolved) {
-            gtRendererChainResolved = true;
-            LOGGER.info("[Phantasia] driveIRendererTick: resolving chain from controllerMachine={}",
-                    controllerMachine.getClass().getSimpleName());
-            try {
-                gtGetDefinitionMethod = controllerMachine.getClass().getMethod("getDefinition");
-                Object definition = gtGetDefinitionMethod.invoke(controllerMachine);
-                if (definition == null) {
-                    LOGGER.warn("[Phantasia] driveIRendererTick: getDefinition() returned null");
-                    return;
-                }
-                gtGetRendererMethod = definition.getClass().getMethod("getRenderer");
-                Object renderer = gtGetRendererMethod.invoke(definition);
-                if (renderer == null) {
-                    LOGGER.warn("[Phantasia] driveIRendererTick: getRenderer() returned null");
-                    return;
-                }
-                LOGGER.info("[Phantasia] driveIRendererTick: renderer={}", renderer.getClass().getSimpleName());
-                for (java.lang.reflect.Method rt : renderer.getClass().getMethods()) {
-                    if (rt.getName().equals("renderTick") && rt.getParameterCount() >= 3) {
-                        LOGGER.info("[Phantasia] driveIRendererTick: renderTick found, params={}",
-                                java.util.Arrays.toString(rt.getParameterTypes()));
-                        gtRenderTickMethod = rt;
-                        break;
-                    }
-                }
-                if (gtRenderTickMethod == null) {
-                    LOGGER.warn("[Phantasia] driveIRendererTick: no renderTick method on {}",
-                            renderer.getClass().getSimpleName());
+                // Drive clientTick() for BEs that emit particles outside their BER.
+                // MufflerPartMachine emits via clientTick() → emitPollutionParticles()
+                // → level.addParticle(). Gated by shouldTickParticles so this fires at
+                // 20/s regardless of render framerate.
+                if (tickedThisFrame) {
+                    driveClientTick(be);
                 }
             } catch (Exception e) {
-                LOGGER.warn("[Phantasia] driveIRendererTick: resolution failed: {}", e.getMessage());
+                LOGGER.warn("[Phantasia] Error rendering Block Entity at {}: {}", pos, e.getMessage());
             }
         }
+    }
 
-        if (gtRenderTickMethod == null || gtGetDefinitionMethod == null || gtGetRendererMethod == null) return;
+    // ── High-Performance clientTick driver (MethodHandles) ───────────────────
 
+    /**
+     * ClassValue is specifically designed by the JVM for ultra-fast, lock-free
+     * class-associated metadata lookups. MethodHandles avoid the allocation
+     * and security-check overhead of standard java.lang.reflect.Method.
+     */
+    private static final java.lang.invoke.MethodHandle NO_OP_HANDLE;
+    static {
         try {
-            Object definition = gtGetDefinitionMethod.invoke(controllerMachine);
-            if (definition == null) return;
-            Object renderer = gtGetRendererMethod.invoke(definition);
-            if (renderer == null) return;
+            NO_OP_HANDLE = java.lang.invoke.MethodHandles.lookup().findStatic(PhantasiaWorldRenderer.class, "noOp", java.lang.invoke.MethodType.methodType(void.class));
+        } catch (Exception e) { throw new RuntimeException(e); }
+    }
+    private static void noOp() {}
 
-            int argc = gtRenderTickMethod.getParameterCount();
-            BlockPos pos = controllerWorldPos != null ? controllerWorldPos : BlockPos.ZERO;
-            if (argc == 4) {
-                gtRenderTickMethod.invoke(renderer, world, pos, partial, controllerMachine);
-            } else if (argc == 5) {
-                var berd = Minecraft.getInstance().getBlockEntityRenderDispatcher();
-                gtRenderTickMethod.invoke(renderer, berd, world, pos, partial, controllerMachine);
-            } else if (argc == 3) {
-                gtRenderTickMethod.invoke(renderer, world, pos, partial);
+    private static final ClassValue<java.lang.invoke.MethodHandle> GET_MACHINE_CACHE = new ClassValue<>() {
+        @Override
+        protected java.lang.invoke.MethodHandle computeValue(Class<?> type) {
+            java.lang.invoke.MethodHandles.Lookup lookup = java.lang.invoke.MethodHandles.lookup();
+            for (String methodName : new String[]{"getMetaMachine", "getMachine", "getOwner"}) {
+                try {
+                    java.lang.reflect.Method m = type.getMethod(methodName);
+                    java.lang.invoke.MethodHandle handle = lookup.unreflect(m);
+                    LOGGER.info("[Phantasia] driveClientTick: getMachine via {}() on {}", methodName, type.getSimpleName());
+                    return handle;
+                } catch (Exception ignored) {}
             }
-        } catch (Exception e) {
-            LOGGER.warn("[Phantasia] driveIRendererTick: renderTick invoke failed: {}", e.getMessage());
+            return NO_OP_HANDLE;
+        }
+    };
+
+    private static final ClassValue<java.lang.invoke.MethodHandle> CLIENT_TICK_CACHE = new ClassValue<>() {
+        @Override
+        protected java.lang.invoke.MethodHandle computeValue(Class<?> machineClass) {
+            java.lang.invoke.MethodHandles.Lookup lookup = java.lang.invoke.MethodHandles.lookup();
+            for (Class<?> cur = machineClass; cur != null; cur = cur.getSuperclass()) {
+                try {
+                    java.lang.reflect.Method m = cur.getDeclaredMethod("clientTick");
+                    m.setAccessible(true);
+                    java.lang.invoke.MethodHandle handle = lookup.unreflect(m);
+                    LOGGER.info("[Phantasia] driveClientTick: found clientTick() on {}", cur.getSimpleName());
+                    return handle;
+                } catch (Exception ignored) {}
+            }
+            return NO_OP_HANDLE;
+        }
+    };
+
+    private static void driveClientTick(BlockEntity be) {
+        try {
+            java.lang.invoke.MethodHandle getMachine = GET_MACHINE_CACHE.get(be.getClass());
+            if (getMachine == NO_OP_HANDLE) return;
+
+            Object machine = getMachine.invoke(be);
+            if (machine == null) return;
+
+            java.lang.invoke.MethodHandle tickMethod = CLIENT_TICK_CACHE.get(machine.getClass());
+            if (tickMethod == NO_OP_HANDLE) return;
+
+            tickMethod.invoke(machine);
+        } catch (Throwable t) {
+            LOGGER.warn("[Phantasia] driveClientTick: invoke failed: {}", t.getMessage());
         }
     }
 

@@ -14,6 +14,11 @@ public class PhantasiaClientEvents {
 
     private PhantasiaClientEvents() {}
 
+    // ─── REMOVED onClientTick ─────────────────────────────────────────────
+    // MixinSpriteUtil completely stops Embeddium from deactivating
+    // textures while in a Phantasia screen. This tick hook is obsolete.
+    // ──────────────────────────────────────────────────────────────────────
+
     /**
      * Updated to .Pre to match PhantasiaKeybind's logic.
      * This allows the UI to render on the highest layer (PLAYER_LIST)

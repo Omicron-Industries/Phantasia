@@ -2,7 +2,6 @@ package net.phoenixvine.phantasia.client.render;
 
 import com.lowdragmc.lowdraglib.utils.TrackedDummyWorld;
 
-import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.util.RandomSource;
@@ -13,6 +12,30 @@ import net.minecraftforge.api.distmarker.OnlyIn;
 
 @OnlyIn(Dist.CLIENT)
 public class PhantasiaTrackedDummyWorld extends TrackedDummyWorld {
+
+    // ── Chunk source isolation ────────────────────────────────────────────────
+
+    /**
+     * Returns DummyWorld's own isolated chunk source instead of proxying to
+     * the real ClientLevel's chunk source.
+     *
+     * TrackedDummyWorld.getChunkSource() returns the real ClientLevel's
+     * ChunkSource when proxyWorld is non-null (which it always is — we pass
+     * mc.level to the constructor). This makes Embeddium's terrain scanner
+     * treat SHARED_LEVEL blocks as real world terrain: it finds the chunks as
+     * "loaded", builds static VBOs for them, and renders them permanently as
+     * a frozen snapshot — overwriting PhantasiaWorldRenderer's output and
+     * causing the initial lag spike (Embeddium rebuilding sections on first load).
+     *
+     * Returning super.getChunkSource() (DummyWorld's own empty chunk source)
+     * makes the dummy world invisible to Embeddium's terrain pipeline entirely.
+     * getBlockState() reads directly from renderedBlocks (not through the chunk
+     * source) so the VBO bake is unaffected.
+     */
+    @Override
+    public net.minecraft.world.level.chunk.ChunkSource getChunkSource() {
+        return super.getChunkSource();
+    }
 
     // ── Particle routing ──────────────────────────────────────────────────────
 
@@ -37,14 +60,14 @@ public class PhantasiaTrackedDummyWorld extends TrackedDummyWorld {
     public void addParticle(ParticleOptions particleData,
                             double x, double y, double z,
                             double xSpeed, double ySpeed, double zSpeed) {
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.particleEngine != null) {
-            try {
-                mc.particleEngine.createParticle(particleData, x, y, z, xSpeed, ySpeed, zSpeed);
-            } catch (Exception ignored) {
-                // Provider not registered for this particle type — skip silently.
-            }
-        }
+        // Route to the dedicated PhantasiaParticleEngine rather than mc.particleEngine.
+        // Using mc.particleEngine causes two problems:
+        //   1. Particles appear at the dummy world's real coordinates in the actual world.
+        //   2. Real-world particles bleed into Phantasia's render pass.
+        // PhantasiaParticleEngine shares providers with mc.particleEngine so all GT
+        // particle types (MufflerParticle etc.) are available.
+        net.phoenixvine.phantasia.client.render.PhantasiaParticleEngine.addParticle(
+                particleData, x, y, z, xSpeed, ySpeed, zSpeed);
     }
 
     @Override

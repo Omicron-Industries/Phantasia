@@ -22,6 +22,7 @@ import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.phoenixvine.phantasia.client.PhantasiaClient;
 import net.phoenixvine.phantasia.client.keybind.PhoenixKeybinds;
+import net.phoenixvine.phantasia.common.PhantasiaTestMultiblocks;
 import net.phoenixvine.phantasia.configs.PhantasiaConfigs;
 import net.phoenixvine.phantasia.datagen.PhantasiaDatagen;
 
@@ -131,7 +132,7 @@ public class Phantasia {
      * @param event
      */
     private void registerMachines(GTCEuAPI.RegisterEvent<ResourceLocation, MachineDefinition> event) {
-        // CustomMachines.init();
+        PhantasiaTestMultiblocks.init();
     }
 
     /**

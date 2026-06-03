@@ -7,6 +7,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.state.BlockState;
 import net.phoenixvine.phantasia.client.camera.LerpType;
 import net.phoenixvine.phantasia.client.screens.PhantasiaSceneScreen;
+import net.phoenixvine.phantasia.common.PhantasiaParticleEffect;
 
 import lombok.Getter;
 
@@ -19,19 +20,20 @@ import javax.annotation.Nullable;
 public class PhantasiaScript {
 
     public record Step(
-                       int tickOffset,
-                       String caption,
-                       Predicate<BlockPos> filter,
-                       boolean working,
-                       int forceShape,
-                       int forceCoil,
-                       float yaw,
-                       float pitch,
-                       float zoom,
-                       boolean useCam,
-                       LerpType lerpType,
-                       int lerpTicks,
-                       @Nullable String fakeRecipeId) {
+            int tickOffset,
+            String caption,
+            Predicate<BlockPos> filter,
+            boolean working,
+            int forceShape,
+            int forceCoil,
+            float yaw,
+            float pitch,
+            float zoom,
+            boolean useCam,
+            LerpType lerpType,
+            int lerpTicks,
+            @Nullable String fakeRecipeId,
+            List<PhantasiaParticleEffect> particleEffects) {
 
         public boolean hasCamera() {
             return useCam;
@@ -114,6 +116,11 @@ public class PhantasiaScript {
     }
 
     private static Step compileStep(PhantasiaScriptData.StepData sd) {
+        return compileStepWithParticles(sd, List.of());
+    }
+
+    private static Step compileStepWithParticles(PhantasiaScriptData.StepData sd,
+                                                 List<PhantasiaParticleEffect> particleFx) {
         Predicate<BlockPos> allow = buildShowPredicate(sd);
         Predicate<BlockPos> deny = buildHidePredicate(sd);
         Predicate<BlockPos> filter = pos -> allow.test(pos) && !deny.test(pos);
@@ -137,7 +144,7 @@ public class PhantasiaScript {
         return new Step(sd.tick, sd.caption, filter,
                 sd.working, -1, -1,
                 yaw, pitch, zoom, useCam, lerpType, lerpTicks,
-                sd.fakeRecipeId);
+                sd.fakeRecipeId, Collections.unmodifiableList(new ArrayList<>(particleFx)));
     }
 
     private static Predicate<BlockPos> buildShowPredicate(PhantasiaScriptData.StepData sd) {
@@ -243,6 +250,11 @@ public class PhantasiaScript {
         private final PhantasiaScriptData data = new PhantasiaScriptData();
         private PhantasiaScriptData.StepData pending = null;
 
+        // Particle effects are client-side only and not part of PhantasiaScriptData.
+        // We accumulate them keyed by step index and attach after compileStep().
+        private final List<List<PhantasiaParticleEffect>> pendingParticles = new ArrayList<>();
+        private List<PhantasiaParticleEffect> currentParticles = new ArrayList<>();
+
         public Builder step(int tick, String caption) {
             commit();
             pending = new PhantasiaScriptData.StepData(tick, caption);
@@ -324,6 +336,51 @@ public class PhantasiaScript {
             return this;
         }
 
+        // ── Particle effects ──────────────────────────────────────────────────
+
+        /**
+         * Adds a named preset particle effect at a local block position.
+         * Presets: HIGHLIGHT, ATTENTION, WARNING, SUCCESS, SMOKE, SPARK.
+         */
+        public Builder particle(int x, int y, int z, PhantasiaParticleEffect.Preset preset) {
+            currentParticles.add(PhantasiaParticleEffect.preset(new BlockPos(x, y, z), preset));
+            return this;
+        }
+
+        public Builder particle(int x, int y, int z, PhantasiaParticleEffect.Preset preset,
+                                int intervalTicks) {
+            currentParticles.add(
+                    PhantasiaParticleEffect.preset(new BlockPos(x, y, z), preset, intervalTicks));
+            return this;
+        }
+
+        public Builder particle(int x, int y, int z, String particleId,
+                                int count, float spread, float speed) {
+            currentParticles.add(
+                    PhantasiaParticleEffect.vanilla(new BlockPos(x, y, z), particleId,
+                            count, spread, speed));
+            return this;
+        }
+
+        public Builder particle(int x, int y, int z, String particleId,
+                                int count, float spread, float speed, int intervalTicks) {
+            currentParticles.add(
+                    PhantasiaParticleEffect.vanilla(new BlockPos(x, y, z), particleId,
+                            count, spread, speed, intervalTicks));
+            return this;
+        }
+
+        public Builder particleAmbient(int x, int y, int z) {
+            currentParticles.add(PhantasiaParticleEffect.ambient(new BlockPos(x, y, z)));
+            return this;
+        }
+
+        public Builder particleAmbient(int x, int y, int z, int intervalTicks) {
+            currentParticles.add(
+                    PhantasiaParticleEffect.ambient(new BlockPos(x, y, z), intervalTicks));
+            return this;
+        }
+
         public Builder mistake(int x, int y, int z, String label) {
             data.getMistakes().add(new PhantasiaScriptData.MistakeData(x, y, z, label));
             return this;
@@ -342,7 +399,20 @@ public class PhantasiaScript {
 
         public PhantasiaScript build() {
             commit();
-            return PhantasiaScript.fromData(data);
+            // Compile steps and attach particle effects by step index.
+            List<PhantasiaScript.Step> compiled = new ArrayList<>();
+            int i = 0;
+            for (PhantasiaScriptData.StepData sd : data.getSteps()) {
+                List<PhantasiaParticleEffect> fx =
+                        i < pendingParticles.size() ? pendingParticles.get(i) : List.of();
+                compiled.add(compileStepWithParticles(sd, fx));
+                i++;
+            }
+            List<LocalWarning> mistakes = new ArrayList<>();
+            for (PhantasiaScriptData.MistakeData md : data.getMistakes())
+                mistakes.add(new LocalWarning(new BlockPos(md.x, md.y, md.z), md.label, md.colorArgb()));
+            List<String> globalMistakes = new ArrayList<>(data.getGlobalMistakes());
+            return new PhantasiaScript(data, compiled, mistakes, globalMistakes, List.of());
         }
 
         public PhantasiaScriptData buildData() {
@@ -358,6 +428,8 @@ public class PhantasiaScript {
         private void commit() {
             if (pending != null) {
                 data.getSteps().add(pending);
+                pendingParticles.add(new ArrayList<>(currentParticles));
+                currentParticles = new ArrayList<>();
                 pending = null;
             }
         }
