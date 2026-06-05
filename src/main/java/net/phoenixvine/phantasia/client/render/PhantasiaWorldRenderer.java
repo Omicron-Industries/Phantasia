@@ -27,7 +27,6 @@ import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
-import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.phoenixvine.phantasia.client.render.PhantasiaSpriteMarker;
 import net.phoenixvine.phantasia.client.render.PhantasiaParticleEngine;
 
@@ -134,8 +133,6 @@ public final class PhantasiaWorldRenderer {
      * Only animated sprites are stored — PhantasiaSpriteMarker.hasAnimation()
      * filters during the bake so markAll() doesn't need to check each frame.
      */
-    private Set<TextureAtlasSprite> activeSprites = Set.of();
-    private volatile Set<TextureAtlasSprite> pendingSprites = Set.of();
     private volatile Set<BlockPos> backTileEntities = null;
     private Set<BlockPos> frontTileEntities = Collections.emptySet();
 
@@ -167,6 +164,9 @@ public final class PhantasiaWorldRenderer {
 
     /** What SHOULD ultimately be visible (machine blocks only, not baseplate). */
     private Set<BlockPos> targetVisible = Collections.emptySet();
+
+    /** Subset of targetVisible whose blocks declare randomlyTicking — the only ones needing animateTick. */
+    private Set<BlockPos> animateTickEligible = Collections.emptySet();
 
     /** What is currently baked into front[]. */
     private Set<BlockPos> bakedVisible = Collections.emptySet();
@@ -323,23 +323,33 @@ public final class PhantasiaWorldRenderer {
         Set<BlockPos> old = targetVisible;
         targetVisible = Collections.unmodifiableSet(new HashSet<>(newVisible));
 
-        // Count how many blocks are changing to decide whether to animate.
-        int appearing = 0;
-        int disappearing = 0;
-        for (BlockPos p : newVisible) if (!old.contains(p)) appearing++;
-        for (BlockPos p : old) if (!newVisible.contains(p)) disappearing++;
-        int totalChanging = appearing + disappearing;
+        // Rebuild animateTick-eligible cache — only blocks with randomlyTicking=true
+        // ever do anything useful in animateTick.
+        Set<BlockPos> eligible = new HashSet<>();
+        for (BlockPos pos : targetVisible) {
+            BlockState state = world.getBlockState(pos);
+            if (state.isRandomlyTicking() || state.getBlock().isRandomlyTicking(state)) {
+                eligible.add(pos);
+            }
+        }
+        animateTickEligible = eligible.isEmpty() ? Collections.emptySet() : Collections.unmodifiableSet(eligible);
 
-        // ── Disappearing: suppress instantly (no fade-out) ───────────────────
-        // Add to suppressedPositions so drawVBOs skips them this frame.
-        // Do NOT add to blockAlpha — no animation, instant removal visually.
+        // Single-pass diff: iterate old+new together using the larger as the base.
+        int appearing = 0, disappearing = 0;
+
         for (BlockPos pos : old) {
             if (!newVisible.contains(pos)) {
+                disappearing++;
                 suppressedPositions.add(pos);
-                blockAlpha.remove(pos); // clean up any stale fade-in entry
+                blockAlpha.remove(pos);
                 blockLayers.remove(pos);
             }
         }
+        for (BlockPos pos : newVisible) {
+            if (!old.contains(pos)) appearing++;
+        }
+
+        int totalChanging = appearing + disappearing;
 
         // ── Appearing: fade in if change is small, otherwise skip to bake ─────
         if (appearing > 0 && totalChanging <= TRANSITION_THRESHOLD) {
@@ -381,6 +391,7 @@ public final class PhantasiaWorldRenderer {
         suppressedPositions.clear();
         blockAlpha.clear();
         blockLayers.clear();
+        animateTickEligible = Collections.emptySet();
         hasTransitions = false;
         rebakeNeeded = true;
     }
@@ -417,7 +428,7 @@ public final class PhantasiaWorldRenderer {
 
         // 3. Mark animated sprites active for Embeddium each frame.
         // No-op when Embeddium/Rubidium is not loaded.
-        PhantasiaSpriteMarker.markAll(activeSprites);
+        PhantasiaSpriteMarker.markAll(Set.of());
 
         // 3. Start bake if transitions done and one is pending.
         if (rebakeNeeded && !hasTransitions && (bakeFuture == null || bakeFuture.isDone())) {
@@ -495,13 +506,13 @@ public final class PhantasiaWorldRenderer {
         if (tickedThisFrame) {
             PhantasiaParticleEngine.tick();
             world.tickWorld();
-            // Drive animateTick for visible blocks so blocks that emit particles via
-            // Block.animateTick() (fire, furnaces, etc.) work correctly.
-            // PhantasiaTrackedDummyWorld.tickAnimateForPos() temporarily hides the BE
-            // so hasTicker guards in blocks like TFG's ActiveParticleBlock don't bail early.
-            if (world instanceof PhantasiaTrackedDummyWorld ptdw) {
+            // Drive animateTick only for blocks that declare randomlyTicks=true.
+            // Most blocks have a no-op animateTick; calling it on every visible block
+            // (potentially 700+ per tick) wastes time. Blocks that actually emit
+            // particles (fire, active furnaces, etc.) all set randomlyTicks=true.
+            if (world instanceof PhantasiaTrackedDummyWorld ptdw && !animateTickEligible.isEmpty()) {
                 RandomSource animRandom = RandomSource.createNewThreadLocalInstance();
-                for (BlockPos pos : targetVisible) {
+                for (BlockPos pos : animateTickEligible) {
                     ptdw.tickAnimateForPos(pos, animRandom);
                 }
             }
@@ -510,16 +521,29 @@ public final class PhantasiaWorldRenderer {
         // Skip particle rendering when Oculus shader pipeline is active — Oculus
         // intercepts both ParticleEngine.render() and Particle.render() at the class
         // level, making it impossible to render particles outside its pipeline.
-        // NOTE: No camera translate is applied here. setupCamera() builds the view
-        // matrix via gluLookAt which already places the camera at the origin in
-        // model-view space. Particle.render() subtracts camera.getPosition() from
-        // each vertex internally — adding a +camPos translate on top would
-        // double-offset every particle two camera-distances off screen.
+        //
+        // Coordinate-system note: Particle.render() outputs vertices as
+        //   vertex(particleX - camera.getPosition().x, ...)
+        // i.e. it already makes them camera-relative. setupCamera() uses gluLookAt
+        // which encodes the full world→clip transform, so a raw world-space vertex
+        // renders correctly — but particle vertices are (world - camPos). We must
+        // push a +camPos translate so the net transform is correct:
+        //   modelView * (worldPos - camPos + camPos) = modelView * worldPos  ✓
+        // This is exactly what vanilla LevelRenderer does before its particle pass.
         if (!PhantasiaParticleEngine.isOculusBlockingParticles()) {
             try {
+                Vec3 camPos = this.camera.getPosition();
+                PoseStack mv = RenderSystem.getModelViewStack();
+                mv.pushPose();
+                mv.translate(camPos.x, camPos.y, camPos.z);
+                RenderSystem.applyModelViewMatrix();
+
                 PhantasiaParticleEngine.renderDirect(buffers, mc.gameRenderer.lightTexture(),
                         this.camera, partial);
                 buffers.endBatch();
+
+                mv.popPose();
+                RenderSystem.applyModelViewMatrix();
             } catch (Exception e) {
                 LOGGER.error("[Phantasia] particle render failed", e);
             }
@@ -569,7 +593,6 @@ public final class PhantasiaWorldRenderer {
         suppressedPositions.removeIf(p -> !bakedVisible.contains(p));
         backReady = false;
         backTileEntities = null;
-        activeSprites = pendingSprites;
     }
 
     // ── Bake ─────────────────────────────────────────────────────────────────
@@ -639,36 +662,56 @@ public final class PhantasiaWorldRenderer {
             }
 
             try {
-                // Collect animated sprites for Embeddium's per-frame marking.
-                // Only needed when Embeddium/Rubidium is present — skipped otherwise.
-                Set<TextureAtlasSprite> sprites = PhantasiaSpriteMarker.EMBEDDIUM_PRESENT
-                        ? new java.util.HashSet<>() : Set.of();
+                // Bake layers ONE AT A TIME and wait for each upload before starting the next.
+                // This keeps only one layer's RenderedBuffer (potentially tens of MBs for huge
+                // multiblocks) alive at a time instead of all LAYER_COUNT simultaneously.
+                // Without this, a 5000-block solid-layer bake can allocate 50-100 MB into a
+                // BufferBuilder that sits in the recordRenderCall queue while the next layer
+                // is already being built — causing OOM before the first upload completes.
+                java.util.concurrent.Semaphore uploadSlot = new java.util.concurrent.Semaphore(0);
 
                 for (int i = 0; i < LAYER_COUNT; i++) {
                     if (Thread.interrupted()) return;
                     RenderType layer = LAYERS.get(i);
-                    BufferBuilder bb = new BufferBuilder(layer.bufferSize());
+                    List<BlockPos> solid = solidBuckets.getOrDefault(layer, List.of());
+                    List<BlockPos> fluid = fluidBuckets.getOrDefault(layer, List.of());
+                    int blockCount = solid.size() + fluid.size();
+                    // Hint the BufferBuilder to a realistic initial size.
+                    // ~512 bytes per block (6 faces × 4 verts × ~20 bytes) avoids the
+                    // first few doubling-copies for large multis while not over-allocating
+                    // for small ones. Clamped to the layer's own minimum.
+                    int sizeHint = Math.max(layer.bufferSize(), blockCount * 512);
+                    BufferBuilder bb = new BufferBuilder(sizeHint);
                     bb.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.BLOCK);
                     PoseStack ps = new PoseStack();
                     TintedVertexConsumer wrap = new TintedVertexConsumer(bb);
-                    bakeLayer(brd, random, ps, layer, wrap,
-                            solidBuckets.getOrDefault(layer, List.of()),
-                            fluidBuckets.getOrDefault(layer, List.of()),
-                            sprites);
+                    bakeLayer(brd, random, ps, layer, wrap, solid, fluid);
                     BufferBuilder.RenderedBuffer rb = bb.end();
                     final int fi = i;
                     RenderSystem.recordRenderCall(() -> {
-                        if (!back[fi].isInvalid()) {
-                            back[fi].bind();
-                            back[fi].upload(rb);
-                            VertexBuffer.unbind();
-                        }
-                        if (pendingUploads.decrementAndGet() == 0) {
-                            backReady = true;
+                        try {
+                            if (!back[fi].isInvalid()) {
+                                back[fi].bind();
+                                back[fi].upload(rb);
+                                VertexBuffer.unbind();
+                            }
+                            if (pendingUploads.decrementAndGet() == 0) {
+                                backReady = true;
+                            }
+                        } finally {
+                            uploadSlot.release(); // unblock bake thread for next layer
                         }
                     });
+
+                    // Wait for this layer to be uploaded before building the next one.
+                    // This bounds peak memory to ~1 layer at a time instead of all 4.
+                    try {
+                        uploadSlot.acquire();
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        return;
+                    }
                 }
-                pendingSprites = sprites;
             } finally {
                 ModelBlockRenderer.clearCache();
                 // Always restore hidden blocks, even if bake was interrupted.
@@ -727,8 +770,7 @@ public final class PhantasiaWorldRenderer {
                            PoseStack ps, RenderType layer,
                            TintedVertexConsumer wrapper,
                            List<BlockPos> solidBlocks,
-                           List<BlockPos> fluidBlocks,
-                           Set<TextureAtlasSprite> sprites) {
+                           List<BlockPos> fluidBlocks) {
         // Solid / cutout / translucent block geometry
         for (BlockPos pos : solidBlocks) {
             BlockState state = world.getBlockState(pos);
@@ -741,26 +783,6 @@ public final class PhantasiaWorldRenderer {
             }
             ps.popPose();
             wrapper.resetTint();
-
-            // Collect animated sprites for Embeddium per-frame marking.
-            // Routed through PhantasiaSpriteMarker to avoid loading EmbeddiumCompat
-            // when Embeddium is absent (direct class reference would fail at link time).
-            if (PhantasiaSpriteMarker.EMBEDDIUM_PRESENT) {
-                try {
-                    var model = brd.getBlockModel(state);
-                    var modelData = net.minecraftforge.client.model.data.ModelData.EMPTY;
-                    for (var face : net.minecraft.core.Direction.values()) {
-                        for (var quad : model.getQuads(state, face, random, modelData, layer)) {
-                            var sprite = quad.getSprite();
-                            if (sprite != null) PhantasiaSpriteMarker.addIfAnimated(sprite, sprites);
-                        }
-                    }
-                    for (var quad : model.getQuads(state, null, random, modelData, layer)) {
-                        var sprite = quad.getSprite();
-                        if (sprite != null) PhantasiaSpriteMarker.addIfAnimated(sprite, sprites);
-                    }
-                } catch (Exception ignored) {}
-            }
         }
 
         // Fluid geometry
@@ -851,6 +873,10 @@ public final class PhantasiaWorldRenderer {
         RandomSource random = RandomSource.createNewThreadLocalInstance();
         PoseStack ps = new PoseStack();
 
+        // One TintedVertexConsumer per RenderType, reused across all blocks in that layer.
+        // Allocating a new one per block caused significant GC pressure on large multiblocks.
+        Map<RenderType, TintedVertexConsumer> consumers = new IdentityHashMap<>(LAYER_COUNT);
+
         for (Map.Entry<BlockPos, Float> e : blockAlpha.entrySet()) {
             BlockPos pos = e.getKey();
             float alpha = e.getValue();
@@ -859,13 +885,12 @@ public final class PhantasiaWorldRenderer {
             BlockState state = world.getBlockState(pos);
             if (state.isAir() || state.getRenderShape() == RenderShape.INVISIBLE) continue;
 
-            // Use pre-cached layers — canRenderInLayer was already called when this
-            // block was added to blockAlpha, so we don't probe it every frame.
             List<RenderType> layers = blockLayers.get(pos);
             if (layers == null || layers.isEmpty()) continue;
 
             for (RenderType layer : layers) {
-                TintedVertexConsumer tinted = new TintedVertexConsumer(buffers.getBuffer(layer));
+                TintedVertexConsumer tinted = consumers.computeIfAbsent(layer,
+                        l -> new TintedVertexConsumer(buffers.getBuffer(l)));
                 tinted.setAlpha(alpha);
 
                 ps.pushPose();
@@ -876,6 +901,7 @@ public final class PhantasiaWorldRenderer {
                     brd.renderBatched(state, pos, world, ps, tinted, true, random);
                 }
                 ps.popPose();
+                tinted.resetTint();
             }
         }
     }
@@ -944,21 +970,12 @@ public final class PhantasiaWorldRenderer {
             // Match LDLib WorldSceneRenderer.renderTESR exactly:
             // fresh PoseStack per entity, translated to absolute world pos.
             // No camera-relative offset — the VBO/shader pipeline handles that
-            // through the model-view matrix set up in setupCamera().
             com.mojang.blaze3d.vertex.PoseStack ps = new com.mojang.blaze3d.vertex.PoseStack();
             ps.translate(pos.getX(), pos.getY(), pos.getZ());
 
             try {
-                // The BlockEntity's internal level reference is already our custom
-                // PhantasiaTrackedDummyWorld. Since that world completely overrides
-                // addParticle and routes them cleanly into our isolated particle engine,
-                // we no longer need to perform any complex proxy swapping logic here.
                 ber.render(be, partial, ps, buffers, 15728880, OverlayTexture.NO_OVERLAY);
 
-                // Drive clientTick() for BEs that emit particles outside their BER.
-                // MufflerPartMachine emits via clientTick() → emitPollutionParticles()
-                // → level.addParticle(). Gated by shouldTickParticles so this fires at
-                // 20/s regardless of render framerate.
                 if (tickedThisFrame) {
                     driveClientTick(be);
                 }
@@ -970,11 +987,6 @@ public final class PhantasiaWorldRenderer {
 
     // ── High-Performance clientTick driver (MethodHandles) ───────────────────
 
-    /**
-     * ClassValue is specifically designed by the JVM for ultra-fast, lock-free
-     * class-associated metadata lookups. MethodHandles avoid the allocation
-     * and security-check overhead of standard java.lang.reflect.Method.
-     */
     private static final java.lang.invoke.MethodHandle NO_OP_HANDLE;
     static {
         try {
@@ -1020,16 +1032,13 @@ public final class PhantasiaWorldRenderer {
         try {
             java.lang.invoke.MethodHandle getMachine = GET_MACHINE_CACHE.get(be.getClass());
             if (getMachine == NO_OP_HANDLE) return;
-
             Object machine = getMachine.invoke(be);
             if (machine == null) return;
-
             java.lang.invoke.MethodHandle tickMethod = CLIENT_TICK_CACHE.get(machine.getClass());
             if (tickMethod == NO_OP_HANDLE) return;
-
             tickMethod.invoke(machine);
         } catch (Throwable t) {
-            LOGGER.warn("[Phantasia] driveClientTick: invoke failed: {}", t.getMessage());
+            LOGGER.warn("[Phantasia] driveClientTick failed: {}", t.getMessage());
         }
     }
 

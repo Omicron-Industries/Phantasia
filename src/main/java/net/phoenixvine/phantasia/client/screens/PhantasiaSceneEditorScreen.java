@@ -1,6 +1,7 @@
 package net.phoenixvine.phantasia.client.screens;
 
 import net.minecraft.client.Minecraft;
+import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
@@ -17,6 +18,7 @@ import net.phoenixvine.phantasia.client.render.PhantasiaWorldRenderer;
 import net.phoenixvine.phantasia.common.PhantasiaSceneData;
 import net.phoenixvine.phantasia.common.PhantasiaSceneLoader;
 import net.phoenixvine.phantasia.common.PhantasiaScenePattern;
+import net.phoenixvine.phantasia.common.PhantasiaScenes;
 import net.phoenixvine.phantasia.common.PhantasiaScriptData;
 
 import org.joml.Vector3f;
@@ -69,8 +71,9 @@ public class PhantasiaSceneEditorScreen extends Screen {
 
     // ── Data ──────────────────────────────────────────────────────────────────
     private final Screen parent;
-    private PhantasiaSceneData data;
-    private boolean dirty = false;
+    PhantasiaSceneData data;
+    private EditBox sceneIconBox;
+    boolean dirty = false;
     private int selectedStep = 0;
 
     // ── World ─────────────────────────────────────────────────────────────────
@@ -132,6 +135,12 @@ public class PhantasiaSceneEditorScreen extends Screen {
     private final List<Btn> btns = new ArrayList<>(64);
     private int lastMX, lastMY;
 
+    // ── Item panel hover state ─────────────────────────────────────────────────
+    /** Placement index of the currently-hovered item slot, or -1. */
+    private int hoveredItemPlacement = -1;
+    /** Item index within that placement, or -1. */
+    private int hoveredItemIndex     = -1;
+
     // ─────────────────────────────────────────────────────────────────────────
 
     public PhantasiaSceneEditorScreen(Screen parent, PhantasiaSceneData original) {
@@ -165,7 +174,7 @@ public class PhantasiaSceneEditorScreen extends Screen {
         populateInputsFromStep();
     }
 
-    private void rebuildWorld() {
+    void rebuildWorld() {
         if (renderer != null) {
             renderer.close();
             renderer = null;
@@ -311,6 +320,15 @@ public class PhantasiaSceneEditorScreen extends Screen {
             dirty = true;
         });
 
+        // Add this configuration entry logic block right here:
+        sceneIconBox = addW(new EditBox(font, 0, 0, 160, 12, Component.empty()));
+        sceneIconBox.setMaxLength(128);
+        sceneIconBox.setValue(data.iconItem != null ? data.iconItem : "minecraft:chest");
+        sceneIconBox.setResponder(v -> {
+            data.iconItem = v.isBlank() ? "minecraft:chest" : v;
+            dirty = true;
+        });
+
         hideAllInputs();
     }
 
@@ -392,6 +410,7 @@ public class PhantasiaSceneEditorScreen extends Screen {
         if (showPlacementsPanel) renderPlacementsPanel(g, mx, my);
         renderStepRow(g, mx, my);
         renderTimeline(g, mx, my);
+        renderItemStrip(g);
 
         super.render(g, mx, my, partial);
 
@@ -472,8 +491,14 @@ public class PhantasiaSceneEditorScreen extends Screen {
         sceneNameBox.visible = true;
         sceneNameBox.active = true;
 
-        // Placement list
-        int listY = py + 32;
+        // Render Icon field configuration right underneath Name
+        g.drawString(font, "Icon:", px + 6, py + 34, C_DIM, false);
+        placeBox(sceneIconBox, px + 6 + font.width("Icon:") + 3, py + 32, pw - 20 - font.width("Icon:"), 12);
+        sceneIconBox.visible = true;
+        sceneIconBox.active = true;
+
+        // Placement list - pushed down by 16px to make visual room
+        int listY = py + 48; // <-- Changed from py + 32 to py + 48
         int rowH = 38;
         for (int i = 0; i < data.placements.size(); i++) {
             PhantasiaSceneData.PlacementData pd = data.placements.get(i);
@@ -490,6 +515,16 @@ public class PhantasiaSceneEditorScreen extends Screen {
             g.drawString(font, "#" + i + " " + midTrunc, px + 6, listY + 3, sel ? C_ACCENT : C_TEXT, false);
             g.drawString(font, "x" + pd.x + " y" + pd.y + " z" + pd.z,
                     px + 6, listY + 13, C_DIM, false);
+
+            // Item condition count badge
+            if (!pd.items.isEmpty()) {
+                String badge = pd.items.size() + " item" + (pd.items.size() == 1 ? "" : "s");
+                int badgeW = font.width(badge) + 6;
+                int badgeX = px + pw - 24 - badgeW - 2;
+                g.fill(badgeX, listY + 3, badgeX + badgeW, listY + 13, 0x55000000);
+                g.fill(badgeX, listY + 3, badgeX + 1, listY + 13, 0xFF4FC3F7);
+                g.drawString(font, badge, badgeX + 3, listY + 4, 0xFF4FC3F7, false);
+            }
 
             // Has override in current step?
             if (step().getOverride(i) != null) {
@@ -616,7 +651,32 @@ public class PhantasiaSceneEditorScreen extends Screen {
                             rebuildVisibility();
                             dirty = true;
                         });
+                ovY += 16;
             }
+
+            // ── Edit placement subscreen button ───────────────────────────────
+            ovY += 2;
+            // Item condition summary line
+            if (!pd.items.isEmpty()) {
+                StringBuilder sb = new StringBuilder();
+                for (PhantasiaSceneData.ItemConditionData it : pd.items) {
+                    if (sb.length() > 0) sb.append("  ");
+                    String pill = it.type == null ? "in" : switch (it.type.toLowerCase(java.util.Locale.ROOT)) {
+                        case "output" -> "out"; case "catalyst" -> "cat"; default -> "in";
+                    };
+                    sb.append("[").append(pill).append("] ");
+                    String nm = it.item.contains(":") ? it.item.split(":")[1] : it.item;
+                    sb.append(nm.replace('_', ' '));
+                }
+                g.drawString(font, trunc(sb.toString(), pw - 12), px + 6, ovY, 0xFF9ECDEE, false);
+                ovY += 11;
+            }
+            int editBtnW = pw - 12;
+            btn(g, mx, my, px + 6, ovY, editBtnW, 14,
+                    "\u270E Edit placement / items \u2192", C_BTN, () -> {
+                        Minecraft.getInstance().setScreen(
+                                new PhantasiaPlacementEditorScreen(this, data, selectedPlacement));
+                    });
         }
     }
 
@@ -819,6 +879,210 @@ public class PhantasiaSceneEditorScreen extends Screen {
         scriptDurationBox.active = true;
     }
 
+    // ── Item panel (GuideME-style) ────────────────────────────────────────────
+
+    private static final int ITEM_PANEL_W   = 186;
+    private static final int ITEM_ROW_H     = 38;
+    private static final int ITEM_ICON_BASE = 28;   // base icon draw size
+    private static final int ITEM_ICON_HOV  = 36;   // enlarged on hover
+
+    /**
+     * Renders a GuideME-style item panel docked to the right edge of the 3D
+     * viewport. Each row is one item — large hoverable icon, label, type pill,
+     * optional description lines, and a "▶ Open scene" hint when a microscene
+     * is configured. Hovering scales the icon up and highlights the row.
+     * Clicking an item with a {@code microsceneId} opens
+     * {@link PhantasiaItemMicrosceneScreen}.
+     */
+    private void renderItemStrip(GuiGraphics g) {
+        if (scenePattern == null || data == null) return;
+        PhantasiaSceneData.StepData step = step();
+        if (!step.showItems) return;
+
+        // Collect all items across placements
+        record ItemSlot(int placementIdx, int itemIdx, PhantasiaSceneData.ItemConditionData it) {}
+        List<ItemSlot> slots = new ArrayList<>();
+        for (PhantasiaScenePattern.PlacementEntry pe : scenePattern.placements) {
+            if (pe.index < 0 || pe.index >= data.placements.size()) continue;
+            PhantasiaSceneData.PlacementData pd = data.placements.get(pe.index);
+            for (int ii = 0; ii < pd.items.size(); ii++)
+                slots.add(new ItemSlot(pe.index, ii, pd.items.get(ii)));
+        }
+        if (slots.isEmpty()) return;
+
+        int panelH = slots.size() * ITEM_ROW_H + 8;
+        int panelX = this.width - ITEM_PANEL_W - 4;
+        int panelY = TOP_BAR_H + 4;
+
+        // Panel background
+        g.fill(panelX, panelY, panelX + ITEM_PANEL_W, panelY + panelH, 0xDD070712);
+        g.fill(panelX, panelY, panelX + ITEM_PANEL_W, panelY + 1,      0xFF4FC3F7);
+        g.fill(panelX, panelY, panelX + 1, panelY + panelH,            0x554FC3F7);
+
+        hoveredItemPlacement = -1;
+        hoveredItemIndex     = -1;
+
+        int ry = panelY + 4;
+        for (ItemSlot slot : slots) {
+            PhantasiaSceneData.ItemConditionData it = slot.it();
+            boolean hov = isOver(lastMX, lastMY, panelX + 2, ry, ITEM_PANEL_W - 4, ITEM_ROW_H - 1);
+            if (hov) { hoveredItemPlacement = slot.placementIdx(); hoveredItemIndex = slot.itemIdx(); }
+
+            int ac = it.accentColor();
+            // Row bg
+            g.fill(panelX + 2, ry, panelX + ITEM_PANEL_W - 2, ry + ITEM_ROW_H - 1,
+                    hov ? 0xBB0D1A2D : 0x22000000);
+            g.fill(panelX + 2, ry, panelX + 3, ry + ITEM_ROW_H - 1, ac); // accent bar
+
+            // Track-animated icon position
+            float[] anim  = computeTrackOffset(it, previewTick);
+            float animDy  = anim[1];
+            int   alpha   = Math.max(0, Math.min(255, (int)(anim[2] * 255)));
+
+            int iconSize  = hov ? ITEM_ICON_HOV : ITEM_ICON_BASE;
+            int iconX     = panelX + 5;
+            int iconCentY = ry + (ITEM_ROW_H - 1) / 2;
+            int iconY     = iconCentY - iconSize / 2 + Math.round(animDy);
+
+            net.minecraft.world.item.Item mcItem = resolveItem(it.item);
+            if (mcItem != null) {
+                net.minecraft.world.item.ItemStack stack =
+                        new net.minecraft.world.item.ItemStack(mcItem, it.count);
+                float scale = iconSize / 16f;
+                if (alpha < 255) RenderSystem.setShaderColor(1f, 1f, 1f, alpha / 255f);
+                g.pose().pushPose();
+                g.pose().translate(iconX, iconY, 200f); // z=200 so it draws over row bg
+                g.pose().scale(scale, scale, 1f);
+                g.renderItem(stack, 0, 0);
+                g.renderItemDecorations(font, stack, 0, 0);
+                g.pose().popPose();
+                if (alpha < 255) RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
+            } else {
+                g.fill(iconX + 2, iconY + 2, iconX + iconSize - 2, iconY + iconSize - 2, 0x44FF0000);
+                g.drawCenteredString(font, "?", iconX + iconSize / 2, iconCentY - 4, 0xFFFF5252);
+            }
+
+            // Text — right of icon (always leave ITEM_ICON_HOV + margin for icon column)
+            int tx = panelX + 5 + ITEM_ICON_HOV + 4;
+            int tw = ITEM_PANEL_W - (tx - panelX) - 5;
+            int ty = ry + 3;
+
+            // Label
+            String lbl = it.displayLabel();
+            g.drawString(font, trunc(lbl, tw), tx, ty, hov ? 0xFFFFFFFF : C_TEXT, false);
+            ty += 10;
+
+            // Type pill
+            String pillTxt = switch (it.type == null ? "input" : it.type.toLowerCase(java.util.Locale.ROOT)) {
+                case "output" -> "Out"; case "catalyst" -> "Cat"; default -> "In";
+            };
+            int pillW = font.width(pillTxt) + 5;
+            g.fill(tx, ty, tx + pillW, ty + 8, ac & 0x44FFFFFF | 0x44000000);
+            g.drawString(font, pillTxt, tx + 2, ty, ac, false);
+            ty += 10;
+
+            // Description (1–2 lines, truncated)
+            if (it.description != null && !it.description.isBlank()) {
+                var lines = font.split(net.minecraft.network.chat.Component.literal(it.description), tw);
+                int rem = 2;
+                for (var line : lines) {
+                    if (rem-- <= 0) break;
+                    g.drawString(font, line, tx, ty, C_DIM, false);
+                    ty += 8;
+                }
+            }
+
+            // Microscene hint (bottom-right of row)
+            boolean hasScene = it.microsceneId != null && !it.microsceneId.isBlank();
+            boolean hasContent = hasScene || (it.description != null && !it.description.isBlank());
+            if (hasContent) {
+                String hint = hov ? (hasScene ? "\u25BA Scene" : "\u25BA More") : "\u25B7";
+                int hintX = panelX + ITEM_PANEL_W - font.width(hint) - 5;
+                int hintY = ry + ITEM_ROW_H - 11;
+                g.drawString(font, hint, hintX, hintY, hov ? 0xFF80DEEA : 0x44FFFFFF, false);
+            }
+
+            // Every item is clickable — opens PhantasiaItemMicrosceneScreen
+            final PhantasiaSceneData.ItemConditionData fIt = it;
+            btns.add(new Btn(panelX + 2, ry, ITEM_PANEL_W - 4, ITEM_ROW_H - 1, () -> {
+                PhantasiaSceneData microscene = fIt.microsceneId != null
+                        ? PhantasiaScenes.get(fIt.microsceneId) : null;
+                Minecraft.getInstance().setScreen(
+                        new PhantasiaItemMicrosceneScreen(
+                                PhantasiaSceneEditorScreen.this, fIt, microscene));
+            }));
+
+            ry += ITEM_ROW_H;
+        }
+    }
+
+    /**
+     * Returns {@code [dx, dy, alpha]} for an item given its track setting and
+     * the current {@code tick}.
+     *
+     * <ul>
+     *   <li>{@code none}  — [0, 0, 1.0]
+     *   <li>{@code left}  — item travels left→right, fades at ends
+     *   <li>{@code right} — item travels right→left, fades at ends
+     *   <li>{@code up}    — item floats upward and fades
+     *   <li>{@code down}  — item falls and fades
+     *   <li>{@code pulse} — gentle vertical bob, always opaque
+     * </ul>
+     */
+    private static float[] computeTrackOffset(PhantasiaSceneData.ItemConditionData it, int tick) {
+        String track = it.track == null ? "none" : it.track.toLowerCase(java.util.Locale.ROOT);
+        if ("none".equals(track)) return new float[]{ 0, 0, 1f };
+
+        int dur = Math.max(1, it.trackDurationTicks);
+        float t = (tick % dur) / (float) dur; // 0..1 looping
+
+        return switch (track) {
+            case "left" -> {
+                // Moves left-to-right across a 40px window, fades near edges
+                float dx   = (t * 40f) - 20f;
+                float fade = 1f - Math.abs(t - 0.5f) * 2f; // 0 at edges, 1 at centre
+                yield new float[]{ dx, 0, Math.max(0f, fade) };
+            }
+            case "right" -> {
+                float dx   = 20f - (t * 40f);
+                float fade = 1f - Math.abs(t - 0.5f) * 2f;
+                yield new float[]{ dx, 0, Math.max(0f, fade) };
+            }
+            case "up" -> {
+                float dy   = -(t * 24f);       // moves 24px upward
+                float fade = 1f - t;           // fades as it rises
+                yield new float[]{ 0, dy, Math.max(0f, fade) };
+            }
+            case "down" -> {
+                float dy   = t * 24f;
+                float fade = 1f - t;
+                yield new float[]{ 0, dy, Math.max(0f, fade) };
+            }
+            case "pulse" -> {
+                // Gentle sine bob ±3px
+                float dy = (float) Math.sin(t * 2 * Math.PI) * 3f;
+                yield new float[]{ 0, dy, 1f };
+            }
+            default -> new float[]{ 0, 0, 1f };
+        };
+    }
+
+    private static String shortMachineId(String machine) {
+        if (machine == null || machine.isEmpty()) return "?";
+        return machine.contains(":") ? machine.split(":")[1].replace('_', ' ') : machine;
+    }
+
+    private static net.minecraft.world.item.Item resolveItem(String id) {
+        if (id == null || id.isBlank()) return null;
+        try {
+            net.minecraft.resources.ResourceLocation rl = id.contains(":")
+                    ? new net.minecraft.resources.ResourceLocation(id)
+                    : new net.minecraft.resources.ResourceLocation("minecraft", id);
+            net.minecraft.world.item.Item item = net.minecraftforge.registries.ForgeRegistries.ITEMS.getValue(rl);
+            return (item == null || item == net.minecraft.world.item.Items.AIR) ? null : item;
+        } catch (Exception e) { return null; }
+    }
+
     // ── Confirm dialog ────────────────────────────────────────────────────────
 
     private void renderCloseConfirmDialog(GuiGraphics g, int mx, int my) {
@@ -1005,7 +1269,7 @@ public class PhantasiaSceneEditorScreen extends Screen {
     // Undo
     // ─────────────────────────────────────────────────────────────────────────
 
-    private void checkpoint() {
+    void checkpoint() {
         if (undoStack.size() >= MAX_UNDO) undoStack.pollFirst();
         undoStack.addLast(data.copy());
     }
@@ -1188,7 +1452,7 @@ public class PhantasiaSceneEditorScreen extends Screen {
     private void hideAllInputs() {
         for (var box : List.of(captionBox, tickBox, lerpTicksBox, camZoomBox, scriptDurationBox,
                 ovLayerBox, ovHidePosBox, newMachineIdBox,
-                newOffsetXBox, newOffsetYBox, newOffsetZBox, sceneNameBox)) {
+                newOffsetXBox, newOffsetYBox, newOffsetZBox, sceneNameBox, sceneIconBox)) {
             if (box != null) {
                 box.visible = false;
                 box.active = false;

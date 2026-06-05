@@ -17,7 +17,7 @@ import org.lwjgl.glfw.GLFW;
  * PhantasiaSceneCreateScreen
  *
  * Simple dialog for creating a new manual scene.
- * Collects a scene ID (e.g. "phoenixvine:ore_line") and a display name,
+ * Collects a scene ID, display name, and a block/item stack icon identifier,
  * then writes a blank scene JSON and opens the editor.
  */
 @OnlyIn(Dist.CLIENT)
@@ -37,6 +37,7 @@ public class PhantasiaSceneCreateScreen extends Screen {
     private final Screen parent;
     private EditBox idBox;
     private EditBox nameBox;
+    private EditBox iconBox;
     private String errorMsg = null;
 
     public PhantasiaSceneCreateScreen(Screen parent) {
@@ -48,7 +49,7 @@ public class PhantasiaSceneCreateScreen extends Screen {
     protected void init() {
         super.init();
 
-        int pw = 300, ph = 110;
+        int pw = 300, ph = 130;
         int px = (this.width - pw) / 2;
         int py = (this.height - ph) / 2;
 
@@ -61,6 +62,11 @@ public class PhantasiaSceneCreateScreen extends Screen {
         nameBox.setMaxLength(64);
         nameBox.setHint(Component.literal("Display Name"));
 
+        iconBox = addRenderableWidget(new EditBox(font, px + 80, py + 56, pw - 88, 14, Component.empty()));
+        iconBox.setMaxLength(128);
+        iconBox.setValue("minecraft:chest");
+        iconBox.setHint(Component.literal("minecraft:chest"));
+
         setInitialFocus(idBox);
     }
 
@@ -68,7 +74,7 @@ public class PhantasiaSceneCreateScreen extends Screen {
     public void render(GuiGraphics g, int mx, int my, float partial) {
         g.fill(0, 0, this.width, this.height, C_BG);
 
-        int pw = 300, ph = 110;
+        int pw = 300, ph = 130;
         int px = (this.width - pw) / 2;
         int py = (this.height - ph) / 2;
 
@@ -79,11 +85,12 @@ public class PhantasiaSceneCreateScreen extends Screen {
 
         g.drawString(font, "Scene ID:", px + 6, py + 19, C_DIM, false);
         g.drawString(font, "Name:", px + 6, py + 39, C_DIM, false);
+        g.drawString(font, "Icon Item:", px + 6, py + 59, C_DIM, false);
 
         super.render(g, mx, my, partial);
 
         if (errorMsg != null)
-            g.drawCenteredString(font, errorMsg, px + pw / 2, py + 56, C_WARN);
+            g.drawCenteredString(font, errorMsg, px + pw / 2, py + 76, C_WARN);
 
         int btnY = py + ph - 22;
         drawBtn(g, mx, my, px + pw / 2 - 118, btnY, 110, 14, "✓ Create", C_GREEN);
@@ -104,7 +111,7 @@ public class PhantasiaSceneCreateScreen extends Screen {
     public boolean mouseClicked(double mx, double my, int btn) {
         if (super.mouseClicked(mx, my, btn)) return true;
 
-        int pw = 300, ph = 110;
+        int pw = 300, ph = 130;
         int px = (this.width - pw) / 2;
         int py = (this.height - ph) / 2;
         int btnY = py + ph - 22;
@@ -138,6 +145,7 @@ public class PhantasiaSceneCreateScreen extends Screen {
     private void tryCreate() {
         String id = idBox.getValue().trim();
         String name = nameBox.getValue().trim();
+        String iconItem = iconBox.getValue().trim();
 
         if (id.isEmpty()) {
             errorMsg = "Scene ID cannot be blank.";
@@ -152,8 +160,9 @@ public class PhantasiaSceneCreateScreen extends Screen {
             return;
         }
         if (name.isEmpty()) name = id.replace('_', ' ').replace(':', ' ').trim();
+        if (iconItem.isEmpty()) iconItem = "minecraft:chest";
 
-        PhantasiaSceneData scene = PhantasiaSceneData.blank(id, name);
+        PhantasiaSceneData scene = PhantasiaSceneData.blank(id, name, iconItem);
         PhantasiaSceneLoader.save(scene);
         Minecraft.getInstance().setScreen(new PhantasiaSceneEditorScreen(parent, scene));
     }

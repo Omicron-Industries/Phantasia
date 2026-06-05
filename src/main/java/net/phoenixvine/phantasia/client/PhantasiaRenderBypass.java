@@ -10,13 +10,12 @@ public class PhantasiaRenderBypass {
         Screen currentScreen = Minecraft.getInstance().screen;
         if (currentScreen == null) return false;
 
-        return currentScreen instanceof PhantasiaSceneScreen
-                || currentScreen instanceof PhantasiaScriptEditorScreen
-                || currentScreen instanceof PhantasiaSceneSelectionScreen
-                || currentScreen instanceof PhantasiaFootprintScreen
-                || currentScreen instanceof PhantasiaBlockFilterScreen
-                || currentScreen instanceof PhantasiaBlockInspectScreen
-                || currentScreen instanceof PhantasiaSceneCreateScreen
-                || currentScreen instanceof PhantasiaTextInputScreen;
+        return currentScreen instanceof PhantasiaSceneScreen || currentScreen instanceof PhantasiaScriptEditorScreen ||
+                currentScreen instanceof PhantasiaSceneSelectionScreen ||
+                currentScreen instanceof PhantasiaFootprintScreen ||
+                currentScreen instanceof PhantasiaBlockFilterScreen ||
+                currentScreen instanceof PhantasiaBlockInspectScreen ||
+                currentScreen instanceof PhantasiaSceneCreateScreen ||
+                currentScreen instanceof PhantasiaTextInputScreen;
     }
 }

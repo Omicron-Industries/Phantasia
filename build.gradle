@@ -156,7 +156,7 @@ dependencies {
 
 
     modRuntimeOnly("curse.maven:ai-improvements-233019:4578262")
- //   modRuntimeOnly("curse.maven:oculus-581495:6020952")
+    modRuntimeOnly("curse.maven:oculus-581495:6020952")
 
     modCompileOnly("curse.maven:ai-improvements-233019:4578262")
     modCompileOnly("curse.maven:oculus-581495:6020952")

@@ -23,10 +23,10 @@ import java.util.*;
  *
  * Strategy: mark ALL animated sprites in the blocks atlas and particles atlas,
  * rather than only sprites from baked quads. This covers:
- *   - Block textures from baked quads (coils, hatches, etc.)
- *   - BER overlay textures (controller active overlay, machine emissives)
- *     which are looked up at render time and never appear in baked quads
- *   - Particle sprites from PhantasiaParticleEngine's isolated particle list
+ * - Block textures from baked quads (coils, hatches, etc.)
+ * - BER overlay textures (controller active overlay, machine emissives)
+ * which are looked up at render time and never appear in baked quads
+ * - Particle sprites from PhantasiaParticleEngine's isolated particle list
  *
  * Marking all animated atlas sprites is cheap — hasAnimation() is a field read,
  * and only a small fraction of atlas sprites are animated.
@@ -34,8 +34,8 @@ import java.util.*;
 @OnlyIn(Dist.CLIENT)
 public final class PhantasiaSpriteMarker {
 
-    public static final boolean EMBEDDIUM_PRESENT =
-            ModList.get().isLoaded("embeddium") || ModList.get().isLoaded("rubidium");
+    public static final boolean EMBEDDIUM_PRESENT = ModList.get().isLoaded("embeddium") ||
+            ModList.get().isLoaded("rubidium");
 
     // TextureAtlas.getSprites() or equivalent — resolved once
     private static Method getSpritesMethod = null;
@@ -85,7 +85,7 @@ public final class PhantasiaSpriteMarker {
                         if (Map.class.isAssignableFrom(f.getType())) {
                             f.setAccessible(true);
                             Object val = f.get(atlas);
-                            if (val instanceof Map<?,?> m && !m.isEmpty()) {
+                            if (val instanceof Map<?, ?> m && !m.isEmpty()) {
                                 Object first = m.values().iterator().next();
                                 if (first instanceof TextureAtlasSprite) {
                                     spritesField = f;
@@ -146,8 +146,7 @@ public final class PhantasiaSpriteMarker {
 
         try {
             @SuppressWarnings("unchecked")
-            Map<?, Queue<Particle>> particleMap =
-                    (Map<?, Queue<Particle>>) queueField.get(engine);
+            Map<?, Queue<Particle>> particleMap = (Map<?, Queue<Particle>>) queueField.get(engine);
             for (Queue<Particle> queue : particleMap.values()) {
                 for (Particle particle : queue) {
                     try {

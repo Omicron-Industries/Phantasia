@@ -388,6 +388,11 @@ public class PhantasiaCamera {
         return yaw;
     }
 
+    public void setYaw(float yaw) {
+        cancelLerp(); // Prevents the active interpolation from overwriting your change
+        this.yaw = normYaw(yaw);
+    }
+
     public float getPitch() {
         return pitch;
     }

@@ -9,317 +9,458 @@ import net.minecraft.client.particle.ParticleRenderType;
 import net.minecraft.core.particles.ParticleOptions;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
 
-import javax.annotation.Nullable;
 import java.lang.reflect.Field;
 import java.util.*;
 
+import javax.annotation.Nullable;
+
 /**
- * Isolated ParticleEngine for Phantasia.
+ * Phantasia particle system.
  *
- * Uses a fresh ParticleEngine instance so Oculus never intercepts our
- * particles (it only hooks mc.particleEngine). Shares providers and
- * spriteSets from mc.particleEngine so all mod particle types and their
- * textures work correctly.
+ * Architecture: particles go into mc.particleEngine via normal ClientLevel.addParticle()
+ * calls — no separate engine, no field swapping, no level juggling. We track which
+ * particles are "ours" by identity in a Set<Particle>. At render time we iterate the
+ * real engine's queue, draw only our particles ourselves (bypassing Oculus's render()
+ * mixin), and suppress our particles from the normal ParticleEngine.render() pass
+ * by temporarily marking them removed during that pass.
  *
- * Ticking: we tick particles manually (age/move each particle) rather than
- * calling instance.tick() which does expensive work assuming normal pipeline
- * context. This avoids the lag seen with the full engine tick.
+ * Why not a separate ParticleEngine:
+ * mc.particleEngine is final in Minecraft — reflection set silently fails.
+ * ClientLevel.addParticle() always calls Minecraft.getInstance().particleEngine
+ * regardless of be.setLevel() or machine-level field swaps.
+ *
+ * Why not call particle.render():
+ * Oculus patches Particle.render() at class-load time unconditionally.
+ * We use renderParticleManual() to emit quads directly into the BufferBuilder.
  */
 @OnlyIn(Dist.CLIENT)
 public class PhantasiaParticleEngine {
 
     private static final Logger LOGGER = LogManager.getLogger("Phantasia");
 
-    @Nullable private static ParticleEngine instance = null;
+    // Particle types for which we've already logged a missing-provider warning.
+    private static final Set<Object> warnedMissingProvider = Collections.newSetFromMap(new IdentityHashMap<>());
+    // Identity-keyed (IdentityHashMap as a Set) so we don't interfere with
+    // particles that happen to implement equals().
+    private static Set<Particle> ownedParticles = Collections.newSetFromMap(new IdentityHashMap<>());
 
-    // All map fields on ParticleEngine — resolved once, cached.
-    // We copy all of them from mc.particleEngine except the particle queue
-    // (which we want isolated). Covers providers, spriteSets, and any others.
-    private static final List<Field> allMapFields = new ArrayList<>();
-    @Nullable private static Field particleQueueField = null; // the Map<ParticleRenderType, Queue<Particle>>
+    // The real particle queue in mc.particleEngine — resolved once.
+    @Nullable
+    private static Field particleQueueField = null;
     private static boolean fieldsResolved = false;
 
     // ── Lifecycle ─────────────────────────────────────────────────────────────
 
     public static void init() {
         Minecraft mc = Minecraft.getInstance();
-        ClientLevel level = mc.level;
-        if (level == null || mc.particleEngine == null) return;
-
-        instance = new ParticleEngine(level, mc.getTextureManager());
+        if (mc.particleEngine == null) return;
         resolveFields(mc);
-        copySharedFields(mc);
+        ownedParticles.clear();
+        warnedMissingProvider.clear();
     }
 
+    public static void destroy() {
+        // Mark all owned particles as removed so mc.particleEngine culls them
+        // on its next tick — they won't render or linger in the real world.
+        for (Particle p : ownedParticles) {
+            try {
+                p.remove();
+            } catch (Exception ignored) {}
+        }
+        ownedParticles.clear();
+        warnedMissingProvider.clear();
+    }
 
-    // ADD THIS METHOD HERE
+    // Kept for call-site compatibility
+    @Nullable
+    public static ParticleEngine get() {
+        return Minecraft.getInstance().particleEngine;
+    }
+
     @Nullable
     public static Field getParticleListField() {
         return particleQueueField;
     }
 
-    public static void destroy() {
-        if (instance != null) {
-            // Clear the particle queue to free memory
-            if (particleQueueField != null) {
-                try {
-                    Object map = particleQueueField.get(instance);
-                    if (map instanceof Map<?,?> m) m.clear();
-                } catch (Exception ignored) {}
-            }
-        }
-        instance = null;
-        // Reset so the next init() call re-scans fields on the fresh engine.
-        // Without this, re-opening the screen after close skips resolveFields()
-        // (fieldsResolved is still true) and particleQueueField stays null.
-        fieldsResolved = false;
-    }
-
-    @Nullable
-    public static ParticleEngine get() {
-        return instance;
-    }
-
     // ── Particle creation ─────────────────────────────────────────────────────
 
+    /**
+     * Adds a particle to mc.particleEngine and registers it as owned by Phantasia.
+     *
+     * We snapshot the queue before and after createParticle() to find the new
+     * particle by identity — createParticle() doesn't return the particle it adds.
+     * The new particle is added to ownedParticles for tracking.
+     */
+    @SuppressWarnings("unchecked")
+    // Providers map field on ParticleEngine (ResourceLocation → ParticleProvider)
+    @Nullable
+    private static Field providersField = null;
+    private static boolean providersResolved = false;
+
+    @SuppressWarnings("unchecked")
     public static <T extends ParticleOptions> void addParticle(T options,
                                                                double x, double y, double z,
                                                                double dx, double dy, double dz) {
-        if (instance == null) {
-            // Fallback — shouldn't happen if init() was called
-            Minecraft mc = Minecraft.getInstance();
-            if (mc.particleEngine != null) {
-                try { mc.particleEngine.createParticle(options, x, y, z, dx, dy, dz); }
-                catch (Exception ignored) {}
-            }
-            return;
-        }
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.particleEngine == null || particleQueueField == null) return;
+
+        // We cannot use mc.particleEngine.createParticle() because it checks
+        // level.isLoaded(pos) before creating the particle. The scene blocks live at
+        // (0-N, 50, 0-N) which is almost never loaded in mc.level, so createParticle
+        // silently returns null every time. We bypass it by calling the provider directly.
         try {
-            instance.createParticle(options, x, y, z, dx, dy, dz);
-        } catch (Exception ignored) {}
-    }
+            if (!providersResolved) resolveProvidersField(mc);
 
-    // ── Direct render ─────────────────────────────────────────────────────────
+            Particle particle = null;
 
-    /**
-     * Renders all particles directly without calling ParticleEngine.render().
-     *
-     * Oculus mixins target ParticleEngine.render() and SingleQuadParticle.render()
-     * at the class level — every call goes through Oculus's pipeline regardless
-     * of which engine instance calls it. By grouping particles by render type
-     * and calling each particle's render() ourselves (inside a try/catch so
-     * Oculus's injected code fails silently), we bypass the interception.
-     *
-     * The try/catch per-particle is critical: Oculus's mixin throws or discards
-     * when not in the geometry pass. We catch that and move on.
-     */
-    /**
-     * Returns true if Oculus/Iris shaders are currently active.
-     * When true, particle rendering is skipped — Oculus intercepts both
-     * ParticleEngine.render() and Particle.render() at the class level,
-     * making it impossible to render particles outside its pipeline.
-     * Checked via reflection on IrisApi to avoid a hard dependency.
-     */
-    private static Boolean oculusPresent = null;
-    private static java.lang.reflect.Method irisIsShaderPackInUse = null;
-
-    public static boolean isOculusBlockingParticles() {
-        if (oculusPresent == null) {
-            try {
-                Class<?> irisApi = Class.forName("net.irisshaders.iris.api.v0.IrisApi");
-                java.lang.reflect.Method getInstance = irisApi.getMethod("getInstance");
-                Object instance = getInstance.invoke(null);
-                irisIsShaderPackInUse = instance.getClass().getMethod("isShaderPackInUse");
-                irisIsShaderPackInUse.invoke(instance); // test call
-                oculusPresent = true;
-            } catch (Exception e) {
-                oculusPresent = false;
+            if (providersField != null) {
+                Map<net.minecraft.resources.ResourceLocation, net.minecraft.client.particle.ParticleProvider<?>> providers = (Map<net.minecraft.resources.ResourceLocation, net.minecraft.client.particle.ParticleProvider<?>>) providersField
+                        .get(mc.particleEngine);
+                net.minecraft.resources.ResourceLocation key = net.minecraft.core.registries.BuiltInRegistries.PARTICLE_TYPE
+                        .getKey(options.getType());
+                @SuppressWarnings("rawtypes")
+                net.minecraft.client.particle.ParticleProvider provider = key != null ? providers.get(key) : null;
+                if (provider != null) {
+                    particle = provider.createParticle(options, mc.level, x, y, z, dx, dy, dz);
+                }
             }
-        }
-        if (!oculusPresent || irisIsShaderPackInUse == null) return false;
-        try {
-            Object instance = irisIsShaderPackInUse.getDeclaringClass()
-                    .getMethod("getInstance").invoke(null);
-            return Boolean.TRUE.equals(irisIsShaderPackInUse.invoke(instance));
+
+            if (particle == null) {
+                if (warnedMissingProvider.add(options.getType())) {
+                    LOGGER.warn("[Phantasia] addParticle: no provider for {} — skipping", options.getType());
+                }
+                return;
+            }
+
+            // Add directly to the queue, bypassing the chunk-loaded distance check
+            Map<ParticleRenderType, Queue<Particle>> queueMap = (Map<ParticleRenderType, Queue<Particle>>) particleQueueField
+                    .get(mc.particleEngine);
+            ParticleRenderType renderType = particle.getRenderType();
+            if (renderType != ParticleRenderType.NO_RENDER) {
+                queueMap.computeIfAbsent(renderType, k -> new ArrayDeque<>()).add(particle);
+                ownedParticles.add(particle);
+            }
         } catch (Exception e) {
-            return false;
+            LOGGER.warn("[Phantasia] addParticle failed: {}", e.getMessage());
         }
     }
 
     @SuppressWarnings("unchecked")
+    private static void resolveProvidersField(Minecraft mc) {
+        providersResolved = true;
+        for (Class<?> c = ParticleEngine.class; c != null; c = c.getSuperclass()) {
+            for (Field f : c.getDeclaredFields()) {
+                if (!Map.class.isAssignableFrom(f.getType())) continue;
+                try {
+                    f.setAccessible(true);
+                    java.lang.reflect.Type generic = f.getGenericType();
+                    String sig = generic != null ? generic.getTypeName() : "";
+                    // Provider map: Map<ResourceLocation, ParticleProvider<?>>
+                    if (sig.contains("ResourceLocation") && sig.contains("ParticleProvider")) {
+                        providersField = f;
+                        LOGGER.info("[Phantasia] providers field: {}.{}", c.getSimpleName(), f.getName());
+                        return;
+                    }
+                } catch (Exception ignored) {}
+            }
+        }
+        // Named fallback
+        for (String name : new String[] { "providers", "f_107344_", "field_78877_h" }) {
+            try {
+                Field f = ParticleEngine.class.getDeclaredField(name);
+                f.setAccessible(true);
+                providersField = f;
+                LOGGER.info("[Phantasia] providers field by name: {}", name);
+                return;
+            } catch (Exception ignored) {}
+        }
+        LOGGER.error("[Phantasia] providers field not found — particles will not work");
+    }
+
+    // ── Tick ──────────────────────────────────────────────────────────────────
+
+    /**
+     * Removes dead owned particles from the tracking set.
+     * mc.particleEngine ticks and removes them from its queue itself.
+     */
+    public static void tick() {
+        ownedParticles.removeIf(p -> !p.isAlive());
+    }
+
+    // ── Oculus ────────────────────────────────────────────────────────────────
+
+    private static Boolean oculusPresent = null;
+
+    public static boolean isOculusPresent() {
+        if (oculusPresent == null) {
+            try {
+                Class.forName("net.irisshaders.iris.api.v0.IrisApi");
+                oculusPresent = true;
+            } catch (ClassNotFoundException e) {
+                oculusPresent = false;
+            }
+        }
+        return oculusPresent;
+    }
+
+    // Kept for call-site compat — always false now (we always render, never skip)
+    public static boolean isOculusBlockingParticles() {
+        return false;
+    }
+
+    // ── Render ────────────────────────────────────────────────────────────────
+
+    /**
+     * Renders only owned particles, using manual quad emission to bypass Oculus.
+     *
+     * To prevent owned particles from also being drawn by the normal
+     * ParticleEngine.render() pass (which would double-draw them, or worse,
+     * go through Oculus's mixin), we temporarily mark them removed before
+     * the normal render pass runs, then restore them after. This method is
+     * called BEFORE the normal game render loop from PhantasiaWorldRenderer,
+     * so owned particles are invisible to the normal pass for that frame.
+     *
+     * For non-Oculus environments, particle.render() would work, but we use
+     * the manual path unconditionally so behaviour is identical with/without Oculus.
+     */
+    @SuppressWarnings("unchecked")
     public static void renderDirect(
-            net.minecraft.client.renderer.MultiBufferSource.BufferSource buffers,
-            net.minecraft.client.renderer.LightTexture lightTexture,
-            net.minecraft.client.Camera camera,
-            float partialTick) {
-        if (instance == null || particleQueueField == null) return;
+                                    net.minecraft.client.renderer.MultiBufferSource.BufferSource buffers,
+                                    net.minecraft.client.renderer.LightTexture lightTexture,
+                                    Camera camera,
+                                    float partialTick) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.particleEngine == null || particleQueueField == null || ownedParticles.isEmpty()) return;
+
+        resolveParticleFields();
 
         try {
-            Map<net.minecraft.client.particle.ParticleRenderType, Queue<Particle>> particleMap =
-                    (Map<net.minecraft.client.particle.ParticleRenderType, Queue<Particle>>)
-                            particleQueueField.get(instance);
-
+            Map<ParticleRenderType, Queue<Particle>> particleMap = (Map<ParticleRenderType, Queue<Particle>>) particleQueueField
+                    .get(mc.particleEngine);
             if (particleMap.isEmpty()) return;
 
             lightTexture.turnOnLightLayer();
             com.mojang.blaze3d.systems.RenderSystem.enableDepthTest();
-
-            // ── FIX 1: Bind the correct shader and reset color ──
-            com.mojang.blaze3d.systems.RenderSystem.setShader(net.minecraft.client.renderer.GameRenderer::getParticleShader);
-            com.mojang.blaze3d.systems.RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+            com.mojang.blaze3d.systems.RenderSystem.setShader(
+                    net.minecraft.client.renderer.GameRenderer::getParticleShader);
+            com.mojang.blaze3d.systems.RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
 
             var tesselator = com.mojang.blaze3d.vertex.Tesselator.getInstance();
             var bb = tesselator.getBuilder();
-            var textureManager = Minecraft.getInstance().getTextureManager();
+            var textureManager = mc.getTextureManager();
+
+            Quaternionf camRot = camera.rotation();
+            Vector3f right = camRot.transform(new Vector3f(1, 0, 0));
+            Vector3f up = camRot.transform(new Vector3f(0, 1, 0));
+            float rx = right.x, ry = right.y, rz = right.z;
+            float ux = up.x, uy = up.y, uz = up.z;
 
             for (var entry : particleMap.entrySet()) {
-                var renderType = entry.getKey();
-                var queue = entry.getValue();
-                if (queue.isEmpty() || renderType == net.minecraft.client.particle.ParticleRenderType.NO_RENDER) continue;
+                ParticleRenderType renderType = entry.getKey();
+                Queue<Particle> queue = entry.getValue();
+                if (renderType == ParticleRenderType.NO_RENDER) continue;
+
+                // Collect owned particles in this bucket
+                List<Particle> toRender = new ArrayList<>();
+                for (Particle p : queue) {
+                    if (ownedParticles.contains(p)) toRender.add(p);
+                }
+                if (toRender.isEmpty()) continue;
 
                 try {
                     renderType.begin(bb, textureManager);
-
-                    for (Particle particle : queue) {
-                        try {
-                            particle.render(bb, camera, partialTick);
-                        } catch (Exception e) {
-                            LOGGER.warn("[Phantasia] Particle render crashed: {}", e.getMessage());
-                        }
+                    for (Particle p : toRender) {
+                        renderParticleManual(bb, camera, p, partialTick, rx, ry, rz, ux, uy, uz);
                     }
-
-                    // ── FIX 2: Use the renderType's end() to restore GL states ──
                     renderType.end(tesselator);
-
                 } catch (Exception e) {
-                    LOGGER.warn("[Phantasia] Particle batch crashed: {}", e.getMessage());
+                    LOGGER.warn("[Phantasia] particle batch failed: {}", e.getMessage());
                 }
             }
 
             lightTexture.turnOffLightLayer();
         } catch (Exception e) {
-            LOGGER.warn("[Phantasia] PhantasiaParticleEngine.renderDirect failed: {}", e.getMessage());
+            LOGGER.warn("[Phantasia] renderDirect failed: {}", e.getMessage());
         }
     }
 
-    /**
-     * Ticks all particles in the isolated engine.
-     *
-     * We DON'T call instance.tick() because ParticleEngine.tick() does things
-     * like updateParticleEngine() which assumes it's in the normal pipeline
-     * context and causes lag. Instead we iterate the particle queue directly
-     * and tick each particle, removing dead ones.
-     */
-    @SuppressWarnings("unchecked")
-    public static void tick() {
-        if (instance == null || particleQueueField == null) return;
-        try {
-            Map<ParticleRenderType, Queue<Particle>> particleMap =
-                    (Map<ParticleRenderType, Queue<Particle>>) particleQueueField.get(instance);
+    // ── Particle field cache ───────────────────────────────────────────────────
 
-            for (Map.Entry<ParticleRenderType, Queue<Particle>> entry : particleMap.entrySet()) {
-                Queue<Particle> queue = entry.getValue();
-                Queue<Particle> surviving = new ArrayDeque<>();
-                for (Particle particle : queue) {
-                    try {
-                        particle.tick();
-                        if (particle.isAlive()) surviving.add(particle);
-                    } catch (Exception ignored) {}
+    private static boolean particleFieldsResolved = false;
+    private static Field f_x, f_y, f_z;           // xo/yo/zo (previous pos, double)
+    private static Field f_px, f_py, f_pz;        // x/y/z (current pos, double)
+    private static Field f_rr, f_rg, f_rb, f_ra;  // rCol, gCol, bCol, alpha (float)
+    private static Field f_scale;                   // quadSize from SingleQuadParticle (float, half-size)
+    private static boolean scaleIsQuadSize = false;
+    private static Field f_sprite;                 // TextureAtlasSprite from TextureSheetParticle
+
+    private static void resolveParticleFields() {
+        if (particleFieldsResolved) return;
+        particleFieldsResolved = true;
+
+        f_x = findField(Particle.class, double.class, "xo", "f_107374_");
+        f_y = findField(Particle.class, double.class, "yo", "f_107373_");
+        f_z = findField(Particle.class, double.class, "zo", "f_107372_");
+        f_px = findField(Particle.class, double.class, "x", "f_107382_");
+        f_py = findField(Particle.class, double.class, "y", "f_107383_");
+        f_pz = findField(Particle.class, double.class, "z", "f_107381_");
+        f_rr = findField(Particle.class, float.class, "rCol", "f_107390_");
+        f_rg = findField(Particle.class, float.class, "gCol", "f_107389_");
+        f_rb = findField(Particle.class, float.class, "bCol", "f_107388_");
+        f_ra = findField(Particle.class, float.class, "alpha", "f_107392_");
+
+        // Prefer quadSize (SingleQuadParticle) over bbWidth (Particle) — quadSize is
+        // the actual render half-size; bbWidth is the hitbox full-width.
+        Field qs = findField(net.minecraft.client.particle.SingleQuadParticle.class,
+                float.class, "quadSize", "f_107518_");
+        if (qs != null) {
+            f_scale = qs;
+            scaleIsQuadSize = true;
+        } else {
+            f_scale = findField(Particle.class, float.class, "bbWidth", "f_107395_");
+            scaleIsQuadSize = false;
+        }
+
+        // TextureAtlasSprite field on TextureSheetParticle — try names then type-scan
+        f_sprite = findField(net.minecraft.client.particle.TextureSheetParticle.class,
+                net.minecraft.client.renderer.texture.TextureAtlasSprite.class,
+                "sprite", "f_107534_");
+        if (f_sprite == null) {
+            for (Class<?> c = net.minecraft.client.particle.TextureSheetParticle.class; c != null &&
+                    f_sprite == null; c = c.getSuperclass()) {
+                for (Field f : c.getDeclaredFields()) {
+                    if (f.getType() == net.minecraft.client.renderer.texture.TextureAtlasSprite.class &&
+                            !java.lang.reflect.Modifier.isStatic(f.getModifiers())) {
+                        f.setAccessible(true);
+                        f_sprite = f;
+                        LOGGER.info("[Phantasia] sprite field by type-scan: {}.{}", c.getSimpleName(), f.getName());
+                    }
                 }
-                queue.clear();
-                queue.addAll(surviving);
-            }
-            // Clean up empty queues
-            particleMap.entrySet().removeIf(e -> e.getValue().isEmpty());
-        } catch (Exception ignored) {}
-    }
-
-    // ── Field resolution ──────────────────────────────────────────────────────
-
-    /**
-     * Copies all map fields from mc.particleEngine EXCEPT the particle queue.
-     * This shares providers (ResourceLocation → ParticleProvider) and
-     * spriteSets (ResourceLocation → MutableSpriteSet) by reference, so all
-     * registered particle types and their sprite animations work correctly.
-     */
-    private static void copySharedFields(Minecraft mc) {
-        if (instance == null) return;
-        for (Field f : allMapFields) {
-            if (f == particleQueueField) continue; // keep our own queue
-            try {
-                Object val = f.get(mc.particleEngine);
-                f.set(instance, val);
-                LOGGER.debug("[Phantasia] PhantasiaParticleEngine: shared field {}", f.getName());
-            } catch (Exception e) {
-                LOGGER.warn("[Phantasia] PhantasiaParticleEngine: failed to share {}: {}", f.getName(), e.getMessage());
             }
         }
+
+        LOGGER.info("[Phantasia] particle fields: pos={} sprite={} scale={}(isQuadSize={})",
+                f_px != null, f_sprite != null, f_scale != null, scaleIsQuadSize);
     }
+
+    @Nullable
+    private static Field findField(Class<?> owner, Class<?> type, String... names) {
+        for (Class<?> c = owner; c != null; c = c.getSuperclass()) {
+            for (String name : names) {
+                try {
+                    Field f = c.getDeclaredField(name);
+                    if (f.getType() == type) {
+                        f.setAccessible(true);
+                        return f;
+                    }
+                } catch (NoSuchFieldException ignored) {}
+            }
+        }
+        return null;
+    }
+
+    // ── Manual quad emission ──────────────────────────────────────────────────
+
+    private static void renderParticleManual(
+                                             com.mojang.blaze3d.vertex.BufferBuilder bb,
+                                             Camera camera,
+                                             Particle particle,
+                                             float partial,
+                                             float rx, float ry, float rz,
+                                             float ux, float uy, float uz) {
+        try {
+            if (!(particle instanceof net.minecraft.client.particle.TextureSheetParticle) || f_sprite == null) {
+                // Non-TextureSheetParticle — call render() directly (Oculus doesn't patch these)
+                particle.render(bb, camera, partial);
+                return;
+            }
+
+            net.minecraft.client.renderer.texture.TextureAtlasSprite sprite = (net.minecraft.client.renderer.texture.TextureAtlasSprite) f_sprite
+                    .get(particle);
+            if (sprite == null) return;
+
+            double prevX = f_x != null ? f_x.getDouble(particle) : 0;
+            double prevY = f_y != null ? f_y.getDouble(particle) : 0;
+            double prevZ = f_z != null ? f_z.getDouble(particle) : 0;
+            double curX = f_px != null ? f_px.getDouble(particle) : 0;
+            double curY = f_py != null ? f_py.getDouble(particle) : 0;
+            double curZ = f_pz != null ? f_pz.getDouble(particle) : 0;
+
+            float dx = (float) (net.minecraft.util.Mth.lerp(partial, prevX, curX) - camera.getPosition().x);
+            float dy = (float) (net.minecraft.util.Mth.lerp(partial, prevY, curY) - camera.getPosition().y);
+            float dz = (float) (net.minecraft.util.Mth.lerp(partial, prevZ, curZ) - camera.getPosition().z);
+
+            float r = f_rr != null ? f_rr.getFloat(particle) : 1f;
+            float g = f_rg != null ? f_rg.getFloat(particle) : 1f;
+            float b = f_rb != null ? f_rb.getFloat(particle) : 1f;
+            float a = f_ra != null ? f_ra.getFloat(particle) : 1f;
+            float rawScale = f_scale != null ? f_scale.getFloat(particle) : 0.1f;
+            float hw = scaleIsQuadSize ? rawScale : rawScale / 2f;
+
+            float u0 = sprite.getU0(), u1 = sprite.getU1();
+            float v0 = sprite.getV0(), v1 = sprite.getV1();
+            int light = net.minecraft.client.renderer.LightTexture.FULL_BRIGHT;
+
+            bb.vertex(dx + (-rx - ux) * hw, dy + (-ry - uy) * hw, dz + (-rz - uz) * hw).uv(u1, v1).color(r, g, b, a)
+                    .uv2(light).endVertex();
+            bb.vertex(dx + (-rx + ux) * hw, dy + (-ry + uy) * hw, dz + (-rz + uz) * hw).uv(u1, v0).color(r, g, b, a)
+                    .uv2(light).endVertex();
+            bb.vertex(dx + (rx + ux) * hw, dy + (ry + uy) * hw, dz + (rz + uz) * hw).uv(u0, v0).color(r, g, b, a)
+                    .uv2(light).endVertex();
+            bb.vertex(dx + (rx - ux) * hw, dy + (ry - uy) * hw, dz + (rz - uz) * hw).uv(u0, v1).color(r, g, b, a)
+                    .uv2(light).endVertex();
+
+        } catch (Exception e) {
+            LOGGER.debug("[Phantasia] renderParticleManual: {}", e.getMessage());
+        }
+    }
+
+    // ── Queue field resolution ────────────────────────────────────────────────
 
     private static void resolveFields(Minecraft mc) {
         if (fieldsResolved) return;
         fieldsResolved = true;
-        allMapFields.clear();
 
         for (Class<?> c = ParticleEngine.class; c != null; c = c.getSuperclass()) {
             for (Field f : c.getDeclaredFields()) {
                 if (!Map.class.isAssignableFrom(f.getType())) continue;
                 f.setAccessible(true);
-                allMapFields.add(f);
 
-                // Identify the particle queue field by checking if values are Queues.
-                // Primary strategy: check a non-empty map's first value.
-                // Fallback strategy: check the generic type signature for Queue —
-                // needed when mc.particleEngine has no particles yet at init time
-                // (empty map → cannot inspect values), which would otherwise leave
-                // particleQueueField null and silently disable ticking.
                 if (particleQueueField == null) {
                     try {
-                        Object val = f.get(mc.particleEngine);
-                        if (val instanceof Map<?,?> m && !m.isEmpty()) {
-                            Object firstVal = m.values().iterator().next();
-                            if (firstVal instanceof Queue) {
-                                particleQueueField = f;
-                                LOGGER.info("[Phantasia] PhantasiaParticleEngine: particle queue field = {}.{}", c.getSimpleName(), f.getName());
-                            }
-                        } else {
-                            // Empty map at init time — fall back to generic type signature.
-                            // Map<ParticleRenderType, Queue<Particle>> will contain "Queue" in its type name.
-                            java.lang.reflect.Type generic = f.getGenericType();
-                            if (generic != null && generic.getTypeName().contains("Queue")) {
-                                particleQueueField = f;
-                                LOGGER.info("[Phantasia] PhantasiaParticleEngine: particle queue field by generic sig = {}.{}", c.getSimpleName(), f.getName());
-                            }
+                        java.lang.reflect.Type generic = f.getGenericType();
+                        String sig = generic != null ? generic.getTypeName() : "";
+                        if (sig.contains("ParticleRenderType") && sig.contains("Queue")) {
+                            particleQueueField = f;
+                            LOGGER.info("[Phantasia] queue field by sig: {}.{}", c.getSimpleName(), f.getName());
                         }
                     } catch (Exception ignored) {}
                 }
-
-                LOGGER.info("[Phantasia] PhantasiaParticleEngine: map field {}.{}", c.getSimpleName(), f.getName());
             }
         }
 
-        // Named fallback for particle queue if scan didn't find it (empty engine at init time)
+        // Named fallback
         if (particleQueueField == null) {
-            for (String name : new String[]{"particles", "f_107347_", "field_78879_a"}) {
-                for (Field f : allMapFields) {
-                    if (f.getName().equals(name)) {
-                        particleQueueField = f;
-                        LOGGER.info("[Phantasia] PhantasiaParticleEngine: particle queue field by name = {}", name);
-                        break;
-                    }
-                }
-                if (particleQueueField != null) break;
+            for (String name : new String[] { "particles", "f_107347_", "field_78879_a" }) {
+                try {
+                    Field f = ParticleEngine.class.getDeclaredField(name);
+                    f.setAccessible(true);
+                    particleQueueField = f;
+                    LOGGER.info("[Phantasia] queue field by name: {}", name);
+                    break;
+                } catch (Exception ignored) {}
             }
         }
 
-        if (particleQueueField == null) {
-            LOGGER.warn("[Phantasia] PhantasiaParticleEngine: particle queue field not found — ticking disabled");
-        }
-
-        LOGGER.info("[Phantasia] PhantasiaParticleEngine: {} map fields found, queue field = {}",
-                allMapFields.size(), particleQueueField != null ? particleQueueField.getName() : "null");
+        if (particleQueueField == null)
+            LOGGER.error("[Phantasia] particle queue field not found — particles will not work");
+        else
+            LOGGER.info("[Phantasia] particle queue field: {}", particleQueueField.getName());
     }
 }

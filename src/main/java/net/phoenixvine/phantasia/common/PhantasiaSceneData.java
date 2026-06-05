@@ -45,6 +45,8 @@ public class PhantasiaSceneData {
     @SerializedName("id")
     public String id = "";
 
+    public String iconItem = "minecraft:chest";
+
     @SerializedName("name")
     public String name = "Unnamed Scene";
 
@@ -53,6 +55,120 @@ public class PhantasiaSceneData {
 
     @SerializedName("steps")
     public List<StepData> steps = new ArrayList<>();
+
+    // ── Item condition ────────────────────────────────────────────────────────
+
+    /**
+     * An item displayed alongside a placement to explain a recipe condition —
+     * e.g. what the machine requires as input, produces as output, or consumes
+     * as a catalyst.  Pure display; no gameplay effect.
+     *
+     * JSON:
+     * { "item": "gtceu:wafer", "count": 1, "label": "Input", "type": "input" }
+     */
+    public static class ItemConditionData {
+
+        /** Registry ID of the item, e.g. {@code "gtceu:wafer"}. */
+        @SerializedName("item")
+        public String item = "";
+
+        /** Stack size shown in the HUD strip. Defaults to 1. */
+        @SerializedName("count")
+        public int count = 1;
+
+        /**
+         * Short human-readable label rendered beneath the item icon.
+         * {@code null} means auto-label derived from {@link #type}.
+         */
+        @SerializedName("label")
+        public String label = null;
+
+        /**
+         * Rich text description shown in the item panel alongside the icon.
+         * Supports Minecraft § colour codes. If null, only the label is shown.
+         */
+        @SerializedName("description")
+        public String description = null;
+
+        /**
+         * Optional ID of another {@link PhantasiaSceneData} to open when the
+         * user clicks this item in the panel.  Null = no click action.
+         * Example: {@code "phantasia:wafer_production"}.
+         */
+        @SerializedName("microsceneId")
+        public String microsceneId = null;
+
+        /**
+         * Relationship to the machine: {@code "input"}, {@code "output"},
+         * or {@code "catalyst"}.  Drives the accent colour in the HUD strip
+         * (blue / green / yellow) and the auto-label when {@link #label} is null.
+         */
+        @SerializedName("type")
+        public String type = "input";
+
+        /**
+         * Animation track for this item icon in the 2D scene overlay.
+         * {@code "none"} (default) — icon stays fixed in its strip slot.
+         * {@code "left"}  — slides in from the left  and disappears right.
+         * {@code "right"} — slides in from the right and disappears left.
+         * {@code "up"}    — slides upward and fades.
+         * {@code "down"}  — slides downward and fades.
+         * {@code "pulse"} — bobs gently in place (attention effect).
+         *
+         * The animation loops every {@link #trackDurationTicks} ticks.
+         */
+        @SerializedName("track")
+        public String track = "none";
+
+        /**
+         * How many ticks one full animation cycle takes. Defaults to 20 (1 second).
+         * Ignored when {@link #track} is {@code "none"}.
+         */
+        @SerializedName("trackDuration")
+        public int trackDurationTicks = 20;
+
+        public ItemConditionData() {}
+
+        public ItemConditionData(String item, int count, String label, String type) {
+            this.item = item;
+            this.count = count;
+            this.label = label;
+            this.type = type;
+        }
+
+        /** Returns the label to display: explicit label if set, else type-derived. */
+        public String displayLabel() {
+            if (label != null && !label.isBlank()) return label;
+            return switch (type == null ? "input" : type.toLowerCase(java.util.Locale.ROOT)) {
+                case "output"   -> "Output";
+                case "catalyst" -> "Catalyst";
+                default         -> "Input";
+            };
+        }
+
+        /** Accent colour for the HUD strip border/header, by type. */
+        public int accentColor() {
+            return staticAccentFor(type);
+        }
+
+        /** Static variant so the editor can call it without an instance. */
+        public static int staticAccentFor(String type) {
+            return switch (type == null ? "input" : type.toLowerCase(java.util.Locale.ROOT)) {
+                case "output"   -> 0xFF66BB6A; // green
+                case "catalyst" -> 0xFFFFB74D; // amber
+                default         -> 0xFF4FC3F7; // blue
+            };
+        }
+
+        public ItemConditionData copy() {
+            ItemConditionData c = new ItemConditionData(item, count, label, type);
+            c.track = track;
+            c.trackDurationTicks = trackDurationTicks;
+            c.description = description;
+            c.microsceneId = microsceneId;
+            return c;
+        }
+    }
 
     // ── Placement ─────────────────────────────────────────────────────────────
 
@@ -71,6 +187,14 @@ public class PhantasiaSceneData {
         @SerializedName("z")
         public int z = 0;
 
+        /**
+         * Items to display alongside this placement as recipe condition hints.
+         * Shown as a HUD strip of item icons in the scene viewer and editor.
+         * These are purely visual — they have no gameplay effect.
+         */
+        @SerializedName("items")
+        public List<ItemConditionData> items = new ArrayList<>();
+
         public PlacementData() {}
 
         public PlacementData(String machine, int x, int y, int z) {
@@ -81,7 +205,9 @@ public class PhantasiaSceneData {
         }
 
         public PlacementData copy() {
-            return new PlacementData(machine, x, y, z);
+            PlacementData c = new PlacementData(machine, x, y, z);
+            for (ItemConditionData it : items) c.items.add(it.copy());
+            return c;
         }
     }
 
@@ -179,6 +305,16 @@ public class PhantasiaSceneData {
         @SerializedName("working")
         public boolean working = false;
 
+        /**
+         * Whether to display item-condition strips for placements that have
+         * {@link PlacementData#items} defined.  Defaults to {@code true}.
+         * Set to {@code false} on steps where the item overlay would be
+         * distracting (e.g. a step focused on structure assembly rather than
+         * recipe requirements).
+         */
+        @SerializedName("showItems")
+        public boolean showItems = true;
+
         @SerializedName("camera")
         public PhantasiaScriptData.CameraData camera = null;
 
@@ -205,6 +341,7 @@ public class PhantasiaSceneData {
             c.layerMax = layerMax;
             c.hideLayer = hideLayer;
             c.working = working;
+            c.showItems = showItems;
             c.camera = camera == null ? null : new PhantasiaScriptData.CameraData(camera.yaw, camera.pitch, camera.zoom,
                     camera.lerpType, camera.lerpTicks);
             for (int[] p : positions) c.positions.add(new int[] { p[0], p[1], p[2] });
@@ -234,16 +371,20 @@ public class PhantasiaSceneData {
 
     public PhantasiaSceneData() {}
 
-    public PhantasiaSceneData(String id, String name) {
+    public PhantasiaSceneData(String id, String name, String iconItem) {
         this.id = id;
         this.name = name;
+        this.iconItem = iconItem;
+    }
+
+    public PhantasiaSceneData(String id, String name) {
+        this(id, name, "minecraft:chest");
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    /** Returns a default scene with one empty step. */
-    public static PhantasiaSceneData blank(String id, String name) {
-        PhantasiaSceneData d = new PhantasiaSceneData(id, name);
+    public static PhantasiaSceneData blank(String id, String name, String iconItem) {
+        PhantasiaSceneData d = new PhantasiaSceneData(id, name, iconItem);
         StepData s = new StepData(0, null);
         s.show = "all";
         d.steps.add(s);
@@ -251,12 +392,11 @@ public class PhantasiaSceneData {
     }
 
     public PhantasiaSceneData copy() {
-        PhantasiaSceneData c = new PhantasiaSceneData(id, name);
+        PhantasiaSceneData c = new PhantasiaSceneData(id, name, iconItem); // <-- Pass iconItem here
         for (PlacementData p : placements) c.placements.add(p.copy());
         for (StepData s : steps) c.steps.add(s.copy());
         return c;
     }
-
     // ── Gson codec ────────────────────────────────────────────────────────────
 
     public String toJson() {

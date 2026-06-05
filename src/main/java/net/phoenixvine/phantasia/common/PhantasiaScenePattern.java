@@ -12,6 +12,7 @@ import com.lowdragmc.lowdraglib.utils.BlockInfo;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraftforge.registries.ForgeRegistries;
 import net.phoenixvine.phantasia.client.render.PhantasiaTrackedDummyWorld;
 
 import java.util.*;
@@ -119,7 +120,22 @@ public class PhantasiaScenePattern {
                                                  PhantasiaTrackedDummyWorld sharedWorld,
                                                  Map<BlockPos, BlockInfo> mergedMap,
                                                  Set<BlockPos> allBaseplates) {
-        MultiblockMachineDefinition def = resolveDefinition(pd.machine);
+        // ── Try multiblock first ──────────────────────────────────────────────
+        MultiblockMachineDefinition def = resolveMultiblockDefinition(pd.machine);
+        if (def != null) {
+            return buildMultiblockPlacement(index, pd, def, sharedWorld, mergedMap, allBaseplates);
+        }
+
+        // ── Fall back to singleblock (any MachineDefinition or plain block) ───
+        return buildSingleblockPlacement(index, pd, sharedWorld, mergedMap, allBaseplates);
+    }
+
+    private static PlacementEntry buildMultiblockPlacement(int index,
+                                                           PhantasiaSceneData.PlacementData pd,
+                                                           MultiblockMachineDefinition def,
+                                                           PhantasiaTrackedDummyWorld sharedWorld,
+                                                           Map<BlockPos, BlockInfo> mergedMap,
+                                                           Set<BlockPos> allBaseplates) {
         if (def == null) return null;
 
         List<MultiblockShapeInfo> shapes = def.getMatchingShapes();
@@ -226,6 +242,88 @@ public class PhantasiaScenePattern {
                 worldPositions, baseplatePos, minY, maxY);
     }
 
+    /**
+     * Builds a placement for a singleblock machine or plain block.
+     * Places one block at the declared origin, with a small baseplate around it.
+     * Works for any GTCEu MachineDefinition (including singleblock machines) as
+     * well as any block registered in the Forge block registry.
+     */
+    private static PlacementEntry buildSingleblockPlacement(int index,
+                                                            PhantasiaSceneData.PlacementData pd,
+                                                            PhantasiaTrackedDummyWorld sharedWorld,
+                                                            Map<BlockPos, BlockInfo> mergedMap,
+                                                            Set<BlockPos> allBaseplates) {
+        BlockPos origin = new BlockPos(pd.x, pd.y, pd.z);
+
+        // Resolve block: try GTCEu machine registry first, then Forge block registry
+        BlockInfo blockInfo = resolveBlockInfo(pd.machine);
+        if (blockInfo == null) {
+            System.err.println("[Phantasia/Scene] Could not resolve block for singleblock placement " + index + " (" +
+                    pd.machine + ") — skipping.");
+            return null;
+        }
+
+        Map<BlockPos, BlockInfo> placementMap = new HashMap<>();
+        Set<BlockPos> baseplatePos = new HashSet<>();
+
+        // Small 5×5 baseplate centered on origin
+        BlockInfo floor = BlockInfo.fromBlockState(Blocks.DEEPSLATE_BRICKS.defaultBlockState());
+        for (int bx = -2; bx <= 2; bx++)
+            for (int bz = -2; bz <= 2; bz++) {
+                BlockPos wp = origin.offset(bx, -1, bz);
+                placementMap.put(wp, floor);
+                baseplatePos.add(wp);
+            }
+
+        // The single machine block at origin
+        placementMap.put(origin, blockInfo);
+
+        // Register block entity if present
+        try {
+            var be = blockInfo.getBlockEntity(origin);
+            if (be instanceof MetaMachineBlockEntity mbe) {
+                mbe.setLevel(sharedWorld);
+            }
+            if (be != null) sharedWorld.setInnerBlockEntity(be);
+        } catch (Exception ignored) {}
+
+        sharedWorld.addBlocks(placementMap);
+        mergedMap.putAll(placementMap);
+        allBaseplates.addAll(baseplatePos);
+
+        Set<BlockPos> worldPositions = Set.of(origin);
+        return new PlacementEntry(index, pd.machine, origin,
+                worldPositions, baseplatePos, origin.getY(), origin.getY());
+    }
+
+    /**
+     * Resolves a machine/block ID to a {@link BlockInfo}.
+     * Tries the GTCEu machine registry first (for singleblock MetaMachines),
+     * then falls back to the Forge block registry.
+     */
+    private static BlockInfo resolveBlockInfo(String id) {
+        try {
+            net.minecraft.resources.ResourceLocation rl = id.contains(":") ?
+                    new net.minecraft.resources.ResourceLocation(id) :
+                    new net.minecraft.resources.ResourceLocation("gtceu", id);
+
+            // GTCEu machine registry
+            var machineDef = GTRegistries.MACHINES.get(rl);
+            if (machineDef != null) {
+                var block = machineDef.getBlock();
+                if (block != null)
+                    return BlockInfo.fromBlockState(block.defaultBlockState());
+            }
+
+            // Forge block registry fallback
+            var block = net.minecraftforge.registries.ForgeRegistries.BLOCKS.getValue(rl);
+            if (block != null && block != net.minecraft.world.level.block.Blocks.AIR)
+                return BlockInfo.fromBlockState(block.defaultBlockState());
+
+        } catch (Exception ignored) {}
+        return null;
+    }
+
     // ── Visibility ────────────────────────────────────────────────────────────
 
     /**
@@ -300,7 +398,7 @@ public class PhantasiaScenePattern {
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    private static MultiblockMachineDefinition resolveDefinition(String machineId) {
+    private static MultiblockMachineDefinition resolveMultiblockDefinition(String machineId) {
         try {
             ResourceLocation rl = machineId.contains(":") ? new ResourceLocation(machineId) :
                     new ResourceLocation("gtceu", machineId);

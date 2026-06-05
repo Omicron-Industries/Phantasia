@@ -1,7 +1,5 @@
 package net.phoenixvine.phantasia.client;
 
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.screens.Screen;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.TickEvent;
@@ -49,6 +47,4 @@ public class PhantasiaClient {
         if (!PhantasiaSceneSelectionScreen.PHANTASIA_SCENES.contains(def))
             PhantasiaSceneSelectionScreen.PHANTASIA_SCENES.add(def);
     }
-
-
 }

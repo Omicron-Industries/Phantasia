@@ -62,8 +62,8 @@ public class PhantasiaTrackedDummyWorld extends TrackedDummyWorld {
                             double xSpeed, double ySpeed, double zSpeed) {
         // Route to the dedicated PhantasiaParticleEngine rather than mc.particleEngine.
         // Using mc.particleEngine causes two problems:
-        //   1. Particles appear at the dummy world's real coordinates in the actual world.
-        //   2. Real-world particles bleed into Phantasia's render pass.
+        // 1. Particles appear at the dummy world's real coordinates in the actual world.
+        // 2. Real-world particles bleed into Phantasia's render pass.
         // PhantasiaParticleEngine shares providers with mc.particleEngine so all GT
         // particle types (MufflerParticle etc.) are available.
         net.phoenixvine.phantasia.client.render.PhantasiaParticleEngine.addParticle(

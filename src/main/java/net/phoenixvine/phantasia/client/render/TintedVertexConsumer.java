@@ -1,7 +1,8 @@
 package net.phoenixvine.phantasia.client.render;
 
-import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.renderer.RenderType;
+
+import com.mojang.blaze3d.vertex.VertexConsumer;
 
 /**
  * Thin {@link VertexConsumer} wrapper that applies a per-block alpha tint.

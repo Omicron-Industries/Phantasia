@@ -7,10 +7,14 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
+import net.minecraftforge.registries.ForgeRegistries;
 import net.phoenixvine.phantasia.common.PhantasiaSceneData;
 import net.phoenixvine.phantasia.common.PhantasiaScenes;
 import net.phoenixvine.phantasia.common.PhantasiaScript;
@@ -24,9 +28,9 @@ import java.util.Locale;
  * PhantasiaSceneSelectionScreen
  *
  * Card-grid selection screen with an active search filter. Each card shows:
- * - The controller block as a 2D item icon
- * - Machine name
- * - Script step count (green dot = has custom script)
+ * - The controller block or configured scene icon as a 2D item sprite
+ * - Machine name / Scene name
+ * - Script step count (green dot = has custom script / elements)
  */
 @OnlyIn(Dist.CLIENT)
 public class PhantasiaSceneSelectionScreen extends Screen {
@@ -61,7 +65,7 @@ public class PhantasiaSceneSelectionScreen extends Screen {
     private static final int CARD_H = 86;
     private static final int CARD_PAD = 8;
     private static final int COLS = 3;
-    private static final int HEADER_H = 52; // +14 for tab row
+    private static final int HEADER_H = 52;
     private static final int TAB_H = 16;
     private static final int SEARCH_H = 24;
     private static final int FOOTER_H = 30;
@@ -171,7 +175,7 @@ public class PhantasiaSceneSelectionScreen extends Screen {
         int tabStartX = (this.width - totalGridW) / 2;
 
         renderTab(g, mx, my, tabStartX, tabY, "Multiblocks", Tab.MULTIBLOCKS);
-        renderTab(g, mx, my, tabStartX + 100 + 4, tabY, "Scenes", Tab.SCENES);
+        renderTab(g, mx, my, tabStartX + 104, tabY, "Scenes", Tab.SCENES);
     }
 
     private void renderTab(GuiGraphics g, int mx, int my, int x, int y, String label, Tab tab) {
@@ -181,13 +185,11 @@ public class PhantasiaSceneSelectionScreen extends Screen {
         g.fill(x, y, x + w, y + TAB_H, act ? C_BTN_HOV : (hov ? C_BTN_HOV : C_BTN));
         if (act) g.fill(x, y + TAB_H - 2, x + w, y + TAB_H, C_ACCENT);
         g.drawString(font, label, x + 8, y + 4, act ? C_ACCENT : C_DIM, false);
-        // register as a btn — we handle it in mouseClicked
     }
 
     private void renderCards(GuiGraphics g, int mx, int my) {
         int totalW = COLS * CARD_W + (COLS - 1) * CARD_PAD;
         int startX = (this.width - totalW) / 2;
-        // Shift content down by SEARCH_H to prevent overlapping with our input bar
         int startY = HEADER_H + SEARCH_H + 6;
         int maxRows = visibleRows();
 
@@ -284,7 +286,7 @@ public class PhantasiaSceneSelectionScreen extends Screen {
             int cx = startX + newCardCol * (CARD_W + CARD_PAD);
             int cy = startY + newCardRow * (CARD_H + CARD_PAD);
             boolean hov = isOver(mx, my, cx, cy, CARD_W, CARD_H);
-            if (hov) hoveredCard = -2; // sentinel for "new scene"
+            if (hov) hoveredCard = -2;
             renderNewSceneCard(g, cx, cy, hov);
         }
 
@@ -312,7 +314,6 @@ public class PhantasiaSceneSelectionScreen extends Screen {
             g.fill(cx + CARD_W - 1, cy, cx + CARD_W, cy + CARD_H, C_ACCENT);
             g.fill(cx, cy + CARD_H - 1, cx + CARD_W, cy + CARD_H, C_ACCENT);
         }
-        // Big + symbol
         g.drawCenteredString(font, "+", cx + CARD_W / 2, cy + 28, hov ? C_ACCENT : C_DIM);
         g.drawCenteredString(font, "New Scene", cx + CARD_W / 2, cy + CARD_H - 20, hov ? C_ACCENT : C_DIM);
     }
@@ -327,24 +328,41 @@ public class PhantasiaSceneSelectionScreen extends Screen {
             g.fill(cx, cy + CARD_H - 1, cx + CARD_W, cy + CARD_H, C_ACCENT);
         }
 
-        // Scene icon: stacked machine count indicator
-        int count = scene.placements.size();
-        String countStr = count + " machine" + (count == 1 ? "" : "s");
-        g.drawCenteredString(font, "\u2626", cx + CARD_W / 2, cy + 14, C_ACCENT);
-        g.drawCenteredString(font, countStr, cx + CARD_W / 2, cy + 28, C_DIM);
+        // 2. Scene Icon rendering pipeline using Forge registries
+        String iconRes = scene.iconItem != null ? scene.iconItem : "minecraft:chest";
+        ResourceLocation rl = iconRes.contains(":") ?
+                new ResourceLocation(iconRes) :
+                new ResourceLocation("minecraft", iconRes);
 
-        // Name
+        Item item = ForgeRegistries.ITEMS.getValue(rl);
+        if (item == null || item == Items.AIR) {
+            item = Items.CHEST; // Safe visualization fallback boundary
+        }
+
+        ItemStack stack = new ItemStack(item);
+        int iconSize = 32;
+        int iconX = cx + (CARD_W - iconSize) / 2;
+        int iconY = cy + 6;
+
+        g.pose().pushPose();
+        g.pose().translate(iconX, iconY, 0);
+        g.pose().scale(2f, 2f, 1f);
+        g.renderItem(stack, 0, 0);
+        g.pose().popPose();
+
+        // 3. Name
         String name = scene.name != null && !scene.name.isBlank() ? scene.name : scene.id;
         int maxWidth = CARD_W - 8;
         if (font.width(name) > maxWidth)
             name = font.plainSubstrByWidth(name, maxWidth - font.width("...")) + "...";
         g.drawString(font, name, cx + 4, cy + CARD_H - 22, hov ? C_ACCENT : C_TEXT, false);
 
-        // Step count
-        String steps = scene.steps.size() + " step" + (scene.steps.size() == 1 ? "" : "s");
-        g.drawString(font, steps, cx + 4, cy + CARD_H - 11, C_DIM, false);
+        // 4. Subtitle Machine and Step Counts
+        int count = scene.placements.size();
+        String countStr = count + " machine" + (count == 1 ? "" : "s");
+        g.drawString(font, countStr, cx + 4, cy + CARD_H - 11, C_DIM, false);
 
-        // Green dot if has placements
+        // Green notifier dot if manual configuration holds components
         if (!scene.placements.isEmpty())
             g.fill(cx + CARD_W - 8, cy + 4, cx + CARD_W - 4, cy + 8, C_SCRIPT);
     }
@@ -354,13 +372,7 @@ public class PhantasiaSceneSelectionScreen extends Screen {
         g.fill(0, fy, this.width, this.height, 0xCC0A0A14);
         g.fill(0, fy, this.width, fy + 1, 0x44FFFFFF);
 
-        // Scroll indicator — account for whichever tab is active
-        int itemCount = activeTab == Tab.MULTIBLOCKS ? filteredScenes.size() : filteredManualScenes.size() + 1; // +1
-                                                                                                                // for
-                                                                                                                // the
-                                                                                                                // New
-                                                                                                                // Scene
-                                                                                                                // card
+        int itemCount = activeTab == Tab.MULTIBLOCKS ? filteredScenes.size() : filteredManualScenes.size() + 1;
         int totalRows = (itemCount + COLS - 1) / COLS;
         if (totalRows > visibleRows())
             g.drawCenteredString(font, "\u25B2 \u25BC  scroll to see more", this.width / 2, fy + 4, C_DIM);
@@ -399,7 +411,7 @@ public class PhantasiaSceneSelectionScreen extends Screen {
             }
             return true;
         }
-        if (isOver((int) mx, (int) my, tabStartX + 100 + 4, tabY, font.width("Scenes") + 16, TAB_H)) {
+        if (isOver((int) mx, (int) my, tabStartX + 104, tabY, font.width("Scenes") + 16, TAB_H)) {
             if (activeTab != Tab.SCENES) {
                 activeTab = Tab.SCENES;
                 scrollOffset = 0;
@@ -425,7 +437,6 @@ public class PhantasiaSceneSelectionScreen extends Screen {
             }
         } else {
             if (hoveredCard == -2) {
-                // New scene
                 Minecraft.getInstance().setScreen(new PhantasiaSceneCreateScreen(this));
                 return true;
             }
@@ -450,11 +461,10 @@ public class PhantasiaSceneSelectionScreen extends Screen {
 
     @Override
     public boolean keyPressed(int kc, int sc, int mod) {
-        // Allow character deletion or text operations to be captured by input field
         if (this.searchBox != null && this.searchBox.keyPressed(kc, sc, mod)) {
             return true;
         }
-        if (kc == 256) { // ESC Key
+        if (kc == 256) {
             onClose();
             return true;
         }
@@ -463,7 +473,6 @@ public class PhantasiaSceneSelectionScreen extends Screen {
 
     @Override
     public boolean charTyped(char codePoint, int modifiers) {
-        // Crucial for text components to actually receive alphabetical character entries
         if (this.searchBox != null && this.searchBox.charTyped(codePoint, modifiers)) {
             return true;
         }

@@ -20,6 +20,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.phys.BlockHitResult;
@@ -455,6 +456,8 @@ public class PhantasiaSceneScreen extends Screen {
                 baseplatePos.add(wp);
             }
 
+        Map<BlockPos, BlockEntity> builtBEs = new HashMap<>();
+
         for (int x = 0; x < raw.length; x++)
             for (int y = 0; y < raw[x].length; y++)
                 for (int z = 0; z < raw[x][y].length; z++) {
@@ -464,14 +467,17 @@ public class PhantasiaSceneScreen extends Screen {
                     BlockPos wp = origin.offset(x, y, z);
                     try {
                         var be = info.getBlockEntity(wp);
-                        if (be instanceof MetaMachineBlockEntity mbe) {
-                            mbe.setLevel(SHARED_LEVEL);
-                            var machine = mbe.getMetaMachine();
-                            if (machine instanceof MultiblockControllerMachine ctrl && controllerWP == null) {
-                                controller = ctrl;
-                                controllerWP = wp;
+                        if (be != null) {
+                            builtBEs.put(wp, be);
+                            if (be instanceof MetaMachineBlockEntity mbe) {
+                                mbe.setLevel(SHARED_LEVEL);
+                                var machine = mbe.getMetaMachine();
+                                if (machine instanceof MultiblockControllerMachine ctrl && controllerWP == null) {
+                                    controller = ctrl;
+                                    controllerWP = wp;
+                                }
+                                bePos.add(wp);
                             }
-                            bePos.add(wp);
                         }
                     } catch (Exception ignored) {}
                     blockMap.put(wp, info);
@@ -480,21 +486,12 @@ public class PhantasiaSceneScreen extends Screen {
 
         SHARED_LEVEL.addBlocks(blockMap);
 
-        // Register every MetaMachineBlockEntity with the dummy world so that
-        // TrackedDummyWorld.getBlockEntity(pos) returns them. Without this,
-        // the bake thread's BE scan finds nothing and frontTileEntities stays
-        // empty — meaning drawTileEntities never renders any machine overlays.
-        // We must do this BEFORE onStructureFormed so the controller's own BE
-        // is already in the world when formation logic queries it.
-        for (BlockPos bp : bePos) {
+        // Register BEs using the already-constructed instances — no second getBlockEntity call.
+        for (Map.Entry<BlockPos, BlockEntity> entry : builtBEs.entrySet()) {
             try {
-                BlockInfo info = blockMap.get(bp);
-                if (info == null) continue;
-                var be = info.getBlockEntity(bp);
-                if (be != null) {
-                    be.setLevel(SHARED_LEVEL); // ensure hasLevel() returns true
-                    SHARED_LEVEL.setInnerBlockEntity(be);
-                }
+                BlockEntity be = entry.getValue();
+                be.setLevel(SHARED_LEVEL);
+                SHARED_LEVEL.setInnerBlockEntity(be);
             } catch (Exception ignored) {}
         }
         net.phoenixvine.phantasia.Phantasia.LOGGER.info(

@@ -2,15 +2,14 @@
   "required": true,
   "package": "net.phoenixvine.phantasia.mixin",
   "compatibilityLevel": "JAVA_17",
+  "refmap": "mixins.phantasia.refmap.json",
   "minVersion": "0.8",
   "plugin": "net.phoenixvine.phantasia.mixin.PhantasiaMixinPlugin",
   "mixins": [
-    "DummyMixin",
-    "embeddium.MixinEmbeddiumSpriteUtil"
+    "DummyMixin"
   ],
   "client": [
-    "aiimprovements.MixinVanillaLookBypass",
-    "embeddium.AccessorTextureAtlas"
+    "aiimprovements.MixinVanillaLookBypass"
   ],
   "injectors": {
     "defaultRequire": 1

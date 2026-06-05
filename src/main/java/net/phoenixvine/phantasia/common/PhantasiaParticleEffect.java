@@ -12,32 +12,32 @@ import javax.annotation.Nullable;
  *
  * Three emission modes:
  *
- *   PRESET  — Named visual preset. Phantasia picks a suitable vanilla particle
- *             type and emission parameters automatically. Good for drawing
- *             attention to positions without needing to know particle IDs.
+ * PRESET — Named visual preset. Phantasia picks a suitable vanilla particle
+ * type and emission parameters automatically. Good for drawing
+ * attention to positions without needing to know particle IDs.
  *
- *   VANILLA — Raw particle type by registry ID (e.g. "minecraft:smoke").
- *             Full control over count, spread, and speed.
+ * VANILLA — Raw particle type by registry ID (e.g. "minecraft:smoke").
+ * Full control over count, spread, and speed.
  *
- *   AMBIENT — Calls animateTick() at the position each interval, producing
- *             whatever ambient particles the block at that position emits
- *             (fire crackling, lava bubbling, etc.). The block must be present
- *             in the dummy world — use this for block-specific ambient effects
- *             that you want script-controlled rather than always-on.
+ * AMBIENT — Calls animateTick() at the position each interval, producing
+ * whatever ambient particles the block at that position emits
+ * (fire crackling, lava bubbling, etc.). The block must be present
+ * in the dummy world — use this for block-specific ambient effects
+ * that you want script-controlled rather than always-on.
  *
  * Emission is driven once per {@code intervalTicks} game ticks. Set to 1 for
  * continuous, 20 for once per second, etc.
  */
 public record PhantasiaParticleEffect(
-        BlockPos localPos,
-        Mode mode,
-        @Nullable Preset preset,
-        @Nullable String particleId,
-        int count,
-        float spread,
-        float speed,
-        int intervalTicks,
-        float offsetY) {
+                                      BlockPos localPos,
+                                      Mode mode,
+                                      @Nullable Preset preset,
+                                      @Nullable String particleId,
+                                      int count,
+                                      float spread,
+                                      float speed,
+                                      int intervalTicks,
+                                      float offsetY) {
 
     // ── Modes ─────────────────────────────────────────────────────────────────
 

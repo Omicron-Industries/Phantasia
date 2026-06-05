@@ -2,11 +2,11 @@ package net.phoenixvine.phantasia.mixin.aiimprovements;
 
 import net.minecraft.world.entity.ai.control.LookControl;
 import net.phoenixvine.phantasia.client.PhantasiaRenderBypass;
+
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import net.phoenixvine.phantasia.client.PhantasiaClient;
 
 /**
  * Targets the core vanilla AI look controller.
