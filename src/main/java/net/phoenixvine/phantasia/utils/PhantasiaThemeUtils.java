@@ -177,4 +177,20 @@ public class PhantasiaThemeUtils {
             g.drawString(font, label, lx, ly, hov ? 0xFFFFFFA0 : 0xFFFFFFFF, false);
         }
     }
+
+    /**
+     * Draws a 1-pixel wide hollow rectangle border around an area.
+     */
+    public static void drawBorderRect(GuiGraphics g, int x, int y, int w, int h, int color) {
+        g.fill(x, y, x + w, y + 1, color);             // Top line
+        g.fill(x, y + h - 1, x + w, y + h, color);     // Bottom line
+        g.fill(x, y + 1, x + 1, y + h - 1, color);     // Left line
+        g.fill(x + w - 1, y + 1, x + w, y + h - 1, color); // Right line
+    }
+
+    public static int C_BORDER() {
+        return PhantasiaTheme.current().C_DIM;
+    }
+
+
 }

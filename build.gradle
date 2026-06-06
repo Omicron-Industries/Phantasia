@@ -30,6 +30,7 @@ repositories {
         url = 'https://maven.gtceu.com'
         content {
             includeGroup 'com.gregtechceu.gtceu'
+            includeGroup 'appeng'
         }
     }
     maven {
@@ -161,9 +162,17 @@ dependencies {
     modCompileOnly("curse.maven:ai-improvements-233019:4578262")
     modCompileOnly("curse.maven:oculus-581495:6020952")
 
+
+
+
+
+
     // lombok
     compileOnly 'org.projectlombok:lombok:1.18.24'
     annotationProcessor 'org.projectlombok:lombok:1.18.24'
+
+
+
 }
 
 tasks.named('processResources', ProcessResources).configure {

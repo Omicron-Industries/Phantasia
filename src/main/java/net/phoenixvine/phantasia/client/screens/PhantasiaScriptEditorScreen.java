@@ -21,7 +21,11 @@ import net.phoenixvine.phantasia.client.camera.LerpType;
 import net.phoenixvine.phantasia.client.camera.PhantasiaCamera;
 import net.phoenixvine.phantasia.client.render.PhantasiaTrackedDummyWorld;
 import net.phoenixvine.phantasia.client.render.PhantasiaWorldRenderer;
+import net.phoenixvine.phantasia.client.screens.PhantasiaItemMicrosceneScreen;
+import net.phoenixvine.phantasia.client.screens.PhantasiaScriptStepItemEditorScreen;
 import net.phoenixvine.phantasia.common.PhantasiaLoadedPattern;
+import net.phoenixvine.phantasia.common.PhantasiaSceneData;
+import net.phoenixvine.phantasia.common.PhantasiaScenes;
 import net.phoenixvine.phantasia.common.PhantasiaScript;
 import net.phoenixvine.phantasia.common.PhantasiaScriptData;
 import net.phoenixvine.phantasia.common.PhantasiaScriptLoader;
@@ -117,8 +121,8 @@ public class PhantasiaScriptEditorScreen extends Screen {
     // ── Data ──────────────────────────────────────────────────────────────────
     private final PhantasiaSceneScreen parentScene;
     private final String machineId;
-    private PhantasiaScriptData data;
-    private boolean dirty = false;
+    PhantasiaScriptData data;
+    boolean dirty = false;
     private int selectedStep = 0;
 
     // ── Own 3D world ──────────────────────────────────────────────────────────
@@ -804,6 +808,7 @@ public class PhantasiaScriptEditorScreen extends Screen {
         renderLayerSlider(g, mx, my);
         renderStepRow(g, mx, my);
         renderTimeline(g, mx, my);
+        renderEditorItemPanel(g, mx, my);
         if (showStartCamPanel) renderStartCamPanel(g, mx, my);
         // Camera panel floats above the step row
         if (showCameraPanel) renderCameraPanel(g, mx, my);
@@ -1439,6 +1444,25 @@ public class PhantasiaScriptEditorScreen extends Screen {
         }));
         x += partsW + 8;
 
+        // Items… button — opens per-step item editor
+        int itemsBtnW = font.width("Items\u2026") + 10;
+        boolean itemsHov = isOver(mx, my, x, y2, itemsBtnW, 14);
+        boolean itemsActive = !s.items.isEmpty();
+        g.fill(x, y2, x + itemsBtnW, y2 + 14, itemsActive ? C_BTN_ACT : (itemsHov ? C_BTN_HOV : C_BTN));
+        if (itemsActive) g.fill(x, y2, x + itemsBtnW, y2 + 1, C_ACCENT);
+        g.drawString(font, "Items\u2026", x + 5, y2 + 3, itemsActive ? C_ACCENT : C_TEXT, false);
+        if (itemsActive) {
+            // badge: item count
+            String badge = String.valueOf(s.items.size());
+            int bx2 = x + itemsBtnW - font.width(badge) - 4;
+            g.drawString(font, badge, bx2, y2 + 3, C_ACCENT, false);
+        }
+        if (itemsHov) pendingTooltip = "Edit item conditions shown alongside the 3D scene during this step";
+        btns.add(new Btn(x, y2, itemsBtnW, 14, () ->
+                Minecraft.getInstance().setScreen(
+                        new PhantasiaScriptStepItemEditorScreen(this, data, selectedStep))));
+        x += itemsBtnW + 3;
+
         // Hide controls — right side of row 2 (Untouched!)
         int rx2 = this.width - 8;
         int hpW = 130;
@@ -1467,6 +1491,142 @@ public class PhantasiaScriptEditorScreen extends Screen {
     // ─────────────────────────────────────────────────────────────────────────
     // Camera panel (floating overlay above step row)
     // ─────────────────────────────────────────────────────────────────────────
+
+    // ── Editor item panel ─────────────────────────────────────────────────────
+
+    private static final int EIP_W    = 186;
+    private static final int EIP_ROW  = 38;
+    private static final int EIP_ICON = 28;
+    private static final int EIP_HOV  = 36;
+
+    /**
+     * Shows the GuideME-style item panel while authoring, so devs can see how
+     * the current step's items will look to viewers. Tracks animate using the
+     * editor's own {@code previewTick}. Items are clickable to preview the
+     * microscene popup.
+     */
+    private void renderEditorItemPanel(GuiGraphics g, int mx, int my) {
+        PhantasiaScriptData.StepData s = step();
+        if (!s.showItems || s.items.isEmpty()) return;
+
+        int panelX = this.width - EIP_W - 4;
+        int panelY = TOP_BAR_H + 4;
+        int panelH = s.items.size() * EIP_ROW + 8;
+
+        g.fill(panelX, panelY, panelX + EIP_W, panelY + panelH, 0xDD070712);
+        g.fill(panelX, panelY, panelX + EIP_W, panelY + 1, C_ACCENT);
+        g.fill(panelX, panelY, panelX + 1, panelY + panelH, 0x554FC3F7);
+
+        int ry = panelY + 4;
+        for (PhantasiaSceneData.ItemConditionData it : s.items) {
+            boolean hov = isOver(mx, my, panelX + 2, ry, EIP_W - 4, EIP_ROW - 1);
+            int ac = it.accentColor();
+
+            g.fill(panelX + 2, ry, panelX + EIP_W - 2, ry + EIP_ROW - 1,
+                    hov ? 0xBB0D1A2D : 0x22000000);
+            g.fill(panelX + 2, ry, panelX + 3, ry + EIP_ROW - 1, ac);
+
+            float[] anim  = editorItemTrackOffset(it);
+            int   alpha   = Math.max(0, Math.min(255, (int)(anim[2] * 255)));
+            int   iconSz  = hov ? EIP_HOV : EIP_ICON;
+            int   iconX   = panelX + 5;
+            int   iconCY  = ry + (EIP_ROW - 1) / 2;
+            int   iconY   = iconCY - iconSz / 2 + Math.round(anim[1]);
+
+            net.minecraft.world.item.Item mcItem = eipResolveItem(it.item);
+            if (mcItem != null) {
+                net.minecraft.world.item.ItemStack stack =
+                        new net.minecraft.world.item.ItemStack(mcItem, it.count);
+                float scale = iconSz / 16f;
+                if (alpha < 255) com.mojang.blaze3d.systems.RenderSystem.setShaderColor(1f, 1f, 1f, alpha / 255f);
+                g.pose().pushPose();
+                g.pose().translate(iconX, iconY, 200f);
+                g.pose().scale(scale, scale, 1f);
+                g.renderItem(stack, 0, 0);
+                g.renderItemDecorations(font, stack, 0, 0);
+                g.pose().popPose();
+                if (alpha < 255) com.mojang.blaze3d.systems.RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
+            } else {
+                g.fill(iconX + 2, iconY + 2, iconX + EIP_HOV - 2, iconY + EIP_HOV - 2, 0x44FF0000);
+                g.drawCenteredString(font, "?", iconX + EIP_HOV / 2, iconCY - 4, 0xFFFF5252);
+            }
+
+            int tx = panelX + 5 + EIP_HOV + 4;
+            int tw = EIP_W - (tx - panelX) - 5;
+            int ty = ry + 3;
+
+            g.drawString(font, eipTrunc(it.displayLabel(), tw), tx, ty,
+                    hov ? 0xFFFFFFFF : C_TEXT, false);
+            ty += 10;
+
+            String pillTxt = switch (it.type == null ? "input" : it.type.toLowerCase(java.util.Locale.ROOT)) {
+                case "output" -> "Out"; case "catalyst" -> "Cat"; default -> "In";
+            };
+            int pillW = font.width(pillTxt) + 5;
+            g.fill(tx, ty, tx + pillW, ty + 8, ac & 0x44FFFFFF | 0x44000000);
+            g.drawString(font, pillTxt, tx + 2, ty, ac, false);
+            ty += 10;
+
+            if (it.description != null && !it.description.isBlank()) {
+                var lines = font.split(net.minecraft.network.chat.Component.literal(it.description), tw);
+                int rem = 2;
+                for (var line : lines) {
+                    if (rem-- <= 0) break;
+                    g.drawString(font, line, tx, ty, C_DIM, false);
+                    ty += 8;
+                }
+            }
+
+            if (hov) {
+                boolean hasScene = it.microsceneId != null && !it.microsceneId.isBlank();
+                String hint = hasScene ? "\u25BA Scene" : "\u25BA More";
+                g.drawString(font, hint, panelX + EIP_W - font.width(hint) - 5,
+                        ry + EIP_ROW - 11, 0xFF80DEEA, false);
+            }
+
+            final PhantasiaSceneData.ItemConditionData fIt = it;
+            btns.add(new Btn(panelX + 2, ry, EIP_W - 4, EIP_ROW - 1, () -> {
+                PhantasiaSceneData microscene = fIt.microsceneId != null
+                        ? PhantasiaScenes.get(fIt.microsceneId) : null;
+                Minecraft.getInstance().setScreen(
+                        new PhantasiaItemMicrosceneScreen(
+                                PhantasiaScriptEditorScreen.this, fIt, microscene));
+            }));
+
+            ry += EIP_ROW;
+        }
+    }
+
+    private float[] editorItemTrackOffset(PhantasiaSceneData.ItemConditionData it) {
+        String track = it.track == null ? "none" : it.track.toLowerCase(java.util.Locale.ROOT);
+        if ("none".equals(track)) return new float[]{ 0, 0, 1f };
+        int dur = Math.max(1, it.trackDurationTicks);
+        float t = (previewTick % dur) / (float) dur;
+        return switch (track) {
+            case "left"  -> { float fade = 1f - Math.abs(t - 0.5f) * 2f; yield new float[]{ t * 40f - 20f, 0, Math.max(0, fade) }; }
+            case "right" -> { float fade = 1f - Math.abs(t - 0.5f) * 2f; yield new float[]{ 20f - t * 40f, 0, Math.max(0, fade) }; }
+            case "up"    -> new float[]{ 0, -(t * 24f), Math.max(0, 1f - t) };
+            case "down"  -> new float[]{ 0,  (t * 24f), Math.max(0, 1f - t) };
+            case "pulse" -> new float[]{ 0, (float) Math.sin(t * 2 * Math.PI) * 3f, 1f };
+            default      -> new float[]{ 0, 0, 1f };
+        };
+    }
+
+    private static net.minecraft.world.item.Item eipResolveItem(String id) {
+        if (id == null || id.isBlank()) return null;
+        try {
+            var rl = id.contains(":") ? new net.minecraft.resources.ResourceLocation(id)
+                    : new net.minecraft.resources.ResourceLocation("minecraft", id);
+            var item = net.minecraftforge.registries.ForgeRegistries.ITEMS.getValue(rl);
+            return (item == null || item == net.minecraft.world.item.Items.AIR) ? null : item;
+        } catch (Exception e) { return null; }
+    }
+
+    private String eipTrunc(String s, int maxPx) {
+        if (s == null) return "";
+        while (font.width(s) > maxPx && s.length() > 2) s = s.substring(0, s.length() - 2) + "\u2026";
+        return s;
+    }
 
     private void renderCameraPanel(GuiGraphics g, int mx, int my) {
         int panelW = Math.min(500, this.width - 16);
@@ -2194,7 +2354,7 @@ public class PhantasiaScriptEditorScreen extends Screen {
     // Undo
     // ─────────────────────────────────────────────────────────────────────────
 
-    private void checkpoint() {
+    void checkpoint() {
         if (undoStack.size() >= MAX_UNDO) undoStack.pollFirst();
         undoStack.addLast(data.copy());
     }

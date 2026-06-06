@@ -30,8 +30,10 @@ import net.minecraft.world.phys.Vec3;
 import net.phoenixvine.phantasia.client.render.PhantasiaSpriteMarker;
 import net.phoenixvine.phantasia.client.render.PhantasiaParticleEngine;
 
+
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.*;
+import net.phoenixvine.phantasia.common.PhantasiaVariantState;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.lwjgl.opengl.GL11;
@@ -635,6 +637,29 @@ public final class PhantasiaWorldRenderer {
                 }
             }
 
+            // Apply variant substitutions to visible positions.
+            // IMPORTANT: We read from world.renderedBlocks BEFORE the hidden-blanking
+            // loop may have touched these positions. We use the snapshot (visible set)
+            // so we only swap positions that will actually be baked.
+            // We also preserve all BlockState properties (facing, waterlogged, etc.)
+            // from the BASE state when substituting — this keeps muffler facing, hatch
+            // orientation, and any other directional properties intact.
+            PhantasiaVariantState vs = PhantasiaVariantState.get();
+            Map<BlockPos, BlockInfo> variantSaved = new HashMap<>();
+            for (BlockPos vp : snapshot) {
+                // Use renderedBlocks directly — at this point hidden positions are AIR
+                // but snapshot only contains visible positions, so this is safe.
+                BlockInfo baseInfo = world.renderedBlocks.get(vp);
+                if (baseInfo == null) continue;
+                BlockState base = baseInfo.getBlockState();
+                if (base == null || base.isAir()) continue;
+                BlockState resolved = vs.resolveState(vp, base);
+                if (resolved != base) {
+                    variantSaved.put(vp, baseInfo);
+                    world.renderedBlocks.put(vp, BlockInfo.fromBlockState(resolved));
+                }
+            }
+
             // Pre-bucket blocks by render layer so each bakeLayer call receives
             // only the blocks that belong to it. This cuts canRenderInLayer calls
             // from snapshot.size * LAYER_COUNT down to snapshot.size (most blocks
@@ -676,6 +701,7 @@ public final class PhantasiaWorldRenderer {
                     List<BlockPos> solid = solidBuckets.getOrDefault(layer, List.of());
                     List<BlockPos> fluid = fluidBuckets.getOrDefault(layer, List.of());
                     int blockCount = solid.size() + fluid.size();
+
                     // Hint the BufferBuilder to a realistic initial size.
                     // ~512 bytes per block (6 faces × 4 verts × ~20 bytes) avoids the
                     // first few doubling-copies for large multis while not over-allocating
@@ -712,10 +738,14 @@ public final class PhantasiaWorldRenderer {
                         return;
                     }
                 }
-            } finally {
+            }
+            finally {
                 ModelBlockRenderer.clearCache();
-                // Always restore hidden blocks, even if bake was interrupted.
                 for (Map.Entry<BlockPos, BlockInfo> e : saved.entrySet()) {
+                    world.renderedBlocks.put(e.getKey(), e.getValue());
+                }
+                // Restore variant-swapped positions to their original states.
+                for (Map.Entry<BlockPos, BlockInfo> e : variantSaved.entrySet()) {
                     world.renderedBlocks.put(e.getKey(), e.getValue());
                 }
             }

@@ -142,15 +142,9 @@ public class PhantasiaItemMicrosceneScreen extends Screen {
     public void tick() {
         super.tick();
         tick++;
-
         // Slow auto-rotation
         autoYaw += 0.4f;
-        // Keep autoYaw normalized between [-180, 180] to prevent huge values over time
-        if (autoYaw > 180f) autoYaw -= 360f;
-
-        if (sceneCamera != null) {
-            sceneCamera.setYaw(autoYaw);
-        }
+        if (sceneCamera != null) sceneCamera.setYaw(autoYaw);
 
         // Step auto-advance: move to next step when current step's duration expires
         if (microsceneData != null && microsceneData.steps.size() > 1) {
@@ -239,8 +233,9 @@ public class PhantasiaItemMicrosceneScreen extends Screen {
         int ix = cardX + CARD_PAD;
         int iy = cardY + CARD_PAD;
         int iw = infoW - CARD_PAD * 2;
+        int bottomLimit = cardY + cardH - 28; // space for close button
 
-        // Large item icon
+        // Large item icon — top left of the info area
         net.minecraft.world.item.Item mcItem = resolveItem(item.item);
         if (mcItem != null) {
             ItemStack stack = new ItemStack(mcItem, item.count);
@@ -256,19 +251,18 @@ public class PhantasiaItemMicrosceneScreen extends Screen {
             g.drawCenteredString(font, "?", ix + ICON_SIZE / 2, iy + ICON_SIZE / 2 - 4, 0xFFFF5252);
         }
 
-        // Item ID in small text under icon
+        // Item registry ID under the icon
         String shortId = item.item != null && item.item.contains(":")
                 ? item.item.split(":")[1].replace('_', ' ') : (item.item != null ? item.item : "?");
         g.drawString(font, shortId, ix, iy + ICON_SIZE + 3, C_DIM, false);
 
-        // Label + type badge — to the right of the icon
+        // ── Header block — to the right of the icon ───────────────────────────
         int tx = ix + ICON_SIZE + 12;
         int ty = iy;
         int tw = iw - ICON_SIZE - 12;
 
-        // Label (large-ish)
-        String lbl = item.displayLabel();
-        g.drawString(font, lbl, tx, ty, 0xFFFFFFFF, false);
+        // Label
+        g.drawString(font, item.displayLabel(), tx, ty, 0xFFFFFFFF, false);
         ty += 12;
 
         // Type badge
@@ -280,28 +274,32 @@ public class PhantasiaItemMicrosceneScreen extends Screen {
         g.fill(tx, ty, tx + badgeW, ty + 11, ac & 0x44FFFFFF | 0x44000000);
         g.fill(tx, ty, tx + badgeW, ty + 1, ac);
         g.drawString(font, typeTxt, tx + 4, ty + 2, ac, false);
-        ty += 16;
+        ty += 14;
 
         // Track info if animated
         if (item.track != null && !"none".equals(item.track)) {
             String trackDesc = "Animated: " + item.track + " (" + item.trackDurationTicks + " ticks/cycle)";
             g.drawString(font, trackDesc, tx, ty, C_DIM, false);
-            ty += 11;
+            ty += 10;
         }
 
-        // ── Description ───────────────────────────────────────────────────────
-        ty = iy + ICON_SIZE + 20;  // start below icon
-        g.fill(ix, ty - 3, ix + iw, ty - 2, 0x22FFFFFF);  // thin divider
-
+        // First portion of description — fills remaining space right of the icon
+        // then continues full-width below the icon area
+        int descStartY = iy + ICON_SIZE + 14;
         if (item.description != null && !item.description.isBlank()) {
+            // Thin divider above description block
+            g.fill(ix, descStartY - 4, ix + iw, descStartY - 3, 0x22FFFFFF);
+
             var lines = font.split(Component.literal(item.description), iw);
+            int fy = descStartY;
             for (var line : lines) {
-                if (ty + 9 > cardY + cardH - 36) break; // don't overflow into close btn area
-                g.drawString(font, line, ix, ty, C_TEXT, false);
-                ty += 10;
+                if (fy + 9 > bottomLimit) break;
+                g.drawString(font, line, ix, fy, C_TEXT, false);
+                fy += 10;
             }
         } else {
-            g.drawString(font, "No description.", ix, ty, C_DIM, false);
+            g.fill(ix, descStartY - 4, ix + iw, descStartY - 3, 0x22FFFFFF);
+            g.drawString(font, "No description.", ix, descStartY, C_DIM, false);
         }
 
         // ── Close button ──────────────────────────────────────────────────────

@@ -20,7 +20,6 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.phys.BlockHitResult;
@@ -33,10 +32,8 @@ import net.phoenixvine.phantasia.client.camera.LerpType;
 import net.phoenixvine.phantasia.client.camera.PhantasiaCamera;
 import net.phoenixvine.phantasia.client.render.PhantasiaTrackedDummyWorld;
 import net.phoenixvine.phantasia.client.render.PhantasiaWorldRenderer;
-import net.phoenixvine.phantasia.common.PhantasiaLoadedPattern;
-import net.phoenixvine.phantasia.common.PhantasiaScript;
-import net.phoenixvine.phantasia.common.PhantasiaScriptData;
-import net.phoenixvine.phantasia.common.PhantasiaScripts;
+import net.phoenixvine.phantasia.client.screens.PhantasiaItemMicrosceneScreen;
+import net.phoenixvine.phantasia.common.*;
 import net.phoenixvine.phantasia.utils.PhantasiaThemeUtils;
 import net.phoenixvine.phantasia.utils.PhantasiaUIUtils;
 
@@ -87,6 +84,8 @@ public class PhantasiaSceneScreen extends Screen {
     private static final int COLLAPSED_PANEL_W = 18;
     private static final int TIMELINE_H = 26;
     private static final int CAPTION_STRIP_H = 22;
+
+
 
     // ─────────────────────────────────────────────────────────────────────────
     // Camera defaults
@@ -265,6 +264,17 @@ public class PhantasiaSceneScreen extends Screen {
             // from script+playbackTick because on a fresh screen instance playbackTick=0
             // which would incorrectly evaluate to non-working for most scripts.
             applyActiveStateToWorld(machineWorking);
+
+            // Compile variant groups now that the pattern is loaded.
+            // withVariants() receives ALL available shapes so auto-detection can
+            // find blocks that only appear in some shape variants (e.g. fusion glass
+            // is absent from shape 0 but present in shape 1).
+            script = script.withVariants(definition, pattern, availableShapes);
+            PhantasiaVariantState vs = PhantasiaVariantState.get();
+            vs.loadGroups(script.getVariantGroups());
+            vs.setOnChangeCallback(() -> {
+                if (renderer != null) renderer.requestBake();
+            });
         }
 
         // ── Renderer ──────────────────────────────────────────────────────────
@@ -456,8 +466,6 @@ public class PhantasiaSceneScreen extends Screen {
                 baseplatePos.add(wp);
             }
 
-        Map<BlockPos, BlockEntity> builtBEs = new HashMap<>();
-
         for (int x = 0; x < raw.length; x++)
             for (int y = 0; y < raw[x].length; y++)
                 for (int z = 0; z < raw[x][y].length; z++) {
@@ -467,17 +475,14 @@ public class PhantasiaSceneScreen extends Screen {
                     BlockPos wp = origin.offset(x, y, z);
                     try {
                         var be = info.getBlockEntity(wp);
-                        if (be != null) {
-                            builtBEs.put(wp, be);
-                            if (be instanceof MetaMachineBlockEntity mbe) {
-                                mbe.setLevel(SHARED_LEVEL);
-                                var machine = mbe.getMetaMachine();
-                                if (machine instanceof MultiblockControllerMachine ctrl && controllerWP == null) {
-                                    controller = ctrl;
-                                    controllerWP = wp;
-                                }
-                                bePos.add(wp);
+                        if (be instanceof MetaMachineBlockEntity mbe) {
+                            mbe.setLevel(SHARED_LEVEL);
+                            var machine = mbe.getMetaMachine();
+                            if (machine instanceof MultiblockControllerMachine ctrl && controllerWP == null) {
+                                controller = ctrl;
+                                controllerWP = wp;
                             }
+                            bePos.add(wp);
                         }
                     } catch (Exception ignored) {}
                     blockMap.put(wp, info);
@@ -486,12 +491,21 @@ public class PhantasiaSceneScreen extends Screen {
 
         SHARED_LEVEL.addBlocks(blockMap);
 
-        // Register BEs using the already-constructed instances — no second getBlockEntity call.
-        for (Map.Entry<BlockPos, BlockEntity> entry : builtBEs.entrySet()) {
+        // Register every MetaMachineBlockEntity with the dummy world so that
+        // TrackedDummyWorld.getBlockEntity(pos) returns them. Without this,
+        // the bake thread's BE scan finds nothing and frontTileEntities stays
+        // empty — meaning drawTileEntities never renders any machine overlays.
+        // We must do this BEFORE onStructureFormed so the controller's own BE
+        // is already in the world when formation logic queries it.
+        for (BlockPos bp : bePos) {
             try {
-                BlockEntity be = entry.getValue();
-                be.setLevel(SHARED_LEVEL);
-                SHARED_LEVEL.setInnerBlockEntity(be);
+                BlockInfo info = blockMap.get(bp);
+                if (info == null) continue;
+                var be = info.getBlockEntity(bp);
+                if (be != null) {
+                    be.setLevel(SHARED_LEVEL); // ensure hasLevel() returns true
+                    SHARED_LEVEL.setInnerBlockEntity(be);
+                }
             } catch (Exception ignored) {}
         }
         net.phoenixvine.phantasia.Phantasia.LOGGER.info(
@@ -985,6 +999,7 @@ public class PhantasiaSceneScreen extends Screen {
 
         renderTimeline(g, mx, my);
         renderSidePanel(g, mx, my);
+        renderScriptItemPanel(g, mx, my);
         regBtn(g, mx, my, 10, 10, 50, 18, "Back", this::onClose);
 
         super.render(g, mx, my, partial);
@@ -1005,6 +1020,157 @@ public class PhantasiaSceneScreen extends Screen {
     // ─────────────────────────────────────────────────────────────────────────
     // Timeline
     // ─────────────────────────────────────────────────────────────────────────
+
+    // ── Script item panel ─────────────────────────────────────────────────────
+
+    private static final int SIP_W    = 186;
+    private static final int SIP_ROW  = 38;
+    private static final int SIP_ICON = 28;
+    private static final int SIP_HOV  = 36;
+
+    /**
+     * Renders the GuideME-style item panel for the current script step.
+     * Docked to the right, above the timeline. Only shown when the active
+     * step has items and {@code showItems == true}.
+     */
+    private void renderScriptItemPanel(GuiGraphics g, int mx, int my) {
+        if (script == null) return;
+        PhantasiaScriptData sd = script.getSourceData();
+        if (sd == null) return;
+
+        int stepIdx = script.getActiveStepIndex(playbackTick);
+        if (stepIdx < 0 || stepIdx >= sd.getSteps().size()) return;
+        PhantasiaScriptData.StepData step = sd.getSteps().get(stepIdx);
+        if (!step.showItems || step.items.isEmpty()) return;
+
+        int pw    = getCurrentPanelWidth();
+        int panelX = this.width - pw - SIP_W - 4;
+        int panelY = CAPTION_STRIP_H + 4;
+        int panelH = step.items.size() * SIP_ROW + 8;
+
+        // Clamp so it doesn't go off-screen on narrow displays
+        if (panelX < 4) panelX = 4;
+
+        g.fill(panelX, panelY, panelX + SIP_W, panelY + panelH, 0xDD070712);
+        g.fill(panelX, panelY, panelX + SIP_W, panelY + 1, C_ACCENT());
+        g.fill(panelX, panelY, panelX + 1, panelY + panelH, 0x554FC3F7);
+
+        int ry = panelY + 4;
+        for (PhantasiaSceneData.ItemConditionData it : step.items) {
+            boolean hov = isOver(mx, my, panelX + 2, ry, SIP_W - 4, SIP_ROW - 1);
+            int ac = it.accentColor();
+
+            // Row bg
+            g.fill(panelX + 2, ry, panelX + SIP_W - 2, ry + SIP_ROW - 1,
+                    hov ? 0xBB0D1A2D : 0x22000000);
+            g.fill(panelX + 2, ry, panelX + 3, ry + SIP_ROW - 1, ac);
+
+            // Track animation
+            float[] anim  = computeSipTrackOffset(it, playbackTick);
+            int   alpha   = Math.max(0, Math.min(255, (int)(anim[2] * 255)));
+            int   iconSize = hov ? SIP_HOV : SIP_ICON;
+            int   iconX   = panelX + 5;
+            int   iconCY  = ry + (SIP_ROW - 1) / 2;
+            int   iconY   = iconCY - iconSize / 2 + Math.round(anim[1]);
+
+            net.minecraft.world.item.Item mcItem = resolveItemById(it.item);
+            if (mcItem != null) {
+                net.minecraft.world.item.ItemStack stack =
+                        new net.minecraft.world.item.ItemStack(mcItem, it.count);
+                float scale = iconSize / 16f;
+                if (alpha < 255) RenderSystem.setShaderColor(1f, 1f, 1f, alpha / 255f);
+                g.pose().pushPose();
+                g.pose().translate(iconX, iconY, 200f);
+                g.pose().scale(scale, scale, 1f);
+                g.renderItem(stack, 0, 0);
+                g.renderItemDecorations(font, stack, 0, 0);
+                g.pose().popPose();
+                if (alpha < 255) RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
+            } else {
+                g.fill(iconX + 2, iconY + 2, iconX + SIP_HOV - 2, iconY + SIP_HOV - 2, 0x44FF0000);
+                g.drawCenteredString(font, "?", iconX + SIP_HOV / 2, iconCY - 4, 0xFFFF5252);
+            }
+
+            // Text
+            int tx = panelX + 5 + SIP_HOV + 4;
+            int tw = SIP_W - (tx - panelX) - 5;
+            int ty = ry + 3;
+
+            g.drawString(font, sipTrunc(it.displayLabel(), tw), tx, ty,
+                    hov ? 0xFFFFFFFF : C_TEXT(), false);
+            ty += 10;
+
+            String pillTxt = switch (it.type == null ? "input" : it.type.toLowerCase(java.util.Locale.ROOT)) {
+                case "output" -> "Out"; case "catalyst" -> "Cat"; default -> "In";
+            };
+            int pillW = font.width(pillTxt) + 5;
+            g.fill(tx, ty, tx + pillW, ty + 8, ac & 0x44FFFFFF | 0x44000000);
+            g.drawString(font, pillTxt, tx + 2, ty, ac, false);
+            ty += 10;
+
+            if (it.description != null && !it.description.isBlank()) {
+                var lines = font.split(Component.literal(it.description), tw);
+                int rem = 2;
+                for (var line : lines) {
+                    if (rem-- <= 0) break;
+                    g.drawString(font, line, tx, ty, C_DIM(), false);
+                    ty += 8;
+                }
+            }
+
+            // Click hint + button
+            boolean hasContent = (it.microsceneId != null && !it.microsceneId.isBlank())
+                    || (it.description != null && !it.description.isBlank());
+            if (hasContent && hov) {
+                boolean hasScene = it.microsceneId != null && !it.microsceneId.isBlank();
+                String hint = hasScene ? "\u25BA Scene" : "\u25BA More";
+                g.drawString(font, hint, panelX + SIP_W - font.width(hint) - 5,
+                        ry + SIP_ROW - 11, 0xFF80DEEA, false);
+            }
+
+            final PhantasiaSceneData.ItemConditionData fIt = it;
+            activeButtons.add(new PhantasiaUIUtils.ButtonAction(panelX + 2, ry, SIP_W - 4, SIP_ROW - 1, () -> {
+                PhantasiaSceneData microscene = fIt.microsceneId != null
+                        ? PhantasiaScenes.get(fIt.microsceneId) : null;
+                Minecraft.getInstance().setScreen(
+                        new PhantasiaItemMicrosceneScreen(
+                                PhantasiaSceneScreen.this, fIt, microscene));
+            }));
+
+            ry += SIP_ROW;
+        }
+    }
+
+    private static float[] computeSipTrackOffset(PhantasiaSceneData.ItemConditionData it, int tick) {
+        String track = it.track == null ? "none" : it.track.toLowerCase(java.util.Locale.ROOT);
+        if ("none".equals(track)) return new float[]{ 0, 0, 1f };
+        int dur = Math.max(1, it.trackDurationTicks);
+        float t = (tick % dur) / (float) dur;
+        return switch (track) {
+            case "left"  -> { float fade = 1f - Math.abs(t - 0.5f) * 2f; yield new float[]{ t * 40f - 20f, 0, Math.max(0, fade) }; }
+            case "right" -> { float fade = 1f - Math.abs(t - 0.5f) * 2f; yield new float[]{ 20f - t * 40f, 0, Math.max(0, fade) }; }
+            case "up"    -> new float[]{ 0, -(t * 24f), Math.max(0, 1f - t) };
+            case "down"  -> new float[]{ 0,  (t * 24f), Math.max(0, 1f - t) };
+            case "pulse" -> new float[]{ 0, (float) Math.sin(t * 2 * Math.PI) * 3f, 1f };
+            default      -> new float[]{ 0, 0, 1f };
+        };
+    }
+
+    private static net.minecraft.world.item.Item resolveItemById(String id) {
+        if (id == null || id.isBlank()) return null;
+        try {
+            var rl = id.contains(":") ? new net.minecraft.resources.ResourceLocation(id)
+                    : new net.minecraft.resources.ResourceLocation("minecraft", id);
+            var item = ForgeRegistries.ITEMS.getValue(rl);
+            return (item == null || item == net.minecraft.world.item.Items.AIR) ? null : item;
+        } catch (Exception e) { return null; }
+    }
+
+    private String sipTrunc(String s, int maxPx) {
+        if (s == null) return "";
+        while (font.width(s) > maxPx && s.length() > 2) s = s.substring(0, s.length() - 2) + "\u2026";
+        return s;
+    }
 
     private void renderTimeline(GuiGraphics g, int mx, int my) {
         int px = this.width - getCurrentPanelWidth();
@@ -1262,6 +1428,14 @@ public class PhantasiaSceneScreen extends Screen {
                 false, this::openBlockFilterScreen);
         y += 20;
 
+        boolean hasVariants = script != null
+                && script.getVariantGroups().stream().anyMatch(PhantasiaVariantGroup::hasChoice);
+        if (hasVariants) {
+            regIconBtn(g, mx, my, px + 10, y, pw - 20, 16, "⚙", "Variants",
+                    false, this::openVariantsScreen);
+            y += 20;
+        }
+
         var mc = Minecraft.getInstance();
         if (mc.player != null && mc.player.getAbilities().instabuild) {
             regIconBtn(g, mx, my, px + 10, y, pw - 20, 16, "✏", "Edit Script",
@@ -1476,6 +1650,12 @@ public class PhantasiaSceneScreen extends Screen {
                 new PhantasiaBlockFilterScreen(pattern, script, viewFilter, this));
     }
 
+    private void openVariantsScreen() {
+        if (camera != null) camera.save();
+        Minecraft.getInstance().setScreen(
+                new PhantasiaVariantsScreen(this, PhantasiaVariantState.get()));
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // Accessors
     // ─────────────────────────────────────────────────────────────────────────
@@ -1555,6 +1735,7 @@ public class PhantasiaSceneScreen extends Screen {
             renderer = null;
         }
         net.phoenixvine.phantasia.client.render.PhantasiaParticleEngine.destroy();
+        PhantasiaVariantState.get().clear();
         machineWorking = false;
         invalidateSharedLevel();
         Minecraft.getInstance().setScreen(parent);

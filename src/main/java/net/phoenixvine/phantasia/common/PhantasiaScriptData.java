@@ -8,7 +8,6 @@ import lombok.Setter;
 
 import java.util.ArrayList;
 import java.util.List;
-
 @Getter
 public class PhantasiaScriptData {
 
@@ -26,11 +25,151 @@ public class PhantasiaScriptData {
     @SerializedName("scriptDuration")
     private int scriptDuration = -1;
 
+    /**
+     * Item condition hints displayed in the GuideME-style panel alongside the
+     * autogenned 3D scene.  Same model as {@link PhantasiaSceneData.ItemConditionData}
+     * — supports label, description, track animation, and an optional
+     * {@code microsceneId} that opens {@link net.phoenixvine.phantasia.client.screens.PhantasiaItemMicrosceneScreen}
+     * when clicked.
+     */
+    @SerializedName("items")
+    private List<PhantasiaSceneData.ItemConditionData> items = new ArrayList<>();
+
+
+
     @SerializedName("mistakes")
     private List<MistakeData> mistakes = new ArrayList<>();
 
     @SerializedName("globalMistakes")
     private List<String> globalMistakes = new ArrayList<>();
+
+    @SerializedName("optionalGroups")
+    private List<OptionalGroupData> optionalGroups = new ArrayList<>();
+
+    @Getter
+    public static class OptionalGroupData {
+
+        /**
+         * Unique identifier for this group, used as the key in
+         * {@link net.phoenixvine.phantasia.client.screens.PhantasiaVariantState}.
+         * E.g. "fusion_glass", "energy_hatch", "muffler_hatch".
+         */
+        @SerializedName("id")
+        public String id = "";
+
+        /** Human-readable name shown in the Variants subscreen. */
+        @SerializedName("label")
+        public String label = "";
+
+        /**
+         * Which UI category this group appears under.
+         * Valid values: "optional", "hatches_buses", "mufflers", "casings".
+         * Defaults to "optional". Script authors can override to move a group
+         * to a more appropriate category.
+         */
+        @SerializedName("category")
+        public String category = "optional";
+
+        /**
+         * Whether the primary block is shown by default ({@code true}) or
+         * the fallback ({@code false}).
+         * For most .or() cases, primary is the decorative/cheaper option,
+         * fallback is the structural block (casing, etc.).
+         * For fusion glass specifically, primary = glass (correct/cheap),
+         * fallback = casing (expensive/weird).
+         */
+        @SerializedName("shownByDefault")
+        public boolean shownByDefault = true;
+
+        /**
+         * Resource location of the primary block state, e.g.
+         * by {@link net.phoenixvine.phantasia.common.PhantasiaScript#fromData}.
+         * Null = auto-detect from pattern.
+         */
+        @SerializedName("primaryBlock")
+        public String primaryBlock = null;
+
+        /**
+         * Resource location of the fallback block state. Null = auto-detect.
+         */
+        @SerializedName("fallbackBlock")
+        public String fallbackBlock = null;
+
+        /**
+         * If true, this group was auto-detected from the GTCEu pattern and
+         * the script has not overridden it. Used to distinguish auto entries
+         * from manual ones during hot-reload merging.
+         */
+        @SerializedName("autoDetected")
+        public boolean autoDetected = false;
+
+        /**
+         * All positions (in local pattern coords) that belong to this group.
+         * Each entry can optionally override {@code primaryBlock}/{@code fallbackBlock}
+         * for that specific position.
+         */
+        @SerializedName("positions")
+        public List<VariantPositionData> positions = new ArrayList<>();
+
+        public OptionalGroupData() {}
+
+        public OptionalGroupData(String id, String label, String category,
+                                 boolean shownByDefault) {
+            this.id = id;
+            this.label = label;
+            this.category = category;
+            this.shownByDefault = shownByDefault;
+        }
+
+        public OptionalGroupData copy() {
+            OptionalGroupData c = new OptionalGroupData(id, label, category, shownByDefault);
+            c.primaryBlock = primaryBlock;
+            c.fallbackBlock = fallbackBlock;
+            c.autoDetected = autoDetected;
+            for (VariantPositionData p : positions) c.positions.add(p.copy());
+            return c;
+        }
+    }
+
+    @Getter
+    public static class VariantPositionData {
+
+        @SerializedName("x")
+        public int x = 0;
+        @SerializedName("y")
+        public int y = 0;
+        @SerializedName("z")
+        public int z = 0;
+
+        /**
+         * Per-position override for the primary block.
+         * Null = inherit from the group's {@code primaryBlock}.
+         */
+        @SerializedName("primaryBlock")
+        public String primaryBlock = null;
+
+        /**
+         * Per-position override for the fallback block.
+         * Null = inherit from the group's {@code fallbackBlock}.
+         */
+        @SerializedName("fallbackBlock")
+        public String fallbackBlock = null;
+
+        public VariantPositionData() {}
+
+        public VariantPositionData(int x, int y, int z) {
+            this.x = x;
+            this.y = y;
+            this.z = z;
+        }
+
+        public VariantPositionData copy() {
+            VariantPositionData c = new VariantPositionData(x, y, z);
+            c.primaryBlock = primaryBlock;
+            c.fallbackBlock = fallbackBlock;
+            return c;
+        }
+    }
 
     @Getter
     public static class StepData {
@@ -68,6 +207,27 @@ public class PhantasiaScriptData {
         @SerializedName("fakeRecipeId")
         public String fakeRecipeId = null;
 
+
+
+
+
+        /**
+         * Whether the item panel is visible during this step.
+         * Defaults to {@code true}. Set to {@code false} on steps focused on
+         * structure assembly where recipe context would be distracting.
+         */
+        @SerializedName("showItems")
+        public boolean showItems = true;
+
+        /**
+         * Item condition hints displayed in the GuideME-style panel during
+         * this step.  Empty list = no panel shown (even if {@link #showItems}
+         * is true).  Items support labels, descriptions, track animations, and
+         * optional {@code microsceneId} links.
+         */
+        @SerializedName("items")
+        public List<PhantasiaSceneData.ItemConditionData> items = new ArrayList<>();
+
         @SerializedName("camera")
         public CameraData camera = null;
 
@@ -88,6 +248,8 @@ public class PhantasiaScriptData {
             c.working = working;
 
             c.fakeRecipeId = fakeRecipeId;
+            c.showItems = showItems;
+            for (PhantasiaSceneData.ItemConditionData it : items) c.items.add(it.copy());
             c.camera = camera == null ? null : new CameraData(camera.yaw, camera.pitch, camera.zoom,
                     camera.lerpType, camera.lerpTicks);
             for (int[] p : positions) c.positions.add(new int[] { p[0], p[1], p[2] });
@@ -252,6 +414,7 @@ public class PhantasiaScriptData {
         c.startCamera = startCamera == null ? null : startCamera.copy();
         c.scriptDuration = scriptDuration;
         for (StepData s : steps) c.steps.add(s.copy());
+        for (PhantasiaSceneData.ItemConditionData it : items) c.items.add(it.copy());
         for (MistakeData m : mistakes) {
             c.mistakes.add(new MistakeData(m.x, m.y, m.z, m.label, m.color));
         }
