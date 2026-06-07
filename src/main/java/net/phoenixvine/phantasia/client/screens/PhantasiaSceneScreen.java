@@ -30,10 +30,14 @@ import net.minecraftforge.registries.ForgeRegistries;
 import net.phoenixvine.phantasia.client.camera.CameraView;
 import net.phoenixvine.phantasia.client.camera.LerpType;
 import net.phoenixvine.phantasia.client.camera.PhantasiaCamera;
+import net.phoenixvine.phantasia.client.render.PhantasiaShaders;
 import net.phoenixvine.phantasia.client.render.PhantasiaTrackedDummyWorld;
 import net.phoenixvine.phantasia.client.render.PhantasiaWorldRenderer;
 import net.phoenixvine.phantasia.client.screens.PhantasiaItemMicrosceneScreen;
 import net.phoenixvine.phantasia.common.*;
+import net.phoenixvine.phantasia.common.world.PhantasiaDimension;
+import net.phoenixvine.phantasia.common.world.PhantasiaSlotAllocator;
+import net.phoenixvine.phantasia.common.world.PhantasiaSlotVersions;
 import net.phoenixvine.phantasia.utils.PhantasiaThemeUtils;
 import net.phoenixvine.phantasia.utils.PhantasiaUIUtils;
 
@@ -273,7 +277,15 @@ public class PhantasiaSceneScreen extends Screen {
             PhantasiaVariantState vs = PhantasiaVariantState.get();
             vs.loadGroups(script.getVariantGroups());
             vs.setOnChangeCallback(() -> {
-                if (renderer != null) renderer.requestBake();
+                if (renderer == null || pattern == null) return;
+                // Partial rebake: only the positions belonging to toggled variant
+                // groups, not the whole pattern.
+                Set<BlockPos> variantPositions = buildVariantWorldPositions(vs);
+                if (variantPositions.isEmpty()) {
+                    renderer.requestBake();
+                } else {
+                    renderer.requestPartialBake(variantPositions);
+                }
             });
         }
 
@@ -283,6 +295,25 @@ public class PhantasiaSceneScreen extends Screen {
             if (pattern != null) {
                 renderer.setBaseplatePositions(pattern.baseplatePositions);
                 renderer.setControllerWorldPos(pattern.controllerWorldPos);
+
+                // Build the full bake set: ALL machine blocks + baseplate.
+                // Computed once; the renderer bakes all of it and never needs to
+                // rethink which blocks to include on a visibility change.
+                Set<BlockPos> fullBakeSet = new HashSet<>();
+                fullBakeSet.addAll(pattern.blockMap.keySet());
+                fullBakeSet.addAll(pattern.baseplatePositions);
+                renderer.setPatternBlocks(fullBakeSet);
+
+                // Assign compact IDs — also allocates the GPU visibility buffer.
+                renderer.assignBlockIds(fullBakeSet);
+
+                // Recompile the Phantasia block shader with the correct
+                // MAX_BLOCKS_DIV32 / PHANTASIA_LARGE_MACHINE define for this pattern.
+                PhantasiaShaders.recompileForPattern(
+                        renderer.getTotalBakedBlocks(),
+                        renderer.needsSSBO());
+
+                renderer.requestBake();
             }
         }
         // Initialise the isolated particle engine for this scene.
@@ -437,31 +468,60 @@ public class PhantasiaSceneScreen extends Screen {
     // ─────────────────────────────────────────────────────────────────────────
 
     private PhantasiaLoadedPattern loadPattern(MultiblockShapeInfo shape) {
-        // Fixed origin — Embeddium cannot see these blocks because getChunkSource()
-        // in PhantasiaTrackedDummyWorld returns DummyWorld's own isolated chunk
-        // source rather than the real ClientLevel's, so player position is irrelevant.
-        BlockPos origin = new BlockPos(0, 50, 0);
+        ResourceLocation machineId = definition.getId();
+        // Stable per-machine slot in the Phantasia scene dimension (used for persistence only).
+        BlockPos slotOrigin = PhantasiaSlotAllocator.originFor(machineId);
+        // Fixed local origin used for SHARED_LEVEL block placement. Always near (0,0,0)
+        // so baked VBO vertices are small floats — preserving the float32 precision that
+        // GT's 0.001-block overlay offset requires to avoid z-fighting.
+        BlockPos renderOrigin = PhantasiaSlotAllocator.RENDER_ORIGIN;
 
-        SHARED_LEVEL.renderedBlocks.clear();
+        int shapeHash  = PhantasiaSlotVersions.hashShape(shape.getBlocks());
+        int scriptHash = PhantasiaSlotVersions.hashScript(script.getSourceData());
+
+        // isValid() checks hash stamps AND that the dimension chunk actually exists
+        // on disk, so we never warm-start against a missing or freshly wiped region.
+        boolean warm = PhantasiaSlotVersions.isValid(machineId, shapeHash, scriptHash, slotOrigin);
+
+        if (warm) {
+            net.phoenixvine.phantasia.Phantasia.LOGGER.info(
+                    "[Phantasia] Warm load for {} at slot={} render={}", machineId, slotOrigin, renderOrigin);
+            return loadPatternWarm(shape, renderOrigin);
+        } else {
+            net.phoenixvine.phantasia.Phantasia.LOGGER.info(
+                    "[Phantasia] Cold load for {} at slot={} render={}", machineId, slotOrigin, renderOrigin);
+            PhantasiaLoadedPattern result = loadPatternCold(shape, renderOrigin, slotOrigin);
+            PhantasiaSlotVersions.put(machineId, shapeHash, scriptHash);
+            PhantasiaDimension.forceChunkLoad(slotOrigin);
+            return result;
+        }
+    }
+
+    /**
+     * Warm load: block states are already in SHARED_LEVEL from a previous session.
+     * Skips the shape.getBlocks() iteration and SHARED_LEVEL.addBlocks(); only
+     * rebuilds the index maps and re-registers BEs (BEs are ephemeral, not saved).
+     */
+    private PhantasiaLoadedPattern loadPatternWarm(MultiblockShapeInfo shape, BlockPos renderOrigin) {
         SHARED_LEVEL.blockEntities.clear();
 
-        Map<BlockPos, BlockInfo> blockMap = new HashMap<>();
-        Map<BlockPos, BlockPos> localToWorld = new HashMap<>();
-        Set<BlockPos> baseplatePos = new HashSet<>();
-        Set<BlockPos> bePos = new HashSet<>();
-        BlockPos controllerWP = null;
+        BlockInfo[][][] raw = shape.getBlocks();
+        Map<BlockPos, BlockInfo> blockMap    = new HashMap<>();
+        Map<BlockPos, BlockPos>  localToWorld = new HashMap<>();
+        Set<BlockPos> baseplatePos  = new HashSet<>();
+        Set<BlockPos> bePos         = new HashSet<>();
+        BlockPos controllerWP       = null;
         MultiblockControllerMachine controller = null;
 
         BlockInfo floor = BlockInfo.fromBlockState(Blocks.DEEPSLATE_BRICKS.defaultBlockState());
-        BlockInfo[][][] raw = shape.getBlocks();
         int sxLen = raw.length;
         int szLen = sxLen > 0 && raw[0].length > 0 ? raw[0][0].length : 0;
-        int padX = Math.max(2, sxLen / 2 + 1);
-        int padZ = Math.max(2, szLen / 2 + 1);
+        int padX  = Math.max(2, sxLen / 2 + 1);
+        int padZ  = Math.max(2, szLen / 2 + 1);
 
         for (int bx = -padX; bx <= sxLen + padX; bx++)
             for (int bz = -padZ; bz <= szLen + padZ; bz++) {
-                BlockPos wp = origin.offset(bx, -1, bz);
+                BlockPos wp = renderOrigin.offset(bx, -1, bz);
                 blockMap.put(wp, floor);
                 baseplatePos.add(wp);
             }
@@ -472,7 +532,65 @@ public class PhantasiaSceneScreen extends Screen {
                     BlockInfo info = raw[x][y][z];
                     if (info == null) continue;
                     BlockPos lp = new BlockPos(x, y, z);
-                    BlockPos wp = origin.offset(x, y, z);
+                    BlockPos wp = renderOrigin.offset(x, y, z);
+                    try {
+                        var be = info.getBlockEntity(wp);
+                        if (be instanceof MetaMachineBlockEntity mbe) {
+                            mbe.setLevel(SHARED_LEVEL);
+                            var machine = mbe.getMetaMachine();
+                            if (machine instanceof MultiblockControllerMachine ctrl && controllerWP == null) {
+                                controller = ctrl;
+                                controllerWP = wp;
+                            }
+                            bePos.add(wp);
+                        }
+                    } catch (Exception ignored) {}
+                    blockMap.put(wp, info);
+                    localToWorld.put(lp, wp);
+                }
+
+        // Block states already in SHARED_LEVEL.renderedBlocks — skip addBlocks().
+        // Only need to register BEs and call onStructureFormed.
+        return finalisePattern(raw, blockMap, localToWorld, baseplatePos, bePos,
+                controllerWP, controller, renderOrigin);
+    }
+
+    /**
+     * Cold load: places all blocks into SHARED_LEVEL at {@code renderOrigin} (near 0,0,0),
+     * then writes them to the Phantasia dimension at {@code slotOrigin} for persistence.
+     */
+    private PhantasiaLoadedPattern loadPatternCold(MultiblockShapeInfo shape, BlockPos renderOrigin, BlockPos slotOrigin) {
+        SHARED_LEVEL.renderedBlocks.clear();
+        SHARED_LEVEL.blockEntities.clear();
+
+        BlockInfo[][][] raw = shape.getBlocks();
+        Map<BlockPos, BlockInfo> blockMap    = new HashMap<>();
+        Map<BlockPos, BlockPos>  localToWorld = new HashMap<>();
+        Set<BlockPos> baseplatePos  = new HashSet<>();
+        Set<BlockPos> bePos         = new HashSet<>();
+        BlockPos controllerWP       = null;
+        MultiblockControllerMachine controller = null;
+
+        BlockInfo floor = BlockInfo.fromBlockState(Blocks.DEEPSLATE_BRICKS.defaultBlockState());
+        int sxLen = raw.length;
+        int szLen = sxLen > 0 && raw[0].length > 0 ? raw[0][0].length : 0;
+        int padX  = Math.max(2, sxLen / 2 + 1);
+        int padZ  = Math.max(2, szLen / 2 + 1);
+
+        for (int bx = -padX; bx <= sxLen + padX; bx++)
+            for (int bz = -padZ; bz <= szLen + padZ; bz++) {
+                BlockPos wp = renderOrigin.offset(bx, -1, bz);
+                blockMap.put(wp, floor);
+                baseplatePos.add(wp);
+            }
+
+        for (int x = 0; x < raw.length; x++)
+            for (int y = 0; y < raw[x].length; y++)
+                for (int z = 0; z < raw[x][y].length; z++) {
+                    BlockInfo info = raw[x][y][z];
+                    if (info == null) continue;
+                    BlockPos lp = new BlockPos(x, y, z);
+                    BlockPos wp = renderOrigin.offset(x, y, z);
                     try {
                         var be = info.getBlockEntity(wp);
                         if (be instanceof MetaMachineBlockEntity mbe) {
@@ -491,25 +609,89 @@ public class PhantasiaSceneScreen extends Screen {
 
         SHARED_LEVEL.addBlocks(blockMap);
 
+        // Persist to the Phantasia dimension at slot-space coords for warm-start.
+        // Build a slot-space copy by re-offsetting each render-local position.
+        Map<BlockPos, BlockInfo> slotSpaceMap = new HashMap<>(blockMap.size());
+        for (Map.Entry<BlockPos, BlockInfo> e : blockMap.entrySet()) {
+            // Convert render-local wp back to local offset, then apply slotOrigin.
+            BlockPos localOffset = e.getKey().subtract(renderOrigin);
+            slotSpaceMap.put(slotOrigin.offset(localOffset), e.getValue());
+        }
+        coldPopulateDimensionSlot(definition.getId(), slotSpaceMap);
+
+        return finalisePattern(raw, blockMap, localToWorld, baseplatePos, bePos,
+                controllerWP, controller, renderOrigin);
+    }
+
+    /**
+     * Writes the blocks in {@code blockMap} to the Phantasia scene dimension so
+     * that subsequent screen opens can skip the shape.getBlocks() iteration
+     * (warm-start). Also called during world-load pre-population.
+     *
+     * <p>The write is submitted to the server thread asynchronously so the
+     * calling render-thread open is not blocked on disk I/O.</p>
+     */
+    public static void coldPopulateDimensionSlot(ResourceLocation machineId,
+                                                 Map<BlockPos, BlockInfo> blockMap) {
+        var sl = PhantasiaDimension.getServerLevel();
+        if (sl == null) return;
+        try {
+            net.minecraft.server.MinecraftServer server =
+                    net.minecraftforge.server.ServerLifecycleHooks.getCurrentServer();
+            if (server == null) return;
+            server.submit(() -> {
+                for (Map.Entry<BlockPos, BlockInfo> e : blockMap.entrySet()) {
+                    try {
+                        BlockState state = e.getValue().getBlockState();
+                        if (state != null && !state.isAir()) {
+                            sl.setBlock(e.getKey(), state,
+                                    net.minecraft.world.level.block.Block.UPDATE_CLIENTS
+                                            | net.minecraft.world.level.block.Block.UPDATE_KNOWN_SHAPE);
+                        }
+                    } catch (Exception ignored) {}
+                }
+                net.phoenixvine.phantasia.Phantasia.LOGGER.debug(
+                        "[Phantasia] Wrote {} blocks to scene dimension for {}",
+                        blockMap.size(), machineId);
+            });
+        } catch (Exception e) {
+            net.phoenixvine.phantasia.Phantasia.LOGGER.warn(
+                    "[Phantasia] Could not submit dimension write task: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * Common tail of both load paths: register BEs, call onStructureFormed,
+     * compute Y extents, and construct the PhantasiaLoadedPattern.
+     */
+    private PhantasiaLoadedPattern finalisePattern(
+            BlockInfo[][][] raw,
+            Map<BlockPos, BlockInfo> blockMap,
+            Map<BlockPos, BlockPos> localToWorld,
+            Set<BlockPos> baseplatePos,
+            Set<BlockPos> bePos,
+            BlockPos controllerWP,
+            MultiblockControllerMachine controller,
+            BlockPos origin) {
+
         // Register every MetaMachineBlockEntity with the dummy world so that
-        // TrackedDummyWorld.getBlockEntity(pos) returns them. Without this,
-        // the bake thread's BE scan finds nothing and frontTileEntities stays
-        // empty — meaning drawTileEntities never renders any machine overlays.
-        // We must do this BEFORE onStructureFormed so the controller's own BE
-        // is already in the world when formation logic queries it.
+        // TrackedDummyWorld.getBlockEntity(pos) returns them. Must happen BEFORE
+        // onStructureFormed so the controller's own BE is in the world when
+        // formation logic queries it.
         for (BlockPos bp : bePos) {
             try {
                 BlockInfo info = blockMap.get(bp);
                 if (info == null) continue;
                 var be = info.getBlockEntity(bp);
                 if (be != null) {
-                    be.setLevel(SHARED_LEVEL); // ensure hasLevel() returns true
+                    be.setLevel(SHARED_LEVEL);
                     SHARED_LEVEL.setInnerBlockEntity(be);
                 }
             } catch (Exception ignored) {}
         }
         net.phoenixvine.phantasia.Phantasia.LOGGER.info(
                 "[Phantasia] Registered {} block entities with SHARED_LEVEL", bePos.size());
+
         if (controller != null) {
             try {
                 BlockPattern pat = controller.getPattern();
@@ -540,10 +722,7 @@ public class PhantasiaSceneScreen extends Screen {
             minY = Math.min(minY, lp.getY());
             maxY = Math.max(maxY, lp.getY());
         }
-        if (minY > maxY) {
-            minY = 0;
-            maxY = 0;
-        }
+        if (minY > maxY) { minY = 0; maxY = 0; }
 
         return new PhantasiaLoadedPattern(blockMap, localToWorld, baseplatePos,
                 controllerWP, bePos, origin, minY, maxY, controller, script);
@@ -833,12 +1012,14 @@ public class PhantasiaSceneScreen extends Screen {
     private void updateMachineState(PhantasiaScript.Step step) {
         if (pattern == null || pattern.controller == null) return;
         boolean working = step != null && step.working() && playbackTick < script.getTotalTicks();
+
+        boolean stateChanged = false;
         if (pattern.controller instanceof WorkableMultiblockMachine w) {
             RecipeLogic logic = w.getRecipeLogic();
             boolean wasWorking = (logic.getStatus() == RecipeLogic.Status.WORKING);
             if (wasWorking != working) {
                 logic.setStatus(working ? RecipeLogic.Status.WORKING : RecipeLogic.Status.IDLE);
-                if (renderer != null) renderer.invalidate();
+                stateChanged = true;
             }
 
             String rid = (step != null && working) ? step.fakeRecipeId() : null;
@@ -849,23 +1030,39 @@ public class PhantasiaSceneScreen extends Screen {
             }
         }
 
-        // Persist working state statically so reinit (subscreen return) can
-        // restore it without recalculating from playbackTick=0 on the new instance.
+        // Collect positions whose ACTIVE state will change. Only these need a
+        // partial rebake — the rest of the structure geometry is unchanged.
+        var activeProp = com.gregtechceu.gtceu.api.block.property.GTBlockStateProperties.ACTIVE;
+        Set<BlockPos> activeChangedPositions = new HashSet<>();
+        if (stateChanged && SHARED_LEVEL != null && pattern.blockMap != null) {
+            if (pattern.controllerWorldPos != null)
+                activeChangedPositions.add(pattern.controllerWorldPos);
+            for (BlockPos wp : pattern.blockMap.keySet()) {
+                try {
+                    if (SHARED_LEVEL.getBlockState(wp).hasProperty(activeProp))
+                        activeChangedPositions.add(wp);
+                } catch (Exception ignored) {}
+            }
+        }
+
+        // Persist working state statically so reinit (subscreen return) can restore
+        // it without recalculating from playbackTick=0 on the new instance.
         machineWorking = working;
         applyActiveStateToWorld(working);
 
-        // Trigger a rebake so the new ACTIVE block states (coils, controller overlay)
-        // are reflected in the VBO. Without this the rendered geometry stays frozen
-        // with the pre-working states even though renderedBlocks has been updated.
-        if (renderer != null) renderer.requestBake();
+        // Trigger a targeted rebake for only the blocks whose geometry changed.
+        if (renderer != null && stateChanged) {
+            if (!activeChangedPositions.isEmpty()) {
+                renderer.requestPartialBake(activeChangedPositions);
+            } else {
+                renderer.requestBake();
+            }
+        }
 
         var rs = pattern.controller.getRenderState();
         var ap = com.gregtechceu.gtceu.api.machine.property.GTMachineModelProperties.IS_ACTIVE;
         if (rs.hasProperty(ap) && rs.getValue(ap) != working) {
             pattern.controller.setRenderState(rs.setValue(ap, working));
-            // Notify the BER that render state changed — in a real game this is done
-            // via LDLib's @RequireRerender syncdata sync, which is a no-op in the dummy
-            // world. Sending a block update forces the BER to re-read the render state.
             if (SHARED_LEVEL != null && pattern.controllerWorldPos != null) {
                 SHARED_LEVEL.sendBlockUpdated(pattern.controllerWorldPos,
                         SHARED_LEVEL.getBlockState(pattern.controllerWorldPos),
@@ -926,28 +1123,38 @@ public class PhantasiaSceneScreen extends Screen {
         if (coilIndex >= coilTiers.size()) coilIndex = 0;
         BlockInfo newCoil = coilTiers.get(coilIndex);
 
-        // Invalidate FIRST — before any world state changes — so the bake thread
-        // is cancelled before it reads the old coil states. If we invalidate after
-        // setBlock(), there are frames where the VBO still has the old coil geometry
-        // while the BER already reads the new coil block state and renders its active
-        // overlay on top, causing the "cupronickel active bleeding into kanthal" bleed.
-        if (renderer != null) renderer.invalidate();
-
-        // Determine working state so coil blocks get the right ACTIVE value immediately.
         boolean currentlyWorking = script != null && script.getActiveStep(playbackTick) != null &&
                 script.getActiveStep(playbackTick).working() && playbackTick < script.getTotalTicks();
 
+        // Collect coil positions BEFORE mutating so the partial bake targets
+        // exactly the blocks that changed.
+        Set<BlockPos> coilPositions = new HashSet<>();
         for (Map.Entry<BlockPos, BlockInfo> e : pattern.blockMap.entrySet()) {
-            if (e.getValue().getBlockState().getBlock() instanceof com.gregtechceu.gtceu.common.block.CoilBlock) {
-                e.setValue(newCoil);
-                if (SHARED_LEVEL != null)
-                    SHARED_LEVEL.setBlock(e.getKey(), newCoil.getBlockState(), 3);
+            if (e.getValue().getBlockState().getBlock()
+                    instanceof com.gregtechceu.gtceu.common.block.CoilBlock) {
+                coilPositions.add(e.getKey());
+            }
+        }
+
+        // Mutate block states in pattern.blockMap and SHARED_LEVEL.
+        for (BlockPos pos : coilPositions) {
+            pattern.blockMap.put(pos, newCoil);
+            if (SHARED_LEVEL != null)
+                SHARED_LEVEL.setBlock(pos, newCoil.getBlockState(), 3);
+        }
+
+        // Partial rebake: only the coil positions. For a large multiblock this
+        // means rebaking ~200–2000 blocks instead of the full 3M+, eliminating
+        // the stutter that previously came from renderer.invalidate() + full rebake.
+        if (renderer != null) {
+            if (!coilPositions.isEmpty()) {
+                renderer.requestPartialBake(coilPositions);
+            } else {
+                renderer.requestBake();
             }
         }
 
         applyVisibility();
-        // Re-apply active state to all blocks (including freshly-swapped coils)
-        // so the new coil immediately shows as active if the step is working.
         applyActiveStateToWorld(currentlyWorking);
         if (script != null)
             updateMachineState(script.getActiveStep(playbackTick));
@@ -1427,6 +1634,12 @@ public class PhantasiaSceneScreen extends Screen {
         regIconBtn(g, mx, my, px + 10, y, pw - 20, 16, "🔍", "Block List",
                 false, this::openBlockFilterScreen);
         y += 20;
+        if (PhantasiaEmiPlugin.EMI_PRESENT) {
+            regIconBtn(g, mx, my, px + 10, y, pw - 20, 16, "\uD83E\uDDEE", "Materials",
+                    false, this::openMaterialCostScreen);
+            y += 20;
+        }
+
 
         boolean hasVariants = script != null
                 && script.getVariantGroups().stream().anyMatch(PhantasiaVariantGroup::hasChoice);
@@ -1650,6 +1863,13 @@ public class PhantasiaSceneScreen extends Screen {
                 new PhantasiaBlockFilterScreen(pattern, script, viewFilter, this));
     }
 
+    private void openMaterialCostScreen() {
+        if (pattern == null) return;
+        if (camera != null) camera.save();
+        Minecraft.getInstance().setScreen(
+                new PhantasiaMaterialCostScreen(pattern, this));
+    }
+
     private void openVariantsScreen() {
         if (camera != null) camera.save();
         Minecraft.getInstance().setScreen(
@@ -1722,6 +1942,23 @@ public class PhantasiaSceneScreen extends Screen {
 
     private static String formatTicks(int t) {
         return String.format("%d.%02ds", t / 20, (t % 20) * 5);
+    }
+
+    /**
+     * Returns the world-space positions of all blocks belonging to any variant group.
+     * Used by the variant onChange callback to scope the partial bake to only the
+     * positions that could have changed, rather than the whole pattern.
+     */
+    private Set<BlockPos> buildVariantWorldPositions(PhantasiaVariantState vs) {
+        if (pattern == null || script == null) return Set.of();
+        Set<BlockPos> result = new HashSet<>();
+
+        for (PhantasiaVariantGroup group : script.getVariantGroups()) {
+            // FIX: Grab the world positions directly from the compiled group map keys
+            result.addAll(group.getPositionBaseIndex().keySet());
+        }
+
+        return result;
     }
 
     // ─────────────────────────────────────────────────────────────────────────

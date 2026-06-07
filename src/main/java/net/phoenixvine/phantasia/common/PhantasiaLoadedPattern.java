@@ -35,15 +35,15 @@ public class PhantasiaLoadedPattern {
     public final PhantasiaScript script;
 
     public PhantasiaLoadedPattern(
-                                  Map<BlockPos, BlockInfo> blockMap,
-                                  Map<BlockPos, BlockPos> localToWorld,
-                                  Set<BlockPos> baseplatePositions,
-                                  BlockPos controllerWorldPos,
-                                  Set<BlockPos> blockEntityWorldPos,
-                                  BlockPos origin,
-                                  int minY, int maxY,
-                                  MultiblockControllerMachine controller,
-                                  PhantasiaScript script) {
+            Map<BlockPos, BlockInfo> blockMap,
+            Map<BlockPos, BlockPos> localToWorld,
+            Set<BlockPos> baseplatePositions,
+            BlockPos controllerWorldPos,
+            Set<BlockPos> blockEntityWorldPos,
+            BlockPos origin,
+            int minY, int maxY,
+            MultiblockControllerMachine controller,
+            PhantasiaScript script) {
         this.blockMap = new HashMap<>(blockMap);
         this.localToWorld = Map.copyOf(localToWorld);
         this.baseplatePositions = Set.copyOf(baseplatePositions);
@@ -61,7 +61,7 @@ public class PhantasiaLoadedPattern {
 
         Map<String, Integer> counts = new LinkedHashMap<>();
         for (Map.Entry<BlockPos, BlockPos> e : localToWorld.entrySet()) {
-            BlockInfo info = blockMap.get(e.getKey());
+            BlockInfo info = blockMap.get(e.getValue()); // world-pos key
             if (info == null) continue;
             BlockState state = info.getBlockState();
             if (state == null || state.isAir()) continue;

@@ -41,6 +41,8 @@ public class PhantasiaVariantsScreen extends Screen {
     private static final int ROW_H = 22;
     private static final int DROPDOWN_W = 160;
     private static final int DROPDOWN_ITEM_H = 16;
+    private int dropdownScrollY = 0;
+    private final int maxDropdownHeight = 16 * 8;
 
     // ── State ─────────────────────────────────────────────────────────────────
 
@@ -219,13 +221,15 @@ public class PhantasiaVariantsScreen extends Screen {
     }
 
     /**
+     /**
      * Renders the currently open dropdown list above all other content.
-     * Finds the row position of the open group and draws the list below it.
+     * Finds the row position of the open group, strictly expanding DOWNWARDS,
+     * capping at either 8 items or the bottom panel edge (whichever comes first).
      */
     private void renderOpenDropdown(GuiGraphics g, int mx, int my,
-                                     int panelX, int contentStartY,
-                                     int contentX, int contentW,
-                                     int panelY, int panelH) {
+                                    int panelX, int contentStartY,
+                                    int contentX, int contentW,
+                                    int panelY, int panelH) {
         PhantasiaVariantGroup openGroup = variantState.getGroups().stream()
                 .filter(gr -> gr.getId().equals(openDropdownGroupId))
                 .findFirst().orElse(null);
@@ -236,40 +240,68 @@ public class PhantasiaVariantsScreen extends Screen {
 
         int ddX = contentX + contentW - DROPDOWN_W;
         int numOptions = openGroup.getOptions().size();
-        int listH = numOptions * DROPDOWN_ITEM_H;
 
-        // Find Y position of this group's row by counting rows above it
+        // Find Y position of this group's row by precisely mimicking the render loop layout
         int rowY = contentStartY - scrollY;
         outer:
         for (Map.Entry<PhantasiaVariantGroup.Category, List<PhantasiaVariantGroup>> entry
                 : categorised.entrySet()) {
             rowY += SECTION_HEADER_H + 2;
             for (PhantasiaVariantGroup g2 : entry.getValue()) {
-                if (g2.getId().equals(openDropdownGroupId)) break outer;
+                if (g2.getId().equals(openDropdownGroupId)) {
+                    break outer;
+                }
                 rowY += ROW_H + 2;
             }
             rowY += 4;
         }
 
+        // Always position the dropdown list directly below the button row
         int dropY = rowY + ROW_H - 1;
 
-        // Clamp to panel bounds
-        if (dropY + listH > panelY + panelH - 4) {
-            dropY = rowY - listH + 1;
-        }
+        // Calculate heights
+        int totalListH = numOptions * DROPDOWN_ITEM_H;
+        int idealListH = Math.min(totalListH, maxDropdownHeight);
+
+        // Calculate max allowed height based on the bottom constraint of the UI panel
+        int maxAllowedH = (panelY + panelH - 4) - dropY;
+
+        // Combine constraints: use ideal height unless it blows past the panel edge
+        int visibleListH = Math.max(DROPDOWN_ITEM_H, Math.min(idealListH, maxAllowedH));
+
+        // Ensure dropdown scroll doesn't drift out of bounds
+        int maxScroll = Math.max(0, totalListH - visibleListH);
+        if (dropdownScrollY > maxScroll) dropdownScrollY = maxScroll;
+        if (dropdownScrollY < 0) dropdownScrollY = 0;
+
+        // ── Push Pose Layer (Z sorting) ───────────────────────────────────────
+        g.pose().pushPose();
+        g.pose().translate(0, 0, 300.0F);
 
         // Drop shadow
-        g.fill(ddX + 2, dropY + 2, ddX + DROPDOWN_W + 2, dropY + listH + 2, 0x66000000);
+        g.fill(ddX + 2, dropY + 2, ddX + DROPDOWN_W + 2, dropY + visibleListH + 2, 0x66000000);
 
-        // List background
-        g.fill(ddX, dropY, ddX + DROPDOWN_W, dropY + listH, 0xFF151520);
-        PhantasiaThemeUtils.drawBorderRect(g, ddX, dropY, DROPDOWN_W, listH, C_BORDER());
+        // List background & Outer Border
+        g.fill(ddX, dropY, ddX + DROPDOWN_W, dropY + visibleListH, 0xFF151520);
+        PhantasiaThemeUtils.drawBorderRect(g, ddX, dropY, DROPDOWN_W, visibleListH, C_BORDER());
+
+        // ── Scissor List Content ──────────────────────────────────────────────
+        double scale = Minecraft.getInstance().getWindow().getGuiScale();
+        int scissorY = (int) ((height - dropY - visibleListH) * scale);
+        RenderSystem.enableScissor(
+                (int) (ddX * scale), scissorY,
+                (int) (DROPDOWN_W * scale), (int) (visibleListH * scale));
 
         int selectedIdx = variantState.getSelection(openGroup.getId());
 
+        // Draw items factoring in dropdownScrollY
         for (int i = 0; i < numOptions; i++) {
-            int itemY = dropY + i * DROPDOWN_ITEM_H;
-            boolean itemHov = isOver(mx, my, ddX, itemY, DROPDOWN_W, DROPDOWN_ITEM_H);
+            int itemY = dropY + (i * DROPDOWN_ITEM_H) - dropdownScrollY;
+
+            // Mouse hover checks must hit both the item bounds and the global dropdown visible box
+            boolean itemHov = isOver(mx, my, ddX, itemY, DROPDOWN_W, DROPDOWN_ITEM_H)
+                    && isOver(mx, my, ddX, dropY, DROPDOWN_W, visibleListH);
+
             boolean itemSel = i == selectedIdx;
 
             int itemBg = itemSel ? 0xFF2A2A50 : (itemHov ? 0xFF1E1E35 : 0x00000000);
@@ -278,11 +310,12 @@ public class PhantasiaVariantsScreen extends Screen {
             String optLabel = i < openGroup.getOptionLabels().size()
                     ? openGroup.getOptionLabels().get(i) : "Option " + i;
             int textColor = itemSel ? 0xAABBFF : (itemHov ? 0xEEEEEE : 0xBBBBBB);
-            g.drawString(font, trunc(optLabel, DROPDOWN_W - 8),
-                    ddX + 4, itemY + 4, textColor);
 
-            // Checkmark for selected
-            if (itemSel) g.drawString(font, "✔", ddX + DROPDOWN_W - 12, itemY + 4, 0x66AAFF);
+            g.drawString(font, trunc(optLabel, DROPDOWN_W - 20), ddX + 4, itemY + 4, textColor);
+
+            if (itemSel) {
+                g.drawString(font, "✔", ddX + DROPDOWN_W - 12, itemY + 4, 0x66AAFF);
+            }
 
             final int finalI = i;
             final String gid = openGroup.getId();
@@ -290,8 +323,23 @@ public class PhantasiaVariantsScreen extends Screen {
                     DROPDOWN_ITEM_H, () -> {
                 variantState.setSelection(gid, finalI);
                 openDropdownGroupId = null;
+                dropdownScrollY = 0;
             }));
         }
+
+        RenderSystem.disableScissor();
+
+        // ── Dropdown Mini Scrollbar Indicator ─────────────────────────────────
+        if (totalListH > visibleListH) {
+            int sbW = 2;
+            int sbX = ddX + DROPDOWN_W - sbW - 1;
+            int thumbH = Math.max(8, visibleListH * visibleListH / totalListH);
+            int thumbY = dropY + (dropdownScrollY * (visibleListH - thumbH) / (totalListH - visibleListH));
+            g.fill(sbX, dropY, sbX + sbW, dropY + visibleListH, 0x33FFFFFF);
+            g.fill(sbX, thumbY, sbX + sbW, thumbY + thumbH, 0xAA6666AA);
+        }
+
+        g.pose().popPose();
     }
 
     // ── Input ─────────────────────────────────────────────────────────────────
@@ -299,28 +347,71 @@ public class PhantasiaVariantsScreen extends Screen {
     @Override
     public boolean mouseClicked(double mx, double my, int btn) {
         if (btn == 0) {
-            boolean actionTriggered = false;
+            // 1. Prioritize checking the active dropdown area first
+            if (openDropdownGroupId != null) {
+                // Re-calculate the dropdown's exact screen bounding box
+                int ddX = ((width - PANEL_W) / 2) + PANEL_PADDING + (PANEL_W - PANEL_PADDING * 2) - DROPDOWN_W;
 
-            // Iterate backwards so elements drawn LAST (the open dropdown menu)
-            // intercept clicks FIRST (preventing clicking through menus)
+                // Recalculate dropY exactly like the render loop
+                int rowY = (20 + 20 + 4) - scrollY; // panelY + titleBarH + 4
+                outer:
+                for (Map.Entry<PhantasiaVariantGroup.Category, List<PhantasiaVariantGroup>> entry : categorised.entrySet()) {
+                    rowY += SECTION_HEADER_H + 2;
+                    for (PhantasiaVariantGroup g2 : entry.getValue()) {
+                        if (g2.getId().equals(openDropdownGroupId)) break outer;
+                        rowY += ROW_H + 2;
+                    }
+                    rowY += 4;
+                }
+                int dropY = rowY + ROW_H - 1;
+
+                // Recalculate heights
+                int totalListH = variantState.getGroups().stream()
+                        .filter(gr -> gr.getId().equals(openDropdownGroupId))
+                        .findFirst().map(gr -> gr.getOptions().size() * DROPDOWN_ITEM_H).orElse(0);
+                int idealListH = Math.min(totalListH, maxDropdownHeight);
+                int maxAllowedH = (20 + (height - 40) - 4) - dropY; // (panelY + panelH - 4) - dropY
+                int visibleListH = Math.max(DROPDOWN_ITEM_H, Math.min(idealListH, maxAllowedH));
+
+                boolean clickIsInsideDropdownArea = isOver((int)mx, (int)my, ddX, dropY, DROPDOWN_W, visibleListH);
+
+                if (clickIsInsideDropdownArea) {
+                    // Only scan buttons that actually fit inside the visible scissored bounding box
+                    for (int i = activeButtons.size() - 1; i >= 0; i--) {
+                        PhantasiaUIUtils.ButtonAction action = activeButtons.get(i);
+
+                        // The button action's center/Y must sit inside the scissored view boundaries
+                        if (action.hit(mx, my) && action.y() >= dropY && (action.y() + action.h()) <= (dropY + visibleListH)) {
+                            action.action().run();
+                            return true; // Click consumed by dropdown item
+                        }
+                    }
+                    return true; // Clicked on the dropdown background/dead-space; consume it anyway so it doesn't pass through
+                } else {
+                    // Clicked outside the open dropdown window entirely
+                    // Check if they clicked the dropdown trigger button itself to toggle close it
+                    for (int i = activeButtons.size() - 1; i >= 0; i--) {
+                        PhantasiaUIUtils.ButtonAction action = activeButtons.get(i);
+                        if (action.hit(mx, my)) {
+                            action.action().run();
+                            return true;
+                        }
+                    }
+
+                    // Missed everything, close menu and consume click
+                    openDropdownGroupId = null;
+                    dropdownScrollY = 0;
+                    return true;
+                }
+            }
+
+            // 2. Default background panel clicking (when no dropdown is open)
             for (int i = activeButtons.size() - 1; i >= 0; i--) {
                 PhantasiaUIUtils.ButtonAction action = activeButtons.get(i);
                 if (action.hit(mx, my)) {
                     action.action().run();
-                    actionTriggered = true;
-                    break; // Stop checking after the top-most hit element executes
+                    return true;
                 }
-            }
-
-            if (actionTriggered) {
-                return true;
-            }
-
-            // If a dropdown was open but the click missed all active buttons,
-            // close the dropdown and consume the click event.
-            if (openDropdownGroupId != null) {
-                openDropdownGroupId = null;
-                return true;
             }
         }
         return super.mouseClicked(mx, my, btn);
@@ -328,6 +419,25 @@ public class PhantasiaVariantsScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mx, double my, double delta) {
+        // If a dropdown menu is active, prioritize scrolling inside it first
+        if (openDropdownGroupId != null) {
+            PhantasiaVariantGroup openGroup = variantState.getGroups().stream()
+                    .filter(gr -> gr.getId().equals(openDropdownGroupId))
+                    .findFirst().orElse(null);
+
+            if (openGroup != null) {
+                int totalListH = openGroup.getOptions().size() * DROPDOWN_ITEM_H;
+                int visibleListH = Math.min(totalListH, maxDropdownHeight);
+                int maxScroll = Math.max(0, totalListH - visibleListH);
+
+                if (maxScroll > 0) {
+                    dropdownScrollY = Math.max(0, Math.min(dropdownScrollY - (int) (delta * DROPDOWN_ITEM_H), maxScroll));
+                    return true;
+                }
+            }
+        }
+
+        // Default background panel scrolling
         scrollY = Math.max(0, Math.min(scrollY - (int) (delta * 12),
                 Math.max(0, totalContentH - (height - 60))));
         return true;

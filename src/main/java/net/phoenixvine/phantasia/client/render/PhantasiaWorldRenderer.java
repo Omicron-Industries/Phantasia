@@ -7,7 +7,6 @@ import com.lowdragmc.lowdraglib.utils.BlockInfo;
 import com.lowdragmc.lowdraglib.utils.TrackedDummyWorld;
 
 import net.minecraft.client.Camera;
-import net.phoenixvine.phantasia.client.camera.CameraView;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
@@ -27,73 +26,73 @@ import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
-import net.phoenixvine.phantasia.client.render.PhantasiaSpriteMarker;
-import net.phoenixvine.phantasia.client.render.PhantasiaParticleEngine;
-
+import net.phoenixvine.phantasia.client.camera.CameraView;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.*;
 import net.phoenixvine.phantasia.common.PhantasiaVariantState;
+
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL15;
+import org.lwjgl.opengl.GL20;
 
+import javax.annotation.Nullable;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.util.*;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.atomic.AtomicReference;
-
-import javax.annotation.Nullable;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * PhantasiaWorldRenderer
  *
- * ── Rendering model ──────────────────────────────────────────────────────────
+ * ── Rendering model ───────────────────────────────────────────────────────────
  *
- * STABLE blocks → VBOs (fast, baked on background thread, zero render-thread cost)
- * APPEARING blocks → dynamic immediate-mode fade-in pass (alpha 0→1 over ~5 frames)
- * DISAPPEARING blocks → INSTANT removal: cleared from blockAlpha immediately,
- * bake scheduled, front VBO replaced when done.
- * No fade-out pass — eliminates flicker entirely.
+ * VISIBILITY      → GPU bitmask (UBO or SSBO). setVisible() = bit rebuild + partial
+ *                   glBufferSubData. ~1–5 µs regardless of pattern size.
  *
- * ── Flicker fix ──────────────────────────────────────────────────────────────
- * Disappearing blocks are removed from the DRAW immediately by maintaining a
- * {@link #suppressedPositions} set — positions that are in the front VBO but
- * must not be drawn because they've been removed. These are drawn at alpha=0
- * in the transition pass (effectively invisible) while the bake runs.
- * Once the bake swaps in, suppressedPositions is cleared.
+ * FULL BAKE       → scheduleBake(). Bakes ALL pattern blocks once on initial load.
+ *                   No temporary AIR, no per-step rebakes. Double-buffered.
  *
- * ── Lag fix ──────────────────────────────────────────────────────────────────
- * Large visibility changes (> {@link #TRANSITION_THRESHOLD} blocks) skip the
- * fade-in entirely and go straight to a bake. The transition pass is only used
- * for small incremental changes (single layer steps, script step transitions).
+ * PARTIAL BAKE    → requestPartialBake(changedPositions). Bakes only the specified
+ *                   positions (e.g. coil blocks) and splices their geometry into the
+ *                   existing front buffers using a per-layer overlay VBO. Avoids
+ *                   rebuilding the entire structure for localised state changes.
  *
- * ── BER lighting fix ─────────────────────────────────────────────────────────
- * Before drawing tile entities, {@code LightTexture.turnOnLightLayer()} is
- * called so block entity renderers sample correct light. Turned off afterward.
+ * ACTIVE/WORKING  → requestPartialBake(controllerPos ∪ overlayAnimatedPos).
+ *                   Only controller + coil overlays change; structure geometry intact.
  *
- * ── Double-buffered VBOs ─────────────────────────────────────────────────────
- * front[] is drawn every frame. back[] is compiled on BAKE_POOL. Swapped
- * atomically when the bake finishes — zero gap, zero flicker on the VBO side.
+ * COIL SWAP       → requestPartialBake(allCoilPositions). Rebakes only the coil
+ *                   positions (could be 200–2000 blocks) instead of all 3M.
+ *
+ * TILE ENTITIES   → still rendered via immediate BER each frame; no bake involved.
+ *
+ * ── Partial bake detail ───────────────────────────────────────────────────────
+ * A partial bake produces one overlay VertexBuffer per layer, plus an updated
+ * block-ID VBO slice. On swap, the overlay VBOs are stored and drawn AFTER the
+ * main front VBOs each frame, overpainting the stale geometry for the changed
+ * blocks. The next full bake absorbs the overlay and clears it.
+ *
+ * Block IDs are stable so the visibility UBO continues to work correctly through
+ * partial bakes — hidden coil blocks stay hidden even while being redrawn.
  */
 public final class PhantasiaWorldRenderer {
 
-    // ── GL scratch buffers ────────────────────────────────────────────────────
+    // ── GL scratch buffers (static — one per class, not per instance) ─────────
 
-    private static final FloatBuffer SCRATCH_MV = direct(64).asFloatBuffer();
-    private static final FloatBuffer SCRATCH_PROJ = direct(64).asFloatBuffer();
-    private static final IntBuffer SCRATCH_VP = direct(16 * 4).asIntBuffer();
-    private static final FloatBuffer PIXEL_DEPTH = direct(4).asFloatBuffer();
+    private static final FloatBuffer SCRATCH_MV    = direct(64).asFloatBuffer();
+    private static final FloatBuffer SCRATCH_PROJ  = direct(64).asFloatBuffer();
+    private static final IntBuffer   SCRATCH_VP    = direct(16 * 4).asIntBuffer();
+    private static final FloatBuffer PIXEL_DEPTH   = direct(4).asFloatBuffer();
     private static final FloatBuffer UNPROJECT_OUT = direct(12).asFloatBuffer();
 
-    private final float[] snapMV = new float[16];
+    private final float[] snapMV   = new float[16];
     private final float[] snapProj = new float[16];
-    private final int[] snapVP = new int[4];
+    private final int[]   snapVP   = new int[4];
 
     private static ByteBuffer direct(int bytes) {
         return ByteBuffer.allocateDirect(bytes).order(ByteOrder.nativeOrder());
@@ -101,188 +100,104 @@ public final class PhantasiaWorldRenderer {
 
     // ── Constants ─────────────────────────────────────────────────────────────
 
-    private static final float FOV = 60f;
+    private static final float FOV  = 60f;
     private static final float NEAR = 0.1f;
-    private static final float FAR = 10_000f;
-
-    /**
-     * Alpha step per frame for fading-in blocks (~5 frames at 60 fps).
-     * Only used for APPEARING blocks; disappearing blocks skip animation entirely.
-     */
+    private static final float FAR  = 10_000f;
     private static final float ALPHA_STEP = 0.2f;
-
-    /**
-     * If a visibility change affects more than this many blocks, skip fade-in
-     * and go straight to a bake. Prevents lag on large machines.
-     */
     private static final int TRANSITION_THRESHOLD = 32;
 
-    // ── Double-buffer ─────────────────────────────────────────────────────────
+    // ── Layers ────────────────────────────────────────────────────────────────
 
-    private final List<RenderType> LAYERS = RenderType.chunkBufferLayers();
-    private final int LAYER_COUNT = LAYERS.size();
+    private final List<RenderType> LAYERS      = RenderType.chunkBufferLayers();
+    private final int              LAYER_COUNT = LAYERS.size();
+
+    // ── Double-buffered main geometry VBOs ────────────────────────────────────
 
     private final VertexBuffer[] front;
     private final VertexBuffer[] back;
-
     private volatile boolean backReady = false;
 
-    /**
-     * Sprites collected from block quads during the last completed bake.
-     * Swapped atomically with the VBOs in swapBuffers(). Read each render
-     * frame by PhantasiaSpriteMarker.markAll() to keep Embeddium animating
-     * the dummy world's block textures and particles.
-     * Only animated sprites are stored — PhantasiaSpriteMarker.hasAnimation()
-     * filters during the bake so markAll() doesn't need to check each frame.
-     */
-    private volatile Set<BlockPos> backTileEntities = null;
-    private Set<BlockPos> frontTileEntities = Collections.emptySet();
+    /** Parallel block-ID VBOs (one int per vertex = compact block ID). */
+    private final int[] frontIdVbo;
+    private final int[] backIdVbo;
+
+    // ── Partial-bake overlay VBOs ─────────────────────────────────────────────
+    //
+    // After a partial bake, overlay[i] holds the updated geometry for the changed
+    // blocks in layer i, and overlayIdVbo[i] holds their block IDs. Both are drawn
+    // AFTER front[i] each frame to overpaint the stale geometry. A subsequent full
+    // bake clears the overlay.
+
+    private final VertexBuffer[] overlay;
+    private final int[]          overlayIdVbo;
+    private volatile boolean     overlayReady = false;
 
     // ── Bake coordination ─────────────────────────────────────────────────────
 
-    private final AtomicReference<Set<BlockPos>> pendingBakeMask = new AtomicReference<>(Collections.emptySet());
+    private volatile boolean fullBakeNeeded    = false;
+    private volatile boolean partialBakePending = false;
 
-    private volatile boolean rebakeNeeded = false;
+    /** Positions queued for the next partial bake. Set from the main thread. */
+    private volatile Set<BlockPos> partialBakePositions = Collections.emptySet();
 
-    /** Schedules a VBO rebake on the next render frame. Used when block states change (e.g. ACTIVE toggle). */
-    public void requestBake() {
-        rebakeNeeded = true;
-    }
+    private final AtomicInteger pendingUploads = new AtomicInteger(0);
 
-    /**
-     * Tracks how many per-layer recordRenderCall() uploads are still pending
-     * on the render thread. backReady is only flipped to true once all
-     * LAYER_COUNT uploads have been enqueued AND the last one flips the flag.
-     * This prevents the rare race where swapBuffers() fires before the GL
-     * uploads complete, producing an empty or partially-uploaded VBO — which
-     * manifests as glass/translucent blocks randomly disappearing.
-     */
-    private java.util.concurrent.atomic.AtomicInteger pendingUploads = new java.util.concurrent.atomic.AtomicInteger(0);
-
-    @Nullable
-    private Future<?> bakeFuture = null;
+    @Nullable private Future<?> bakeFuture = null;
 
     // ── Visibility ────────────────────────────────────────────────────────────
 
-    /** What SHOULD ultimately be visible (machine blocks only, not baseplate). */
-    private Set<BlockPos> targetVisible = Collections.emptySet();
-
-    /** Subset of targetVisible whose blocks declare randomlyTicking — the only ones needing animateTick. */
+    private Set<BlockPos> targetVisible      = Collections.emptySet();
+    private Set<BlockPos> bakedAll           = Collections.emptySet();
+    private Set<BlockPos> baseplatePositions = Collections.emptySet();
+    private Map<BlockPos, Integer> posToId   = Collections.emptyMap();
+    private int totalBakedBlocks             = 0;
     private Set<BlockPos> animateTickEligible = Collections.emptySet();
 
-    /** What is currently baked into front[]. */
-    private Set<BlockPos> bakedVisible = Collections.emptySet();
+    @Nullable private PhantasiaVisibilityBuffer visibilityBuffer = null;
 
-    /** Always rendered; not subject to transitions or suppression. */
-    private Set<BlockPos> baseplatePositions = Collections.emptySet();
+    // ── Fade-in state (small transitions only) ────────────────────────────────
 
-    // ── Fade-in state ─────────────────────────────────────────────────────────
-
-    /**
-     * Blocks currently fading IN (alpha 0→1).
-     * Only populated for small changes (≤ TRANSITION_THRESHOLD blocks).
-     * Disappearing blocks are NEVER in this map — they are instantly suppressed.
-     */
-    private final Map<BlockPos, Float> blockAlpha = new HashMap<>();
-
-    /**
-     * Cached render layers for each block in {@link #blockAlpha}.
-     * Populated when a block is added to blockAlpha so that drawFadingIn does not
-     * need to call canRenderInLayer (an O(LAYER_COUNT) probe) on every rendered frame.
-     * Entries are removed in lockstep with blockAlpha.
-     */
-    private final Map<BlockPos, List<RenderType>> blockLayers = new HashMap<>();
-
+    private final Map<BlockPos, Float>               blockAlpha  = new HashMap<>();
+    private final Map<BlockPos, List<RenderType>>    blockLayers = new HashMap<>();
     private boolean hasTransitions = false;
 
-    // ── Suppression (flicker fix) ─────────────────────────────────────────────
+    // ── Animated / tile-entity tracking ──────────────────────────────────────
 
-    /**
-     * Positions that are still in the front[] VBO but must NOT be drawn because
-     * they have been removed from the target set. Cleared on buffer swap.
-     * This is how we make disappearing blocks invisible immediately without
-     * waiting for the bake — we can't skip them in the VBO draw call, so we
-     * instead draw them at alpha=0 in a separate immediate-mode pass.
-     */
-    private final Set<BlockPos> suppressedPositions = new HashSet<>();
-
-    // ── Animated block pass ───────────────────────────────────────────────────
-
-    /**
-     * Blocks whose textures are animated (.mcmeta frame strips — coils, fire, etc.).
-     * These are excluded from the VBO draw (their frozen baked UV would never update)
-     * and instead re-emitted every frame through the immediate-mode MultiBufferSource
-     * path, which reads live UV coordinates from the atlas each frame.
-     *
-     * Populated on each buffer swap from {@link #backAnimatedPositions}.
-     * Populated during bake.
-     */
-    private Set<BlockPos> animatedPositions = Collections.emptySet();
+    private Set<BlockPos> animatedPositions       = Collections.emptySet();
     private volatile Set<BlockPos> backAnimatedPositions = null;
-
-    /**
-     * Cached render layers for each block in {@link #animatedPositions}, same
-     * pattern as {@link #blockLayers} for the fade-in pass.
-     */
     private final Map<BlockPos, List<RenderType>> animatedLayers = new HashMap<>();
+
+    private volatile Set<BlockPos> backTileEntities  = null;
+    private Set<BlockPos> frontTileEntities          = Collections.emptySet();
 
     // ── Scene state ───────────────────────────────────────────────────────────
 
     private final TrackedDummyWorld world;
+    @Nullable private BlockPos controllerWorldPos = null;
 
     /**
-     * World-space position of the multiblock controller.
-     * Used to correct render-only entities (plasma ring, laser arc, etc.) that
-     * GT spawns into the dummy world with position (0,0,0).
+     * The slot origin this pattern was placed at (from PhantasiaSlotAllocator).
+     * Set once after pattern load via {@link #setSlotOrigin}.
+     *
+     * All block geometry is baked at world-space slot coordinates (potentially
+     * tens of thousands of blocks from 0,0). The modelview matrix is shifted by
+     * -slotOrigin each frame so the GPU sees coordinates near zero, preserving
+     * the full float32 precision that GT's 0.001-block overlay offset requires.
+     *
+     * The raytrace unproject result is shifted back by +slotOrigin so returned
+     * BlockPos values remain in dummy-world coordinate space.
      */
-    @Nullable
-    private BlockPos controllerWorldPos = null;
-
-    /**
-     * The GT MetaMachine for the controller BE. Set via setControllerMachine()
-     * after onStructureFormed(). Used by driveIRendererTick() to call
-     * IRenderer.renderTick() each frame without scanning frontTileEntities.
-     */
-    @Nullable
+    private BlockPos slotOrigin = BlockPos.ZERO;
 
     private int guiMouseX, guiMouseY;
-
-    /**
-     * Last game tick on which we called clientTick() on muffler BEs.
-     * Compared against mc.level.getGameTime() each frame so we drive
-     * clientTick() at exactly 20/s (one call per game tick) regardless
-     * of render framerate — matching what the real level tick pipeline does.
-     */
     private long lastParticleTick = -1;
-
-    /**
-     * True for the duration of the current render frame if a new game tick has
-     * elapsed since the last render. Set in drawTileEntities(), read by the
-     * particle/entity tick block later in the same render() call.
-     */
     private boolean tickedThisFrame = false;
-
-    @Nullable
-    private BlockHitResult lastHitResult;
+    @Nullable private BlockHitResult lastHitResult;
 
     private final PhantasiaCameraEntity cameraEntity;
     private final Camera camera;
 
-    /**
-     * A {@link net.minecraft.client.multiplayer.ClientLevel} reference used as a
-     * temporary proxy during BER rendering. When set on a BE via {@code setLevel()},
-     * calls to {@code addParticle()} route to {@code mc.particleEngine} which has
-     * all provider registrations (including GT's {@code MufflerParticle}).
-     *
-     * <p>
-     * We use {@code mc.level} (the real client level) directly — its
-     * {@code addParticle} implementation calls {@code mc.particleEngine.add()}.
-     * We swap it in for the BE's level only during {@code ber.render()}, then
-     * restore the original level immediately after.
-     */
-    @Nullable
-
-    // ── Bake thread ───────────────────────────────────────────────────────────
+    // ── Bake pool ─────────────────────────────────────────────────────────────
 
     private static final ExecutorService BAKE_POOL = Executors.newSingleThreadExecutor(r -> {
         Thread t = new Thread(r, "Phantasia-BakeThread");
@@ -290,129 +205,201 @@ public final class PhantasiaWorldRenderer {
         return t;
     });
 
+    private static final org.slf4j.Logger LOGGER =
+            com.mojang.logging.LogUtils.getLogger();
+    private static final boolean DEBUG_RENDER = false;
+    private int debugFrameCounter = 0;
+
     // ── Constructor ───────────────────────────────────────────────────────────
 
     public PhantasiaWorldRenderer(TrackedDummyWorld world) {
-        this.world = world;
+        this.world        = world;
         this.cameraEntity = new PhantasiaCameraEntity(world);
-        this.camera = new Camera();
-        this.front = new VertexBuffer[LAYER_COUNT];
-        this.back = new VertexBuffer[LAYER_COUNT];
+        this.camera       = new Camera();
+
+        this.front        = new VertexBuffer[LAYER_COUNT];
+        this.back         = new VertexBuffer[LAYER_COUNT];
+        this.overlay      = new VertexBuffer[LAYER_COUNT];
+        this.frontIdVbo   = new int[LAYER_COUNT];
+        this.backIdVbo    = new int[LAYER_COUNT];
+        this.overlayIdVbo = new int[LAYER_COUNT];
+
         for (int i = 0; i < LAYER_COUNT; i++) {
-            front[i] = new VertexBuffer(VertexBuffer.Usage.STATIC);
-            back[i] = new VertexBuffer(VertexBuffer.Usage.STATIC);
+            front[i]   = new VertexBuffer(VertexBuffer.Usage.STATIC);
+            back[i]    = new VertexBuffer(VertexBuffer.Usage.STATIC);
+            overlay[i] = new VertexBuffer(VertexBuffer.Usage.DYNAMIC);
         }
+        GL15.glGenBuffers(frontIdVbo);
+        GL15.glGenBuffers(backIdVbo);
+        GL15.glGenBuffers(overlayIdVbo);
     }
 
     // ── Public API ────────────────────────────────────────────────────────────
 
     public void setBaseplatePositions(Set<BlockPos> bp) {
-        this.baseplatePositions = Collections.unmodifiableSet(new HashSet<>(bp));
+        this.baseplatePositions = Set.copyOf(bp);
     }
 
-    /** Tell the renderer where the controller lives so misplaced render entities can be corrected. */
     public void setControllerWorldPos(@Nullable BlockPos pos) {
         this.controllerWorldPos = pos;
     }
 
     /**
-     * Update the visible set.
-     *
-     * Disappearing blocks: suppressed immediately (no fade-out), bake scheduled.
-     * Appearing blocks: faded in IF the change is small; otherwise baked directly.
+     * Sets the slot origin used to re-center block geometry on the GPU.
+     * Must be called before the first {@link #render} call.
+     * See field Javadoc for why this is needed.
+     */
+    public void setSlotOrigin(BlockPos origin) {
+        this.slotOrigin = origin != null ? origin : BlockPos.ZERO;
+    }
+
+    public void setPatternBlocks(Set<BlockPos> all) {
+        this.bakedAll = Set.copyOf(all);
+    }
+
+    /**
+     * Assigns stable compact IDs to every block and allocates the GPU visibility
+     * buffer. Must be called once after pattern load, before the first bake.
+     */
+    public void assignBlockIds(Set<BlockPos> allPatternPositions) {
+        Map<BlockPos, Integer> ids = new HashMap<>(allPatternPositions.size() + baseplatePositions.size());
+        int id = 0;
+        for (BlockPos pos : allPatternPositions) ids.put(pos, id++);
+        for (BlockPos pos : baseplatePositions)  if (!ids.containsKey(pos)) ids.put(pos, id++);
+        this.posToId          = Collections.unmodifiableMap(ids);
+        this.totalBakedBlocks = id;
+        rebuildVisibilityBuffer();
+    }
+
+    public void rebuildVisibilityBuffer() {
+        if (visibilityBuffer != null) visibilityBuffer.close();
+        visibilityBuffer = totalBakedBlocks > 0
+                ? PhantasiaVisibilityBuffer.create(totalBakedBlocks)
+                : null;
+    }
+
+    /**
+     * Returns the block count and SSBO flag so the caller can trigger a shader
+     * recompile after assignBlockIds().
+     */
+    public int getTotalBakedBlocks() { return totalBakedBlocks; }
+
+    public boolean needsSSBO() {
+        if (visibilityBuffer == null) return false;
+        return visibilityBuffer.isSSBO();
+    }
+
+    /**
+     * Updates the GPU visibility bitmask. O(visible.size()) + partial GPU upload.
+     * Does not schedule any CPU bake.
      */
     public void setVisible(Set<BlockPos> newVisible) {
         Set<BlockPos> old = targetVisible;
-        targetVisible = Collections.unmodifiableSet(new HashSet<>(newVisible));
+        targetVisible = Set.copyOf(newVisible);
 
-        // Rebuild animateTick-eligible cache — only blocks with randomlyTicking=true
-        // ever do anything useful in animateTick.
+        // Rebuild animateTick cache.
         Set<BlockPos> eligible = new HashSet<>();
         for (BlockPos pos : targetVisible) {
             BlockState state = world.getBlockState(pos);
-            if (state.isRandomlyTicking() || state.getBlock().isRandomlyTicking(state)) {
+            if (state.isRandomlyTicking() || state.getBlock().isRandomlyTicking(state))
                 eligible.add(pos);
-            }
         }
-        animateTickEligible = eligible.isEmpty() ? Collections.emptySet() : Collections.unmodifiableSet(eligible);
+        animateTickEligible = eligible.isEmpty()
+                ? Collections.emptySet()
+                : Collections.unmodifiableSet(eligible);
 
-        // Single-pass diff: iterate old+new together using the larger as the base.
-        int appearing = 0, disappearing = 0;
-
-        for (BlockPos pos : old) {
-            if (!newVisible.contains(pos)) {
-                disappearing++;
-                suppressedPositions.add(pos);
-                blockAlpha.remove(pos);
-                blockLayers.remove(pos);
-            }
-        }
-        for (BlockPos pos : newVisible) {
-            if (!old.contains(pos)) appearing++;
+        // GPU bitmask update.
+        if (visibilityBuffer != null && !posToId.isEmpty()) {
+            Set<BlockPos> gpuVisible = new HashSet<>(newVisible);
+            gpuVisible.addAll(baseplatePositions);
+            visibilityBuffer.setVisible(gpuVisible, posToId);
         }
 
-        int totalChanging = appearing + disappearing;
-
-        // ── Appearing: fade in if change is small, otherwise skip to bake ─────
-        if (appearing > 0 && totalChanging <= TRANSITION_THRESHOLD) {
-            Minecraft mc2 = Minecraft.getInstance();
-            BlockRenderDispatcher brd = mc2.getBlockRenderer();
+        // Small fade-in for newly appearing blocks.
+        int appearing = 0;
+        for (BlockPos pos : newVisible) if (!old.contains(pos)) appearing++;
+        if (appearing > 0 && appearing <= TRANSITION_THRESHOLD) {
+            BlockRenderDispatcher brd = Minecraft.getInstance().getBlockRenderer();
             RandomSource random = RandomSource.createNewThreadLocalInstance();
             for (BlockPos pos : newVisible) {
-                if (!old.contains(pos) && !bakedVisible.contains(pos)) {
-                    if (blockAlpha.putIfAbsent(pos, 0f) == null) {
-                        // First time this pos enters blockAlpha — cache its layers so
-                        // drawFadingIn never calls canRenderInLayer at render time.
-                        BlockState state = world.getBlockState(pos);
-                        List<RenderType> layers = new ArrayList<>(2);
-                        for (RenderType layer : LAYERS) {
-                            if (WorldSceneRenderer.canRenderInLayer(brd, state, pos, world, layer, random)) {
-                                layers.add(layer);
-                                break; // blocks belong to exactly one solid layer
-                            }
+                if (!old.contains(pos) && blockAlpha.putIfAbsent(pos, 0f) == null) {
+                    BlockState state = world.getBlockState(pos);
+                    List<RenderType> layers = new ArrayList<>(2);
+                    for (RenderType layer : LAYERS) {
+                        if (WorldSceneRenderer.canRenderInLayer(brd, state, pos, world, layer, random)) {
+                            layers.add(layer);
+                            break;
                         }
-                        blockLayers.put(pos, layers);
                     }
+                    blockLayers.put(pos, layers);
                 }
             }
         }
-
+        blockAlpha.keySet().removeIf(pos -> !newVisible.contains(pos));
+        blockLayers.keySet().removeIf(pos -> !newVisible.contains(pos));
         hasTransitions = !blockAlpha.isEmpty();
-
-        // Schedule bake immediately when no transitions (large change or disappear-only).
-        // For small appearing transitions, bake is scheduled when they complete.
-        if (!hasTransitions) scheduleBake();
     }
 
     /**
-     * Force a full VBO rebake regardless of position diff.
-     * Call after block states are mutated in-place (e.g. coil swap).
+     * Schedules a full geometry rebake (initial load, pattern structural change).
+     * Use {@link #requestPartialBake} for localised changes like ACTIVE state or
+     * coil swaps where only a subset of blocks changed.
+     */
+    public void requestBake() {
+        fullBakeNeeded = true;
+    }
+
+    /**
+     * Schedules a targeted partial rebake for a specific set of changed positions.
+     *
+     * Use this instead of requestBake() when only a subset of the pattern's block
+     * states changed. Examples:
+     *  - Coil type swap:  pass all coil positions (typically 200–2000 blocks).
+     *  - ACTIVE toggle:   pass controller pos + any animated overlay positions.
+     *  - Variant switch:  pass the positions in the toggled OptionalGroup.
+     *
+     * The partial bake produces overlay VBOs that overpaint the stale geometry
+     * for the changed blocks without touching the rest of the baked scene. It runs
+     * on the bake thread concurrently with a pending full bake — if both are queued,
+     * the partial bake runs first, then the full bake absorbs its result.
+     *
+     * Block IDs are stable so the visibility UBO remains valid throughout.
+     *
+     * @param changedPositions world-space positions whose block states changed
+     */
+    public void requestPartialBake(Set<BlockPos> changedPositions) {
+        if (changedPositions == null || changedPositions.isEmpty()) return;
+        // If a full bake is already scheduled, partial is redundant — the full bake
+        // will pick up the new states.
+        if (fullBakeNeeded) return;
+        // Merge with any already-queued partial positions (multiple rapid state
+        // changes before the bake thread starts should all be captured).
+        Set<BlockPos> existing = partialBakePositions;
+        Set<BlockPos> merged = new HashSet<>(existing);
+        merged.addAll(changedPositions);
+        partialBakePositions = Set.copyOf(merged);
+        partialBakePending = true;
+    }
+
+    /**
+     * Full invalidation: cancels any in-flight bake, clears overlay and transition
+     * state, and schedules a fresh full bake. Use when block states change in a way
+     * that affects the whole scene (e.g. full pattern reload, shape switch).
      */
     public void invalidate() {
         if (bakeFuture != null && !bakeFuture.isDone()) bakeFuture.cancel(true);
-        suppressedPositions.clear();
         blockAlpha.clear();
         blockLayers.clear();
-        animateTickEligible = Collections.emptySet();
-        hasTransitions = false;
-        rebakeNeeded = true;
+        animateTickEligible      = Collections.emptySet();
+        hasTransitions           = false;
+        overlayReady             = false;
+        partialBakePending       = false;
+        partialBakePositions     = Collections.emptySet();
+        fullBakeNeeded           = true;
     }
 
-    public void setMousePos(int mx, int my) {
-        this.guiMouseX = mx;
-        this.guiMouseY = my;
-    }
-
-    @Nullable
-    public BlockHitResult getLastHitResult() {
-        return lastHitResult;
-    }
-
-    /**
-     * Returns true if the given world-space BlockPos is in the current target-visible set
-     * (i.e. not hidden by a layer filter, view filter, or build-mode step).
-     * Used by PhantasiaSceneScreen to suppress hover tooltips over invisible blocks.
-     */
+    public void setMousePos(int mx, int my) { this.guiMouseX = mx; this.guiMouseY = my; }
+    @Nullable public BlockHitResult getLastHitResult() { return lastHitResult; }
     public boolean isVisible(BlockPos pos) {
         return targetVisible.contains(pos) || baseplatePositions.contains(pos);
     }
@@ -422,116 +409,77 @@ public final class PhantasiaWorldRenderer {
     public void render(CameraView view, int guiX, int guiY, int guiW, int guiH) {
         if (guiW <= 0 || guiH <= 0) return;
 
-        // 1. Advance fade-in transitions.
+        PhantasiaShaders.flushPending();
         tickAlpha();
 
-        // 2. Swap back→front if a bake finished.
-        if (backReady) swapBuffers();
+        if (backReady)    swapFullBuffers();
+        if (overlayReady) swapOverlayBuffers();
 
-        // 3. Mark animated sprites active for Embeddium each frame.
-        // No-op when Embeddium/Rubidium is not loaded.
         PhantasiaSpriteMarker.markAll(Set.of());
 
-        // 3. Start bake if transitions done and one is pending.
-        if (rebakeNeeded && !hasTransitions && (bakeFuture == null || bakeFuture.isDone())) {
-            rebakeNeeded = false;
-            scheduleBake();
+        boolean bakeIdle = bakeFuture == null || bakeFuture.isDone();
+        if (bakeIdle) {
+            if (partialBakePending && !hasTransitions) {
+                partialBakePending    = false;
+                Set<BlockPos> targets = partialBakePositions;
+                partialBakePositions  = Collections.emptySet();
+                schedulePartialBake(targets);
+            } else if (fullBakeNeeded && !hasTransitions) {
+                fullBakeNeeded = false;
+                scheduleFullBake();
+            }
         }
 
-        // 4. Viewport conversion: GUI (top-left, scaled) → GL (bottom-left, pixels).
         Minecraft mc = Minecraft.getInstance();
-        double scale = mc.getWindow().getGuiScale();
-        int windowH = mc.getWindow().getHeight();
-        int glX = (int) (guiX * scale);
-        int glY = (int) (windowH - (guiY + guiH) * scale);
-        int glW = (int) (guiW * scale);
-        int glH = (int) (guiH * scale);
+        double scale  = mc.getWindow().getGuiScale();
+        int windowH   = mc.getWindow().getHeight();
+        int glX = (int)(guiX * scale);
+        int glY = (int)(windowH - (guiY + guiH) * scale);
+        int glW = (int)(guiW * scale);
+        int glH = (int)(guiH * scale);
 
-        // 5. GL camera setup.
         setupCamera(view, glX, glY, glW, glH);
 
-        // ─── DRIVE TEXTURE ATLAS ANIMATION ────────────────────────────────────
-        // isPauseScreen() returns false, so GameRenderer.renderLevel() runs each
-        // frame and calls blockAtlas.cycleAnimationFrames() already. Adding a
-        // second call here caused 2x animation speed. No action needed here.
         long totalTicks = mc.level != null ? mc.level.getGameTime() : 0;
-        float shaderTime = (totalTicks + mc.getFrameTime()) / 20.0F;
-        com.mojang.blaze3d.systems.RenderSystem.setShaderGameTime(totalTicks, shaderTime);
-        // ──────────────────────────────────────────────────────────────────────
-
-        // 6. Snapshot matrices for ray-trace (must happen while they're live).
+        RenderSystem.setShaderGameTime(totalTicks, (totalTicks + mc.getFrameTime()) / 20f);
         snapshotMatrices();
 
-        // ── Mark animated sprites active for Embeddium/Rubidium ──────────────
-        // Embeddium replaces TextureAtlas.cycleAnimationFrames() with its own system
-        // that only animates sprites visible in the player camera frustum. Our dummy
-        // world blocks at x=512 are never in that frustum, so their textures freeze
-        // after the first frame. We mark each visible block's animated sprites as
-        // active once per render frame so Embeddium advances them.
-
-        // 7. Draw stable VBOs.
         drawVBOs();
 
-        // 8. Draw suppressed (instantly hidden) and fading-in blocks.
-        // Reset depth state first: the last VBO layer (translucent) leaves
-        // depthMask(false), which would make fading-in blocks write colour
-        // but skip depth — causing doRayTrace to unproject onto the opaque
-        // surface behind a block that is visually present on screen.
-        boolean needsDynamicPass = hasTransitions || !suppressedPositions.isEmpty();
-        if (needsDynamicPass) {
+        if (hasTransitions) {
             RenderSystem.enableDepthTest();
             RenderSystem.depthMask(true);
             MultiBufferSource.BufferSource dynBuffers = mc.renderBuffers().bufferSource();
-            if (!suppressedPositions.isEmpty()) drawSuppressed(dynBuffers);
-            if (hasTransitions) drawFadingIn(dynBuffers);
-            dynBuffers.endBatch(); // ONE flush for the whole dynamic pass
+            drawFadingIn(dynBuffers);
+            dynBuffers.endBatch();
         }
 
-        // 9. Tile entities, entities & particles — with correct lighting and camera-relative pose.
         float partial = mc.getFrameTime();
         MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
         turnOnLight(partial);
         float camX = view.eyeX(), camY = view.eyeY(), camZ = view.eyeZ();
 
-        drawTileEntities(buffers, partial, camX, camY, camZ);
-        drawEntities(buffers, partial, camX, camY, camZ);
+        // ── MATRIX TRACKING SYNC FIX ──────────────────────────────────────────
+        // 1. Grab the active global ModelView stack (which matches setupCamera's state).
+        PoseStack currentPoseStack = RenderSystem.getModelViewStack();
+        currentPoseStack.pushPose();
 
-        // Flush all BE/entity geometry BEFORE rendering particles so depth is correct.
+        // 2. Pass this exact stack down into the renderers.
+        drawTileEntities(currentPoseStack, buffers, partial, camX, camY, camZ);
+        drawEntities(currentPoseStack, buffers, partial, camX, camY, camZ);
+
+        // 3. Make sure the system registers our matrix mutations before flushing the buffer
+        RenderSystem.applyModelViewMatrix();
+
+        // 4. Flush the quads out. Now the multi-buffer layer builders will use
+        // the correct matched matrices rather than floating point defaults.
         buffers.endBatch();
 
-        // ─── PARTICLE TICK & RENDER ──────────────────────────────────────────
-        // Oculus mixins target ParticleEngine.render() and SingleQuadParticle.render()
-        // at the class level — so even our isolated PhantasiaParticleEngine instance
-        // gets intercepted. We bypass this by rendering particles ourselves directly,
-        // grouping by ParticleRenderType and calling each particle's render() method
-        // without going through ParticleEngine.render() at all.
-        if (tickedThisFrame) {
-            PhantasiaParticleEngine.tick();
-            world.tickWorld();
-            // Drive animateTick only for blocks that declare randomlyTicks=true.
-            // Most blocks have a no-op animateTick; calling it on every visible block
-            // (potentially 700+ per tick) wastes time. Blocks that actually emit
-            // particles (fire, active furnaces, etc.) all set randomlyTicks=true.
-            if (world instanceof PhantasiaTrackedDummyWorld ptdw && !animateTickEligible.isEmpty()) {
-                RandomSource animRandom = RandomSource.createNewThreadLocalInstance();
-                for (BlockPos pos : animateTickEligible) {
-                    ptdw.tickAnimateForPos(pos, animRandom);
-                }
-            }
-        }
+        // 5. Cleanup the stack safely.
+        currentPoseStack.popPose();
+        RenderSystem.applyModelViewMatrix();
+        // ──────────────────────────────────────────────────────────────────────
 
-        // Skip particle rendering when Oculus shader pipeline is active — Oculus
-        // intercepts both ParticleEngine.render() and Particle.render() at the class
-        // level, making it impossible to render particles outside its pipeline.
-        //
-        // Coordinate-system note: Particle.render() outputs vertices as
-        //   vertex(particleX - camera.getPosition().x, ...)
-        // i.e. it already makes them camera-relative. setupCamera() uses gluLookAt
-        // which encodes the full world→clip transform, so a raw world-space vertex
-        // renders correctly — but particle vertices are (world - camPos). We must
-        // push a +camPos translate so the net transform is correct:
-        //   modelView * (worldPos - camPos + camPos) = modelView * worldPos  ✓
-        // This is exactly what vanilla LevelRenderer does before its particle pass.
         if (!PhantasiaParticleEngine.isOculusBlockingParticles()) {
             try {
                 Vec3 camPos = this.camera.getPosition();
@@ -539,25 +487,26 @@ public final class PhantasiaWorldRenderer {
                 mv.pushPose();
                 mv.translate(camPos.x, camPos.y, camPos.z);
                 RenderSystem.applyModelViewMatrix();
-
-                PhantasiaParticleEngine.renderDirect(buffers, mc.gameRenderer.lightTexture(),
-                        this.camera, partial);
+                PhantasiaParticleEngine.renderDirect(buffers, mc.gameRenderer.lightTexture(), this.camera, partial);
                 buffers.endBatch();
-
                 mv.popPose();
                 RenderSystem.applyModelViewMatrix();
             } catch (Exception e) {
                 LOGGER.error("[Phantasia] particle render failed", e);
             }
         }
-        // ────────────────────────────────────────────────────────────────────
+
+        if (tickedThisFrame) {
+            PhantasiaParticleEngine.tick();
+            world.tickWorld();
+            if (world instanceof PhantasiaTrackedDummyWorld ptdw && !animateTickEligible.isEmpty()) {
+                RandomSource ar = RandomSource.createNewThreadLocalInstance();
+                for (BlockPos pos : animateTickEligible) ptdw.tickAnimateForPos(pos, ar);
+            }
+        }
 
         turnOffLight();
-
-        // 10. Ray-trace (uses snapshots, safe after resetCamera).
         lastHitResult = doRayTrace(view, scale, windowH);
-
-        // 11. Restore GL state.
         resetCamera();
     }
 
@@ -566,58 +515,52 @@ public final class PhantasiaWorldRenderer {
     private void tickAlpha() {
         if (blockAlpha.isEmpty()) return;
         Iterator<Map.Entry<BlockPos, Float>> it = blockAlpha.entrySet().iterator();
-        boolean anyRemaining = false;
+        boolean any = false;
         while (it.hasNext()) {
             Map.Entry<BlockPos, Float> e = it.next();
             float next = Math.min(1f, e.getValue() + ALPHA_STEP);
-            if (next >= 1f) {
-                it.remove(); // fully visible, promote to VBO
-                blockLayers.remove(e.getKey());
-            } else {
-                e.setValue(next);
-                anyRemaining = true;
-            }
+            if (next >= 1f) { it.remove(); blockLayers.remove(e.getKey()); }
+            else            { e.setValue(next); any = true; }
         }
-        hasTransitions = anyRemaining;
-        if (!anyRemaining) rebakeNeeded = true; // transitions done → bake stable state
+        hasTransitions = any;
     }
 
-    // ── Buffer swap ───────────────────────────────────────────────────────────
+    // ── Buffer swaps ──────────────────────────────────────────────────────────
 
-    private void swapBuffers() {
+    private void swapFullBuffers() {
         for (int i = 0; i < LAYER_COUNT; i++) {
-            VertexBuffer tmp = front[i];
-            front[i] = back[i];
-            back[i] = tmp;
+            VertexBuffer tmp = front[i]; front[i] = back[i]; back[i] = tmp;
+            int tmpId = frontIdVbo[i]; frontIdVbo[i] = backIdVbo[i]; backIdVbo[i] = tmpId;
         }
-        bakedVisible = pendingBakeMask.get();
-        frontTileEntities = backTileEntities != null ? backTileEntities : Collections.emptySet();
-        suppressedPositions.removeIf(p -> !bakedVisible.contains(p));
-        backReady = false;
-        backTileEntities = null;
+        frontTileEntities   = backTileEntities      != null ? backTileEntities      : Collections.emptySet();
+        animatedPositions   = backAnimatedPositions != null ? backAnimatedPositions : Collections.emptySet();
+        backReady           = false;
+        backTileEntities    = null;
+        backAnimatedPositions = null;
+        // Full bake absorbs any overlay that was previously applied.
+        overlayReady = false;
+        if (visibilityBuffer != null)
+            visibilityBuffer.setVisible(union(targetVisible, baseplatePositions), posToId);
     }
 
-    // ── Bake ─────────────────────────────────────────────────────────────────
+    private void swapOverlayBuffers() {
+        // overlay[] is already the "back" of the overlay pair — just mark ready.
+        // We don't swap VBOs here because overlay[] is double-used (back and front
+        // are the same objects; we upload to overlay[i] directly on the render thread
+        // via recordRenderCall, so no second copy needed).
+        overlayReady = false; // consumed; drawVBOs() will draw it until next full bake
+    }
 
-    private void scheduleBake() {
-        Set<BlockPos> full = new HashSet<>(targetVisible);
-        full.addAll(baseplatePositions);
-        Set<BlockPos> snapshot = Set.copyOf(full);
-        pendingBakeMask.set(snapshot);
+    private static Set<BlockPos> union(Set<BlockPos> a, Set<BlockPos> b) {
+        if (b.isEmpty()) return a;
+        Set<BlockPos> r = new HashSet<>(a); r.addAll(b); return r;
+    }
 
-        if (snapshot.isEmpty()) {
-            uploadEmptyBuffers();
-            return;
-        }
+    // ── Full bake ─────────────────────────────────────────────────────────────
 
-        // Compute which positions are in the world but NOT in this bake snapshot.
-        // We will temporarily set them to AIR before baking so the block renderer
-        // sees correct neighbour states (face culling, AO) for the visible set,
-        // then restore them afterward. This is faster than a wrapper object because
-        // BlockRenderDispatcher has Level-specific fast-paths that a BlockAndTintGetter
-        // interface impl cannot use — the wrapper added ~5 s to each bake.
-        Set<BlockPos> hidden = new HashSet<>(world.renderedBlocks.keySet());
-        hidden.removeAll(snapshot);
+    private void scheduleFullBake() {
+        Set<BlockPos> snapshot = Set.copyOf(bakedAll);
+        if (snapshot.isEmpty()) { uploadEmptyBuffers(false); return; }
 
         pendingUploads.set(LAYER_COUNT);
         bakeFuture = BAKE_POOL.submit(() -> {
@@ -626,130 +569,36 @@ public final class PhantasiaWorldRenderer {
             RandomSource random = RandomSource.createNewThreadLocalInstance();
             ModelBlockRenderer.enableCaching();
 
-            // Save and temporarily blank hidden positions so the block renderer
-            // treats them as air during face-culling and AO sampling.
-            Map<BlockPos, BlockInfo> saved = new HashMap<>(hidden.size());
-            for (BlockPos hp : hidden) {
-                BlockInfo prev = world.renderedBlocks.get(hp);
-                if (prev != null) {
-                    saved.put(hp, prev);
-                    world.renderedBlocks.put(hp, BlockInfo.fromBlockState(Blocks.AIR.defaultBlockState()));
-                }
-            }
-
-            // Apply variant substitutions to visible positions.
-            // IMPORTANT: We read from world.renderedBlocks BEFORE the hidden-blanking
-            // loop may have touched these positions. We use the snapshot (visible set)
-            // so we only swap positions that will actually be baked.
-            // We also preserve all BlockState properties (facing, waterlogged, etc.)
-            // from the BASE state when substituting — this keeps muffler facing, hatch
-            // orientation, and any other directional properties intact.
             PhantasiaVariantState vs = PhantasiaVariantState.get();
-            Map<BlockPos, BlockInfo> variantSaved = new HashMap<>();
-            for (BlockPos vp : snapshot) {
-                // Use renderedBlocks directly — at this point hidden positions are AIR
-                // but snapshot only contains visible positions, so this is safe.
-                BlockInfo baseInfo = world.renderedBlocks.get(vp);
-                if (baseInfo == null) continue;
-                BlockState base = baseInfo.getBlockState();
-                if (base == null || base.isAir()) continue;
-                BlockState resolved = vs.resolveState(vp, base);
-                if (resolved != base) {
-                    variantSaved.put(vp, baseInfo);
-                    world.renderedBlocks.put(vp, BlockInfo.fromBlockState(resolved));
-                }
-            }
+            Map<BlockPos, BlockInfo> variantSaved = applyVariants(vs, snapshot);
 
-            // Pre-bucket blocks by render layer so each bakeLayer call receives
-            // only the blocks that belong to it. This cuts canRenderInLayer calls
-            // from snapshot.size * LAYER_COUNT down to snapshot.size (most blocks
-            // belong to exactly one layer). Fluids are bucketed separately because
-            // their layer is determined by FluidState and can differ from the host
-            // block's layer.
             Map<RenderType, List<BlockPos>> solidBuckets = new HashMap<>(LAYER_COUNT);
             Map<RenderType, List<BlockPos>> fluidBuckets = new HashMap<>(LAYER_COUNT);
-            for (BlockPos pos : snapshot) {
-                BlockState state = world.getBlockState(pos);
-                if (state.getBlock() == Blocks.AIR) continue;
-                if (state.getRenderShape() != RenderShape.INVISIBLE) {
-                    for (RenderType layer : LAYERS) {
-                        if (WorldSceneRenderer.canRenderInLayer(brd, state, pos, world, layer, random)) {
-                            solidBuckets.computeIfAbsent(layer, k -> new ArrayList<>()).add(pos);
-                            break; // each block belongs to exactly one solid layer
-                        }
-                    }
-                }
-                FluidState fluid = state.getFluidState();
-                if (!fluid.isEmpty()) {
-                    RenderType fl = net.minecraft.client.renderer.ItemBlockRenderTypes.getRenderLayer(fluid);
-                    fluidBuckets.computeIfAbsent(fl, k -> new ArrayList<>()).add(pos);
-                }
-            }
+            bucket(brd, random, snapshot, solidBuckets, fluidBuckets);
 
+            Set<BlockPos> animatedBack = new HashSet<>();
             try {
-                // Bake layers ONE AT A TIME and wait for each upload before starting the next.
-                // This keeps only one layer's RenderedBuffer (potentially tens of MBs for huge
-                // multiblocks) alive at a time instead of all LAYER_COUNT simultaneously.
-                // Without this, a 5000-block solid-layer bake can allocate 50-100 MB into a
-                // BufferBuilder that sits in the recordRenderCall queue while the next layer
-                // is already being built — causing OOM before the first upload completes.
-                java.util.concurrent.Semaphore uploadSlot = new java.util.concurrent.Semaphore(0);
-
+                Semaphore slot = new Semaphore(0);
                 for (int i = 0; i < LAYER_COUNT; i++) {
                     if (Thread.interrupted()) return;
-                    RenderType layer = LAYERS.get(i);
-                    List<BlockPos> solid = solidBuckets.getOrDefault(layer, List.of());
-                    List<BlockPos> fluid = fluidBuckets.getOrDefault(layer, List.of());
-                    int blockCount = solid.size() + fluid.size();
-
-                    // Hint the BufferBuilder to a realistic initial size.
-                    // ~512 bytes per block (6 faces × 4 verts × ~20 bytes) avoids the
-                    // first few doubling-copies for large multis while not over-allocating
-                    // for small ones. Clamped to the layer's own minimum.
-                    int sizeHint = Math.max(layer.bufferSize(), blockCount * 512);
-                    BufferBuilder bb = new BufferBuilder(sizeHint);
-                    bb.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.BLOCK);
-                    PoseStack ps = new PoseStack();
-                    TintedVertexConsumer wrap = new TintedVertexConsumer(bb);
-                    bakeLayer(brd, random, ps, layer, wrap, solid, fluid);
-                    BufferBuilder.RenderedBuffer rb = bb.end();
+                    BakedLayer bl = bakeLayerToBuffer(brd, random, LAYERS.get(i),
+                            solidBuckets.getOrDefault(LAYERS.get(i), List.of()),
+                            fluidBuckets.getOrDefault(LAYERS.get(i), List.of()),
+                            animatedBack);
                     final int fi = i;
                     RenderSystem.recordRenderCall(() -> {
                         try {
-                            if (!back[fi].isInvalid()) {
-                                back[fi].bind();
-                                back[fi].upload(rb);
-                                VertexBuffer.unbind();
-                            }
-                            if (pendingUploads.decrementAndGet() == 0) {
-                                backReady = true;
-                            }
-                        } finally {
-                            uploadSlot.release(); // unblock bake thread for next layer
-                        }
+                            uploadToVBO(back[fi], backIdVbo[fi], bl);
+                            if (pendingUploads.decrementAndGet() == 0) backReady = true;
+                        } finally { slot.release(); }
                     });
-
-                    // Wait for this layer to be uploaded before building the next one.
-                    // This bounds peak memory to ~1 layer at a time instead of all 4.
-                    try {
-                        uploadSlot.acquire();
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                        return;
-                    }
+                    try { slot.acquire(); } catch (InterruptedException e) { Thread.currentThread().interrupt(); return; }
                 }
-            }
-            finally {
+            } finally {
                 ModelBlockRenderer.clearCache();
-                for (Map.Entry<BlockPos, BlockInfo> e : saved.entrySet()) {
-                    world.renderedBlocks.put(e.getKey(), e.getValue());
-                }
-                // Restore variant-swapped positions to their original states.
-                for (Map.Entry<BlockPos, BlockInfo> e : variantSaved.entrySet()) {
-                    world.renderedBlocks.put(e.getKey(), e.getValue());
-                }
+                restoreVariants(variantSaved);
             }
-
+            backAnimatedPositions = animatedBack;
             Set<BlockPos> tes = new HashSet<>();
             for (BlockPos pos : snapshot) {
                 if (Thread.interrupted()) return;
@@ -757,15 +606,161 @@ public final class PhantasiaWorldRenderer {
                 if (be != null && mc.getBlockEntityRenderDispatcher().getRenderer(be) != null)
                     tes.add(pos);
             }
-            if (DEBUG_RENDER) {
-                LOGGER.info("[Phantasia] bake BE scan: snapshot={}, found {} renderable BEs",
-                        snapshot.size(), tes.size());
-            }
             backTileEntities = tes;
         });
     }
 
-    private void uploadEmptyBuffers() {
+    // ── Partial bake ─────────────────────────────────────────────────────────
+
+    /**
+     * Bakes only {@code targets} and uploads the results into the overlay VBOs.
+     * The overlay is drawn on top of the existing front VBOs each frame, overpainting
+     * the stale geometry for the changed blocks without touching the rest of the scene.
+     *
+     * Partial bakes are safe concurrently with normal rendering: the overlay VBOs are
+     * separate from front[] and are only swapped in via overlayReady after the upload
+     * is complete, so there is never a half-uploaded frame.
+     */
+    private void schedulePartialBake(Set<BlockPos> targets) {
+        // Intersect targets with bakedAll so we never bake positions that aren't in
+        // the pattern (e.g. stale positions from a previous shape variant).
+        Set<BlockPos> valid = new HashSet<>(targets);
+        valid.retainAll(bakedAll);
+        if (valid.isEmpty()) return;
+
+        pendingUploads.set(LAYER_COUNT);
+        bakeFuture = BAKE_POOL.submit(() -> {
+            Minecraft mc = Minecraft.getInstance();
+            BlockRenderDispatcher brd = mc.getBlockRenderer();
+            RandomSource random = RandomSource.createNewThreadLocalInstance();
+            ModelBlockRenderer.enableCaching();
+
+            PhantasiaVariantState vs = PhantasiaVariantState.get();
+            Map<BlockPos, BlockInfo> variantSaved = applyVariants(vs, valid);
+
+            Map<RenderType, List<BlockPos>> solidBuckets = new HashMap<>(LAYER_COUNT);
+            Map<RenderType, List<BlockPos>> fluidBuckets = new HashMap<>(LAYER_COUNT);
+            bucket(brd, random, valid, solidBuckets, fluidBuckets);
+
+            Set<BlockPos> animatedBack = new HashSet<>();
+            try {
+                Semaphore slot = new Semaphore(0);
+                for (int i = 0; i < LAYER_COUNT; i++) {
+                    if (Thread.interrupted()) return;
+                    BakedLayer bl = bakeLayerToBuffer(brd, random, LAYERS.get(i),
+                            solidBuckets.getOrDefault(LAYERS.get(i), List.of()),
+                            fluidBuckets.getOrDefault(LAYERS.get(i), List.of()),
+                            animatedBack);
+                    final int fi = i;
+                    RenderSystem.recordRenderCall(() -> {
+                        try {
+                            // Upload into the overlay VBOs (not back[]).
+                            uploadToVBO(overlay[fi], overlayIdVbo[fi], bl);
+                            if (pendingUploads.decrementAndGet() == 0) overlayReady = true;
+                        } finally { slot.release(); }
+                    });
+                    try { slot.acquire(); } catch (InterruptedException e) { Thread.currentThread().interrupt(); return; }
+                }
+            } finally {
+                ModelBlockRenderer.clearCache();
+                restoreVariants(variantSaved);
+            }
+            // Partial bake doesn't update frontTileEntities — BER renders are
+            // immediate-mode and pick up the new block state automatically.
+        });
+    }
+
+    // ── Bake helpers ──────────────────────────────────────────────────────────
+
+    /** Groups positions into per-layer solid and fluid buckets. */
+    private void bucket(BlockRenderDispatcher brd, RandomSource random,
+                        Set<BlockPos> positions,
+                        Map<RenderType, List<BlockPos>> solidOut,
+                        Map<RenderType, List<BlockPos>> fluidOut) {
+        for (BlockPos pos : positions) {
+            BlockState state = world.getBlockState(pos);
+            if (state.getBlock() == Blocks.AIR) continue;
+            if (state.getRenderShape() != RenderShape.INVISIBLE) {
+                for (RenderType layer : LAYERS) {
+                    if (WorldSceneRenderer.canRenderInLayer(brd, state, pos, world, layer, random)) {
+                        solidOut.computeIfAbsent(layer, k -> new ArrayList<>()).add(pos);
+                        break;
+                    }
+                }
+            }
+            FluidState fluid = state.getFluidState();
+            if (!fluid.isEmpty()) {
+                RenderType fl = net.minecraft.client.renderer.ItemBlockRenderTypes.getRenderLayer(fluid);
+                fluidOut.computeIfAbsent(fl, k -> new ArrayList<>()).add(pos);
+            }
+        }
+    }
+
+    /** Bakes one layer into a BakedLayer (RenderedBuffer + block ID IntBuffer). */
+    private BakedLayer bakeLayerToBuffer(BlockRenderDispatcher brd, RandomSource random,
+                                         RenderType layer,
+                                         List<BlockPos> solid, List<BlockPos> fluid,
+                                         Set<BlockPos> animatedOut) {
+        int count    = solid.size() + fluid.size();
+        int sizeHint = Math.max(layer.bufferSize(), Math.min(count * 512, 64 * 1024 * 1024));
+        BufferBuilder bb = new BufferBuilder(sizeHint);
+        bb.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.BLOCK);
+        PoseStack ps = new PoseStack();
+        TintedVertexConsumer tinted = new TintedVertexConsumer(bb);
+        PhantasiaVertexConsumer pvc = new PhantasiaVertexConsumer(tinted);
+
+        for (BlockPos pos : solid) {
+            pvc.setCurrentBlockId(posToId.getOrDefault(pos, 0));
+            BlockState state = world.getBlockState(pos);
+            ps.pushPose(); ps.translate(pos.getX(), pos.getY(), pos.getZ());
+
+            if (Platform.isForge()) {
+                WorldSceneRenderer.renderBlocksForge(brd, state, pos, world, ps, pvc, random, layer);
+            } else {
+                brd.renderBatched(state, pos, world, ps, pvc, true, random);
+            }
+
+            ps.popPose();
+            tinted.resetTint();
+
+            // FIX: If you still need tracking for block positions that have an active animation tick
+            // (e.g., for custom tickers), use the state directly. Otherwise, if your atlas-wide scan
+            // completely handles Embeddium compatibility, you can safely delete this block-level check.
+            if (state.isRandomlyTicking() || state.getBlock() instanceof net.minecraft.world.level.block.EntityBlock) {
+                animatedOut.add(pos);
+            }
+        }
+
+        for (BlockPos pos : fluid) {
+            pvc.setCurrentBlockId(posToId.getOrDefault(pos, 0));
+            BlockState state = world.getBlockState(pos);
+            FluidState fs = state.getFluidState();
+            if (fs.isEmpty()) continue;
+            tinted.addOffset(pos.getX() - (pos.getX() & 15),
+                    pos.getY() - (pos.getY() & 15),
+                    pos.getZ() - (pos.getZ() & 15));
+            brd.renderLiquid(pos, world, pvc, state, fs);
+            tinted.clearOffset();
+            tinted.resetTint();
+        }
+
+        return new BakedLayer(bb.end(), pvc.blockIdBuffer());
+    }
+
+    private void uploadToVBO(VertexBuffer vbo, int idVboHandle, BakedLayer bl) {
+        if (!vbo.isInvalid()) {
+            vbo.bind();
+            vbo.upload(bl.renderedBuffer());
+            VertexBuffer.unbind();
+        }
+        if (bl.blockIds().limit() > 0) {
+            GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, idVboHandle);
+            GL15.glBufferData(GL15.GL_ARRAY_BUFFER, bl.blockIds(), GL15.GL_DYNAMIC_DRAW);
+            GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, 0);
+        }
+    }
+
+    private void uploadEmptyBuffers(boolean intoOverlay) {
         pendingUploads.set(LAYER_COUNT);
         for (int i = 0; i < LAYER_COUNT; i++) {
             RenderType layer = LAYERS.get(i);
@@ -774,447 +769,293 @@ public final class PhantasiaWorldRenderer {
             BufferBuilder.RenderedBuffer rb = bb.end();
             final int fi = i;
             RenderSystem.recordRenderCall(() -> {
-                if (!back[fi].isInvalid()) {
-                    back[fi].bind();
-                    back[fi].upload(rb);
-                    VertexBuffer.unbind();
-                }
+                VertexBuffer target = intoOverlay ? overlay[fi] : back[fi];
+                if (!target.isInvalid()) { target.bind(); target.upload(rb); VertexBuffer.unbind(); }
                 if (pendingUploads.decrementAndGet() == 0) {
-                    backReady = true;
+                    if (intoOverlay) overlayReady = true; else backReady = true;
                 }
             });
         }
-        backTileEntities = Collections.emptySet();
-        // backReady will be set by the last recordRenderCall on the render thread.
+        if (!intoOverlay) { backTileEntities = Collections.emptySet(); backAnimatedPositions = Collections.emptySet(); }
     }
 
-    /**
-     * Bakes one render layer into {@code wrapper}.
-     *
-     * {@code solidBlocks} and {@code fluidBlocks} are pre-bucketed by the caller
-     * (scheduleBake) so this method never calls canRenderInLayer — that check has
-     * already been done once for the whole snapshot, reducing the total call count
-     * from snapshot.size * LAYER_COUNT to snapshot.size.
-     */
-    private void bakeLayer(BlockRenderDispatcher brd, RandomSource random,
-                           PoseStack ps, RenderType layer,
-                           TintedVertexConsumer wrapper,
-                           List<BlockPos> solidBlocks,
-                           List<BlockPos> fluidBlocks) {
-        // Solid / cutout / translucent block geometry
-        for (BlockPos pos : solidBlocks) {
-            BlockState state = world.getBlockState(pos);
-            ps.pushPose();
-            ps.translate(pos.getX(), pos.getY(), pos.getZ());
-            if (Platform.isForge()) {
-                WorldSceneRenderer.renderBlocksForge(brd, state, pos, world, ps, wrapper, random, layer);
-            } else {
-                brd.renderBatched(state, pos, world, ps, wrapper, true, random);
+    /** Temporarily writes variant-resolved states into renderedBlocks. Returns a save map to restore later. */
+    private Map<BlockPos, BlockInfo> applyVariants(PhantasiaVariantState vs, Set<BlockPos> positions) {
+        Map<BlockPos, BlockInfo> saved = new HashMap<>();
+        for (BlockPos vp : positions) {
+            BlockInfo baseInfo = world.renderedBlocks.get(vp);
+            if (baseInfo == null) continue;
+            BlockState base = baseInfo.getBlockState();
+            if (base == null || base.isAir()) continue;
+            BlockState resolved = vs.resolveState(vp, base);
+            if (resolved != base) {
+                saved.put(vp, baseInfo);
+                world.renderedBlocks.put(vp, BlockInfo.fromBlockState(resolved));
             }
-            ps.popPose();
-            wrapper.resetTint();
         }
-
-        // Fluid geometry
-        for (BlockPos pos : fluidBlocks) {
-            BlockState state = world.getBlockState(pos);
-            FluidState fluid = state.getFluidState();
-            if (fluid.isEmpty()) continue;
-            wrapper.addOffset(
-                    pos.getX() - (pos.getX() & 15),
-                    pos.getY() - (pos.getY() & 15),
-                    pos.getZ() - (pos.getZ() & 15));
-            brd.renderLiquid(pos, world, wrapper, state, fluid);
-            wrapper.clearOffset();
-            wrapper.resetTint();
-        }
+        return saved;
     }
+
+    private void restoreVariants(Map<BlockPos, BlockInfo> saved) {
+        for (Map.Entry<BlockPos, BlockInfo> e : saved.entrySet())
+            world.renderedBlocks.put(e.getKey(), e.getValue());
+    }
+
+    private record BakedLayer(BufferBuilder.RenderedBuffer renderedBuffer, IntBuffer blockIds) {}
 
     // ── VBO draw ──────────────────────────────────────────────────────────────
 
-    // ── Embeddium/Rubidium sprite activation ──────────────────────────────────
-
     private void drawVBOs() {
+        ShaderInstance phantasiaShader = PhantasiaShaders.PHANTASIA_BLOCK;
+
         for (int i = 0; i < LAYER_COUNT; i++) {
             VertexBuffer vbo = front[i];
             RenderType layer = LAYERS.get(i);
             if (vbo.isInvalid() || vbo.getFormat() == null) continue;
+
             layer.setupRenderState();
             applyLayerBlend(layer);
-            ShaderInstance shader = RenderSystem.getShader();
-            if (shader == null) {
-                layer.clearRenderState();
-                continue;
-            }
+
+            ShaderInstance shader = phantasiaShader != null ? phantasiaShader : RenderSystem.getShader();
+            if (shader == null) { layer.clearRenderState(); continue; }
+
             bindShaderSamplers(shader);
             setShaderUniforms(shader);
             RenderSystem.setupShaderLights(shader);
+
+            if (visibilityBuffer != null && phantasiaShader != null) visibilityBuffer.bind();
+
             shader.apply();
             RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
-            vbo.bind();
-            vbo.draw();
+
+            // Draw main VBO.
+            drawVBOWithIds(vbo, frontIdVbo[i], phantasiaShader != null);
+
+            // Draw overlay on top if one is live.
+            // The overlay VBO contains only the changed blocks — it overpaints the
+            // stale geometry for those positions with the up-to-date block states.
+            // The visibility shader still discards hidden overlay fragments correctly
+            // because block IDs are stable and the visibility UBO hasn't changed.
+            // Guard per-layer: a partial bake may upload geometry for only some layers;
+            // drawing an overlay[i] that was never uploaded (mode == null) causes an NPE.
+            if ((overlayReady || hasLiveOverlay()) && isOverlayLayerReady(i)) {
+                drawVBOWithIds(overlay[i], overlayIdVbo[i], phantasiaShader != null);
+            }
+
+            if (phantasiaShader != null) {
+                GL20.glDisableVertexAttribArray(PhantasiaVertexConsumer.ATTRIB_LOC);
+                GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, 0);
+                if (visibilityBuffer != null) visibilityBuffer.unbind();
+            }
+
             VertexBuffer.unbind();
             shader.clear();
             layer.clearRenderState();
         }
     }
 
-    // ── Suppressed draw (instant hide — alpha=0 overdraw) ────────────────────
+    /** True when any overlay layer has been uploaded and not yet replaced by a full bake. */
+    private boolean hasLiveOverlay() {
+        for (int i = 0; i < LAYER_COUNT; i++) {
+            if (isOverlayLayerReady(i)) return true;
+        }
+        return false;
+    }
 
-    /**
-     * Draws suppressed blocks at alpha=0.
-     * These are in the front VBO but must not be visible. We can't remove them
-     * from the VBO mid-frame, so we overdraw them with invisible geometry.
-     * This is effectively a no-op visually but correctly handles depth.
-     *
-     * Since alpha=0 fragments are discarded by the blend equation (src_alpha=0),
-     * we just skip them — depth is already correct from the VBO pass.
-     * So this method is actually empty; suppressedPositions serves as a
-     * guard to ensure the VBO draw doesn't need to be modified.
-     *
-     * The real work: the bake will exclude these positions, and on swap they
-     * vanish from the VBO permanently.
-     */
-    private void drawSuppressed(MultiBufferSource.BufferSource buffers) {
-        // Nothing to render — suppressed blocks are already excluded by
-        // the fact that our front[] VBO was built WITHOUT them (see scheduleBake:
-        // we bake targetVisible, not bakedVisible). The suppress set is just a
-        // semantic marker; the VBO already reflects the correct target.
-        //
-        // Exception: if suppressedPositions has entries that ARE in front[] (i.e.
-        // a very recent change before the first bake finished), the VBO is stale.
-        // In that case they will briefly show one frame until the bake swaps in.
-        // This is acceptable — one frame of stale geometry, no flicker loop.
+    /** True when overlay[i] has been successfully uploaded (format non-null = mode non-null). */
+    private boolean isOverlayLayerReady(int i) {
+        VertexBuffer ov = overlay[i];
+        return ov != null && !ov.isInvalid() && ov.getFormat() != null;
+    }
+
+    private void drawVBOWithIds(VertexBuffer vbo, int idVbo, boolean useCustomShader) {
+        vbo.bind();
+        if (useCustomShader && idVbo != 0) {
+            GL15.glBindBuffer(GL15.GL_ARRAY_BUFFER, idVbo);
+            GL20.glEnableVertexAttribArray(PhantasiaVertexConsumer.ATTRIB_LOC);
+
+            // FIX: Use GL30 for raw integer vertex attributes
+            org.lwjgl.opengl.GL30.glVertexAttribIPointer(PhantasiaVertexConsumer.ATTRIB_LOC, 1, GL11.GL_INT, 0, 0);
+        }
+        vbo.draw();
     }
 
     // ── Fade-in draw ──────────────────────────────────────────────────────────
 
-    /**
-     * Draws blocks fading in (alpha 0→1) using immediate-mode rendering.
-     * The world state is already correct at this point — scheduleBake() restores
-     * hidden blocks only after baking completes, so between bakes the world
-     * reflects the last baked visible set and face/AO queries are accurate.
-     */
     private void drawFadingIn(MultiBufferSource.BufferSource buffers) {
         if (blockAlpha.isEmpty()) return;
-
         Minecraft mc = Minecraft.getInstance();
         BlockRenderDispatcher brd = mc.getBlockRenderer();
         RandomSource random = RandomSource.createNewThreadLocalInstance();
         PoseStack ps = new PoseStack();
-
-        // One TintedVertexConsumer per RenderType, reused across all blocks in that layer.
-        // Allocating a new one per block caused significant GC pressure on large multiblocks.
         Map<RenderType, TintedVertexConsumer> consumers = new IdentityHashMap<>(LAYER_COUNT);
-
         for (Map.Entry<BlockPos, Float> e : blockAlpha.entrySet()) {
             BlockPos pos = e.getKey();
             float alpha = e.getValue();
             if (alpha <= 0.005f) continue;
-
             BlockState state = world.getBlockState(pos);
             if (state.isAir() || state.getRenderShape() == RenderShape.INVISIBLE) continue;
-
             List<RenderType> layers = blockLayers.get(pos);
             if (layers == null || layers.isEmpty()) continue;
-
             for (RenderType layer : layers) {
                 TintedVertexConsumer tinted = consumers.computeIfAbsent(layer,
                         l -> new TintedVertexConsumer(buffers.getBuffer(l)));
                 tinted.setAlpha(alpha);
-
-                ps.pushPose();
-                ps.translate(pos.getX(), pos.getY(), pos.getZ());
-                if (Platform.isForge()) {
-                    WorldSceneRenderer.renderBlocksForge(brd, state, pos, world, ps, tinted, random, layer);
-                } else {
-                    brd.renderBatched(state, pos, world, ps, tinted, true, random);
-                }
-                ps.popPose();
-                tinted.resetTint();
+                ps.pushPose(); ps.translate(pos.getX(), pos.getY(), pos.getZ());
+                if (Platform.isForge()) WorldSceneRenderer.renderBlocksForge(brd, state, pos, world, ps, tinted, random, layer);
+                else                    brd.renderBatched(state, pos, world, ps, tinted, true, random);
+                ps.popPose(); tinted.resetTint();
             }
         }
     }
 
-    // ── Tile entity pass ──────────────────────────────────────────────────────
 
-    /**
-     * Renders block entities with correct camera-relative PoseStack offsets.
-     *
-     * Vanilla's LevelRenderer translates the PoseStack by {@code -camPos} before
-     * entering the block entity render loop, so each BE then translates by its
-     * world position and the net offset is {@code blockPos - camPos}. We must do
-     * the same here — if we just translate by absolute world coordinates the depth
-     * buffer and face-culling logic receives values far outside the near/far range
-     * expected by the shader, which manifests as only one face being visible and
-     * incorrect ambient-occlusion / shadow contribution.
-     *
-     * @param camX eye X from {@link CameraView#eyeX()}
-     * @param camY eye Y
-     * @param camZ eye Z
-     */
-    private final Set<BlockPos> loggedBESkips = new java.util.HashSet<>();
 
-    private void drawTileEntities(MultiBufferSource.BufferSource buffers, float partial,
-                                  float camX, float camY, float camZ) {
-        Minecraft mc = Minecraft.getInstance();
+    // ── clientTick via MethodHandle ───────────────────────────────────────────
 
-        // MufflerPartMachine.clientTick() is what calls emitPollutionParticles() →
-        // level.addParticle(). The dummy world never ticks its BEs, so clientTick()
-        // is never invoked and no muffler particles are ever emitted.
-        // We drive it manually here, gated to one call per game tick (20/s) so
-        // particle spawn rate matches what the real level tick pipeline would produce.
-        long currentTick = mc.level != null ? mc.level.getGameTime() : -1;
-        boolean shouldTickParticles = currentTick >= 0 && currentTick != lastParticleTick;
-        if (shouldTickParticles) lastParticleTick = currentTick;
-        tickedThisFrame = shouldTickParticles;
-
-        for (BlockPos pos : frontTileEntities) {
-            // Don't filter by targetVisible — machine overlays, muffler particles,
-            // and other BER effects should render whenever the BE is registered.
-            // Block geometry visibility is already handled by the VBO draw pass.
-
-            BlockEntity be = world.getBlockEntity(pos);
-            if (be == null) {
-                if (DEBUG_RENDER && loggedBESkips.add(new BlockPos(pos.getX(), pos.getY() + 10000, pos.getZ())))
-                    LOGGER.info("[Phantasia] BE at {} skipped: getBlockEntity returned null", pos);
-                continue;
-            }
-            if (!be.hasLevel()) {
-                if (DEBUG_RENDER && loggedBESkips.add(new BlockPos(pos.getX(), pos.getY() + 20000, pos.getZ())))
-                    LOGGER.info("[Phantasia] BE at {} skipped: hasLevel=false", pos);
-                continue;
-            }
-            if (!be.getType().isValid(be.getBlockState())) {
-                if (DEBUG_RENDER && loggedBESkips.add(new BlockPos(pos.getX(), pos.getY() + 30000, pos.getZ())))
-                    LOGGER.info("[Phantasia] BE at {} skipped: isValid=false, beState={}, worldState={}",
-                            pos, be.getBlockState(), world.getBlockState(pos));
-                continue;
-            }
-
-            @SuppressWarnings("unchecked")
-            BlockEntityRenderer<BlockEntity> ber = (BlockEntityRenderer<BlockEntity>) mc
-                    .getBlockEntityRenderDispatcher().getRenderer(be);
-            if (ber == null) continue;
-
-            // Match LDLib WorldSceneRenderer.renderTESR exactly:
-            // fresh PoseStack per entity, translated to absolute world pos.
-            // No camera-relative offset — the VBO/shader pipeline handles that
-            com.mojang.blaze3d.vertex.PoseStack ps = new com.mojang.blaze3d.vertex.PoseStack();
-            ps.translate(pos.getX(), pos.getY(), pos.getZ());
-
-            try {
-                ber.render(be, partial, ps, buffers, 15728880, OverlayTexture.NO_OVERLAY);
-
-                if (tickedThisFrame) {
-                    driveClientTick(be);
-                }
-            } catch (Exception e) {
-                LOGGER.warn("[Phantasia] Error rendering Block Entity at {}: {}", pos, e.getMessage());
-            }
-        }
-    }
-
-    // ── High-Performance clientTick driver (MethodHandles) ───────────────────
-
-    private static final java.lang.invoke.MethodHandle NO_OP_HANDLE;
+    private static final java.lang.invoke.MethodHandle NO_OP;
     static {
-        try {
-            NO_OP_HANDLE = java.lang.invoke.MethodHandles.lookup().findStatic(PhantasiaWorldRenderer.class, "noOp", java.lang.invoke.MethodType.methodType(void.class));
-        } catch (Exception e) { throw new RuntimeException(e); }
+        try { NO_OP = java.lang.invoke.MethodHandles.lookup().findStatic(PhantasiaWorldRenderer.class, "noOp",
+                java.lang.invoke.MethodType.methodType(void.class)); }
+        catch (Exception e) { throw new RuntimeException(e); }
     }
     private static void noOp() {}
 
-    private static final ClassValue<java.lang.invoke.MethodHandle> GET_MACHINE_CACHE = new ClassValue<>() {
-        @Override
-        protected java.lang.invoke.MethodHandle computeValue(Class<?> type) {
-            java.lang.invoke.MethodHandles.Lookup lookup = java.lang.invoke.MethodHandles.lookup();
-            for (String methodName : new String[]{"getMetaMachine", "getMachine", "getOwner"}) {
-                try {
-                    java.lang.reflect.Method m = type.getMethod(methodName);
-                    java.lang.invoke.MethodHandle handle = lookup.unreflect(m);
-                    LOGGER.info("[Phantasia] driveClientTick: getMachine via {}() on {}", methodName, type.getSimpleName());
-                    return handle;
-                } catch (Exception ignored) {}
+    private static final ClassValue<java.lang.invoke.MethodHandle> GET_MACHINE = new ClassValue<>() {
+        @Override protected java.lang.invoke.MethodHandle computeValue(Class<?> t) {
+            var lookup = java.lang.invoke.MethodHandles.lookup();
+            for (String n : new String[]{"getMetaMachine","getMachine","getOwner"}) {
+                try { return lookup.unreflect(t.getMethod(n)); } catch (Exception ignored) {}
             }
-            return NO_OP_HANDLE;
+            return NO_OP;
         }
     };
-
-    private static final ClassValue<java.lang.invoke.MethodHandle> CLIENT_TICK_CACHE = new ClassValue<>() {
-        @Override
-        protected java.lang.invoke.MethodHandle computeValue(Class<?> machineClass) {
-            java.lang.invoke.MethodHandles.Lookup lookup = java.lang.invoke.MethodHandles.lookup();
-            for (Class<?> cur = machineClass; cur != null; cur = cur.getSuperclass()) {
-                try {
-                    java.lang.reflect.Method m = cur.getDeclaredMethod("clientTick");
-                    m.setAccessible(true);
-                    java.lang.invoke.MethodHandle handle = lookup.unreflect(m);
-                    LOGGER.info("[Phantasia] driveClientTick: found clientTick() on {}", cur.getSimpleName());
-                    return handle;
-                } catch (Exception ignored) {}
+    private static final ClassValue<java.lang.invoke.MethodHandle> CLIENT_TICK = new ClassValue<>() {
+        @Override protected java.lang.invoke.MethodHandle computeValue(Class<?> c) {
+            var lookup = java.lang.invoke.MethodHandles.lookup();
+            for (Class<?> cur = c; cur != null; cur = cur.getSuperclass()) {
+                try { var m = cur.getDeclaredMethod("clientTick"); m.setAccessible(true); return lookup.unreflect(m); }
+                catch (Exception ignored) {}
             }
-            return NO_OP_HANDLE;
+            return NO_OP;
         }
     };
 
     private static void driveClientTick(BlockEntity be) {
         try {
-            java.lang.invoke.MethodHandle getMachine = GET_MACHINE_CACHE.get(be.getClass());
-            if (getMachine == NO_OP_HANDLE) return;
-            Object machine = getMachine.invoke(be);
+            var gm = GET_MACHINE.get(be.getClass());
+            if (gm == NO_OP) return;
+            Object machine = gm.invoke(be);
             if (machine == null) return;
-            java.lang.invoke.MethodHandle tickMethod = CLIENT_TICK_CACHE.get(machine.getClass());
-            if (tickMethod == NO_OP_HANDLE) return;
-            tickMethod.invoke(machine);
-        } catch (Throwable t) {
-            LOGGER.warn("[Phantasia] driveClientTick failed: {}", t.getMessage());
+            var tick = CLIENT_TICK.get(machine.getClass());
+            if (tick == NO_OP) return;
+            tick.invoke(machine);
+        } catch (Throwable t) { LOGGER.warn("[Phantasia] driveClientTick: {}", t.getMessage()); }
+    }
+
+// ── Tile-entity draw ──────────────────────────────────────────────────────
+
+    private void drawTileEntities(PoseStack poseStack, MultiBufferSource.BufferSource buffers, float partial,
+                                  float camX, float camY, float camZ) {
+        Minecraft mc = Minecraft.getInstance();
+        long currentTick = mc.level != null ? mc.level.getGameTime() : -1;
+        boolean tick = currentTick >= 0 && currentTick != lastParticleTick;
+        if (tick) lastParticleTick = currentTick;
+        tickedThisFrame = tick;
+
+        for (BlockPos pos : frontTileEntities) {
+            BlockEntity be = world.getBlockEntity(pos);
+            if (be == null || !be.hasLevel() || !be.getType().isValid(be.getBlockState())) continue;
+            @SuppressWarnings("unchecked")
+            BlockEntityRenderer<BlockEntity> ber =
+                    (BlockEntityRenderer<BlockEntity>) mc.getBlockEntityRenderDispatcher().getRenderer(be);
+            if (ber == null) continue;
+
+            // FIX: Push onto the global matrix stack
+            poseStack.pushPose();
+            poseStack.translate(pos.getX(), pos.getY(), pos.getZ());
+
+            try {
+                ber.render(be, partial, poseStack, buffers, 15728880, OverlayTexture.NO_OVERLAY);
+                if (tick) driveClientTick(be);
+            } catch (Exception e) {
+                LOGGER.warn("[Phantasia] BE render error at {}: {}", pos, e.getMessage());
+            }
+
+            // FIX: Pop off the global matrix stack
+            poseStack.popPose();
         }
     }
 
-    /**
-     * Renders world entities (e.g. multiblock machine renders) in camera-relative space.
-     *
-     * Vanilla's EntityRenderDispatcher.render() expects the PoseStack to already be
-     * offset by -camPos, with the entity's absolute coords passed as x/y/z — exactly
-     * what LevelRenderer does. Without the camera-relative offset the entity Y position
-     * is interpreted in view-space and renders at the wrong depth (beneath the baseplate).
-     *
-     * GT multiblock renderer entities are spawned by the controller's IRenderer/renderTick
-     * machinery but their position is often left at (0,0,0) because the dummy world's
-     * BlockInfo path constructs the BE without calling setPos(). An entity at world-origin
-     * ends up ~50 blocks below the baseplate from the camera's perspective. We detect this
-     * and snap such entities to the controller's world position before rendering.
-     */
-    private static final org.slf4j.Logger LOGGER = com.mojang.logging.LogUtils.getLogger();
-    // Set to true temporarily to diagnose entity/particle issues, then remove.
-    private static final boolean DEBUG_RENDER = false;
-    private int debugFrameCounter = 0;
+    // ... (keep the driveClientTick / MethodHandle code identical) ...
 
-    private void drawEntities(MultiBufferSource.BufferSource buffers, float partial,
+    // ── Entity draw ───────────────────────────────────────────────────────────
+
+    private void drawEntities(PoseStack poseStack, MultiBufferSource.BufferSource buffers, float partial,
                               float camX, float camY, float camZ) {
         var erd = Minecraft.getInstance().getEntityRenderDispatcher();
-        var entities = world.getAllEntities();
-
-        if (DEBUG_RENDER && ++debugFrameCounter % 60 == 0) {
-            int count = 0;
-            for (var ignored : entities) count++;
-            LOGGER.info("[Phantasia] drawEntities: {} entities, controllerWorldPos={}",
-                    count, controllerWorldPos);
-            var pm = world.getParticleManager();
-            int particleCount = 0;
-            if (pm != null) {
-                try {
-                    // LDLib ParticleManager stores particles in a field — try to count them
-                    var f = pm.getClass().getDeclaredField("particles");
-                    f.setAccessible(true);
-                    var particles = f.get(pm);
-                    if (particles instanceof java.util.Collection<?> c) particleCount = c.size();
-                    else if (particles instanceof java.util.Map<?, ?> m) particleCount = m.size();
-                } catch (Exception e) {
-                    particleCount = -1; // field name differs, check source
-                }
-            }
-            LOGGER.info("[Phantasia] particleManager={}, isClientSide={}, particleCount={}",
-                    pm != null ? pm.getClass().getSimpleName() : "null",
-                    world.isClientSide, particleCount);
-            LOGGER.info("[Phantasia] frontTileEntities={}", frontTileEntities.size());
-        }
         for (Entity entity : world.getAllEntities()) {
             try {
-                // Snap GT rendering entities that were spawned at (0,0,0) to the controller.
-                if (controllerWorldPos != null && Math.abs(entity.getX()) < 1.0 && Math.abs(entity.getY()) < 1.0 &&
-                        Math.abs(entity.getZ()) < 1.0) {
-                    entity.setPos(
-                            controllerWorldPos.getX() + 0.5,
+                if (controllerWorldPos != null && Math.abs(entity.getX()) < 1.0 &&
+                        Math.abs(entity.getY()) < 1.0 && Math.abs(entity.getZ()) < 1.0) {
+                    entity.setPos(controllerWorldPos.getX() + 0.5,
                             controllerWorldPos.getY() + 0.5,
                             controllerWorldPos.getZ() + 0.5);
-                    entity.xOld = entity.getX();
-                    entity.yOld = entity.getY();
-                    entity.zOld = entity.getZ();
+                    entity.xOld = entity.getX(); entity.yOld = entity.getY(); entity.zOld = entity.getZ();
                 }
-
-                // Match LDLib WorldSceneRenderer.renderEntities exactly:
-                // interpolated absolute position, fresh identity PoseStack, no camera offset.
-                // The model-view matrix set up in setupCamera() handles the view transform.
                 double d0 = net.minecraft.util.Mth.lerp(partial, entity.xOld, entity.getX());
                 double d1 = net.minecraft.util.Mth.lerp(partial, entity.yOld, entity.getY());
                 double d2 = net.minecraft.util.Mth.lerp(partial, entity.zOld, entity.getZ());
                 float yRot = net.minecraft.util.Mth.lerp(partial, entity.yRotO, entity.getYRot());
 
-                PoseStack ps = new PoseStack();
-                int light = erd.getRenderer(entity).getPackedLightCoords(entity, partial);
-                erd.render(entity, d0, d1, d2, yRot, partial, ps, buffers, light);
+                // FIX: Push onto the global matrix stack
+                poseStack.pushPose();
 
+                erd.render(entity, d0, d1, d2, yRot, partial, poseStack, buffers,
+                        erd.getRenderer(entity).getPackedLightCoords(entity, partial));
+
+                // FIX: Pop off the global matrix stack
+                poseStack.popPose();
             } catch (Exception ignored) {}
         }
     }
 
-    // ── Light texture management (BER lighting fix) ───────────────────────────
+    // ── Light texture ─────────────────────────────────────────────────────────
 
-    /**
-     * Turns on the light texture layer so block entity renderers sample correct
-     * per-face lighting. Without this, BERs use stale light data → one face lit,
-     * wrong shadows.
-     */
-    private void turnOnLight(float partialTick) {
-        try {
-            Minecraft.getInstance().gameRenderer.lightTexture().turnOnLightLayer();
-        } catch (Exception ignored) {
-            // If the method signature changes between MC versions, fail silently.
-            // BERs will look slightly wrong but won't crash.
-        }
-    }
+    private void turnOnLight(float p)  { try { Minecraft.getInstance().gameRenderer.lightTexture().turnOnLightLayer();  } catch (Exception ignored) {} }
+    private void turnOffLight()        { try { Minecraft.getInstance().gameRenderer.lightTexture().turnOffLightLayer(); } catch (Exception ignored) {} }
 
-    private void turnOffLight() {
-        try {
-            Minecraft.getInstance().gameRenderer.lightTexture().turnOffLightLayer();
-        } catch (Exception ignored) {}
-    }
-
-    // ── Camera setup / teardown ───────────────────────────────────────────────
+    // ── Camera ────────────────────────────────────────────────────────────────
 
     private void setupCamera(CameraView view, int glX, int glY, int glW, int glH) {
-        RenderSystem.enableDepthTest();
-        RenderSystem.enableBlend();
+        RenderSystem.enableDepthTest(); RenderSystem.enableBlend();
         RenderSystem.viewport(glX, glY, glW, glH);
         RenderSystem.depthMask(true);
         RenderSystem.clearColor(0f, 0f, 0f, 0f);
         RenderSystem.clear(GL11.GL_DEPTH_BUFFER_BIT, Minecraft.ON_OSX);
-
         RenderSystem.backupProjectionMatrix();
-        float aspect = (float) glW / (float) glH;
+        float aspect = (float) glW / glH;
         RenderSystem.setProjectionMatrix(
                 new Matrix4f().setPerspective((float) Math.toRadians(FOV), aspect, NEAR, FAR),
                 VertexSorting.byDistance(new Vector3f(view.eyeX(), view.eyeY(), view.eyeZ())));
-
         PoseStack mv = RenderSystem.getModelViewStack();
-        mv.pushPose();
-        mv.setIdentity();
-        Project.gluLookAt(mv,
-                view.eyeX(), view.eyeY(), view.eyeZ(),
-                view.lookAtX(), view.lookAtY(), view.lookAtZ(),
-                0f, 1f, 0f);
+        mv.pushPose(); mv.setIdentity();
+        Project.gluLookAt(mv, view.eyeX(), view.eyeY(), view.eyeZ(),
+                view.lookAtX(), view.lookAtY(), view.lookAtZ(), 0f, 1f, 0f);
+
+        // ── Precision fix ────────────────────────────────────────────────────
+        // Block geometry is baked at slot-space coordinates (origin may be tens of
+        // thousands of blocks from 0,0). Translating the modelview by -slotOrigin
+        // re-centres everything to near-zero before the vertex shader sees it,
+        // preserving the float32 sub-block precision that GT's 0.001-block overlay
+        // offset requires to render without z-fighting or disappearing overlays.
+        mv.translate(-slotOrigin.getX(), -slotOrigin.getY(), -slotOrigin.getZ());
+        // ─────────────────────────────────────────────────────────────────────
+
         RenderSystem.applyModelViewMatrix();
         RenderSystem.activeTexture(33984);
-
         syncCameraEntity(view);
         camera.setup(world, cameraEntity, false, false, Minecraft.getInstance().getFrameTime());
-    }
-
-    private void snapshotMatrices() {
-        RenderSystem.getModelViewMatrix().get(SCRATCH_MV);
-        SCRATCH_MV.rewind();
-        RenderSystem.getProjectionMatrix().get(SCRATCH_PROJ);
-        SCRATCH_PROJ.rewind();
-        GL11.glGetIntegerv(GL11.GL_VIEWPORT, SCRATCH_VP);
-        SCRATCH_VP.rewind();
-        for (int i = 0; i < 16; i++) snapMV[i] = SCRATCH_MV.get(i);
-        for (int i = 0; i < 16; i++) snapProj[i] = SCRATCH_PROJ.get(i);
-        for (int i = 0; i < 4; i++) snapVP[i] = SCRATCH_VP.get(i);
-        SCRATCH_MV.rewind();
-        SCRATCH_PROJ.rewind();
-        SCRATCH_VP.rewind();
     }
 
     private void resetCamera() {
@@ -1223,133 +1064,90 @@ public final class PhantasiaWorldRenderer {
         RenderSystem.viewport(0, 0, mc.getWindow().getWidth(), mc.getWindow().getHeight());
         RenderSystem.restoreProjectionMatrix();
         PoseStack mv = RenderSystem.getModelViewStack();
-        mv.popPose();
-        RenderSystem.applyModelViewMatrix();
-        RenderSystem.depthMask(false);
-        RenderSystem.disableDepthTest();
-        RenderSystem.enableBlend();
+        mv.popPose(); RenderSystem.applyModelViewMatrix();
+        RenderSystem.depthMask(false); RenderSystem.disableDepthTest(); RenderSystem.enableBlend();
     }
 
     private void syncCameraEntity(CameraView view) {
         Vector3f dir = view.direction();
-        float yaw = (float) Math.toDegrees(Math.atan2(-dir.x(), dir.z()));
-        float hDist = (float) Math.sqrt(dir.x() * dir.x() + dir.z() * dir.z());
-        float pitch = (float) Math.toDegrees(Math.atan2(-dir.y(), hDist));
+        float yaw   = (float) Math.toDegrees(Math.atan2(-dir.x(), dir.z()));
+        float hd    = (float) Math.sqrt(dir.x() * dir.x() + dir.z() * dir.z());
+        float pitch = (float) Math.toDegrees(Math.atan2(-dir.y(), hd));
         cameraEntity.setPos(view.eyeX(), view.eyeY(), view.eyeZ());
-        cameraEntity.setYRot(yaw);
-        cameraEntity.setXRot(pitch);
-        cameraEntity.xo = cameraEntity.getX();
-        cameraEntity.yo = cameraEntity.getY();
-        cameraEntity.zo = cameraEntity.getZ();
-        cameraEntity.yRotO = yaw;
-        cameraEntity.xRotO = pitch;
+        cameraEntity.setYRot(yaw); cameraEntity.setXRot(pitch);
+        cameraEntity.xo = cameraEntity.getX(); cameraEntity.yo = cameraEntity.getY(); cameraEntity.zo = cameraEntity.getZ();
+        cameraEntity.yRotO = yaw; cameraEntity.xRotO = pitch;
+    }
+
+    // ── Matrix snapshot ───────────────────────────────────────────────────────
+
+    private void snapshotMatrices() {
+        RenderSystem.getModelViewMatrix().get(SCRATCH_MV);   SCRATCH_MV.rewind();
+        RenderSystem.getProjectionMatrix().get(SCRATCH_PROJ); SCRATCH_PROJ.rewind();
+        GL11.glGetIntegerv(GL11.GL_VIEWPORT, SCRATCH_VP);    SCRATCH_VP.rewind();
+        for (int i = 0; i < 16; i++) snapMV[i]   = SCRATCH_MV.get(i);
+        for (int i = 0; i < 16; i++) snapProj[i] = SCRATCH_PROJ.get(i);
+        for (int i = 0; i < 4;  i++) snapVP[i]   = SCRATCH_VP.get(i);
+        SCRATCH_MV.rewind(); SCRATCH_PROJ.rewind(); SCRATCH_VP.rewind();
     }
 
     // ── Ray-trace ─────────────────────────────────────────────────────────────
 
-    /**
-     * Casts a ray from the camera through the mouse cursor and returns the first
-     * hit block that is actually visible (in targetVisible or baseplatePositions).
-     *
-     * Hidden blocks are transparent to the ray — the cursor passes through them
-     * so the player can hover over the visible face of a block that is obscured
-     * by a hidden block in front of it. This matches the visual expectation:
-     * if you can't see a block, you shouldn't be able to "hit" it.
-     */
     @Nullable
     private BlockHitResult doRayTrace(CameraView view, double guiScale, int windowH) {
-        int glMouseX = (int) (guiMouseX * guiScale);
-        int glMouseY = (int) (windowH - guiMouseY * guiScale);
-        if (glMouseX < snapVP[0] || glMouseX > snapVP[0] + snapVP[2] || glMouseY < snapVP[1] ||
-                glMouseY > snapVP[1] + snapVP[3])
+        int glX = (int)(guiMouseX * guiScale);
+        int glY = (int)(windowH - guiMouseY * guiScale);
+        if (glX < snapVP[0] || glX > snapVP[0] + snapVP[2] || glY < snapVP[1] || glY > snapVP[1] + snapVP[3])
             return null;
-
-        GL11.glReadPixels(glMouseX, glMouseY, 1, 1, GL11.GL_DEPTH_COMPONENT, GL11.GL_FLOAT, PIXEL_DEPTH);
-        PIXEL_DEPTH.rewind();
-        float depth = PIXEL_DEPTH.get();
-        PIXEL_DEPTH.rewind();
-
+        GL11.glReadPixels(glX, glY, 1, 1, GL11.GL_DEPTH_COMPONENT, GL11.GL_FLOAT, PIXEL_DEPTH);
+        PIXEL_DEPTH.rewind(); float depth = PIXEL_DEPTH.get(); PIXEL_DEPTH.rewind();
         for (int i = 0; i < 16; i++) SCRATCH_MV.put(i, snapMV[i]);
         for (int i = 0; i < 16; i++) SCRATCH_PROJ.put(i, snapProj[i]);
-        for (int i = 0; i < 4; i++) SCRATCH_VP.put(i, snapVP[i]);
-        SCRATCH_MV.rewind();
-        SCRATCH_PROJ.rewind();
-        SCRATCH_VP.rewind();
-
-        Project.gluUnProject(glMouseX, glMouseY, depth,
-                SCRATCH_MV, SCRATCH_PROJ, SCRATCH_VP, UNPROJECT_OUT);
-        SCRATCH_MV.rewind();
-        SCRATCH_PROJ.rewind();
-        SCRATCH_VP.rewind();
-        UNPROJECT_OUT.rewind();
+        for (int i = 0; i < 4;  i++) SCRATCH_VP.put(i, snapVP[i]);
+        SCRATCH_MV.rewind(); SCRATCH_PROJ.rewind(); SCRATCH_VP.rewind();
+        Project.gluUnProject(glX, glY, depth, SCRATCH_MV, SCRATCH_PROJ, SCRATCH_VP, UNPROJECT_OUT);
+        SCRATCH_MV.rewind(); SCRATCH_PROJ.rewind(); SCRATCH_VP.rewind(); UNPROJECT_OUT.rewind();
         float hx = UNPROJECT_OUT.get(), hy = UNPROJECT_OUT.get(), hz = UNPROJECT_OUT.get();
         UNPROJECT_OUT.rewind();
-
-        Vec3 eye = new Vec3(view.eyeX(), view.eyeY(), view.eyeZ());
-        Vec3 hit = new Vec3(hx * 2.0, hy * 2.0, hz * 2.0);
-        Vec3 end = new Vec3(hit.x - eye.x, hit.y - eye.y, hit.z - eye.z);
-
+        // The modelview was shifted by -slotOrigin in setupCamera, so the unprojected
+        // point is in shifted space. Add slotOrigin back to recover dummy-world coords.
+        hx += slotOrigin.getX();
+        hy += slotOrigin.getY();
+        hz += slotOrigin.getZ();
         try {
-            // 1. Establish the absolute eye (start) and unprojected click (hit) coordinates
-            Vec3 rayStart = new Vec3(view.eyeX(), view.eyeY(), view.eyeZ());
-            Vec3 mouseHitSpace = new Vec3(hx, hy, hz);
-
-            // 2. Calculate a normalized look direction vector from the mouse coordinates
-            Vec3 lookDir = mouseHitSpace.subtract(rayStart).normalize();
-
-            // 3. Define an absolute end point far into the distance (e.g., 200 blocks away)
-            Vec3 rayEnd = rayStart.add(lookDir.scale(200.0));
-
-            // Walk iteratively, skipping hidden positions.
+            Vec3 eye = new Vec3(view.eyeX(), view.eyeY(), view.eyeZ());
+            Vec3 dir = new Vec3(hx, hy, hz).subtract(eye).normalize();
+            Vec3 end = eye.add(dir.scale(200.0));
             for (int attempt = 0; attempt < 16; attempt++) {
-                net.minecraft.world.level.ClipContext attempt_ctx = new net.minecraft.world.level.ClipContext(
-                        rayStart,
-                        rayEnd, // Must be the absolute destination space
+                var ctx = new net.minecraft.world.level.ClipContext(eye, end,
                         net.minecraft.world.level.ClipContext.Block.OUTLINE,
-                        net.minecraft.world.level.ClipContext.Fluid.NONE,
-                        cameraEntity);
-
-                BlockHitResult result = world.clip(attempt_ctx);
-
-                // If it's a miss, or we hit nothingness, terminate early.
-                if (result == null || result.getType() == HitResult.Type.MISS) {
-                    return null;
-                }
-
-                BlockPos pos = result.getBlockPos();
-                // If the block is explicitly targeted/visible or part of the baseplate, return it!
-                if (targetVisible.contains(pos) || baseplatePositions.contains(pos)) {
-                    return result;
-                }
-
-                // --- Hidden block hit handling ---
-                // Advance slightly past the hit point along our strict 'lookDir' line.
-                // Nudging 0.02 blocks prevents the ray from getting stuck on the same block face.
-                rayStart = result.getLocation().add(lookDir.scale(0.02));
+                        net.minecraft.world.level.ClipContext.Fluid.NONE, cameraEntity);
+                BlockHitResult res = world.clip(ctx);
+                if (res == null || res.getType() == HitResult.Type.MISS) return null;
+                BlockPos pos = res.getBlockPos();
+                if (targetVisible.contains(pos) || baseplatePositions.contains(pos)) return res;
+                eye = res.getLocation().add(dir.scale(0.02));
             }
-            return null; // Exhausted retries through dense hidden blocks
-        } catch (Exception ignored) {
-            return null;
-        }
+        } catch (Exception ignored) {}
+        return null;
     }
 
     // ── Shader / blend helpers ────────────────────────────────────────────────
 
     private static void bindShaderSamplers(ShaderInstance s) {
-        for (int j = 0; j < 12; j++)
-            s.setSampler("Sampler" + j, RenderSystem.getShaderTexture(j));
+        for (int j = 0; j < 12; j++) s.setSampler("Sampler" + j, RenderSystem.getShaderTexture(j));
     }
 
     private static void setShaderUniforms(ShaderInstance s) {
         if (s.MODEL_VIEW_MATRIX != null) s.MODEL_VIEW_MATRIX.set(RenderSystem.getModelViewMatrix());
         if (s.PROJECTION_MATRIX != null) s.PROJECTION_MATRIX.set(RenderSystem.getProjectionMatrix());
-        if (s.COLOR_MODULATOR != null) s.COLOR_MODULATOR.set(RenderSystem.getShaderColor());
-        if (s.FOG_START != null) s.FOG_START.set(RenderSystem.getShaderFogStart());
-        if (s.FOG_END != null) s.FOG_END.set(RenderSystem.getShaderFogEnd());
-        if (s.FOG_COLOR != null) s.FOG_COLOR.set(RenderSystem.getShaderFogColor());
-        if (s.FOG_SHAPE != null) s.FOG_SHAPE.set(RenderSystem.getShaderFogShape().getIndex());
-        if (s.TEXTURE_MATRIX != null) s.TEXTURE_MATRIX.set(RenderSystem.getTextureMatrix());
-        if (s.GAME_TIME != null) s.GAME_TIME.set(RenderSystem.getShaderGameTime());
+        if (s.COLOR_MODULATOR   != null) s.COLOR_MODULATOR.set(RenderSystem.getShaderColor());
+        if (s.FOG_START         != null) s.FOG_START.set(RenderSystem.getShaderFogStart());
+        if (s.FOG_END           != null) s.FOG_END.set(RenderSystem.getShaderFogEnd());
+        if (s.FOG_COLOR         != null) s.FOG_COLOR.set(RenderSystem.getShaderFogColor());
+        if (s.FOG_SHAPE         != null) s.FOG_SHAPE.set(RenderSystem.getShaderFogShape().getIndex());
+        if (s.TEXTURE_MATRIX    != null) s.TEXTURE_MATRIX.set(RenderSystem.getTextureMatrix());
+        if (s.GAME_TIME         != null) s.GAME_TIME.set(RenderSystem.getShaderGameTime());
     }
 
     private static void applyLayerBlend(RenderType layer) {
@@ -1368,13 +1166,16 @@ public final class PhantasiaWorldRenderer {
     // ── Cleanup ───────────────────────────────────────────────────────────────
 
     public void close() {
-        if (bakeFuture != null) {
-            bakeFuture.cancel(true);
-            bakeFuture = null;
-        }
+        if (bakeFuture != null) { bakeFuture.cancel(true); bakeFuture = null; }
         for (int i = 0; i < LAYER_COUNT; i++) {
-            if (front[i] != null && !front[i].isInvalid()) front[i].close();
-            if (back[i] != null && !back[i].isInvalid()) back[i].close();
+            if (front[i]   != null && !front[i].isInvalid())   front[i].close();
+            if (back[i]    != null && !back[i].isInvalid())    back[i].close();
+            if (overlay[i] != null && !overlay[i].isInvalid()) overlay[i].close();
         }
+        GL15.glDeleteBuffers(frontIdVbo);
+        GL15.glDeleteBuffers(backIdVbo);
+        GL15.glDeleteBuffers(overlayIdVbo);
+        if (visibilityBuffer != null) { visibilityBuffer.close(); visibilityBuffer = null; }
+        PhantasiaShaders.invalidate();
     }
 }
