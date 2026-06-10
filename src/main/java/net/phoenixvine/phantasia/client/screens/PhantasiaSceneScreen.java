@@ -180,8 +180,6 @@ public class PhantasiaSceneScreen extends Screen {
     private int savedManualLayer = -1;
     private boolean buildPulseUp = true;
 
-
-
     // ─────────────────────────────────────────────────────────────────────────
     // Caption
     // ─────────────────────────────────────────────────────────────────────────
@@ -219,10 +217,7 @@ public class PhantasiaSceneScreen extends Screen {
         applyVisibility();
     }
 
-
     private List<BlockInfo> coilTiers = new ArrayList<>();
-
-
 
     // ─────────────────────────────────────────────────────────────────────────
     // Camera helpers
@@ -542,14 +537,14 @@ public class PhantasiaSceneScreen extends Screen {
      * compute Y extents, and construct the PhantasiaLoadedPattern.
      */
     private PhantasiaLoadedPattern finalisePattern(
-            BlockInfo[][][] raw,
-            Map<BlockPos, BlockInfo> blockMap,
-            Map<BlockPos, BlockPos> localToWorld,
-            Set<BlockPos> baseplatePos,
-            Set<BlockPos> bePos,
-            BlockPos controllerWP,
-            MultiblockControllerMachine controller,
-            BlockPos origin) {
+                                                   BlockInfo[][][] raw,
+                                                   Map<BlockPos, BlockInfo> blockMap,
+                                                   Map<BlockPos, BlockPos> localToWorld,
+                                                   Set<BlockPos> baseplatePos,
+                                                   Set<BlockPos> bePos,
+                                                   BlockPos controllerWP,
+                                                   MultiblockControllerMachine controller,
+                                                   BlockPos origin) {
         // Register every MetaMachineBlockEntity with the dummy world so that
         // TrackedDummyWorld.getBlockEntity(pos) returns them. Must happen BEFORE
         // onStructureFormed so the controller's own BE is in the world when
@@ -716,15 +711,14 @@ public class PhantasiaSceneScreen extends Screen {
         };
     }
 
-
-
     @Override
     protected void init() {
         super.init();
 
         // Invalidate our high-performance zero-allocation cache on screen re-initialization
         this.cacheInitialized = false;
-        org.slf4j.LoggerFactory.getLogger("PhantasiaScreenCache").info("[Phantasia] Screen init triggered: Invalidating variant lookup cache maps.");
+        org.slf4j.LoggerFactory.getLogger("PhantasiaScreenCache")
+                .info("[Phantasia] Screen init triggered: Invalidating variant lookup cache maps.");
 
         if (SHARED_LEVEL == null) {
             if (Minecraft.getInstance().level == null) {
@@ -816,10 +810,8 @@ public class PhantasiaSceneScreen extends Screen {
         ensureVariantCachePopulated();
         org.slf4j.LoggerFactory.getLogger("PhantasiaScreenCache").info(String.format(
                 "[Phantasia] Cache initialization finalized successfully. Pre-cached %d variant blocks for O(1) rendering lookups.",
-                this.positionToVariantGroupCache.size()
-        ));
+                this.positionToVariantGroupCache.size()));
     }
-
 
     @Override
     public void tick() {
@@ -920,8 +912,6 @@ public class PhantasiaSceneScreen extends Screen {
             updateCaptionForStep(step);
         }
     }
-
-
 
     // Add this as a field in PhantasiaSceneScreen
     private final java.util.List<BlockPos> ambientTickingPositions = new java.util.ArrayList<>();
@@ -1094,11 +1084,9 @@ public class PhantasiaSceneScreen extends Screen {
         return 0;
     }
 
-
     // ─────────────────────────────────────────────────────────────────────────
     // render()
     // ─────────────────────────────────────────────────────────────────────────
-
 
     private void ensureVariantCachePopulated() {
         if (cacheInitialized || script == null) return;
@@ -1133,8 +1121,8 @@ public class PhantasiaSceneScreen extends Screen {
                         "   -> Flattened Variant Lookup: %.4f ms (Zero-Allocation O(1))\n" +
                         "   -> Registered Screen Elements Cache Size: %d entries\n" +
                         "===================================================",
-                screenProfiledFramesCount, avgScreenTotal, maxScreenSpike, avgLookupTime, positionToVariantGroupCache.size()
-        ));
+                screenProfiledFramesCount, avgScreenTotal, maxScreenSpike, avgLookupTime,
+                positionToVariantGroupCache.size()));
 
         // Reset trackers cleanly
         screenProfileWindowStart = System.nanoTime();
@@ -1143,7 +1131,6 @@ public class PhantasiaSceneScreen extends Screen {
         maxScreenSpikeNs = 0;
         totalVariantLookupTimeNs = 0;
     }
-
 
     @Override
     public void render(@NotNull GuiGraphics g, int mx, int my, float partial) {
@@ -1202,7 +1189,8 @@ public class PhantasiaSceneScreen extends Screen {
                     // Fully flattened O(1) cache lookup—completely bypassing nested iterator loop allocation!
                     var group = positionToVariantGroupCache.get(hoveredPos);
                     if (group != null) {
-                        int activeSel = net.phoenixvine.phantasia.common.PhantasiaVariantState.get().getSelection(group.getId());
+                        int activeSel = net.phoenixvine.phantasia.common.PhantasiaVariantState.get()
+                                .getSelection(group.getId());
                         if (activeSel >= 0 && activeSel < group.getOptions().size()) {
                             st = group.getOptions().get(activeSel);
                         }
@@ -1219,8 +1207,7 @@ public class PhantasiaSceneScreen extends Screen {
                             px + 10, this.height - 20, C_DIM(), false);
                     if (mx < px) g.renderTooltip(font, st.getBlock().getName(), mx, my);
                 }
-            } catch (Exception ignored) {
-            } finally {
+            } catch (Exception ignored) {} finally {
                 totalVariantLookupTimeNs += (System.nanoTime() - lookupStart);
             }
         }

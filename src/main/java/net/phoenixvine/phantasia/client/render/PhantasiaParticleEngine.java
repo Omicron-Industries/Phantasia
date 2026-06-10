@@ -143,7 +143,8 @@ public class PhantasiaParticleEngine {
                 @SuppressWarnings("rawtypes")
                 net.minecraft.client.particle.ParticleProvider provider = key != null ? providers.get(key) : null;
                 if (provider != null) {
-                    particle = provider.createParticle(options, getParticleCollisionWorld().getAsClientWorld().get(), x, y, z, dx, dy, dz);
+                    particle = provider.createParticle(options, getParticleCollisionWorld().getAsClientWorld().get(), x,
+                            y, z, dx, dy, dz);
                 }
             }
 
@@ -247,10 +248,10 @@ public class PhantasiaParticleEngine {
      */
     @SuppressWarnings("unchecked")
     public static void renderDirect(
-            net.minecraft.client.renderer.MultiBufferSource.BufferSource buffers,
-            net.minecraft.client.renderer.LightTexture lightTexture,
-            Camera camera,
-            float partialTick) {
+                                    net.minecraft.client.renderer.MultiBufferSource.BufferSource buffers,
+                                    net.minecraft.client.renderer.LightTexture lightTexture,
+                                    Camera camera,
+                                    float partialTick) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.particleEngine == null || particleQueueField == null || ownedParticles.isEmpty()) return;
 
@@ -384,12 +385,12 @@ public class PhantasiaParticleEngine {
     // ── Manual quad emission ──────────────────────────────────────────────────
 
     private static void renderParticleManual(
-            com.mojang.blaze3d.vertex.BufferBuilder bb,
-            Camera camera,
-            Particle particle,
-            float partial,
-            float rx, float ry, float rz,
-            float ux, float uy, float uz) {
+                                             com.mojang.blaze3d.vertex.BufferBuilder bb,
+                                             Camera camera,
+                                             Particle particle,
+                                             float partial,
+                                             float rx, float ry, float rz,
+                                             float ux, float uy, float uz) {
         try {
             if (!(particle instanceof net.minecraft.client.particle.TextureSheetParticle) || f_sprite == null) {
                 // Non-TextureSheetParticle — call render() directly (Oculus doesn't patch these)

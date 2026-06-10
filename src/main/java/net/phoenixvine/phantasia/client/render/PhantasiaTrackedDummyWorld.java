@@ -10,14 +10,15 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.shapes.CollisionContext;
-import net.minecraft.world.phys.shapes.VoxelShape;
 import net.minecraft.world.phys.shapes.Shapes;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 
-import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
+
+import javax.annotation.Nullable;
 
 @OnlyIn(Dist.CLIENT)
 public class PhantasiaTrackedDummyWorld extends TrackedDummyWorld {
@@ -63,7 +64,8 @@ public class PhantasiaTrackedDummyWorld extends TrackedDummyWorld {
                         VoxelShape shape = state.getCollisionShape(this, mutablePos, context);
                         if (!shape.isEmpty()) {
                             VoxelShape movedShape = shape.move(x, y, z);
-                            if (Shapes.joinIsNotEmpty(movedShape, Shapes.create(aabb), net.minecraft.world.phys.shapes.BooleanOp.AND)) {
+                            if (Shapes.joinIsNotEmpty(movedShape, Shapes.create(aabb),
+                                    net.minecraft.world.phys.shapes.BooleanOp.AND)) {
                                 collisions.add(movedShape);
                             }
                         }

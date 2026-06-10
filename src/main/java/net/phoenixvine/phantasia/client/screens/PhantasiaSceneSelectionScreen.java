@@ -42,7 +42,7 @@ public class PhantasiaSceneSelectionScreen extends Screen {
     // Runtime filtered list matching the search query
     private final List<MultiblockMachineDefinition> filteredScenes = new ArrayList<>();
     private final List<PhantasiaSceneData> filteredManualScenes = new ArrayList<>();
-    private final List<PhantasiaGuideData> filteredGuides       = new ArrayList<>();
+    private final List<PhantasiaGuideData> filteredGuides = new ArrayList<>();
 
     private enum Tab {
         MULTIBLOCKS,
@@ -387,13 +387,12 @@ public class PhantasiaSceneSelectionScreen extends Screen {
         // ── Action buttons (always visible at card bottom) ───────────────────
         // Determine if this scene has guide content (any step with description)
         boolean hasGuide = scene.steps != null && scene.steps.stream()
-                .anyMatch(s -> (s.caption != null && !s.caption.isBlank())
-                        || (s.description != null && !s.description.isBlank())
-                        || (s.showItems && scene.placements.stream()
-                        .anyMatch(p -> !p.items.isEmpty())));
+                .anyMatch(s -> (s.caption != null && !s.caption.isBlank()) ||
+                        (s.description != null && !s.description.isBlank()) || (s.showItems && scene.placements.stream()
+                                .anyMatch(p -> !p.items.isEmpty())));
 
-        int btnY  = cy + CARD_H - 12;
-        int btnH  = 11;
+        int btnY = cy + CARD_H - 12;
+        int btnH = 11;
 
         // "▶ View" button — always shown
         int viewW = font.width("▶ View") + 6;
@@ -425,9 +424,9 @@ public class PhantasiaSceneSelectionScreen extends Screen {
     // ── Guide cards (Guides tab) ───────────────────────────────────────────────
 
     private void renderGuideCards(GuiGraphics g, int mx, int my) {
-        int totalW  = COLS * CARD_W + (COLS - 1) * CARD_PAD;
-        int startX  = (this.width - totalW) / 2;
-        int startY  = HEADER_H + SEARCH_H + 6;
+        int totalW = COLS * CARD_W + (COLS - 1) * CARD_PAD;
+        int startX = (this.width - totalW) / 2;
+        int startY = HEADER_H + SEARCH_H + 6;
         int maxRows = visibleRows();
 
         hoveredCard = -1;
@@ -480,9 +479,9 @@ public class PhantasiaSceneSelectionScreen extends Screen {
         // Icon
         String iconRes = guide.iconItem != null ? guide.iconItem : "minecraft:book";
         try {
-            net.minecraft.resources.ResourceLocation rl = iconRes.contains(":")
-                    ? new net.minecraft.resources.ResourceLocation(iconRes)
-                    : new net.minecraft.resources.ResourceLocation("minecraft", iconRes);
+            net.minecraft.resources.ResourceLocation rl = iconRes.contains(":") ?
+                    new net.minecraft.resources.ResourceLocation(iconRes) :
+                    new net.minecraft.resources.ResourceLocation("minecraft", iconRes);
             net.minecraft.world.item.Item item = net.minecraftforge.registries.ForgeRegistries.ITEMS.getValue(rl);
             if (item == null || item == net.minecraft.world.item.Items.AIR)
                 item = net.minecraft.world.item.Items.BOOK;
@@ -518,8 +517,7 @@ public class PhantasiaSceneSelectionScreen extends Screen {
         g.drawString(font, "📖 Read", cx + 6, btnY + 2,
                 openHov ? C_ACCENT : (hov ? C_TEXT : C_DIM), false);
 
-        if (Minecraft.getInstance().player != null
-                && Minecraft.getInstance().player.getAbilities().instabuild) {
+        if (Minecraft.getInstance().player != null && Minecraft.getInstance().player.getAbilities().instabuild) {
             int editW = font.width("✏") + 6;
             int editX = cx + CARD_W - 3 - editW;
             boolean editHov = isOver(mx, my, editX, btnY, editW, btnH);
@@ -536,9 +534,8 @@ public class PhantasiaSceneSelectionScreen extends Screen {
         g.fill(0, fy, this.width, this.height, 0xCC0A0A14);
         g.fill(0, fy, this.width, fy + 1, 0x44FFFFFF);
 
-        int itemCount = activeTab == Tab.MULTIBLOCKS ? filteredScenes.size()
-                : activeTab == Tab.GUIDES ? filteredGuides.size() + 1
-                : filteredManualScenes.size() + 1;
+        int itemCount = activeTab == Tab.MULTIBLOCKS ? filteredScenes.size() :
+                activeTab == Tab.GUIDES ? filteredGuides.size() + 1 : filteredManualScenes.size() + 1;
         int totalRows = (itemCount + COLS - 1) / COLS;
         if (totalRows > visibleRows())
             g.drawCenteredString(font, "\u25B2 \u25BC  scroll to see more", this.width / 2, fy + 4, C_DIM);
@@ -622,8 +619,8 @@ public class PhantasiaSceneSelectionScreen extends Screen {
                 PhantasiaGuideData guide = filteredGuides.get(hoveredCard);
 
                 // Hit-test the ✏ edit button (admin only)
-                if (Minecraft.getInstance().player != null
-                        && Minecraft.getInstance().player.getAbilities().instabuild) {
+                if (Minecraft.getInstance().player != null &&
+                        Minecraft.getInstance().player.getAbilities().instabuild) {
                     int totalW = COLS * CARD_W + (COLS - 1) * CARD_PAD;
                     int startX = (this.width - totalW) / 2;
                     int startY = HEADER_H + SEARCH_H + 6;
@@ -635,7 +632,7 @@ public class PhantasiaSceneSelectionScreen extends Screen {
                     int btnY = cy + CARD_H - 12, btnH = 11;
                     int editW = font.width("✏") + 6;
                     int editX = cx + CARD_W - 3 - editW;
-                    if (isOver((int)mx, (int)my, editX, btnY, editW, btnH)) {
+                    if (isOver((int) mx, (int) my, editX, btnY, editW, btnH)) {
                         Minecraft.getInstance().setScreen(new PhantasiaGuideEditorScreen(this, guide));
                         return true;
                     }
@@ -653,28 +650,28 @@ public class PhantasiaSceneSelectionScreen extends Screen {
                 PhantasiaSceneData scene = filteredManualScenes.get(hoveredCard);
 
                 // Recompute this card's position to hit-test individual buttons
-                int totalW  = COLS * CARD_W + (COLS - 1) * CARD_PAD;
-                int startX  = (this.width - totalW) / 2;
-                int startY  = HEADER_H + SEARCH_H + 6;
+                int totalW = COLS * CARD_W + (COLS - 1) * CARD_PAD;
+                int startX = (this.width - totalW) / 2;
+                int startY = HEADER_H + SEARCH_H + 6;
                 int gridPos = hoveredCard + 1;
-                int row     = gridPos / COLS - scrollOffset;
-                int col     = gridPos % COLS;
-                int cx      = startX + col * (CARD_W + CARD_PAD);
-                int cy      = startY + row * (CARD_H + CARD_PAD);
+                int row = gridPos / COLS - scrollOffset;
+                int col = gridPos % COLS;
+                int cx = startX + col * (CARD_W + CARD_PAD);
+                int cy = startY + row * (CARD_H + CARD_PAD);
 
-                int btnY  = cy + CARD_H - 12;
-                int btnH  = 11;
+                int btnY = cy + CARD_H - 12;
+                int btnH = 11;
 
                 // "Guide" button check
                 boolean hasGuide = scene.steps != null && scene.steps.stream()
-                        .anyMatch(s -> (s.caption != null && !s.caption.isBlank())
-                                || (s.description != null && !s.description.isBlank())
-                                || (s.showItems && scene.placements.stream()
-                                .anyMatch(p -> !p.items.isEmpty())));
+                        .anyMatch(s -> (s.caption != null && !s.caption.isBlank()) ||
+                                (s.description != null && !s.description.isBlank()) ||
+                                (s.showItems && scene.placements.stream()
+                                        .anyMatch(p -> !p.items.isEmpty())));
                 if (hasGuide) {
                     int guideW = font.width("Guide") + 6;
                     int guideX = cx + CARD_W - 3 - guideW;
-                    if (isOver((int)mx, (int)my, guideX, btnY, guideW, btnH)) {
+                    if (isOver((int) mx, (int) my, guideX, btnY, guideW, btnH)) {
                         Minecraft.getInstance().setScreen(new PhantasiaGuideScreen(this, scene));
                         return true;
                     }
@@ -691,9 +688,8 @@ public class PhantasiaSceneSelectionScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mx, double my, double delta) {
-        int itemCount = activeTab == Tab.MULTIBLOCKS ? filteredScenes.size()
-                : activeTab == Tab.GUIDES ? filteredGuides.size() + 1
-                : filteredManualScenes.size() + 1;
+        int itemCount = activeTab == Tab.MULTIBLOCKS ? filteredScenes.size() :
+                activeTab == Tab.GUIDES ? filteredGuides.size() + 1 : filteredManualScenes.size() + 1;
         int totalRows = (itemCount + COLS - 1) / COLS;
         int maxScroll = Math.max(0, totalRows - visibleRows());
         scrollOffset = Math.max(0, Math.min(maxScroll, scrollOffset + (delta > 0 ? -1 : 1)));
@@ -730,6 +726,4 @@ public class PhantasiaSceneSelectionScreen extends Screen {
     private int visibleRows() {
         return Math.max(1, (this.height - HEADER_H - SEARCH_H - FOOTER_H - 8) / (CARD_H + CARD_PAD));
     }
-
-
 }

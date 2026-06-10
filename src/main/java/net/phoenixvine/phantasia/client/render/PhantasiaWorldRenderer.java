@@ -1,5 +1,9 @@
 package net.phoenixvine.phantasia.client.render;
 
+import com.gregtechceu.gtceu.api.blockentity.MetaMachineBlockEntity;
+import com.gregtechceu.gtceu.api.machine.MetaMachine;
+import com.gregtechceu.gtceu.client.renderer.machine.DynamicRender;
+
 import com.lowdragmc.lowdraglib.Platform;
 import com.lowdragmc.lowdraglib.client.scene.WorldSceneRenderer;
 import com.lowdragmc.lowdraglib.client.utils.glu.Project;
@@ -24,14 +28,9 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.phoenixvine.phantasia.client.camera.CameraView;
 import net.phoenixvine.phantasia.common.PhantasiaVariantState;
-
-import com.gregtechceu.gtceu.api.blockentity.MetaMachineBlockEntity;
-import com.gregtechceu.gtceu.api.machine.MetaMachine;
-import com.gregtechceu.gtceu.client.renderer.machine.DynamicRender;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.*;
@@ -92,7 +91,6 @@ public final class PhantasiaWorldRenderer {
     private static final FloatBuffer PIXEL_DEPTH = direct(4).asFloatBuffer();
     private static final FloatBuffer UNPROJECT_OUT = direct(12).asFloatBuffer();
 
-
     // ── Production-Pack Modpack Profiler ──────────────────────────────────────
     private static final long PROFILE_WINDOW_NS = 5_000_000_000L; // Log every 5 seconds
     private long profileWindowStart = -1;
@@ -112,7 +110,6 @@ public final class PhantasiaWorldRenderer {
     private long totalClipContextTimeNs = 0; // Cost of voxel clip steps inside your custom raytracer
     private int maxBerCountTracked = 0;
     private int maxRayIterationsTracked = 0;
-
 
     private long totalBeTimeNs = 0;
     private long totalParticleTimeNs = 0;
@@ -214,7 +211,6 @@ public final class PhantasiaWorldRenderer {
     public void setPatternContext(net.phoenixvine.phantasia.common.PhantasiaLoadedPattern pattern) {
         this.patternContext = pattern;
     }
-
 
     private int guiMouseX, guiMouseY;
     private long lastParticleTick = -1;
@@ -405,6 +401,7 @@ public final class PhantasiaWorldRenderer {
     public boolean isVisible(BlockPos pos) {
         return targetVisible.contains(pos) || baseplatePositions.contains(pos);
     }
+
     public void render(CameraView view, int guiX, int guiY, int guiW, int guiH) {
         if (guiW <= 0 || guiH <= 0) return;
 
@@ -451,7 +448,8 @@ public final class PhantasiaWorldRenderer {
         if (tick) lastParticleTick = currentTick;
         tickedThisFrame = tick;
 
-        RenderSystem.setShaderGameTime(currentTick >= 0 ? currentTick : 0, ((currentTick >= 0 ? currentTick : 0) + mc.getFrameTime()) / 20f);
+        RenderSystem.setShaderGameTime(currentTick >= 0 ? currentTick : 0,
+                ((currentTick >= 0 ? currentTick : 0) + mc.getFrameTime()) / 20f);
         snapshotMatrices();
         totalSetupTimeNs += (System.nanoTime() - t0);
 
@@ -536,7 +534,6 @@ public final class PhantasiaWorldRenderer {
         }
     }
 
-
     private void dumpProfilingData() {
         if (profiledFramesCount == 0) return;
 
@@ -568,8 +565,7 @@ public final class PhantasiaWorldRenderer {
                         "   -> Max Ray Intersection Depth:  %d  (Pure Clip Cost:   %.3f ms)\n" +
                         "===================================================",
                 profiledFramesCount, avgTotal, maxTotal, avgSetup, avgVbo, avgDynamic, avgParticles, avgRayTrace,
-                maxBerCountTracked, microBerAvg, maxRayIterationsTracked, microClipAvg
-        ));
+                maxBerCountTracked, microBerAvg, maxRayIterationsTracked, microClipAvg));
 
         // Reset trackers
         profileWindowStart = System.nanoTime();
@@ -1129,7 +1125,7 @@ public final class PhantasiaWorldRenderer {
     // method signature is always render(MachineSelf, float, PoseStack,
     // MultiBufferSource, int, int) — safe to invoke reflectively.
 
-    @SuppressWarnings({"unchecked", "rawtypes"})
+    @SuppressWarnings({ "unchecked", "rawtypes" })
     private void drawDynamicRenderers(PoseStack poseStack, MultiBufferSource.BufferSource buffers, float partial,
                                       float camX, float camY, float camZ) {
         Vec3 cameraPos = new Vec3(camX, camY, camZ);
@@ -1149,7 +1145,8 @@ public final class PhantasiaWorldRenderer {
             com.lowdragmc.lowdraglib.client.renderer.IRenderer iRenderer = null;
             try {
                 com.gregtechceu.gtceu.api.machine.MachineDefinition def = machine.getDefinition();
-                for (Class<?> defCls = def.getClass(); defCls != null && defCls != Object.class; defCls = defCls.getSuperclass()) {
+                for (Class<?> defCls = def.getClass(); defCls != null &&
+                        defCls != Object.class; defCls = defCls.getSuperclass()) {
                     for (java.lang.reflect.Field f : defCls.getDeclaredFields()) {
                         if (com.lowdragmc.lowdraglib.client.renderer.IRenderer.class.isAssignableFrom(f.getType())) {
                             f.setAccessible(true);
@@ -1169,11 +1166,11 @@ public final class PhantasiaWorldRenderer {
                         f.setAccessible(true);
                         Object val = f.get(iRenderer);
                         if (val == null) continue;
-                        if (val instanceof DynamicRender<?,?> dr) {
+                        if (val instanceof DynamicRender<?, ?> dr) {
                             renderOneDynamic(dr, machine, pos, cameraPos, partial, poseStack, buffers);
                         } else if (val instanceof java.util.List<?> list) {
                             for (Object item : list) {
-                                if (item instanceof DynamicRender<?,?> dr) {
+                                if (item instanceof DynamicRender<?, ?> dr) {
                                     renderOneDynamic(dr, machine, pos, cameraPos, partial, poseStack, buffers);
                                 }
                             }
@@ -1184,7 +1181,7 @@ public final class PhantasiaWorldRenderer {
         }
     }
 
-    @SuppressWarnings({"unchecked", "rawtypes"})
+    @SuppressWarnings({ "unchecked", "rawtypes" })
     private void renderOneDynamic(DynamicRender dr, MetaMachine machine, BlockPos pos,
                                   Vec3 cameraPos, float partial,
                                   PoseStack poseStack, MultiBufferSource.BufferSource buffers) {
@@ -1350,21 +1347,29 @@ public final class PhantasiaWorldRenderer {
             float ex = view.eyeX(), ey = view.eyeY(), ez = view.eyeZ();
             float lx = view.lookAtX(), ly = view.lookAtY(), lz = view.lookAtZ();
             float fx = lx - ex, fy = ly - ey, fz = lz - ez;
-            float flen = (float) Math.sqrt(fx*fx + fy*fy + fz*fz);
-            if (flen > 0) { fx /= flen; fy /= flen; fz /= flen; }
+            float flen = (float) Math.sqrt(fx * fx + fy * fy + fz * fz);
+            if (flen > 0) {
+                fx /= flen;
+                fy /= flen;
+                fz /= flen;
+            }
             // up = (0,1,0), right = forward x up
-            float rx = fy*0 - fz*1, ry = fz*0 - fx*0, rz = fx*1 - fy*0;
-            float rlen = (float) Math.sqrt(rx*rx + ry*ry + rz*rz);
-            if (rlen > 0) { rx /= rlen; ry /= rlen; rz /= rlen; }
-            float ux = ry*fz - rz*fy, uy = rz*fx - rx*fz, uz = rx*fy - ry*fx;
+            float rx = fy * 0 - fz * 1, ry = fz * 0 - fx * 0, rz = fx * 1 - fy * 0;
+            float rlen = (float) Math.sqrt(rx * rx + ry * ry + rz * rz);
+            if (rlen > 0) {
+                rx /= rlen;
+                ry /= rlen;
+                rz /= rlen;
+            }
+            float ux = ry * fz - rz * fy, uy = rz * fx - rx * fz, uz = rx * fy - ry * fx;
             lookAtOnly.set(
-                    rx,  ux, -fx, 0,
-                    ry,  uy, -fy, 0,
-                    rz,  uz, -fz, 0,
-                    -(rx*ex + ry*ey + rz*ez), -(ux*ex + uy*ey + uz*ez), (fx*ex + fy*ey + fz*ez), 1
-            );
+                    rx, ux, -fx, 0,
+                    ry, uy, -fy, 0,
+                    rz, uz, -fz, 0,
+                    -(rx * ex + ry * ey + rz * ez), -(ux * ex + uy * ey + uz * ez), (fx * ex + fy * ey + fz * ez), 1);
         }
-        FloatBuffer mvNoSlot = java.nio.ByteBuffer.allocateDirect(64).order(java.nio.ByteOrder.nativeOrder()).asFloatBuffer();
+        FloatBuffer mvNoSlot = java.nio.ByteBuffer.allocateDirect(64).order(java.nio.ByteOrder.nativeOrder())
+                .asFloatBuffer();
         lookAtOnly.get(mvNoSlot);
         mvNoSlot.rewind();
 
@@ -1380,6 +1385,9 @@ public final class PhantasiaWorldRenderer {
         UNPROJECT_OUT.rewind();
 
         long clipStart = System.nanoTime();
+        // ── DEBUG: log once per second to diagnose coordinate space ──────────
+        boolean debugThisFrame = (System.currentTimeMillis() / 1000) % 3 == 0 &&
+                (System.currentTimeMillis() % 1000) < 50;
         try {
             double startX = view.eyeX();
             double startY = view.eyeY();
@@ -1391,7 +1399,18 @@ public final class PhantasiaWorldRenderer {
 
             double len = Math.sqrt(dirX * dirX + dirY * dirY + dirZ * dirZ);
             if (len == 0) return null;
-            dirX /= len; dirY /= len; dirZ /= len;
+            dirX /= len;
+            dirY /= len;
+            dirZ /= len;
+
+            if (debugThisFrame) {
+                LOGGER.info(
+                        "[PhantasiaRay] eye=({:.2f},{:.2f},{:.2f}) farPt=({:.2f},{:.2f},{:.2f}) dir=({:.3f},{:.3f},{:.3f})"
+                                .formatted(startX, startY, startZ, hx, hy, hz, dirX, dirY, dirZ));
+                LOGGER.info("[PhantasiaRay] targetVisible.size={} baseplatePositions.size={} first5visible={}",
+                        targetVisible.size(), baseplatePositions.size(),
+                        targetVisible.stream().limit(5).toList());
+            }
 
             // Current integer voxel coordinates
             int x = net.minecraft.util.Mth.floor(startX);
@@ -1426,6 +1445,13 @@ public final class PhantasiaWorldRenderer {
                 iterations++;
                 mutPos.set(x, y, z);
 
+                if (debugThisFrame && i < 10) {
+                    boolean tv = targetVisible.contains(mutPos);
+                    boolean bp = baseplatePositions.contains(mutPos);
+                    LOGGER.info("[PhantasiaRay]   step={} voxel=({},{},{}) inVisible={} inBaseplate={}", i, x, y, z, tv,
+                            bp);
+                }
+
                 // Hit if the block is currently visible (step-controlled) or is a baseplate block.
                 // bakedAll is intentionally NOT checked here — hidden blocks must not be raytraceable.
                 if (targetVisible.contains(mutPos) || baseplatePositions.contains(mutPos)) {
@@ -1434,8 +1460,7 @@ public final class PhantasiaWorldRenderer {
                     net.minecraft.world.phys.Vec3 hitVec = new net.minecraft.world.phys.Vec3(
                             startX + dirX * tEntry,
                             startY + dirY * tEntry,
-                            startZ + dirZ * tEntry
-                    );
+                            startZ + dirZ * tEntry);
 
                     totalClipContextTimeNs += (System.nanoTime() - clipStart);
                     maxRayIterationsTracked = Math.max(maxRayIterationsTracked, iterations);

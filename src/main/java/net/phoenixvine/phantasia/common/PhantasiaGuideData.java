@@ -18,24 +18,24 @@ import java.util.List;
  *
  * ── JSON schema ──────────────────────────────────────────────────────────────
  * {
- *   "id":       "phoenixvine:ore_processing_intro",
- *   "title":    "Ore Processing",
- *   "iconItem": "gtceu:raw_iron",
- *   "pages": [
- *     {
- *       "headline": "What is ore processing?",
- *       "text": "Ore processing is the conversion of raw ores into refined metals.\n\nGregTech provides several tiers...",
- *       "items": [
- *         { "item": "gtceu:raw_iron",    "label": "Raw Ore",    "type": "input"  },
- *         { "item": "gtceu:iron_ingot",  "label": "Ingot",      "type": "output" }
- *       ]
- *     },
- *     {
- *       "headline": "Tier 1 — Furnace",
- *       "text": "The simplest route: smelt raw ore directly in a furnace.",
- *       "guideId": "phoenixvine:furnace_smelting"
- *     }
- *   ]
+ * "id": "phoenixvine:ore_processing_intro",
+ * "title": "Ore Processing",
+ * "iconItem": "gtceu:raw_iron",
+ * "pages": [
+ * {
+ * "headline": "What is ore processing?",
+ * "text": "Ore processing is the conversion of raw ores into refined metals.\n\nGregTech provides several tiers...",
+ * "items": [
+ * { "item": "gtceu:raw_iron", "label": "Raw Ore", "type": "input" },
+ * { "item": "gtceu:iron_ingot", "label": "Ingot", "type": "output" }
+ * ]
+ * },
+ * {
+ * "headline": "Tier 1 — Furnace",
+ * "text": "The simplest route: smelt raw ore directly in a furnace.",
+ * "guideId": "phoenixvine:furnace_smelting"
+ * }
+ * ]
  * }
  * ─────────────────────────────────────────────────────────────────────────────
  */
@@ -117,23 +117,20 @@ public class PhantasiaGuideData {
 
         public PageData(String headline, String text) {
             this.headline = headline;
-            this.text     = text;
+            this.text = text;
         }
 
         public PageData copy() {
             PageData c = new PageData(headline, text);
             c.guideId = guideId;
-            c.sceneId  = sceneId;
+            c.sceneId = sceneId;
             for (PhantasiaSceneData.ItemConditionData it : items) c.items.add(it.copy());
             return c;
         }
 
         public boolean hasContent() {
-            return (headline != null && !headline.isBlank())
-                || (text     != null && !text.isBlank())
-                || !items.isEmpty()
-                || guideId != null
-                || sceneId  != null;
+            return (headline != null && !headline.isBlank()) || (text != null && !text.isBlank()) || !items.isEmpty() ||
+                    guideId != null || sceneId != null;
         }
     }
 
@@ -142,7 +139,7 @@ public class PhantasiaGuideData {
     public PhantasiaGuideData() {}
 
     public PhantasiaGuideData(String id, String title) {
-        this.id    = id;
+        this.id = id;
         this.title = title;
     }
 
@@ -159,7 +156,7 @@ public class PhantasiaGuideData {
         PhantasiaGuideData c = new PhantasiaGuideData(id, title);
         c.iconItem = iconItem;
         c.subtitle = subtitle;
-        c.tag      = tag;
+        c.tag = tag;
         for (PageData p : pages) c.pages.add(p.copy());
         return c;
     }

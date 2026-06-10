@@ -4,7 +4,6 @@ import net.minecraft.client.Minecraft;
 import net.phoenixvine.phantasia.Phantasia;
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.stream.Stream;

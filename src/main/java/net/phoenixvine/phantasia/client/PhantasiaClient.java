@@ -15,7 +15,6 @@ import net.phoenixvine.phantasia.common.PhantasiaKeybind;
 import net.phoenixvine.phantasia.common.PhantasiaSceneLoader;
 import net.phoenixvine.phantasia.common.PhantasiaScriptLoader;
 
-
 @Mod.EventBusSubscriber(modid = Phantasia.MOD_ID, bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
 public class PhantasiaClient {
 

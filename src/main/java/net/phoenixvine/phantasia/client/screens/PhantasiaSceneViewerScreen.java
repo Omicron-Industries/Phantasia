@@ -34,32 +34,32 @@ import java.util.*;
  * {@link PhantasiaSceneEditorScreen} for the full editing workflow.
  *
  * Layout:
- *   - Full viewport (no side panel) with a minimal top bar.
- *   - A thin timeline strip at the bottom for step playback.
- *   - Block name tooltip on hover (right-click opens block inspector).
+ * - Full viewport (no side panel) with a minimal top bar.
+ * - A thin timeline strip at the bottom for step playback.
+ * - Block name tooltip on hover (right-click opens block inspector).
  */
 @OnlyIn(Dist.CLIENT)
 public class PhantasiaSceneViewerScreen extends Screen {
 
     // ── Theme (mirrors SceneScreen) ───────────────────────────────────────────
-    private static final int C_BG      = 0xFF080810;
-    private static final int C_BAR     = 0xEE0A0A14;
-    private static final int C_ACCENT  = 0xFF4FC3F7;
-    private static final int C_BTN     = 0xBB151528;
+    private static final int C_BG = 0xFF080810;
+    private static final int C_BAR = 0xEE0A0A14;
+    private static final int C_ACCENT = 0xFF4FC3F7;
+    private static final int C_BTN = 0xBB151528;
     private static final int C_BTN_HOV = 0xBB1A2840;
-    private static final int C_TEXT    = 0xFFDDDDDD;
-    private static final int C_DIM     = 0xFF667788;
-    private static final int C_TL_BG   = 0xDD0A0A14;
-    private static final int C_PROG    = 0xFF4FC3F7;
-    private static final int C_GREEN   = 0xFF66BB6A;
+    private static final int C_TEXT = 0xFFDDDDDD;
+    private static final int C_DIM = 0xFF667788;
+    private static final int C_TL_BG = 0xDD0A0A14;
+    private static final int C_PROG = 0xFF4FC3F7;
+    private static final int C_GREEN = 0xFF66BB6A;
 
-    private static final int TOP_BAR_H  = 22;
+    private static final int TOP_BAR_H = 22;
     private static final int TIMELINE_H = 24;
 
     private static final float CAM_ORBIT = 0.45f;
-    private static final float CAM_PAN   = 0.02f;
-    private static final float ZOOM_IN   = 0.9f;
-    private static final float ZOOM_OUT  = 1.1f;
+    private static final float CAM_PAN = 0.02f;
+    private static final float ZOOM_IN = 0.9f;
+    private static final float ZOOM_OUT = 1.1f;
 
     // ── Core state ────────────────────────────────────────────────────────────
     private final Screen parent;
@@ -75,7 +75,7 @@ public class PhantasiaSceneViewerScreen extends Screen {
     // ── Playback ──────────────────────────────────────────────────────────────
     private boolean playing = true;
     private int playbackTick = 0;
-    private float tickAccum  = 0f;
+    private float tickAccum = 0f;
     private float speed = 1f;
     private boolean scrubbing = false;
 
@@ -86,17 +86,19 @@ public class PhantasiaSceneViewerScreen extends Screen {
 
     // ── Button registry ───────────────────────────────────────────────────────
     private record Btn(int x, int y, int w, int h, Runnable action) {
+
         boolean hit(double mx, double my) {
             return mx >= x && mx < x + w && my >= y && my < y + h;
         }
     }
+
     private final List<Btn> btns = new ArrayList<>();
 
     // ─────────────────────────────────────────────────────────────────────────
     public PhantasiaSceneViewerScreen(Screen parent, PhantasiaSceneData data) {
         super(Component.literal(data.name != null ? data.name : data.id));
         this.parent = parent;
-        this.data   = data;
+        this.data = data;
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -108,7 +110,7 @@ public class PhantasiaSceneViewerScreen extends Screen {
         super.init();
 
         if (renderer == null) {
-            level   = new PhantasiaTrackedDummyWorld();
+            level = new PhantasiaTrackedDummyWorld();
             pattern = PhantasiaScenePattern.build(data, level);
 
             renderer = new PhantasiaWorldRenderer(level);
@@ -138,12 +140,15 @@ public class PhantasiaSceneViewerScreen extends Screen {
             return;
         }
         float sumX = 0, sumZ = 0;
-        for (var pe : pattern.placements) { sumX += pe.offset.getX(); sumZ += pe.offset.getZ(); }
+        for (var pe : pattern.placements) {
+            sumX += pe.offset.getX();
+            sumZ += pe.offset.getZ();
+        }
         float midX = sumX / pattern.placements.size();
         float midZ = sumZ / pattern.placements.size();
         float midY = (pattern.minY + pattern.maxY) * 0.5f + 0.5f;
         float spanH = pattern.maxY - pattern.minY + 1;
-        float dist  = 20f + Math.max(0, spanH - 6) * 2f;
+        float dist = 20f + Math.max(0, spanH - 6) * 2f;
         camera = new PhantasiaCamera(-135f, -30f, dist, midX, midY, midZ);
         camera.setFloorY(pattern.minY + 0.5f);
     }
@@ -204,8 +209,14 @@ public class PhantasiaSceneViewerScreen extends Screen {
 
         if (!playing || scrubbing) return;
         tickAccum += speed;
-        while (tickAccum >= 1f) { tickAccum -= 1f; playbackTick++; }
-        if (playbackTick >= totalTicks()) { playbackTick = totalTicks(); playing = false; }
+        while (tickAccum >= 1f) {
+            tickAccum -= 1f;
+            playbackTick++;
+        }
+        if (playbackTick >= totalTicks()) {
+            playbackTick = totalTicks();
+            playing = false;
+        }
 
         // Apply camera and visibility on step change
         int si = activeStepIndex();
@@ -339,7 +350,11 @@ public class PhantasiaSceneViewerScreen extends Screen {
         g.drawString(font, playing ? "⏸" : "▶", 6 + 5, tlY + (TIMELINE_H - 8) / 2 + 2,
                 pbHov ? C_ACCENT : C_TEXT, false);
         btns.add(new Btn(6, tlY + 4, pbW, TIMELINE_H - 8, () -> {
-            if (!playing && playbackTick >= totalTicks()) { playbackTick = 0; tickAccum = 0; lastStepIndex = -1; }
+            if (!playing && playbackTick >= totalTicks()) {
+                playbackTick = 0;
+                tickAccum = 0;
+                lastStepIndex = -1;
+            }
             playing = !playing;
         }));
 
@@ -369,8 +384,8 @@ public class PhantasiaSceneViewerScreen extends Screen {
 
         // Progress bar + scrub head
         float prog = total > 0 ? (float) playbackTick / total : 0f;
-        g.fill(tx, midY - 1, tx + (int)(tw * prog), midY + 1, C_PROG);
-        int headX = tx + (int)(tw * prog);
+        g.fill(tx, midY - 1, tx + (int) (tw * prog), midY + 1, C_PROG);
+        int headX = tx + (int) (tw * prog);
         g.fill(headX - 3, midY - 5, headX + 3, midY + 5, C_ACCENT);
 
         // Time label
@@ -387,22 +402,28 @@ public class PhantasiaSceneViewerScreen extends Screen {
 
     @Override
     public boolean mouseClicked(double mx, double my, int btn) {
-        for (Btn b : btns) if (b.hit(mx, my)) { b.action().run(); return true; }
+        for (Btn b : btns) if (b.hit(mx, my)) {
+            b.action().run();
+            return true;
+        }
 
         int tlY = this.height - TIMELINE_H;
         int tx = 80, tw = this.width - tx - 70;
 
         // Timeline scrub
         if (btn == 0 && my >= tlY && mx >= tx && mx <= tx + tw) {
-            playing  = false;
+            playing = false;
             scrubbing = true;
-            scrubTo((float)(mx - tx) / tw);
+            scrubTo((float) (mx - tx) / tw);
             return true;
         }
 
         int viewBottom = this.height - TIMELINE_H;
         if (mx < this.width && my > TOP_BAR_H && my < viewBottom) {
-            if (btn == 2) { isPanning = true; return true; }
+            if (btn == 2) {
+                isPanning = true;
+                return true;
+            }
             if (btn == 0) return true;
         }
         return super.mouseClicked(mx, my, btn);
@@ -414,13 +435,13 @@ public class PhantasiaSceneViewerScreen extends Screen {
         int tx = 80, tw = this.width - tx - 70;
 
         if (scrubbing && btn == 0) {
-            scrubTo(Mth.clamp((float)(mx - tx) / tw, 0f, 1f));
+            scrubTo(Mth.clamp((float) (mx - tx) / tw, 0f, 1f));
             return true;
         }
         if (camera == null) return super.mouseDragged(mx, my, btn, dx, dy);
 
         if (btn == 0 && my > TOP_BAR_H && my < tlY) {
-            camera.orbit((float)dx * CAM_ORBIT, (float)dy * CAM_ORBIT);
+            camera.orbit((float) dx * CAM_ORBIT, (float) dy * CAM_ORBIT);
             return true;
         }
         if (btn == 2 && isPanning) {
@@ -428,9 +449,9 @@ public class PhantasiaSceneViewerScreen extends Screen {
             camera.getRightAndUp(right, up);
             float s = CAM_PAN;
             camera.pan(
-                    (right.x * (float)-dx + up.x * (float)dy) * s,
-                    (right.y * (float)-dx + up.y * (float)dy) * s,
-                    (right.z * (float)-dx + up.z * (float)dy) * s);
+                    (right.x * (float) -dx + up.x * (float) dy) * s,
+                    (right.y * (float) -dx + up.y * (float) dy) * s,
+                    (right.z * (float) -dx + up.z * (float) dy) * s);
             return true;
         }
         return super.mouseDragged(mx, my, btn, dx, dy);
@@ -441,7 +462,7 @@ public class PhantasiaSceneViewerScreen extends Screen {
         if (btn == 2) isPanning = false;
         if (scrubbing) {
             int tx = 80, tw = this.width - tx - 70;
-            scrubTo(Mth.clamp((float)(mx - tx) / tw, 0f, 1f));
+            scrubTo(Mth.clamp((float) (mx - tx) / tw, 0f, 1f));
             scrubbing = false;
             applyVisibility();
         }
@@ -459,7 +480,10 @@ public class PhantasiaSceneViewerScreen extends Screen {
 
     @Override
     public boolean keyPressed(int kc, int sc, int mod) {
-        if (kc == 256) { onClose(); return true; } // ESC
+        if (kc == 256) {
+            onClose();
+            return true;
+        } // ESC
         return super.keyPressed(kc, sc, mod);
     }
 
@@ -468,15 +492,21 @@ public class PhantasiaSceneViewerScreen extends Screen {
     // ─────────────────────────────────────────────────────────────────────────
 
     private void scrubTo(float t) {
-        playbackTick = (int)(Mth.clamp(t, 0f, 1f) * totalTicks());
+        playbackTick = (int) (Mth.clamp(t, 0f, 1f) * totalTicks());
         int si = activeStepIndex();
-        if (si != lastStepIndex) { lastStepIndex = si; applyVisibility(); }
+        if (si != lastStepIndex) {
+            lastStepIndex = si;
+            applyVisibility();
+        }
     }
 
     private void centerCamera() {
         if (camera == null || pattern == null) return;
         float sumX = 0, sumZ = 0;
-        for (var pe : pattern.placements) { sumX += pe.offset.getX(); sumZ += pe.offset.getZ(); }
+        for (var pe : pattern.placements) {
+            sumX += pe.offset.getX();
+            sumZ += pe.offset.getZ();
+        }
         float midX = sumX / pattern.placements.size();
         float midZ = sumZ / pattern.placements.size();
         float midY = (pattern.minY + pattern.maxY) * 0.5f + 0.5f;
@@ -491,10 +521,10 @@ public class PhantasiaSceneViewerScreen extends Screen {
 
     private boolean hasGuideContent() {
         if (data.steps == null) return false;
-        return data.steps.stream().anyMatch(s ->
-            (s.caption != null && !s.caption.isBlank())
-            || (s.description != null && !s.description.isBlank())
-            || (s.showItems && data.placements.stream().anyMatch(p -> !p.items.isEmpty())));
+        return data.steps.stream()
+                .anyMatch(s -> (s.caption != null && !s.caption.isBlank()) ||
+                        (s.description != null && !s.description.isBlank()) ||
+                        (s.showItems && data.placements.stream().anyMatch(p -> !p.items.isEmpty())));
     }
 
     private void openGuide() {
@@ -507,12 +537,17 @@ public class PhantasiaSceneViewerScreen extends Screen {
 
     @Override
     public void onClose() {
-        if (renderer != null) { renderer.close(); renderer = null; }
+        if (renderer != null) {
+            renderer.close();
+            renderer = null;
+        }
         Minecraft.getInstance().setScreen(parent);
     }
 
     @Override
-    public boolean isPauseScreen() { return false; }
+    public boolean isPauseScreen() {
+        return false;
+    }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 

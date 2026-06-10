@@ -896,7 +896,6 @@ public class PhantasiaSceneEditorScreen extends Screen {
             }
         }
 
-
         x = 8;
         g.drawString(font, "Global:", x, y2 + 2, C_DIM, false);
         x += font.width("Global:") + 4;

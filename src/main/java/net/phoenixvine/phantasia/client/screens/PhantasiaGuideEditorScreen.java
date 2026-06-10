@@ -26,49 +26,49 @@ import java.util.*;
  *
  * Two-panel editor for {@link PhantasiaGuideData} — standalone text + item guides.
  *
- * Left panel  : live preview of the current page (same rendering as PhantasiaGuideScreen).
+ * Left panel : live preview of the current page (same rendering as PhantasiaGuideScreen).
  * Right panel : page list + text fields (headline, body text, items).
  *
- *  ┌───────────────────────────────────────────────────────────┐
- *  │  [← Back]   Guide Editor — "Title"   [▶ Preview] [Save]  │
- *  ├───────────────────────────┬───────────────────────────────┤
- *  │                           │  Pages                        │
- *  │  ── HEADLINE ──────────  │  ┌────────────────────────┐   │
- *  │  Body text preview…       │  │ 1. Page headline       │   │
- *  │                           │  │ 2. Another page    [✕] │   │
- *  │  [item] [item]            │  └────────────────────────┘   │
- *  │                           │  [+ Add Page]                 │
- *  │                           ├───────────────────────────────┤
- *  │                           │  Headline:  [______________]  │
- *  │                           │  Body text:                   │
- *  │                           │  ┌────────────────────────┐   │
- *  │                           │  │ Multi-line text area   │   │
- *  │                           │  └────────────────────────┘   │
- *  │                           │  Items: [Add item...]  [✕]    │
- *  │                           │  Link guide: [__________]     │
- *  │                           │  Link scene: [__________]     │
- *  └───────────────────────────┴───────────────────────────────┘
+ * ┌───────────────────────────────────────────────────────────┐
+ * │ [← Back] Guide Editor — "Title" [▶ Preview] [Save] │
+ * ├───────────────────────────┬───────────────────────────────┤
+ * │ │ Pages │
+ * │ ── HEADLINE ────────── │ ┌────────────────────────┐ │
+ * │ Body text preview… │ │ 1. Page headline │ │
+ * │ │ │ 2. Another page [✕] │ │
+ * │ [item] [item] │ └────────────────────────┘ │
+ * │ │ [+ Add Page] │
+ * │ ├───────────────────────────────┤
+ * │ │ Headline: [______________] │
+ * │ │ Body text: │
+ * │ │ ┌────────────────────────┐ │
+ * │ │ │ Multi-line text area │ │
+ * │ │ └────────────────────────┘ │
+ * │ │ Items: [Add item...] [✕] │
+ * │ │ Link guide: [__________] │
+ * │ │ Link scene: [__________] │
+ * └───────────────────────────┴───────────────────────────────┘
  */
 @OnlyIn(Dist.CLIENT)
 public class PhantasiaGuideEditorScreen extends Screen {
 
     // ── Theme ─────────────────────────────────────────────────────────────────
-    private static final int C_BG       = 0xFF080810;
-    private static final int C_BAR      = 0xEE0A0A14;
-    private static final int C_PANEL    = 0xDD0C0C1A;
-    private static final int C_ACCENT   = 0xFF4FC3F7;
-    private static final int C_BTN      = 0xBB151528;
-    private static final int C_BTN_HOV  = 0xBB1A2840;
-    private static final int C_BTN_ACT  = 0xBB0D2235;
-    private static final int C_TEXT     = 0xFFDDDDDD;
-    private static final int C_DIM      = 0xFF667788;
-    private static final int C_RED      = 0xFFFF5252;
-    private static final int C_GREEN    = 0xFF66BB6A;
-    private static final int C_SEL      = 0xBB0D2235;
+    private static final int C_BG = 0xFF080810;
+    private static final int C_BAR = 0xEE0A0A14;
+    private static final int C_PANEL = 0xDD0C0C1A;
+    private static final int C_ACCENT = 0xFF4FC3F7;
+    private static final int C_BTN = 0xBB151528;
+    private static final int C_BTN_HOV = 0xBB1A2840;
+    private static final int C_BTN_ACT = 0xBB0D2235;
+    private static final int C_TEXT = 0xFFDDDDDD;
+    private static final int C_DIM = 0xFF667788;
+    private static final int C_RED = 0xFFFF5252;
+    private static final int C_GREEN = 0xFF66BB6A;
+    private static final int C_SEL = 0xBB0D2235;
 
-    private static final int TOP_H      = 22;
-    private static final int RIGHT_W    = 280;
-    private static final int ROW_H      = 18;
+    private static final int TOP_H = 22;
+    private static final int RIGHT_W = 280;
+    private static final int ROW_H = 18;
 
     // ── State ─────────────────────────────────────────────────────────────────
     private final Screen parent;
@@ -99,8 +99,12 @@ public class PhantasiaGuideEditorScreen extends Screen {
     private String itemTypeSelected = "input";
 
     private record Btn(int x, int y, int w, int h, Runnable action) {
-        boolean hit(double mx, double my) { return mx >= x && mx < x + w && my >= y && my < y + h; }
+
+        boolean hit(double mx, double my) {
+            return mx >= x && mx < x + w && my >= y && my < y + h;
+        }
     }
+
     private final List<Btn> btns = new ArrayList<>();
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -108,7 +112,7 @@ public class PhantasiaGuideEditorScreen extends Screen {
     public PhantasiaGuideEditorScreen(Screen parent, PhantasiaGuideData data) {
         super(Component.literal("Guide Editor"));
         this.parent = parent;
-        this.data   = data.copy();
+        this.data = data.copy();
     }
 
     // ── Init ──────────────────────────────────────────────────────────────────
@@ -127,19 +131,28 @@ public class PhantasiaGuideEditorScreen extends Screen {
         titleBox = addW(new EditBox(font, 0, 0, 160, 12, Component.empty()));
         titleBox.setMaxLength(128);
         titleBox.setValue(data.title != null ? data.title : "");
-        titleBox.setResponder(v -> { data.title = v.isBlank() ? "Untitled" : v; dirty = true; });
+        titleBox.setResponder(v -> {
+            data.title = v.isBlank() ? "Untitled" : v;
+            dirty = true;
+        });
 
         iconItemBox = addW(new EditBox(font, 0, 0, 120, 12, Component.empty()));
         iconItemBox.setMaxLength(128);
         iconItemBox.setValue(data.iconItem != null ? data.iconItem : "minecraft:book");
         iconItemBox.setHint(Component.literal("icon item id"));
-        iconItemBox.setResponder(v -> { data.iconItem = v.isBlank() ? "minecraft:book" : v; dirty = true; });
+        iconItemBox.setResponder(v -> {
+            data.iconItem = v.isBlank() ? "minecraft:book" : v;
+            dirty = true;
+        });
 
         // Page-level
         headlineBox = addW(new EditBox(font, 0, 0, RIGHT_W - 12, 12, Component.empty()));
         headlineBox.setMaxLength(256);
         headlineBox.setHint(Component.literal("Headline (optional)"));
-        headlineBox.setResponder(v -> { page().headline = v.isBlank() ? null : v; dirty = true; });
+        headlineBox.setResponder(v -> {
+            page().headline = v.isBlank() ? null : v;
+            dirty = true;
+        });
 
         // Body text — single EditBox, users write \n for line breaks
         bodyBox = addW(new EditBox(font, 0, 0, RIGHT_W - 12, 12, Component.empty()));
@@ -153,12 +166,18 @@ public class PhantasiaGuideEditorScreen extends Screen {
         guideLinkBox = addW(new EditBox(font, 0, 0, RIGHT_W - 12, 12, Component.empty()));
         guideLinkBox.setMaxLength(128);
         guideLinkBox.setHint(Component.literal("Linked guide ID (optional)"));
-        guideLinkBox.setResponder(v -> { page().guideId = v.isBlank() ? null : v; dirty = true; });
+        guideLinkBox.setResponder(v -> {
+            page().guideId = v.isBlank() ? null : v;
+            dirty = true;
+        });
 
         sceneLinkBox = addW(new EditBox(font, 0, 0, RIGHT_W - 12, 12, Component.empty()));
         sceneLinkBox.setMaxLength(128);
         sceneLinkBox.setHint(Component.literal("Linked scene ID (optional)"));
-        sceneLinkBox.setResponder(v -> { page().sceneId = v.isBlank() ? null : v; dirty = true; });
+        sceneLinkBox.setResponder(v -> {
+            page().sceneId = v.isBlank() ? null : v;
+            dirty = true;
+        });
 
         // Item editing
         itemIdBox = addW(new EditBox(font, 0, 0, RIGHT_W - 12, 12, Component.empty()));
@@ -195,7 +214,10 @@ public class PhantasiaGuideEditorScreen extends Screen {
     private void hidePageInputs() {
         for (var b : List.of(headlineBox, bodyBox, guideLinkBox, sceneLinkBox,
                 itemIdBox, itemLabelBox, itemCountBox)) {
-            if (b != null) { b.visible = false; b.active = false; }
+            if (b != null) {
+                b.visible = false;
+                b.active = false;
+            }
         }
     }
 
@@ -262,7 +284,7 @@ public class PhantasiaGuideEditorScreen extends Screen {
 
         if (data.pages.isEmpty()) {
             g.drawCenteredString(font, "No pages yet — add one →",
-                previewW / 2, height / 2, C_DIM);
+                    previewW / 2, height / 2, C_DIM);
             return;
         }
 
@@ -274,14 +296,14 @@ public class PhantasiaGuideEditorScreen extends Screen {
             g.fill(colX, y, colX + colW, y + 1, C_ACCENT);
             y += 7;
             float scale = 1.5f;
-            int sw = (int)(colW / scale);
+            int sw = (int) (colW / scale);
             for (var line : font.split(Component.literal(p.headline), sw)) {
                 g.pose().pushPose();
                 g.pose().translate(colX, y, 0);
                 g.pose().scale(scale, scale, 1f);
                 g.drawString(font, line, 0, 0, 0xFFEEEEFF, false);
                 g.pose().popPose();
-                y += (int)(font.lineHeight * scale) + 2;
+                y += (int) (font.lineHeight * scale) + 2;
             }
             y += 4;
         } else {
@@ -318,7 +340,10 @@ public class PhantasiaGuideEditorScreen extends Screen {
                 int cx = colX + col * (94 + 6);
                 renderMiniCard(g, it, cx, rowY);
                 col++;
-                if (col >= perRow) { col = 0; rowY += 90 + 6; }
+                if (col >= perRow) {
+                    col = 0;
+                    rowY += 90 + 6;
+                }
             }
         }
 
@@ -362,7 +387,7 @@ public class PhantasiaGuideEditorScreen extends Screen {
         int addW = font.width("+ Add") + 8;
         boolean addHov = over(mx, my, width - addW - 4, y + 2, addW, 12);
         g.fill(width - addW - 4, y + 2, width - 4, y + 14,
-            addHov ? C_BTN_HOV : C_BTN);
+                addHov ? C_BTN_HOV : C_BTN);
         g.drawString(font, "+ Add", width - addW - 1, y + 4, addHov ? C_ACCENT : C_DIM, false);
         btns.add(new Btn(width - addW - 4, y + 2, addW, 12, this::addPage));
         y += 16;
@@ -370,19 +395,18 @@ public class PhantasiaGuideEditorScreen extends Screen {
         // Page rows
         int listTop = y;
         int listH = Math.min(data.pages.size() * ROW_H, 6 * ROW_H);
-        for (int i = pageScrollOffset; i < data.pages.size()
-                && y < listTop + listH + ROW_H; i++) {
+        for (int i = pageScrollOffset; i < data.pages.size() && y < listTop + listH + ROW_H; i++) {
             PageData p = data.pages.get(i);
             boolean sel = i == selectedPage;
             boolean hov = over(mx, my, px, y, RIGHT_W - 20, ROW_H);
 
             g.fill(px, y, width, y + ROW_H - 1,
-                sel ? C_SEL : (hov ? C_BTN_HOV : (i % 2 == 0 ? 0x11FFFFFF : 0)));
+                    sel ? C_SEL : (hov ? C_BTN_HOV : (i % 2 == 0 ? 0x11FFFFFF : 0)));
             if (sel) g.fill(px, y, px + 2, y + ROW_H - 1, C_ACCENT);
 
             String lbl = (i + 1) + ". ";
-            lbl += (p.headline != null && !p.headline.isBlank())
-                ? p.headline : (p.text != null ? p.text.split("\n")[0] : "(empty)");
+            lbl += (p.headline != null && !p.headline.isBlank()) ? p.headline :
+                    (p.text != null ? p.text.split("\n")[0] : "(empty)");
             if (font.width(lbl) > RIGHT_W - 30)
                 lbl = font.plainSubstrByWidth(lbl, RIGHT_W - 30 - font.width("…")) + "…";
             g.drawString(font, lbl, px + 6, y + (ROW_H - 8) / 2, sel ? C_ACCENT : C_TEXT, false);
@@ -390,9 +414,9 @@ public class PhantasiaGuideEditorScreen extends Screen {
             // Delete button
             boolean delHov = over(mx, my, width - 18, y + 2, 14, ROW_H - 4);
             g.fill(width - 18, y + 2, width - 4, y + ROW_H - 2,
-                delHov ? 0xBB3A0A0A : C_BTN);
+                    delHov ? 0xBB3A0A0A : C_BTN);
             g.drawCenteredString(font, "✕", width - 11, y + (ROW_H - 8) / 2,
-                delHov ? C_RED : C_DIM);
+                    delHov ? C_RED : C_DIM);
             final int fi = i;
             btns.add(new Btn(px, y, RIGHT_W - 20, ROW_H, () -> selectPage(fi)));
             btns.add(new Btn(width - 18, y + 2, 14, ROW_H - 4, () -> deletePage(fi)));
@@ -425,9 +449,9 @@ public class PhantasiaGuideEditorScreen extends Screen {
         int addItemW = font.width("+ Item") + 8;
         boolean aiHov = over(mx, my, width - addItemW - 4, y - 1, addItemW, 12);
         g.fill(width - addItemW - 4, y - 1, width - 4, y + 11,
-            aiHov ? C_BTN_HOV : C_BTN);
+                aiHov ? C_BTN_HOV : C_BTN);
         g.drawString(font, "+ Item", width - addItemW - 1, y + 1,
-            aiHov ? C_ACCENT : C_DIM, false);
+                aiHov ? C_ACCENT : C_DIM, false);
         btns.add(new Btn(width - addItemW - 4, y - 1, addItemW, 12, this::addItem));
         y += font.lineHeight + 3;
 
@@ -462,7 +486,7 @@ public class PhantasiaGuideEditorScreen extends Screen {
 
             g.drawString(font, "Label:", px + 4, y, C_DIM, false);
             placeBox(itemLabelBox, px + 4 + font.width("Label:") + 3, y - 1,
-                100, 12);
+                    100, 12);
             y += 14;
 
             g.drawString(font, "Count:", px + 4, y, C_DIM, false);
@@ -472,7 +496,7 @@ public class PhantasiaGuideEditorScreen extends Screen {
             // Type selector
             g.drawString(font, "Type:", px + 4, y, C_DIM, false);
             int tx = px + 4 + font.width("Type:") + 4;
-            for (String t : new String[]{"input", "output", "catalyst"}) {
+            for (String t : new String[] { "input", "output", "catalyst" }) {
                 int tw = font.width(t) + 8;
                 boolean tsel = t.equals(itemTypeSelected);
                 boolean thov = over(mx, my, tx, y - 1, tw, 12);
@@ -565,11 +589,11 @@ public class PhantasiaGuideEditorScreen extends Screen {
         if (id.isBlank()) return;
         checkpoint();
         int cnt = 1;
-        try { cnt = Math.max(1, Integer.parseInt(itemCountBox.getValue().trim())); }
-        catch (NumberFormatException ignored) {}
+        try {
+            cnt = Math.max(1, Integer.parseInt(itemCountBox.getValue().trim()));
+        } catch (NumberFormatException ignored) {}
 
-        PhantasiaSceneData.ItemConditionData it =
-            new PhantasiaSceneData.ItemConditionData(
+        PhantasiaSceneData.ItemConditionData it = new PhantasiaSceneData.ItemConditionData(
                 id, cnt,
                 itemLabelBox.getValue().isBlank() ? null : itemLabelBox.getValue(),
                 itemTypeSelected);
@@ -610,15 +634,27 @@ public class PhantasiaGuideEditorScreen extends Screen {
 
     @Override
     public boolean mouseClicked(double mx, double my, int btn) {
-        for (Btn b : btns) if (b.hit(mx, my)) { b.action().run(); return true; }
+        for (Btn b : btns) if (b.hit(mx, my)) {
+            b.action().run();
+            return true;
+        }
         return super.mouseClicked(mx, my, btn);
     }
 
     @Override
     public boolean keyPressed(int kc, int sc, int mod) {
-        if (kc == GLFW.GLFW_KEY_ESCAPE) { onClose(); return true; }
-        if (kc == GLFW.GLFW_KEY_S && (mod & GLFW.GLFW_MOD_CONTROL) != 0) { save(); return true; }
-        if (kc == GLFW.GLFW_KEY_Z && (mod & GLFW.GLFW_MOD_CONTROL) != 0) { undo(); return true; }
+        if (kc == GLFW.GLFW_KEY_ESCAPE) {
+            onClose();
+            return true;
+        }
+        if (kc == GLFW.GLFW_KEY_S && (mod & GLFW.GLFW_MOD_CONTROL) != 0) {
+            save();
+            return true;
+        }
+        if (kc == GLFW.GLFW_KEY_Z && (mod & GLFW.GLFW_MOD_CONTROL) != 0) {
+            undo();
+            return true;
+        }
         return super.keyPressed(kc, sc, mod);
     }
 
@@ -628,7 +664,9 @@ public class PhantasiaGuideEditorScreen extends Screen {
     }
 
     @Override
-    public boolean isPauseScreen() { return false; }
+    public boolean isPauseScreen() {
+        return false;
+    }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -640,13 +678,20 @@ public class PhantasiaGuideEditorScreen extends Screen {
     private void hideAllInputs() {
         for (var b : List.of(headlineBox, bodyBox, guideLinkBox, sceneLinkBox,
                 titleBox, iconItemBox, itemIdBox, itemLabelBox, itemCountBox)) {
-            if (b != null) { b.visible = false; b.active = false; }
+            if (b != null) {
+                b.visible = false;
+                b.active = false;
+            }
         }
     }
 
     private void placeBox(EditBox box, int x, int y, int w, int h) {
-        box.setX(x); box.setY(y); box.setWidth(w); box.setHeight(h);
-        box.visible = true; box.active = true;
+        box.setX(x);
+        box.setY(y);
+        box.setWidth(w);
+        box.setHeight(h);
+        box.visible = true;
+        box.active = true;
     }
 
     private void topBtn(GuiGraphics g, int mx, int my, int x, String lbl, Runnable act) {
@@ -671,24 +716,26 @@ public class PhantasiaGuideEditorScreen extends Screen {
     private static ItemStack resolveStack(PhantasiaSceneData.ItemConditionData it) {
         if (it.item == null || it.item.isBlank()) return ItemStack.EMPTY;
         try {
-            ResourceLocation rl = it.item.contains(":")
-                ? new ResourceLocation(it.item)
-                : new ResourceLocation("minecraft", it.item);
+            ResourceLocation rl = it.item.contains(":") ? new ResourceLocation(it.item) :
+                    new ResourceLocation("minecraft", it.item);
             Item item = ForgeRegistries.ITEMS.getValue(rl);
-            return (item == null || item == Items.AIR)
-                ? ItemStack.EMPTY : new ItemStack(item, Math.max(1, it.count));
-        } catch (Exception e) { return ItemStack.EMPTY; }
+            return (item == null || item == Items.AIR) ? ItemStack.EMPTY : new ItemStack(item, Math.max(1, it.count));
+        } catch (Exception e) {
+            return ItemStack.EMPTY;
+        }
     }
 
     private boolean over(int mx, int my, int x, int y, int w, int h) {
         return mx >= x && mx < x + w && my >= y && my < y + h;
     }
+
     private boolean over(double mx, double my, int x, int y, int w, int h) {
         return mx >= x && mx < x + w && my >= y && my < y + h;
     }
 
     private <T extends net.minecraft.client.gui.components.AbstractWidget> T addW(T w) {
-        w.visible = false; w.active = false;
+        w.visible = false;
+        w.active = false;
         return addRenderableWidget(w);
     }
 }
