@@ -1,9 +1,9 @@
 package net.phoenixvine.phantasia.client.screens;
 
 import com.gregtechceu.gtceu.api.blockentity.MetaMachineBlockEntity;
-import com.gregtechceu.gtceu.api.machine.MultiblockMachineDefinition;
 import com.gregtechceu.gtceu.api.machine.multiblock.MultiblockControllerMachine;
 import com.gregtechceu.gtceu.api.pattern.MultiblockShapeInfo;
+
 import com.lowdragmc.lowdraglib.utils.BlockInfo;
 
 import net.minecraft.core.BlockPos;
@@ -11,12 +11,13 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 
-import javax.annotation.Nullable;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import javax.annotation.Nullable;
 
 /**
  * PhantasiaPatternLoader
@@ -68,18 +69,20 @@ public final class PhantasiaPatternLoader {
      * returns true. The render thread applies them to SHARED_LEVEL.
      */
     public static final class Result {
+
         /** Full block map (world-space pos → BlockInfo), including baseplate. */
-        public final Map<BlockPos, BlockInfo>   blockMap;
+        public final Map<BlockPos, BlockInfo> blockMap;
         /** Maps pattern-local pos → world pos for machine blocks only. */
-        public final Map<BlockPos, BlockPos>    localToWorld;
+        public final Map<BlockPos, BlockPos> localToWorld;
         /** Baseplate world positions (floor tiles). */
-        public final Set<BlockPos>              baseplatePositions;
+        public final Set<BlockPos> baseplatePositions;
         /** World positions of machine blocks that have a BlockEntity. */
-        public final Set<BlockPos>              bePositions;
+        public final Set<BlockPos> bePositions;
         /** World position of the controller block, or null if none found. */
-        @Nullable public final BlockPos         controllerWorldPos;
+        @Nullable
+        public final BlockPos controllerWorldPos;
         /** Origin used when placing blocks (fixed at 0,50,0). */
-        public final BlockPos                   origin;
+        public final BlockPos origin;
         /** Min/max Y in local (pattern) space. */
         public final int minY, maxY;
         /** Number of blocks in the machine (excluding baseplate). */
@@ -93,33 +96,33 @@ public final class PhantasiaPatternLoader {
                BlockPos origin,
                int minY, int maxY,
                int blockCount) {
-            this.blockMap            = blockMap;
-            this.localToWorld        = localToWorld;
-            this.baseplatePositions  = baseplatePositions;
-            this.bePositions         = bePositions;
-            this.controllerWorldPos  = controllerWorldPos;
-            this.origin              = origin;
-            this.minY                = minY;
-            this.maxY                = maxY;
-            this.blockCount          = blockCount;
+            this.blockMap = blockMap;
+            this.localToWorld = localToWorld;
+            this.baseplatePositions = baseplatePositions;
+            this.bePositions = bePositions;
+            this.controllerWorldPos = controllerWorldPos;
+            this.origin = origin;
+            this.minY = minY;
+            this.maxY = maxY;
+            this.blockCount = blockCount;
         }
     }
 
     // ── State ─────────────────────────────────────────────────────────────────
 
-    private final Future<?>      future;
-    private volatile Result      result;
-    private volatile boolean     done    = false;
-    private volatile boolean     cancelled = false;
+    private final Future<?> future;
+    private volatile Result result;
+    private volatile boolean done = false;
+    private volatile boolean cancelled = false;
 
     // ── Constructor / factory ─────────────────────────────────────────────────
 
     /**
      * Starts loading {@code shape} asynchronously.
      *
-     * @param shape   the MultiblockShapeInfo to load
-     * @param total   pre-counted non-null block count (caller already counted to decide
-     *                whether to use the loader, so we reuse that value)
+     * @param shape the MultiblockShapeInfo to load
+     * @param total pre-counted non-null block count (caller already counted to decide
+     *              whether to use the loader, so we reuse that value)
      */
     public PhantasiaPatternLoader(MultiblockShapeInfo shape, int total) {
         this.total = total;
@@ -176,11 +179,11 @@ public final class PhantasiaPatternLoader {
 
             BlockInfo floor = BlockInfo.fromBlockState(Blocks.DEEPSLATE_BRICKS.defaultBlockState());
 
-            Map<BlockPos, BlockInfo> blockMap       = new HashMap<>();
-            Map<BlockPos, BlockPos>  localToWorld   = new HashMap<>();
-            Set<BlockPos>            baseplatePos   = new HashSet<>();
-            Set<BlockPos>            bePos          = new HashSet<>();
-            BlockPos                 controllerWP   = null;
+            Map<BlockPos, BlockInfo> blockMap = new HashMap<>();
+            Map<BlockPos, BlockPos> localToWorld = new HashMap<>();
+            Set<BlockPos> baseplatePos = new HashSet<>();
+            Set<BlockPos> bePos = new HashSet<>();
+            BlockPos controllerWP = null;
 
             // ── Baseplate ─────────────────────────────────────────────────────
             for (int bx = -padX; bx <= sxLen + padX; bx++)
@@ -199,7 +202,10 @@ public final class PhantasiaPatternLoader {
                         if (Thread.interrupted() || cancelled) return;
 
                         BlockInfo info = raw[x][y][z];
-                        if (info == null) { progress.incrementAndGet(); continue; }
+                        if (info == null) {
+                            progress.incrementAndGet();
+                            continue;
+                        }
 
                         BlockPos lp = new BlockPos(x, y, z);
                         BlockPos wp = origin.offset(x, y, z);
@@ -229,7 +235,10 @@ public final class PhantasiaPatternLoader {
                 }
             }
 
-            if (minY > maxY) { minY = 0; maxY = 0; }
+            if (minY > maxY) {
+                minY = 0;
+                maxY = 0;
+            }
 
             if (!cancelled) {
                 result = new Result(

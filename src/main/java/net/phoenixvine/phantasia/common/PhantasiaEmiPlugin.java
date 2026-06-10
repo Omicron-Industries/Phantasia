@@ -1,18 +1,18 @@
 package net.phoenixvine.phantasia.common;
 
-
-import dev.emi.emi.api.EmiPlugin;
-import dev.emi.emi.api.EmiRegistry;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.fml.ModList;
+
+import dev.emi.emi.api.EmiPlugin;
+import dev.emi.emi.api.EmiRegistry;
 
 /**
  * PhantasiaEmiPlugin
  *
  * Registers Phantasia as an EMI plugin. Currently used only to:
- *  1. Mark EMI as present via {@link #EMI_PRESENT} so other code can gate on it safely.
- *  2. Provide the entry point required by EMI's {@code @EmiEntrypoint} annotation.
+ * 1. Mark EMI as present via {@link #EMI_PRESENT} so other code can gate on it safely.
+ * 2. Provide the entry point required by EMI's {@code @EmiEntrypoint} annotation.
  *
  * Recipe resolution for the Material Cost screen happens lazily inside
  * {@link net.phoenixvine.phantasia.client.screens.PhantasiaMaterialCostScreen}
@@ -32,10 +32,11 @@ public class PhantasiaEmiPlugin implements EmiPlugin {
      * loaded on instances without EMI.
      *
      * Example usage in PhantasiaSceneScreen:
+     * 
      * <pre>
-     *   if (PhantasiaEmiPlugin.EMI_PRESENT) {
-     *       Minecraft.getInstance().setScreen(new PhantasiaMaterialCostScreen(pattern, this));
-     *   }
+     * if (PhantasiaEmiPlugin.EMI_PRESENT) {
+     *     Minecraft.getInstance().setScreen(new PhantasiaMaterialCostScreen(pattern, this));
+     * }
      * </pre>
      */
     public static final boolean EMI_PRESENT = ModList.get().isLoaded("emi");

@@ -1,15 +1,18 @@
 package net.phoenixvine.phantasia;
 
 import com.gregtechceu.gtceu.api.GTCEuAPI;
+import com.gregtechceu.gtceu.api.data.DimensionMarker;
 import com.gregtechceu.gtceu.api.data.chemical.material.event.MaterialEvent;
 import com.gregtechceu.gtceu.api.data.chemical.material.event.MaterialRegistryEvent;
 import com.gregtechceu.gtceu.api.data.chemical.material.event.PostMaterialEvent;
 import com.gregtechceu.gtceu.api.machine.MachineDefinition;
 import com.gregtechceu.gtceu.api.recipe.GTRecipeType;
+import com.gregtechceu.gtceu.api.registry.GTRegistries;
 import com.gregtechceu.gtceu.api.registry.registrate.GTRegistrate;
 import com.gregtechceu.gtceu.api.sound.SoundEntry;
+
 import com.lowdragmc.lowdraglib.Platform;
-import com.mojang.serialization.Codec;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceLocation;
@@ -25,12 +28,12 @@ import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.RegistryObject;
 import net.phoenixvine.phantasia.client.PhantasiaClient;
 import net.phoenixvine.phantasia.client.keybind.PhoenixKeybinds;
+import net.phoenixvine.phantasia.common.PhantasiaTestMultiblocks;
 import net.phoenixvine.phantasia.common.world.PhantasiaVoidChunkGenerator;
 import net.phoenixvine.phantasia.configs.PhantasiaConfigs;
 import net.phoenixvine.phantasia.datagen.PhantasiaDatagen;
-import net.phoenixvine.phantasia.common.PhantasiaTestMultiblocks;
-// Make sure to import your generator class
 
+import com.mojang.serialization.Codec;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -43,11 +46,11 @@ public class Phantasia {
     public static GTRegistrate PHANTASIA_REGISTRATE = GTRegistrate.create(Phantasia.MOD_ID);
 
     // --- Chunk Generator Registration ---
-    private static final DeferredRegister<Codec<? extends ChunkGenerator>> CHUNK_GEN_CODECS =
-            DeferredRegister.create(Registries.CHUNK_GENERATOR, Phantasia.MOD_ID);
+    private static final DeferredRegister<Codec<? extends ChunkGenerator>> CHUNK_GEN_CODECS = DeferredRegister
+            .create(Registries.CHUNK_GENERATOR, Phantasia.MOD_ID);
 
-    public static final RegistryObject<Codec<PhantasiaVoidChunkGenerator>> VOID_GENERATOR =
-            CHUNK_GEN_CODECS.register("void", () -> PhantasiaVoidChunkGenerator.CODEC);
+    public static final RegistryObject<Codec<PhantasiaVoidChunkGenerator>> VOID_GENERATOR = CHUNK_GEN_CODECS
+            .register("void", () -> PhantasiaVoidChunkGenerator.CODEC);
     // -------------------------------------
 
     public Phantasia() {
@@ -75,7 +78,7 @@ public class Phantasia {
         modEventBus.addGenericListener(GTRecipeType.class, this::registerRecipeTypes);
         modEventBus.addGenericListener(MachineDefinition.class, this::registerMachines);
         modEventBus.addGenericListener(SoundEntry.class, this::registerSounds);
-
+        modEventBus.addGenericListener(DimensionMarker.class, this::registerDimensionMarkers);
         MinecraftForge.EVENT_BUS.register(this);
     }
 
@@ -116,5 +119,26 @@ public class Phantasia {
 
     public void registerSounds(GTCEuAPI.RegisterEvent<ResourceLocation, SoundEntry> event) {
         // CustomSounds.init();
+    }
+
+    // --- Dimension Marker Registration Event Handler ---
+    private void registerDimensionMarkers(GTCEuAPI.RegisterEvent<ResourceLocation, DimensionMarker> event) {
+        // 1. Register your custom scene marker safely using the event context
+        ResourceLocation sceneDimKey = new ResourceLocation(Phantasia.MOD_ID, "scene");
+        DimensionMarker sceneMarker = new DimensionMarker(
+                3, // Tier
+                () -> Items.DIAMOND_BLOCK,
+                "phantasia.dimension.scene.name");
+        event.register(sceneDimKey, sceneMarker);
+
+        // 2. Bypass the event for existing keys: Modify/Override the Nether directly in the registry wrapper
+        ResourceLocation netherKey = new ResourceLocation("minecraft", "the_nether");
+        DimensionMarker upgradedNetherMarker = new DimensionMarker(
+                5, // Tier
+                () -> Items.NETHERITE_BLOCK,
+                "text.mymod.super_nether");
+
+        // Use GregTech's explicit registry reference to handle overrides
+        GTRegistries.DIMENSION_MARKERS.registerOrOverride(netherKey, upgradedNetherMarker);
     }
 }

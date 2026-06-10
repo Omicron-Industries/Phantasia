@@ -191,6 +191,4 @@ public class PhantasiaThemeUtils {
     public static int C_BORDER() {
         return PhantasiaTheme.current().C_DIM;
     }
-
-
 }

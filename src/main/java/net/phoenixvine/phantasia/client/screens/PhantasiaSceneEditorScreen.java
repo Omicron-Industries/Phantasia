@@ -1,7 +1,6 @@
 package net.phoenixvine.phantasia.client.screens;
 
 import net.minecraft.client.Minecraft;
-import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
@@ -21,6 +20,7 @@ import net.phoenixvine.phantasia.common.PhantasiaScenePattern;
 import net.phoenixvine.phantasia.common.PhantasiaScenes;
 import net.phoenixvine.phantasia.common.PhantasiaScriptData;
 
+import com.mojang.blaze3d.systems.RenderSystem;
 import org.joml.Vector3f;
 import org.lwjgl.glfw.GLFW;
 
@@ -109,6 +109,7 @@ public class PhantasiaSceneEditorScreen extends Screen {
 
     // ── Inputs ────────────────────────────────────────────────────────────────
     private EditBox captionBox;
+    private EditBox descriptionBox;
     private EditBox tickBox;
     private EditBox lerpTicksBox;
     private EditBox camZoomBox;
@@ -116,6 +117,9 @@ public class PhantasiaSceneEditorScreen extends Screen {
     // Per-placement override boxes (reused for whichever placement is selected)
     private EditBox ovLayerBox;
     private EditBox ovHidePosBox;
+    // Per-placement recipe / particle override boxes
+    private EditBox ovFakeRecipeBox;
+    private EditBox ovParticleBox;
     // Add-placement inputs
     private EditBox newMachineIdBox;
     private EditBox newOffsetXBox;
@@ -139,7 +143,7 @@ public class PhantasiaSceneEditorScreen extends Screen {
     /** Placement index of the currently-hovered item slot, or -1. */
     private int hoveredItemPlacement = -1;
     /** Item index within that placement, or -1. */
-    private int hoveredItemIndex     = -1;
+    private int hoveredItemIndex = -1;
 
     // ─────────────────────────────────────────────────────────────────────────
 
@@ -184,8 +188,26 @@ public class PhantasiaSceneEditorScreen extends Screen {
         scenePattern = PhantasiaScenePattern.build(data, editorLevel);
 
         renderer = new PhantasiaWorldRenderer(editorLevel);
-        if (scenePattern != null)
+        if (scenePattern != null) {
             renderer.setBaseplatePositions(scenePattern.allBaseplatePositions);
+
+            // fullBakeSet must contain every position the renderer may ever bake.
+            // Start with whatever editorLevel.renderedBlocks contains (populated
+            // by PhantasiaScenePattern.build if it calls addBlocks internally).
+            Set<BlockPos> fullBakeSet = new HashSet<>(editorLevel.renderedBlocks.keySet());
+            fullBakeSet.addAll(scenePattern.allBaseplatePositions);
+            // Belt-and-suspenders: also include every position visible under
+            // the "all" show mode so we never miss positions if build() stores
+            // blocks elsewhere (e.g. in a per-placement map rather than directly
+            // in editorLevel.renderedBlocks).
+            PhantasiaSceneData.StepData allStep = new PhantasiaSceneData.StepData();
+            allStep.show = "all";
+            Set<BlockPos> allVisible = scenePattern.computeVisible(allStep, data);
+            if (allVisible != null) fullBakeSet.addAll(allVisible);
+
+            renderer.setPatternBlocks(fullBakeSet);
+            renderer.requestBake();
+        }
 
         initCamera();
         rebuildVisibility();
@@ -227,6 +249,14 @@ public class PhantasiaSceneEditorScreen extends Screen {
         captionBox.setHint(Component.literal("Caption for this step..."));
         captionBox.setResponder(v -> {
             step().caption = v.isBlank() ? null : v;
+            dirty = true;
+        });
+
+        descriptionBox = addW(new EditBox(font, 0, 0, 200, 12, Component.empty()));
+        descriptionBox.setMaxLength(2048);
+        descriptionBox.setHint(Component.literal("Guide description (shown in Guide view)..."));
+        descriptionBox.setResponder(v -> {
+            step().description = v.isBlank() ? null : v;
             dirty = true;
         });
 
@@ -300,6 +330,30 @@ public class PhantasiaSceneEditorScreen extends Screen {
             PhantasiaSceneData.MachineOverride ov = ensureOverride();
             if (ov == null) return;
             ov.hidePositions = parsePosList(v);
+            dirty = true;
+        });
+
+        ovFakeRecipeBox = addW(new EditBox(font, 0, 0, 140, 12, Component.empty()));
+        ovFakeRecipeBox.setMaxLength(128);
+        ovFakeRecipeBox.setHint(Component.literal("namespace:recipe_id"));
+        ovFakeRecipeBox.setResponder(v -> {
+            PhantasiaSceneData.MachineOverride ov = ensureOverride();
+            if (ov == null) return;
+            ov.fakeRecipeId = v.isBlank() ? null : v.trim();
+            dirty = true;
+        });
+
+        ovParticleBox = addW(new EditBox(font, 0, 0, 140, 12, Component.empty()));
+        ovParticleBox.setMaxLength(512);
+        ovParticleBox.setHint(Component.literal("minecraft:flame; ..."));
+        ovParticleBox.setResponder(v -> {
+            PhantasiaSceneData.MachineOverride ov = ensureOverride();
+            if (ov == null) return;
+            ov.particleEffects = new java.util.ArrayList<>();
+            for (String part : v.split(";")) {
+                String trim = part.trim();
+                if (!trim.isEmpty()) ov.particleEffects.add(trim);
+            }
             dirty = true;
         });
 
@@ -641,6 +695,52 @@ public class PhantasiaSceneEditorScreen extends Screen {
             ovHidePosBox.active = true;
             ovY += 16;
 
+            // ── Machine working state (Feature 2) ─────────────────────────────
+            g.drawString(font, "Working:", px + 6, ovY + 2, C_DIM, false);
+            int wbx = px + 6 + font.width("Working:") + 4;
+            // Three-state: Global (null) / Idle (false) / Working (true)
+            Boolean curWorking = ov != null ? ov.machineWorking : null;
+
+            String[] wLabels = { "Global", "Idle", "Working" };
+            Boolean[] wVals = { null, false, true };
+            int[] wCols = { 0xFF334455, 0xFF445566, 0xFF1A7040 };
+            for (int wi = 0; wi < wLabels.length; wi++) {
+                String wlbl = wLabels[wi];
+                Boolean wval = wVals[wi];
+                int wW = font.width(wlbl) + 10;
+                boolean wSel = (curWorking == null && wval == null) || (curWorking != null && curWorking.equals(wval));
+                boolean wHov = isOver(mx, my, wbx, ovY, wW, 12);
+                int wBg = wSel ? (wi == 2 ? 0xFF0D3A20 : C_BTN_ACT) : (wHov ? C_BTN_HOV : C_BTN);
+                g.fill(wbx, ovY, wbx + wW, ovY + 12, wBg);
+                if (wSel) g.fill(wbx, ovY, wbx + wW, ovY + 1, wCols[wi]);
+                g.drawString(font, wlbl, wbx + 5, ovY + 2, wSel ? wCols[wi] : C_TEXT, false);
+                final Boolean fwval = wval;
+                btns.add(new Btn(wbx, ovY, wW, 12, () -> {
+                    checkpoint();
+                    PhantasiaSceneData.MachineOverride nov = ensureOverride();
+                    if (nov != null) {
+                        nov.machineWorking = fwval;
+                        dirty = true;
+                    }
+                }));
+                wbx += wW + 3;
+            }
+            ovY += 16;
+
+            // ── Fake recipe ID (Feature 1) ────────────────────────────────────
+            g.drawString(font, "Recipe:", px + 6, ovY + 2, C_DIM, false);
+            placeBox(ovFakeRecipeBox, px + 6 + font.width("Recipe:") + 3, ovY, pw - 14 - font.width("Recipe:"), 12);
+            ovFakeRecipeBox.visible = true;
+            ovFakeRecipeBox.active = true;
+            ovY += 16;
+
+            // ── Particle effects (Feature 1) ──────────────────────────────────
+            g.drawString(font, "Particles:", px + 6, ovY + 2, C_DIM, false);
+            placeBox(ovParticleBox, px + 6 + font.width("Particles:") + 3, ovY, pw - 14 - font.width("Particles:"), 12);
+            ovParticleBox.visible = true;
+            ovParticleBox.active = true;
+            ovY += 16;
+
             // Clear override button
             if (ov != null) {
                 btn(g, mx, my, px + 6, ovY, pw - 12, 12,
@@ -662,7 +762,9 @@ public class PhantasiaSceneEditorScreen extends Screen {
                 for (PhantasiaSceneData.ItemConditionData it : pd.items) {
                     if (sb.length() > 0) sb.append("  ");
                     String pill = it.type == null ? "in" : switch (it.type.toLowerCase(java.util.Locale.ROOT)) {
-                        case "output" -> "out"; case "catalyst" -> "cat"; default -> "in";
+                        case "output" -> "out";
+                        case "catalyst" -> "cat";
+                        default -> "in";
                     };
                     sb.append("[").append(pill).append("] ");
                     String nm = it.item.contains(":") ? it.item.split(":")[1] : it.item;
@@ -677,6 +779,12 @@ public class PhantasiaSceneEditorScreen extends Screen {
                         Minecraft.getInstance().setScreen(
                                 new PhantasiaPlacementEditorScreen(this, data, selectedPlacement));
                     });
+            ovY += 18;
+
+            // ── Scene mistakes button (Feature 3) ─────────────────────────────
+            btn(g, mx, my, px + 6, ovY, editBtnW, 14,
+                    "\u26A0 Edit Layout Mistakes \u2192", C_BTN, () -> Minecraft.getInstance().setScreen(
+                            new PhantasiaSceneMistakesEditorScreen(this, data)));
         }
     }
 
@@ -726,6 +834,14 @@ public class PhantasiaSceneEditorScreen extends Screen {
 
         g.fill(x, y1, x + 1, y1 + 14, 0x33FFFFFF);
         x += 8;
+
+        // Description (second row of the step bar — guide body text)
+        int y2 = rowY + 27;
+        int descLblX = 8 + font.width("STEP") + 8 + 18 + 18 + 28 + 18 + 18 + 9; // same x as Tick label
+        g.drawString(font, "Desc:", descLblX, y2 + 2, C_DIM, false);
+        int descX = descLblX + font.width("Desc:") + 4;
+        int descW = this.width - descX - 12;
+        placeBox(descriptionBox, descX, y2, descW, 12);
 
         // Camera group
         boolean hasCam = s.camera != null;
@@ -780,8 +896,7 @@ public class PhantasiaSceneEditorScreen extends Screen {
             }
         }
 
-        // ── Row 2: global show mode ───────────────────────────────────────────
-        int y2 = rowY + STEP_ROW_H / 2 + 3;
+
         x = 8;
         g.drawString(font, "Global:", x, y2 + 2, C_DIM, false);
         x += font.width("Global:") + 4;
@@ -881,10 +996,10 @@ public class PhantasiaSceneEditorScreen extends Screen {
 
     // ── Item panel (GuideME-style) ────────────────────────────────────────────
 
-    private static final int ITEM_PANEL_W   = 186;
-    private static final int ITEM_ROW_H     = 38;
+    private static final int ITEM_PANEL_W = 186;
+    private static final int ITEM_ROW_H = 38;
     private static final int ITEM_ICON_BASE = 28;   // base icon draw size
-    private static final int ITEM_ICON_HOV  = 36;   // enlarged on hover
+    private static final int ITEM_ICON_HOV = 36;   // enlarged on hover
 
     /**
      * Renders a GuideME-style item panel docked to the right edge of the 3D
@@ -916,17 +1031,20 @@ public class PhantasiaSceneEditorScreen extends Screen {
 
         // Panel background
         g.fill(panelX, panelY, panelX + ITEM_PANEL_W, panelY + panelH, 0xDD070712);
-        g.fill(panelX, panelY, panelX + ITEM_PANEL_W, panelY + 1,      0xFF4FC3F7);
-        g.fill(panelX, panelY, panelX + 1, panelY + panelH,            0x554FC3F7);
+        g.fill(panelX, panelY, panelX + ITEM_PANEL_W, panelY + 1, 0xFF4FC3F7);
+        g.fill(panelX, panelY, panelX + 1, panelY + panelH, 0x554FC3F7);
 
         hoveredItemPlacement = -1;
-        hoveredItemIndex     = -1;
+        hoveredItemIndex = -1;
 
         int ry = panelY + 4;
         for (ItemSlot slot : slots) {
             PhantasiaSceneData.ItemConditionData it = slot.it();
             boolean hov = isOver(lastMX, lastMY, panelX + 2, ry, ITEM_PANEL_W - 4, ITEM_ROW_H - 1);
-            if (hov) { hoveredItemPlacement = slot.placementIdx(); hoveredItemIndex = slot.itemIdx(); }
+            if (hov) {
+                hoveredItemPlacement = slot.placementIdx();
+                hoveredItemIndex = slot.itemIdx();
+            }
 
             int ac = it.accentColor();
             // Row bg
@@ -935,19 +1053,18 @@ public class PhantasiaSceneEditorScreen extends Screen {
             g.fill(panelX + 2, ry, panelX + 3, ry + ITEM_ROW_H - 1, ac); // accent bar
 
             // Track-animated icon position
-            float[] anim  = computeTrackOffset(it, previewTick);
-            float animDy  = anim[1];
-            int   alpha   = Math.max(0, Math.min(255, (int)(anim[2] * 255)));
+            float[] anim = computeTrackOffset(it, previewTick);
+            float animDy = anim[1];
+            int alpha = Math.max(0, Math.min(255, (int) (anim[2] * 255)));
 
-            int iconSize  = hov ? ITEM_ICON_HOV : ITEM_ICON_BASE;
-            int iconX     = panelX + 5;
+            int iconSize = hov ? ITEM_ICON_HOV : ITEM_ICON_BASE;
+            int iconX = panelX + 5;
             int iconCentY = ry + (ITEM_ROW_H - 1) / 2;
-            int iconY     = iconCentY - iconSize / 2 + Math.round(animDy);
+            int iconY = iconCentY - iconSize / 2 + Math.round(animDy);
 
             net.minecraft.world.item.Item mcItem = resolveItem(it.item);
             if (mcItem != null) {
-                net.minecraft.world.item.ItemStack stack =
-                        new net.minecraft.world.item.ItemStack(mcItem, it.count);
+                net.minecraft.world.item.ItemStack stack = new net.minecraft.world.item.ItemStack(mcItem, it.count);
                 float scale = iconSize / 16f;
                 if (alpha < 255) RenderSystem.setShaderColor(1f, 1f, 1f, alpha / 255f);
                 g.pose().pushPose();
@@ -974,7 +1091,9 @@ public class PhantasiaSceneEditorScreen extends Screen {
 
             // Type pill
             String pillTxt = switch (it.type == null ? "input" : it.type.toLowerCase(java.util.Locale.ROOT)) {
-                case "output" -> "Out"; case "catalyst" -> "Cat"; default -> "In";
+                case "output" -> "Out";
+                case "catalyst" -> "Cat";
+                default -> "In";
             };
             int pillW = font.width(pillTxt) + 5;
             g.fill(tx, ty, tx + pillW, ty + 8, ac & 0x44FFFFFF | 0x44000000);
@@ -1005,8 +1124,7 @@ public class PhantasiaSceneEditorScreen extends Screen {
             // Every item is clickable — opens PhantasiaItemMicrosceneScreen
             final PhantasiaSceneData.ItemConditionData fIt = it;
             btns.add(new Btn(panelX + 2, ry, ITEM_PANEL_W - 4, ITEM_ROW_H - 1, () -> {
-                PhantasiaSceneData microscene = fIt.microsceneId != null
-                        ? PhantasiaScenes.get(fIt.microsceneId) : null;
+                PhantasiaSceneData microscene = fIt.microsceneId != null ? PhantasiaScenes.get(fIt.microsceneId) : null;
                 Minecraft.getInstance().setScreen(
                         new PhantasiaItemMicrosceneScreen(
                                 PhantasiaSceneEditorScreen.this, fIt, microscene));
@@ -1021,17 +1139,17 @@ public class PhantasiaSceneEditorScreen extends Screen {
      * the current {@code tick}.
      *
      * <ul>
-     *   <li>{@code none}  — [0, 0, 1.0]
-     *   <li>{@code left}  — item travels left→right, fades at ends
-     *   <li>{@code right} — item travels right→left, fades at ends
-     *   <li>{@code up}    — item floats upward and fades
-     *   <li>{@code down}  — item falls and fades
-     *   <li>{@code pulse} — gentle vertical bob, always opaque
+     * <li>{@code none} — [0, 0, 1.0]
+     * <li>{@code left} — item travels left→right, fades at ends
+     * <li>{@code right} — item travels right→left, fades at ends
+     * <li>{@code up} — item floats upward and fades
+     * <li>{@code down} — item falls and fades
+     * <li>{@code pulse} — gentle vertical bob, always opaque
      * </ul>
      */
     private static float[] computeTrackOffset(PhantasiaSceneData.ItemConditionData it, int tick) {
         String track = it.track == null ? "none" : it.track.toLowerCase(java.util.Locale.ROOT);
-        if ("none".equals(track)) return new float[]{ 0, 0, 1f };
+        if ("none".equals(track)) return new float[] { 0, 0, 1f };
 
         int dur = Math.max(1, it.trackDurationTicks);
         float t = (tick % dur) / (float) dur; // 0..1 looping
@@ -1039,31 +1157,31 @@ public class PhantasiaSceneEditorScreen extends Screen {
         return switch (track) {
             case "left" -> {
                 // Moves left-to-right across a 40px window, fades near edges
-                float dx   = (t * 40f) - 20f;
+                float dx = (t * 40f) - 20f;
                 float fade = 1f - Math.abs(t - 0.5f) * 2f; // 0 at edges, 1 at centre
-                yield new float[]{ dx, 0, Math.max(0f, fade) };
+                yield new float[] { dx, 0, Math.max(0f, fade) };
             }
             case "right" -> {
-                float dx   = 20f - (t * 40f);
+                float dx = 20f - (t * 40f);
                 float fade = 1f - Math.abs(t - 0.5f) * 2f;
-                yield new float[]{ dx, 0, Math.max(0f, fade) };
+                yield new float[] { dx, 0, Math.max(0f, fade) };
             }
             case "up" -> {
-                float dy   = -(t * 24f);       // moves 24px upward
+                float dy = -(t * 24f);       // moves 24px upward
                 float fade = 1f - t;           // fades as it rises
-                yield new float[]{ 0, dy, Math.max(0f, fade) };
+                yield new float[] { 0, dy, Math.max(0f, fade) };
             }
             case "down" -> {
-                float dy   = t * 24f;
+                float dy = t * 24f;
                 float fade = 1f - t;
-                yield new float[]{ 0, dy, Math.max(0f, fade) };
+                yield new float[] { 0, dy, Math.max(0f, fade) };
             }
             case "pulse" -> {
                 // Gentle sine bob ±3px
                 float dy = (float) Math.sin(t * 2 * Math.PI) * 3f;
-                yield new float[]{ 0, dy, 1f };
+                yield new float[] { 0, dy, 1f };
             }
-            default -> new float[]{ 0, 0, 1f };
+            default -> new float[] { 0, 0, 1f };
         };
     }
 
@@ -1075,12 +1193,14 @@ public class PhantasiaSceneEditorScreen extends Screen {
     private static net.minecraft.world.item.Item resolveItem(String id) {
         if (id == null || id.isBlank()) return null;
         try {
-            net.minecraft.resources.ResourceLocation rl = id.contains(":")
-                    ? new net.minecraft.resources.ResourceLocation(id)
-                    : new net.minecraft.resources.ResourceLocation("minecraft", id);
+            net.minecraft.resources.ResourceLocation rl = id.contains(":") ?
+                    new net.minecraft.resources.ResourceLocation(id) :
+                    new net.minecraft.resources.ResourceLocation("minecraft", id);
             net.minecraft.world.item.Item item = net.minecraftforge.registries.ForgeRegistries.ITEMS.getValue(rl);
             return (item == null || item == net.minecraft.world.item.Items.AIR) ? null : item;
-        } catch (Exception e) { return null; }
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     // ── Confirm dialog ────────────────────────────────────────────────────────
@@ -1422,6 +1542,11 @@ public class PhantasiaSceneEditorScreen extends Screen {
         PhantasiaSceneData.MachineOverride ov = step().getOverride(selectedPlacement);
         ovLayerBox.setValue(ov != null ? String.valueOf(ov.layer) : "");
         ovHidePosBox.setValue(ov != null ? serializePosList(ov.hidePositions) : "");
+        if (ovFakeRecipeBox != null)
+            ovFakeRecipeBox.setValue(ov != null && ov.fakeRecipeId != null ? ov.fakeRecipeId : "");
+        if (ovParticleBox != null)
+            ovParticleBox
+                    .setValue(ov != null && ov.particleEffects != null ? String.join("; ", ov.particleEffects) : "");
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -1442,6 +1567,8 @@ public class PhantasiaSceneEditorScreen extends Screen {
         if (captionBox == null) return;
         PhantasiaSceneData.StepData s = step();
         captionBox.setValue(s.caption != null ? s.caption : "");
+        if (descriptionBox != null)
+            descriptionBox.setValue(s.description != null ? s.description : "");
         tickBox.setValue(String.valueOf(s.tick));
         if (lerpTicksBox != null && s.camera != null)
             lerpTicksBox.setValue(String.valueOf(s.camera.lerpTicks > 0 ? s.camera.lerpTicks : 20));
@@ -1450,8 +1577,8 @@ public class PhantasiaSceneEditorScreen extends Screen {
     }
 
     private void hideAllInputs() {
-        for (var box : List.of(captionBox, tickBox, lerpTicksBox, camZoomBox, scriptDurationBox,
-                ovLayerBox, ovHidePosBox, newMachineIdBox,
+        for (var box : List.of(captionBox, descriptionBox, tickBox, lerpTicksBox, camZoomBox, scriptDurationBox,
+                ovLayerBox, ovHidePosBox, ovFakeRecipeBox, ovParticleBox, newMachineIdBox,
                 newOffsetXBox, newOffsetYBox, newOffsetZBox, sceneNameBox, sceneIconBox)) {
             if (box != null) {
                 box.visible = false;

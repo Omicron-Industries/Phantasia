@@ -1,6 +1,5 @@
 package net.phoenixvine.phantasia.client.screens;
 
-import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
@@ -18,9 +17,10 @@ import net.phoenixvine.phantasia.common.PhantasiaScenePattern;
 
 import org.lwjgl.glfw.GLFW;
 
-import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
+
+import javax.annotation.Nullable;
 
 /**
  * PhantasiaItemMicrosceneScreen
@@ -29,10 +29,10 @@ import java.util.List;
  * panel. Shows:
  *
  * <ul>
- *   <li>Left half: the item icon large, type badge, label, and full description
- *       text (word-wrapped).
- *   <li>Right half: an embedded live 3D scene render if a {@code microsceneId}
- *       was configured, otherwise a tinted placeholder.
+ * <li>Left half: the item icon large, type badge, label, and full description
+ * text (word-wrapped).
+ * <li>Right half: an embedded live 3D scene render if a {@code microsceneId}
+ * was configured, otherwise a tinted placeholder.
  * </ul>
  *
  * The embedded scene auto-rotates slowly and plays through its steps so the
@@ -42,38 +42,47 @@ import java.util.List;
 public class PhantasiaItemMicrosceneScreen extends Screen {
 
     // ── Theme ─────────────────────────────────────────────────────────────────
-    private static final int C_BG       = 0xCC050510;
-    private static final int C_CARD     = 0xEE0A0A18;
-    private static final int C_ACCENT   = 0xFF4FC3F7;
-    private static final int C_TEXT     = 0xFFDDDDDD;
-    private static final int C_DIM      = 0xFF667788;
-    private static final int C_BTN      = 0xBB101828;
-    private static final int C_BTN_HOV  = 0xBB1A2840;
+    private static final int C_BG = 0xCC050510;
+    private static final int C_CARD = 0xEE0A0A18;
+    private static final int C_ACCENT = 0xFF4FC3F7;
+    private static final int C_TEXT = 0xFFDDDDDD;
+    private static final int C_DIM = 0xFF667788;
+    private static final int C_BTN = 0xBB101828;
+    private static final int C_BTN_HOV = 0xBB1A2840;
 
     // ── Layout ────────────────────────────────────────────────────────────────
-    private static final int CARD_PAD   = 24;
-    private static final int ICON_SIZE  = 64;   // large item icon
+    private static final int CARD_PAD = 24;
+    private static final int ICON_SIZE = 64;   // large item icon
 
     // ── Data ──────────────────────────────────────────────────────────────────
-    private final Screen                             parent;
+    private final Screen parent;
     private final PhantasiaSceneData.ItemConditionData item;
-    @Nullable private final PhantasiaSceneData       microsceneData;
+    @Nullable
+    private final PhantasiaSceneData microsceneData;
 
     // ── 3D scene ──────────────────────────────────────────────────────────────
-    @Nullable private PhantasiaTrackedDummyWorld     sceneWorld;
-    @Nullable private PhantasiaScenePattern          scenePattern;
-    @Nullable private PhantasiaWorldRenderer         sceneRenderer;
-    @Nullable private PhantasiaCamera                sceneCamera;
+    @Nullable
+    private PhantasiaTrackedDummyWorld sceneWorld;
+    @Nullable
+    private PhantasiaScenePattern scenePattern;
+    @Nullable
+    private PhantasiaWorldRenderer sceneRenderer;
+    @Nullable
+    private PhantasiaCamera sceneCamera;
 
     // Playback
-    private int   tick      = 0;
-    private float autoYaw   = 25f;   // slowly rotates
-    private int   stepIndex = 0;
+    private int tick = 0;
+    private float autoYaw = 25f;   // slowly rotates
+    private int stepIndex = 0;
 
     // ── Btn list ──────────────────────────────────────────────────────────────
     private record Btn(int x, int y, int w, int h, Runnable action) {
-        boolean hit(double mx, double my) { return mx >= x && mx < x+w && my >= y && my < y+h; }
+
+        boolean hit(double mx, double my) {
+            return mx >= x && mx < x + w && my >= y && my < y + h;
+        }
     }
+
     private final List<Btn> btns = new ArrayList<>();
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -82,8 +91,8 @@ public class PhantasiaItemMicrosceneScreen extends Screen {
                                          PhantasiaSceneData.ItemConditionData item,
                                          @Nullable PhantasiaSceneData microsceneData) {
         super(Component.empty());
-        this.parent        = parent;
-        this.item          = item;
+        this.parent = parent;
+        this.item = item;
         this.microsceneData = microsceneData;
     }
 
@@ -95,7 +104,7 @@ public class PhantasiaItemMicrosceneScreen extends Screen {
     protected void init() {
         super.init();
         if (microsceneData != null) {
-            sceneWorld   = new PhantasiaTrackedDummyWorld();
+            sceneWorld = new PhantasiaTrackedDummyWorld();
             scenePattern = PhantasiaScenePattern.build(microsceneData, sceneWorld);
             sceneRenderer = new PhantasiaWorldRenderer(sceneWorld);
             if (scenePattern != null)
@@ -111,7 +120,10 @@ public class PhantasiaItemMicrosceneScreen extends Screen {
             return;
         }
         float sumX = 0, sumZ = 0;
-        for (var pe : scenePattern.placements) { sumX += pe.offset.getX(); sumZ += pe.offset.getZ(); }
+        for (var pe : scenePattern.placements) {
+            sumX += pe.offset.getX();
+            sumZ += pe.offset.getZ();
+        }
         float midX = sumX / scenePattern.placements.size();
         float midZ = sumZ / scenePattern.placements.size();
         float midY = (scenePattern.minY + scenePattern.maxY) * 0.5f + 0.5f;
@@ -169,7 +181,10 @@ public class PhantasiaItemMicrosceneScreen extends Screen {
 
     @Override
     public void removed() {
-        if (sceneRenderer != null) { sceneRenderer.close(); sceneRenderer = null; }
+        if (sceneRenderer != null) {
+            sceneRenderer.close();
+            sceneRenderer = null;
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -186,20 +201,20 @@ public class PhantasiaItemMicrosceneScreen extends Screen {
         // Card dimensions
         int cardW = Math.min(700, width - 40);
         int cardH = Math.min(420, height - 60);
-        int cardX = (width  - cardW) / 2;
+        int cardX = (width - cardW) / 2;
         int cardY = (height - cardH) / 2;
 
         // Card background + border
         g.fill(cardX, cardY, cardX + cardW, cardY + cardH, C_CARD);
-        g.fill(cardX, cardY,             cardX + cardW, cardY + 1,     C_ACCENT);
+        g.fill(cardX, cardY, cardX + cardW, cardY + 1, C_ACCENT);
         g.fill(cardX, cardY + cardH - 1, cardX + cardW, cardY + cardH, C_ACCENT & 0x55FFFFFF | 0x55000000);
-        g.fill(cardX,          cardY, cardX + 1,      cardY + cardH, C_ACCENT & 0x44FFFFFF | 0x44000000);
+        g.fill(cardX, cardY, cardX + 1, cardY + cardH, C_ACCENT & 0x44FFFFFF | 0x44000000);
         g.fill(cardX + cardW - 1, cardY, cardX + cardW, cardY + cardH, C_ACCENT & 0x44FFFFFF | 0x44000000);
 
         // Layout: if microscene present split 50/50, else full width for item info
         boolean has3d = sceneRenderer != null && sceneCamera != null;
         int infoW = has3d ? cardW / 2 : cardW;
-        int scW   = cardW - infoW;
+        int scW = cardW - infoW;
 
         // ── 3D scene (right half) ─────────────────────────────────────────────
         if (has3d) {
@@ -252,8 +267,8 @@ public class PhantasiaItemMicrosceneScreen extends Screen {
         }
 
         // Item registry ID under the icon
-        String shortId = item.item != null && item.item.contains(":")
-                ? item.item.split(":")[1].replace('_', ' ') : (item.item != null ? item.item : "?");
+        String shortId = item.item != null && item.item.contains(":") ? item.item.split(":")[1].replace('_', ' ') :
+                (item.item != null ? item.item : "?");
         g.drawString(font, shortId, ix, iy + ICON_SIZE + 3, C_DIM, false);
 
         // ── Header block — to the right of the icon ───────────────────────────
@@ -268,7 +283,9 @@ public class PhantasiaItemMicrosceneScreen extends Screen {
         // Type badge
         int ac = item.accentColor();
         String typeTxt = switch (item.type == null ? "input" : item.type.toLowerCase(java.util.Locale.ROOT)) {
-            case "output" -> "Output"; case "catalyst" -> "Catalyst"; default -> "Input";
+            case "output" -> "Output";
+            case "catalyst" -> "Catalyst";
+            default -> "Input";
         };
         int badgeW = font.width(typeTxt) + 8;
         g.fill(tx, ty, tx + badgeW, ty + 11, ac & 0x44FFFFFF | 0x44000000);
@@ -324,18 +341,26 @@ public class PhantasiaItemMicrosceneScreen extends Screen {
 
     @Override
     public boolean mouseClicked(double mx, double my, int button) {
-        for (Btn b : btns) if (b.hit(mx, my)) { b.action().run(); return true; }
+        for (Btn b : btns) if (b.hit(mx, my)) {
+            b.action().run();
+            return true;
+        }
         return super.mouseClicked(mx, my, button);
     }
 
     @Override
     public boolean keyPressed(int kc, int sc, int mod) {
-        if (kc == GLFW.GLFW_KEY_ESCAPE) { goBack(); return true; }
+        if (kc == GLFW.GLFW_KEY_ESCAPE) {
+            goBack();
+            return true;
+        }
         return super.keyPressed(kc, sc, mod);
     }
 
     @Override
-    public boolean isPauseScreen() { return false; }
+    public boolean isPauseScreen() {
+        return false;
+    }
 
     // ─────────────────────────────────────────────────────────────────────────
     // Helpers
@@ -353,10 +378,12 @@ public class PhantasiaItemMicrosceneScreen extends Screen {
     private static net.minecraft.world.item.Item resolveItem(String id) {
         if (id == null || id.isBlank()) return null;
         try {
-            var rl = id.contains(":") ? new net.minecraft.resources.ResourceLocation(id)
-                    : new net.minecraft.resources.ResourceLocation("minecraft", id);
+            var rl = id.contains(":") ? new net.minecraft.resources.ResourceLocation(id) :
+                    new net.minecraft.resources.ResourceLocation("minecraft", id);
             var item = ForgeRegistries.ITEMS.getValue(rl);
             return (item == null || item == net.minecraft.world.item.Items.AIR) ? null : item;
-        } catch (Exception e) { return null; }
+        } catch (Exception e) {
+            return null;
+        }
     }
 }

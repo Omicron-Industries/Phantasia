@@ -4,21 +4,23 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
-import net.phoenixvine.phantasia.common.PhantasiaVariantGroup;
+
+import java.util.*;
 
 import javax.annotation.Nullable;
-import java.util.*;
 
 /**
  * Client-side singleton that tracks the currently selected option index for
  * each {@link PhantasiaVariantGroup}.
  *
- * <p>The renderer calls {@link #resolveState(BlockPos, BlockState)} during
+ * <p>
+ * The renderer calls {@link #resolveState(BlockPos, BlockState)} during
  * {@code scheduleBake()} to substitute a variant block state before baking.
  * If a position belongs to a group whose selection differs from the base
  * index, the resolved state is the option at the selected index.
  *
- * <p>Cleared when the scene screen opens a new machine or closes.
+ * <p>
+ * Cleared when the scene screen opens a new machine or closes.
  */
 @OnlyIn(Dist.CLIENT)
 public final class PhantasiaVariantState {
@@ -72,7 +74,10 @@ public final class PhantasiaVariantState {
         }
     }
 
-    /** Returns all loaded groups (includes single-option groups — filter with {@link PhantasiaVariantGroup#hasChoice()}). */
+    /**
+     * Returns all loaded groups (includes single-option groups — filter with
+     * {@link PhantasiaVariantGroup#hasChoice()}).
+     */
     public List<PhantasiaVariantGroup> getGroups() {
         return Collections.unmodifiableList(groups);
     }
@@ -111,7 +116,8 @@ public final class PhantasiaVariantState {
      * If the position belongs to a variant group and the current selection differs from
      * the base index, returns a resolved {@link BlockState} for that position.
      *
-     * <p>Crucially, properties that exist on BOTH the base state and the target block
+     * <p>
+     * Crucially, properties that exist on BOTH the base state and the target block
      * (e.g. {@code facing}, {@code waterlogged}) are copied from the base state onto
      * the resolved state. This preserves muffler/hatch orientation and other directional
      * properties that were set when the dummy world was originally populated.
@@ -134,11 +140,10 @@ public final class PhantasiaVariantState {
         // Copy shared properties from the base state onto the target.
         // This preserves facing, waterlogged, powered, etc. — anything the
         // target block's state supports that the base block also had set.
-        net.minecraft.world.level.block.state.StateDefinition<
-                net.minecraft.world.level.block.Block, BlockState> targetDef =
-                target.getBlock().getStateDefinition();
-        for (net.minecraft.world.level.block.state.properties.Property<?> prop
-                : baseState.getBlock().getStateDefinition().getProperties()) {
+        net.minecraft.world.level.block.state.StateDefinition<net.minecraft.world.level.block.Block, BlockState> targetDef = target
+                .getBlock().getStateDefinition();
+        for (net.minecraft.world.level.block.state.properties.Property<?> prop : baseState.getBlock()
+                .getStateDefinition().getProperties()) {
             if (targetDef.getProperty(prop.getName()) != null) {
                 target = copyProperty(target, baseState, prop);
             }
@@ -148,12 +153,11 @@ public final class PhantasiaVariantState {
 
     @SuppressWarnings("unchecked")
     private static <T extends Comparable<T>> BlockState copyProperty(
-            BlockState target, BlockState source,
-            net.minecraft.world.level.block.state.properties.Property<T> prop) {
+                                                                     BlockState target, BlockState source,
+                                                                     net.minecraft.world.level.block.state.properties.Property<T> prop) {
         try {
-            net.minecraft.world.level.block.state.properties.Property<T> targetProp =
-                    (net.minecraft.world.level.block.state.properties.Property<T>)
-                            target.getBlock().getStateDefinition().getProperty(prop.getName());
+            net.minecraft.world.level.block.state.properties.Property<T> targetProp = (net.minecraft.world.level.block.state.properties.Property<T>) target
+                    .getBlock().getStateDefinition().getProperty(prop.getName());
             if (targetProp == null) return target;
             T value = source.getValue(prop);
             if (target.getValues().containsKey(targetProp)) {

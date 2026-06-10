@@ -29,7 +29,6 @@ public class PhantasiaClientEvents {
 
     private PhantasiaClientEvents() {}
 
-
     /**
      * Updated to .Pre to match PhantasiaKeybind's logic.
      * This allows the UI to render on the highest layer (PLAYER_LIST)
@@ -57,15 +56,21 @@ public class PhantasiaClientEvents {
      * so world load is not blocked; each cold write is submitted to the server
      * thread via {@link PhantasiaSceneScreen#coldPopulateDimensionSlot}.
      *
-     * <p>After this runs, the first screen open for each machine will find its
+     * <p>
+     * After this runs, the first screen open for each machine will find its
      * chunk already saved and take the fast warm-start path instead of
-     * re-iterating shape.getBlocks().</p>
+     * re-iterating shape.getBlocks().
+     * </p>
      */
     @SubscribeEvent
     public static void onLogin(ClientPlayerNetworkEvent.LoggingIn event) {
         Thread t = new Thread(() -> {
             // Small delay so the server level is fully available before we query it.
-            try { Thread.sleep(2000); } catch (InterruptedException e) { return; }
+            try {
+                Thread.sleep(2000);
+            } catch (InterruptedException e) {
+                return;
+            }
 
             for (var def : GTRegistries.MACHINES) {
                 if (Thread.interrupted()) return;
@@ -81,7 +86,7 @@ public class PhantasiaClientEvents {
 
                 BlockPos origin = PhantasiaSlotAllocator.originFor(id);
                 var script = PhantasiaScripts.get(multiDef);
-                int shapeHash  = PhantasiaSlotVersions.hashShape(shape.getBlocks());
+                int shapeHash = PhantasiaSlotVersions.hashShape(shape.getBlocks());
                 int scriptHash = PhantasiaSlotVersions.hashScript(script.getSourceData());
 
                 // Already valid \u2014 chunk saved and hashes match. Nothing to do.

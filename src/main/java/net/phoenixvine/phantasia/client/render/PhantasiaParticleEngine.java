@@ -50,6 +50,20 @@ public class PhantasiaParticleEngine {
     // particles that happen to implement equals().
     private static Set<Particle> ownedParticles = Collections.newSetFromMap(new IdentityHashMap<>());
 
+    // Empty dummy world used as the collision level for spawned particles.
+    // Particles tick their collision check against this world — since it has no
+    // blocks, getBlockCollisions(null, aabb) returns empty and particles move freely.
+    // The particles still live in mc.particleEngine (Oculus sees them normally).
+    @Nullable
+    private static net.phoenixvine.phantasia.client.render.PhantasiaTrackedDummyWorld particleCollisionWorld = null;
+
+    private static net.phoenixvine.phantasia.client.render.PhantasiaTrackedDummyWorld getParticleCollisionWorld() {
+        if (particleCollisionWorld == null) {
+            particleCollisionWorld = new net.phoenixvine.phantasia.client.render.PhantasiaTrackedDummyWorld();
+        }
+        return particleCollisionWorld;
+    }
+
     // The real particle queue in mc.particleEngine — resolved once.
     @Nullable
     private static Field particleQueueField = null;
@@ -63,6 +77,7 @@ public class PhantasiaParticleEngine {
         resolveFields(mc);
         ownedParticles.clear();
         warnedMissingProvider.clear();
+        particleCollisionWorld = null;
     }
 
     public static void destroy() {
@@ -75,6 +90,7 @@ public class PhantasiaParticleEngine {
         }
         ownedParticles.clear();
         warnedMissingProvider.clear();
+        particleCollisionWorld = null;
     }
 
     // Kept for call-site compatibility
@@ -127,7 +143,7 @@ public class PhantasiaParticleEngine {
                 @SuppressWarnings("rawtypes")
                 net.minecraft.client.particle.ParticleProvider provider = key != null ? providers.get(key) : null;
                 if (provider != null) {
-                    particle = provider.createParticle(options, mc.level, x, y, z, dx, dy, dz);
+                    particle = provider.createParticle(options, getParticleCollisionWorld().getAsClientWorld().get(), x, y, z, dx, dy, dz);
                 }
             }
 
@@ -231,10 +247,10 @@ public class PhantasiaParticleEngine {
      */
     @SuppressWarnings("unchecked")
     public static void renderDirect(
-                                    net.minecraft.client.renderer.MultiBufferSource.BufferSource buffers,
-                                    net.minecraft.client.renderer.LightTexture lightTexture,
-                                    Camera camera,
-                                    float partialTick) {
+            net.minecraft.client.renderer.MultiBufferSource.BufferSource buffers,
+            net.minecraft.client.renderer.LightTexture lightTexture,
+            Camera camera,
+            float partialTick) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.particleEngine == null || particleQueueField == null || ownedParticles.isEmpty()) return;
 
@@ -368,12 +384,12 @@ public class PhantasiaParticleEngine {
     // ── Manual quad emission ──────────────────────────────────────────────────
 
     private static void renderParticleManual(
-                                             com.mojang.blaze3d.vertex.BufferBuilder bb,
-                                             Camera camera,
-                                             Particle particle,
-                                             float partial,
-                                             float rx, float ry, float rz,
-                                             float ux, float uy, float uz) {
+            com.mojang.blaze3d.vertex.BufferBuilder bb,
+            Camera camera,
+            Particle particle,
+            float partial,
+            float rx, float ry, float rz,
+            float ux, float uy, float uz) {
         try {
             if (!(particle instanceof net.minecraft.client.particle.TextureSheetParticle) || f_sprite == null) {
                 // Non-TextureSheetParticle — call render() directly (Oculus doesn't patch these)

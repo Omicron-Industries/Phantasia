@@ -8,6 +8,7 @@ import lombok.Setter;
 
 import java.util.ArrayList;
 import java.util.List;
+
 @Getter
 public class PhantasiaScriptData {
 
@@ -27,15 +28,13 @@ public class PhantasiaScriptData {
 
     /**
      * Item condition hints displayed in the GuideME-style panel alongside the
-     * autogenned 3D scene.  Same model as {@link PhantasiaSceneData.ItemConditionData}
+     * autogenned 3D scene. Same model as {@link PhantasiaSceneData.ItemConditionData}
      * — supports label, description, track animation, and an optional
      * {@code microsceneId} that opens {@link net.phoenixvine.phantasia.client.screens.PhantasiaItemMicrosceneScreen}
      * when clicked.
      */
     @SerializedName("items")
     private List<PhantasiaSceneData.ItemConditionData> items = new ArrayList<>();
-
-
 
     @SerializedName("mistakes")
     private List<MistakeData> mistakes = new ArrayList<>();
@@ -207,10 +206,6 @@ public class PhantasiaScriptData {
         @SerializedName("fakeRecipeId")
         public String fakeRecipeId = null;
 
-
-
-
-
         /**
          * Whether the item panel is visible during this step.
          * Defaults to {@code true}. Set to {@code false} on steps focused on
@@ -221,8 +216,8 @@ public class PhantasiaScriptData {
 
         /**
          * Item condition hints displayed in the GuideME-style panel during
-         * this step.  Empty list = no panel shown (even if {@link #showItems}
-         * is true).  Items support labels, descriptions, track animations, and
+         * this step. Empty list = no panel shown (even if {@link #showItems}
+         * is true). Items support labels, descriptions, track animations, and
          * optional {@code microsceneId} links.
          */
         @SerializedName("items")

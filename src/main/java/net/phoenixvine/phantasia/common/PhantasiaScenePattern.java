@@ -173,6 +173,7 @@ public class PhantasiaScenePattern {
 
         // Machine blocks — use a temporary isolated world for BE initialisation
         // so block entities get the right level reference before we merge.
+        // FIX: Pass active client level into the constructor instance
         PhantasiaTrackedDummyWorld tempWorld = new PhantasiaTrackedDummyWorld();
         tempWorld.addBlocks(placementMap); // add baseplate first
 

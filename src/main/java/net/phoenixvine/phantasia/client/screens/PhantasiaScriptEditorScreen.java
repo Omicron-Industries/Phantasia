@@ -21,8 +21,6 @@ import net.phoenixvine.phantasia.client.camera.LerpType;
 import net.phoenixvine.phantasia.client.camera.PhantasiaCamera;
 import net.phoenixvine.phantasia.client.render.PhantasiaTrackedDummyWorld;
 import net.phoenixvine.phantasia.client.render.PhantasiaWorldRenderer;
-import net.phoenixvine.phantasia.client.screens.PhantasiaItemMicrosceneScreen;
-import net.phoenixvine.phantasia.client.screens.PhantasiaScriptStepItemEditorScreen;
 import net.phoenixvine.phantasia.common.PhantasiaLoadedPattern;
 import net.phoenixvine.phantasia.common.PhantasiaSceneData;
 import net.phoenixvine.phantasia.common.PhantasiaScenes;
@@ -34,6 +32,8 @@ import org.joml.Vector3f;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.*;
+
+import static net.phoenixvine.phantasia.client.screens.PhantasiaSceneScreen.SHARED_LEVEL;
 
 @OnlyIn(Dist.CLIENT)
 public class PhantasiaScriptEditorScreen extends Screen {
@@ -126,12 +126,12 @@ public class PhantasiaScriptEditorScreen extends Screen {
     private int selectedStep = 0;
 
     // ── Own 3D world ──────────────────────────────────────────────────────────
-    private PhantasiaWorldRenderer renderer;
-    private PhantasiaTrackedDummyWorld editorLevel;
-    private PhantasiaLoadedPattern pattern;
+    PhantasiaWorldRenderer renderer;
+    PhantasiaTrackedDummyWorld editorLevel;
+    PhantasiaLoadedPattern pattern;
 
     // ── Camera ────────────────────────────────────────────────────────────────
-    private PhantasiaCamera camera;
+    PhantasiaCamera camera;
 
     // ── SELECT mode ───────────────────────────────────────────────────────────
     private final Set<BlockPos> selectedWorldPos = new LinkedHashSet<>();
@@ -253,12 +253,36 @@ public class PhantasiaScriptEditorScreen extends Screen {
     @Override
     protected void init() {
         super.init();
-        if (editorLevel == null) setupEditorWorld();
+
+        // setupEditorWorld() must run whenever pattern is not yet loaded —
+        // even when SHARED_LEVEL is already non-null (the normal path when
+        // opening the editor from SceneScreen). The old check "if (SHARED_LEVEL == null)"
+        // meant pattern was never populated on that path, the renderer block
+        // below was skipped, and nothing rendered.
+        if (pattern == null) {
+            setupEditorWorld();
+        }
+
+        // ── Renderer ──────────────────────────────────────────────────────────
+        // SHARED_LEVEL already contains all pattern blocks placed by SceneScreen
+        // at RENDER_ORIGIN, so we bake from it. editorLevel is a separate
+        // duplicate used only for evalBlockStateFilter() queries.
         if (renderer == null) {
-            renderer = new PhantasiaWorldRenderer(editorLevel);
-            if (pattern != null) renderer.setBaseplatePositions(pattern.baseplatePositions);
+            renderer = new PhantasiaWorldRenderer(SHARED_LEVEL);
+            if (pattern != null) {
+                renderer.setBaseplatePositions(pattern.baseplatePositions);
+                renderer.setControllerWorldPos(pattern.controllerWorldPos);
+
+                Set<BlockPos> fullBakeSet = new HashSet<>();
+                fullBakeSet.addAll(pattern.blockMap.keySet());
+                fullBakeSet.addAll(pattern.baseplatePositions);
+                renderer.setPatternBlocks(fullBakeSet);
+
+                renderer.requestBake();
+            }
             initCamera();
         }
+
         buildInputWidgets();
         populateInputsFromStep();
         rebuildVisibility();
@@ -270,8 +294,40 @@ public class PhantasiaScriptEditorScreen extends Screen {
             onClose();
             return;
         }
+
+        // editorLevel is a local duplicate of the block data used only for
+        // evalBlockStateFilter() queries (e.g. "parts:coil", "controller").
+        // The renderer bakes from SHARED_LEVEL which SceneScreen already
+        // populated at RENDER_ORIGIN — we don't touch SHARED_LEVEL here.
         editorLevel = new PhantasiaTrackedDummyWorld();
         editorLevel.addBlocks(pattern.blockMap);
+
+        // Register block entities so the editor world behaves like the scene world
+        for (BlockPos bp : pattern.blockEntityWorldPos) {
+            try {
+                com.lowdragmc.lowdraglib.utils.BlockInfo info = pattern.blockMap.get(bp);
+                if (info == null) continue;
+                var be = info.getBlockEntity(bp);
+                if (be != null) {
+                    be.setLevel(editorLevel);
+                    editorLevel.setInnerBlockEntity(be);
+                }
+            } catch (Exception ignored) {}
+        }
+
+        // Attempt structure formation on the controller (mirrors finalisePattern in PhantasiaSceneScreen)
+        if (pattern.controller != null && pattern.controllerWorldPos != null) {
+            try {
+                com.gregtechceu.gtceu.api.pattern.BlockPattern pat = pattern.controller.getPattern();
+                if (pat != null) {
+                    boolean matched = pat.checkPatternAt(pattern.controller.getMultiblockState(), true);
+                    if (matched) pattern.controller.onStructureFormed();
+                }
+            } catch (Exception e) {
+                net.phoenixvine.phantasia.Phantasia.LOGGER.warn(
+                        "[Phantasia] Editor: onStructureFormed failed: {}", e.getMessage());
+            }
+        }
     }
 
     private void initCamera() {
@@ -537,7 +593,7 @@ public class PhantasiaScriptEditorScreen extends Screen {
     // Visibility
     // ─────────────────────────────────────────────────────────────────────────
 
-    private void rebuildVisibility() {
+    void rebuildVisibility() {
         if (renderer == null || pattern == null) return;
         PhantasiaScriptData.StepData s = step();
         Set<BlockPos> visible = new HashSet<>(pattern.baseplatePositions);
@@ -799,7 +855,12 @@ public class PhantasiaScriptEditorScreen extends Screen {
             CameraView view = camera.getView(partial);
             renderer.render(view, 0, TOP_BAR_H, this.width, sceneH);
             BlockHitResult hit = renderer.getLastHitResult();
-            hoveredWorldPos = (hit != null && hit.getType() == HitResult.Type.BLOCK) ? hit.getBlockPos() : null;
+            if (hit != null && hit.getType() == HitResult.Type.BLOCK) {
+                BlockPos hp = hit.getBlockPos();
+                hoveredWorldPos = renderer.isVisible(hp) ? hp : null;
+            } else {
+                hoveredWorldPos = null;
+            }
         }
 
         renderInSceneOverlays(g, mx, my);
@@ -817,11 +878,20 @@ public class PhantasiaScriptEditorScreen extends Screen {
 
         super.render(g, mx, my, partial);
 
-        // Block name tooltip in SELECT mode
-        if (hoveredWorldPos != null && editorLevel != null && mode == Mode.SELECT) {
+        // Block name + local XYZ tooltip (all modes, not just SELECT)
+        if (hoveredWorldPos != null && editorLevel != null && pattern != null) {
             try {
                 BlockState bs = editorLevel.getBlockState(hoveredWorldPos);
-                if (!bs.isAir()) g.renderTooltip(font, bs.getBlock().getName(), mx, my);
+                if (!bs.isAir()) {
+                    BlockPos local = pattern.toLocal(hoveredWorldPos);
+                    String coords = local != null ? local.getX() + ", " + local.getY() + ", " + local.getZ() :
+                            hoveredWorldPos.toShortString();
+                    java.util.List<net.minecraft.network.chat.Component> lines = java.util.List.of(
+                            bs.getBlock().getName(),
+                            net.minecraft.network.chat.Component.literal(coords)
+                                    .withStyle(style -> style.withColor(0x667788)));
+                    g.renderComponentTooltip(font, lines, mx, my);
+                }
             } catch (Exception ignored) {}
         }
 
@@ -1387,9 +1457,23 @@ public class PhantasiaScriptEditorScreen extends Screen {
                     }
                 } else if (fsm.equals("layers")) {
                     this.currentFilterMode = FilterMode.RANGE;
-                    if (pattern != null && (cacheRangeMin.isEmpty() || cacheRangeMax.isEmpty())) {
-                        this.cacheRangeMin = String.valueOf(localMinY());
-                        this.cacheRangeMax = String.valueOf(localMaxY());
+                    if (pattern != null) {
+                        int minY = localMinY(), maxY = localMaxY();
+                        // First entry or uninitialised: default to full range
+                        if (s.layerMin == 0 && s.layerMax == 0 && maxY > 0) {
+                            s.layerMin = minY;
+                            s.layerMax = maxY;
+                        }
+                        // Clamp to valid bounds
+                        if (s.layerMin < minY || s.layerMin > maxY) s.layerMin = minY;
+                        if (s.layerMax < minY || s.layerMax > maxY) s.layerMax = maxY;
+                        if (s.layerMin >= s.layerMax) {
+                            s.layerMin = minY;
+                            s.layerMax = maxY;
+                        }
+                        // Always sync caches from struct (not the other way around)
+                        this.cacheRangeMin = String.valueOf(s.layerMin);
+                        this.cacheRangeMax = String.valueOf(s.layerMax);
                     }
                 } else if (fsm.equals("pos")) {
                     this.currentFilterMode = FilterMode.ALL;
@@ -1458,24 +1542,33 @@ public class PhantasiaScriptEditorScreen extends Screen {
             g.drawString(font, badge, bx2, y2 + 3, C_ACCENT, false);
         }
         if (itemsHov) pendingTooltip = "Edit item conditions shown alongside the 3D scene during this step";
-        btns.add(new Btn(x, y2, itemsBtnW, 14, () ->
-                Minecraft.getInstance().setScreen(
-                        new PhantasiaScriptStepItemEditorScreen(this, data, selectedStep))));
+        btns.add(new Btn(x, y2, itemsBtnW, 14, () -> Minecraft.getInstance().setScreen(
+                new PhantasiaScriptStepItemEditorScreen(this, data, selectedStep))));
         x += itemsBtnW + 3;
 
-        // Hide controls — right side of row 2 (Untouched!)
+        // Hide controls — right side of row 2
         int rx2 = this.width - 8;
-        int hpW = 130;
-        rx2 -= hpW;
-        if (isOver(mx, my, rx2 - 54, y2, 54 + hpW, 13))
-            pendingTooltip = "Local positions to exclude from this step: x,y,z; x,y,z \u2026";
-        g.drawString(font, "HidePos:", rx2 - 54, y2 + 2, C_DIM, false);
-        placeBox(hidePosBox, rx2, y2, hpW, 13);
-        rx2 -= 58;
+
+        // HidePos — button opens subscreen instead of inline text box
+        int hideCount = s.hidePositions.size();
+        String hideBtnLabel = hideCount == 0 ? "HidePos\u2026" : "HidePos (" + hideCount + ")";
+        int hideBtnW = font.width(hideBtnLabel) + 10;
+        rx2 -= hideBtnW;
+        boolean hideHov = isOver(mx, my, rx2, y2, hideBtnW, 14);
+        g.fill(rx2, y2, rx2 + hideBtnW, y2 + 14, hideCount > 0 ? C_BTN_ACT : (hideHov ? C_BTN_HOV : C_BTN));
+        if (hideCount > 0) g.fill(rx2, y2, rx2 + hideBtnW, y2 + 1, C_ACCENT);
+        g.drawString(font, hideBtnLabel, rx2 + 5, y2 + 3, hideCount > 0 ? C_ACCENT : C_TEXT, false);
+        if (hideHov) pendingTooltip = "Edit local positions excluded from this step (" + hideCount + " hidden)";
+        final int fStep = selectedStep;
+        btns.add(new Btn(rx2, y2, hideBtnW, 14, () -> Minecraft.getInstance().setScreen(
+                new PhantasiaHidePosEditorScreen(this, data, fStep))));
+        rx2 -= 8;
+
+        // HideY
         if (isOver(mx, my, rx2 - 40, y2, 40 + 30, 13))
             pendingTooltip = "Hide all blocks at this Y layer in this step. Blank = none.";
         g.drawString(font, "HideY:", rx2 - 40, y2 + 2, C_DIM, false);
-        placeBox(hideLayerBox, rx2, y2, 30, 13);
+        placeBox(hideLayerBox, rx2 - 40 + font.width("HideY:") + 3, y2, 30, 13);
     }
 
     private static String showModeTooltip(String mode) {
@@ -1494,10 +1587,10 @@ public class PhantasiaScriptEditorScreen extends Screen {
 
     // ── Editor item panel ─────────────────────────────────────────────────────
 
-    private static final int EIP_W    = 186;
-    private static final int EIP_ROW  = 38;
+    private static final int EIP_W = 186;
+    private static final int EIP_ROW = 38;
     private static final int EIP_ICON = 28;
-    private static final int EIP_HOV  = 36;
+    private static final int EIP_HOV = 36;
 
     /**
      * Shows the GuideME-style item panel while authoring, so devs can see how
@@ -1526,17 +1619,16 @@ public class PhantasiaScriptEditorScreen extends Screen {
                     hov ? 0xBB0D1A2D : 0x22000000);
             g.fill(panelX + 2, ry, panelX + 3, ry + EIP_ROW - 1, ac);
 
-            float[] anim  = editorItemTrackOffset(it);
-            int   alpha   = Math.max(0, Math.min(255, (int)(anim[2] * 255)));
-            int   iconSz  = hov ? EIP_HOV : EIP_ICON;
-            int   iconX   = panelX + 5;
-            int   iconCY  = ry + (EIP_ROW - 1) / 2;
-            int   iconY   = iconCY - iconSz / 2 + Math.round(anim[1]);
+            float[] anim = editorItemTrackOffset(it);
+            int alpha = Math.max(0, Math.min(255, (int) (anim[2] * 255)));
+            int iconSz = hov ? EIP_HOV : EIP_ICON;
+            int iconX = panelX + 5;
+            int iconCY = ry + (EIP_ROW - 1) / 2;
+            int iconY = iconCY - iconSz / 2 + Math.round(anim[1]);
 
             net.minecraft.world.item.Item mcItem = eipResolveItem(it.item);
             if (mcItem != null) {
-                net.minecraft.world.item.ItemStack stack =
-                        new net.minecraft.world.item.ItemStack(mcItem, it.count);
+                net.minecraft.world.item.ItemStack stack = new net.minecraft.world.item.ItemStack(mcItem, it.count);
                 float scale = iconSz / 16f;
                 if (alpha < 255) com.mojang.blaze3d.systems.RenderSystem.setShaderColor(1f, 1f, 1f, alpha / 255f);
                 g.pose().pushPose();
@@ -1560,7 +1652,9 @@ public class PhantasiaScriptEditorScreen extends Screen {
             ty += 10;
 
             String pillTxt = switch (it.type == null ? "input" : it.type.toLowerCase(java.util.Locale.ROOT)) {
-                case "output" -> "Out"; case "catalyst" -> "Cat"; default -> "In";
+                case "output" -> "Out";
+                case "catalyst" -> "Cat";
+                default -> "In";
             };
             int pillW = font.width(pillTxt) + 5;
             g.fill(tx, ty, tx + pillW, ty + 8, ac & 0x44FFFFFF | 0x44000000);
@@ -1586,8 +1680,7 @@ public class PhantasiaScriptEditorScreen extends Screen {
 
             final PhantasiaSceneData.ItemConditionData fIt = it;
             btns.add(new Btn(panelX + 2, ry, EIP_W - 4, EIP_ROW - 1, () -> {
-                PhantasiaSceneData microscene = fIt.microsceneId != null
-                        ? PhantasiaScenes.get(fIt.microsceneId) : null;
+                PhantasiaSceneData microscene = fIt.microsceneId != null ? PhantasiaScenes.get(fIt.microsceneId) : null;
                 Minecraft.getInstance().setScreen(
                         new PhantasiaItemMicrosceneScreen(
                                 PhantasiaScriptEditorScreen.this, fIt, microscene));
@@ -1599,27 +1692,35 @@ public class PhantasiaScriptEditorScreen extends Screen {
 
     private float[] editorItemTrackOffset(PhantasiaSceneData.ItemConditionData it) {
         String track = it.track == null ? "none" : it.track.toLowerCase(java.util.Locale.ROOT);
-        if ("none".equals(track)) return new float[]{ 0, 0, 1f };
+        if ("none".equals(track)) return new float[] { 0, 0, 1f };
         int dur = Math.max(1, it.trackDurationTicks);
         float t = (previewTick % dur) / (float) dur;
         return switch (track) {
-            case "left"  -> { float fade = 1f - Math.abs(t - 0.5f) * 2f; yield new float[]{ t * 40f - 20f, 0, Math.max(0, fade) }; }
-            case "right" -> { float fade = 1f - Math.abs(t - 0.5f) * 2f; yield new float[]{ 20f - t * 40f, 0, Math.max(0, fade) }; }
-            case "up"    -> new float[]{ 0, -(t * 24f), Math.max(0, 1f - t) };
-            case "down"  -> new float[]{ 0,  (t * 24f), Math.max(0, 1f - t) };
-            case "pulse" -> new float[]{ 0, (float) Math.sin(t * 2 * Math.PI) * 3f, 1f };
-            default      -> new float[]{ 0, 0, 1f };
+            case "left" -> {
+                float fade = 1f - Math.abs(t - 0.5f) * 2f;
+                yield new float[] { t * 40f - 20f, 0, Math.max(0, fade) };
+            }
+            case "right" -> {
+                float fade = 1f - Math.abs(t - 0.5f) * 2f;
+                yield new float[] { 20f - t * 40f, 0, Math.max(0, fade) };
+            }
+            case "up" -> new float[] { 0, -(t * 24f), Math.max(0, 1f - t) };
+            case "down" -> new float[] { 0, (t * 24f), Math.max(0, 1f - t) };
+            case "pulse" -> new float[] { 0, (float) Math.sin(t * 2 * Math.PI) * 3f, 1f };
+            default -> new float[] { 0, 0, 1f };
         };
     }
 
     private static net.minecraft.world.item.Item eipResolveItem(String id) {
         if (id == null || id.isBlank()) return null;
         try {
-            var rl = id.contains(":") ? new net.minecraft.resources.ResourceLocation(id)
-                    : new net.minecraft.resources.ResourceLocation("minecraft", id);
+            var rl = id.contains(":") ? new net.minecraft.resources.ResourceLocation(id) :
+                    new net.minecraft.resources.ResourceLocation("minecraft", id);
             var item = net.minecraftforge.registries.ForgeRegistries.ITEMS.getValue(rl);
             return (item == null || item == net.minecraft.world.item.Items.AIR) ? null : item;
-        } catch (Exception e) { return null; }
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private String eipTrunc(String s, int maxPx) {
@@ -2597,16 +2698,29 @@ public class PhantasiaScriptEditorScreen extends Screen {
             scriptDurationBox.setValue(data.getScriptDuration() > 0 ? String.valueOf(data.getScriptDuration()) : "");
         populateStartCamBoxes();
 
-        // 1. Determine active mode and populate caches cleanly
+        // 1. Determine active mode and populate caches cleanly from struct fields
         if (s != null && s.show != null) {
             String rawShow = s.show.trim();
-            if (rawShow.startsWith("range:")) { // Maps to your "layers" label logic
+            if (rawShow.equals("layers")) {
+                // Canonical RANGE format: s.layerMin / s.layerMax hold the values
+                this.currentFilterMode = FilterMode.RANGE;
+                this.cacheRangeMin = String.valueOf(s.layerMin);
+                this.cacheRangeMax = String.valueOf(s.layerMax);
+            } else if (rawShow.startsWith("range:")) {
+                // Legacy migration: old "range:min..max" string format — convert on load
                 this.currentFilterMode = FilterMode.RANGE;
                 String body = rawShow.substring(6);
                 if (body.contains("..")) {
                     String[] split = body.split("\\.\\.", 2);
                     this.cacheRangeMin = split[0].trim();
                     this.cacheRangeMax = split[1].trim();
+                    try {
+                        s.layerMin = Integer.parseInt(this.cacheRangeMin);
+                    } catch (NumberFormatException ignored) {}
+                    try {
+                        s.layerMax = Integer.parseInt(this.cacheRangeMax);
+                    } catch (NumberFormatException ignored) {}
+                    s.show = "layers"; // upgrade to canonical format immediately
                 }
             } else if (rawShow.startsWith("parts:")) {
                 this.currentFilterMode = FilterMode.PARTS;
@@ -2638,13 +2752,19 @@ public class PhantasiaScriptEditorScreen extends Screen {
             case ALL -> s.show = "all";
             case LAYER -> s.show = "layer";
             case RANGE -> {
-                String min = this.cacheRangeMin.trim();
-                String max = this.cacheRangeMax.trim();
-                s.show = "range:" + min + ".." + max;
+                // Write canonical "layers" so evalShowFilter matches it,
+                // and store the values in the struct fields it reads from.
+                s.show = "layers";
+                try {
+                    s.layerMin = Integer.parseInt(this.cacheRangeMin.trim());
+                } catch (NumberFormatException ignored) {}
+                try {
+                    s.layerMax = Integer.parseInt(this.cacheRangeMax.trim());
+                } catch (NumberFormatException ignored) {}
             }
             case PARTS -> {
                 String expr = this.cachePartsExpr.trim();
-                // If parts mode is selected but completely empty, fall back to displaying everything safely
+                // If parts mode is active but expression is empty, show all blocks safely
                 s.show = expr.isEmpty() ? "all" : "parts:" + expr;
             }
         }

@@ -8,7 +8,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.state.BlockState;
 import net.phoenixvine.phantasia.client.camera.LerpType;
 import net.phoenixvine.phantasia.client.screens.PhantasiaSceneScreen;
-import net.phoenixvine.phantasia.common.PhantasiaParticleEffect;
 
 import lombok.Getter;
 
@@ -21,20 +20,20 @@ import javax.annotation.Nullable;
 public class PhantasiaScript {
 
     public record Step(
-            int tickOffset,
-            String caption,
-            Predicate<BlockPos> filter,
-            boolean working,
-            int forceShape,
-            int forceCoil,
-            float yaw,
-            float pitch,
-            float zoom,
-            boolean useCam,
-            LerpType lerpType,
-            int lerpTicks,
-            @Nullable String fakeRecipeId,
-            List<PhantasiaParticleEffect> particleEffects) {
+                       int tickOffset,
+                       String caption,
+                       Predicate<BlockPos> filter,
+                       boolean working,
+                       int forceShape,
+                       int forceCoil,
+                       float yaw,
+                       float pitch,
+                       float zoom,
+                       boolean useCam,
+                       LerpType lerpType,
+                       int lerpTicks,
+                       @Nullable String fakeRecipeId,
+                       List<PhantasiaParticleEffect> particleEffects) {
 
         public boolean hasCamera() {
             return useCam;
@@ -134,7 +133,8 @@ public class PhantasiaScript {
      * Compiles variant groups for this script given the loaded pattern and active
      * shape info. Returns a new {@link PhantasiaScript} with the groups attached.
      *
-     * <p>Called by {@link PhantasiaSceneScreen} after the pattern has been loaded,
+     * <p>
+     * Called by {@link PhantasiaSceneScreen} after the pattern has been loaded,
      * because block world-positions are needed to build the position→group maps.
      */
     /**
@@ -151,8 +151,7 @@ public class PhantasiaScript {
     public PhantasiaScript withVariants(MultiblockMachineDefinition definition,
                                         PhantasiaLoadedPattern pattern,
                                         java.util.List<MultiblockShapeInfo> allShapes) {
-        List<PhantasiaVariantGroup> groups =
-                PhantasiaVariantGroup.compile(sourceData, definition, pattern, allShapes);
+        List<PhantasiaVariantGroup> groups = PhantasiaVariantGroup.compile(sourceData, definition, pattern, allShapes);
         return new PhantasiaScript(sourceData, steps, commonMistakes, globalMistakes,
                 heatmapTiers, groups);
     }
@@ -445,8 +444,7 @@ public class PhantasiaScript {
             List<PhantasiaScript.Step> compiled = new ArrayList<>();
             int i = 0;
             for (PhantasiaScriptData.StepData sd : data.getSteps()) {
-                List<PhantasiaParticleEffect> fx =
-                        i < pendingParticles.size() ? pendingParticles.get(i) : List.of();
+                List<PhantasiaParticleEffect> fx = i < pendingParticles.size() ? pendingParticles.get(i) : List.of();
                 compiled.add(compileStepWithParticles(sd, fx));
                 i++;
             }

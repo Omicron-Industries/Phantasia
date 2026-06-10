@@ -6,8 +6,6 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.dimension.DimensionType;
 import net.minecraft.world.level.dimension.LevelStem;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.server.ServerAboutToStartEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -23,8 +21,8 @@ import net.minecraftforge.fml.common.Mod;
  * Java-side DimensionType registration call at runtime. You declare the dimension
  * by placing JSON files in your mod's resources:
  *
- *   resources/data/phantasia/dimension/scene.json
- *   resources/data/phantasia/dimension_type/scene.json
+ * resources/data/phantasia/dimension/scene.json
+ * resources/data/phantasia/dimension_type/scene.json
  *
  * The content for both files is included below as Javadoc so you can copy them
  * to the right paths. The mod registers the codec for the void chunk generator
@@ -41,39 +39,39 @@ import net.minecraftforge.fml.common.Mod;
  * DATAPACK FILE 1: resources/data/phantasia/dimension_type/scene.json
  * ─────────────────────────────────────────────────────────────────────────────
  * {
- *   "ultrawarm": false,
- *   "natural": false,
- *   "coordinate_scale": 1.0,
- *   "has_skylight": false,
- *   "has_ceiling": false,
- *   "ambient_light": 1.0,
- *   "monster_spawn_block_light_limit": 0,
- *   "monster_spawn_light_level": {
- *     "type": "minecraft:uniform",
- *     "value": { "min_inclusive": 0, "max_inclusive": 7 }
- *   },
- *   "piglin_safe": true,
- *   "bed_works": false,
- *   "respawn_anchor_works": false,
- *   "has_raids": false,
- *   "logical_height": 384,
- *   "min_y": 0,
- *   "height": 384,
- *   "infiniburn": "#minecraft:infiniburn_overworld",
- *   "effects": "minecraft:the_end"
+ * "ultrawarm": false,
+ * "natural": false,
+ * "coordinate_scale": 1.0,
+ * "has_skylight": false,
+ * "has_ceiling": false,
+ * "ambient_light": 1.0,
+ * "monster_spawn_block_light_limit": 0,
+ * "monster_spawn_light_level": {
+ * "type": "minecraft:uniform",
+ * "value": { "min_inclusive": 0, "max_inclusive": 7 }
+ * },
+ * "piglin_safe": true,
+ * "bed_works": false,
+ * "respawn_anchor_works": false,
+ * "has_raids": false,
+ * "logical_height": 384,
+ * "min_y": 0,
+ * "height": 384,
+ * "infiniburn": "#minecraft:infiniburn_overworld",
+ * "effects": "minecraft:the_end"
  * }
  *
  * ambient_light=1.0 → full-bright (no skylight needed, matches Phantasia's BER pass).
- * effects=the_end   → no sky rendering, no star/moon/sun, no fog gradient.
+ * effects=the_end → no sky rendering, no star/moon/sun, no fog gradient.
  *
  * ─────────────────────────────────────────────────────────────────────────────
  * DATAPACK FILE 2: resources/data/phantasia/dimension/scene.json
  * ─────────────────────────────────────────────────────────────────────────────
  * {
- *   "type": "phantasia:scene",
- *   "generator": {
- *     "type": "phantasia:void"
- *   }
+ * "type": "phantasia:scene",
+ * "generator": {
+ * "type": "phantasia:void"
+ * }
  * }
  *
  * ─────────────────────────────────────────────────────────────────────────────
@@ -81,14 +79,14 @@ import net.minecraftforge.fml.common.Mod;
  * Registrar class, called during mod construction):
  * ─────────────────────────────────────────────────────────────────────────────
  *
- *   private static final DeferredRegister<Codec<? extends ChunkGenerator>> CHUNK_GEN_CODECS =
- *       DeferredRegister.create(Registries.CHUNK_GENERATOR, "phantasia");
+ * private static final DeferredRegister<Codec<? extends ChunkGenerator>> CHUNK_GEN_CODECS =
+ * DeferredRegister.create(Registries.CHUNK_GENERATOR, "phantasia");
  *
- *   public static final RegistryObject<Codec<PhantasiaVoidChunkGenerator>> VOID_GENERATOR_CODEC =
- *       CHUNK_GEN_CODECS.register("void", () -> PhantasiaVoidChunkGenerator.CODEC);
+ * public static final RegistryObject<Codec<PhantasiaVoidChunkGenerator>> VOID_GENERATOR_CODEC =
+ * CHUNK_GEN_CODECS.register("void", () -> PhantasiaVoidChunkGenerator.CODEC);
  *
- *   // In mod constructor:
- *   CHUNK_GEN_CODECS.register(modEventBus);
+ * // In mod constructor:
+ * CHUNK_GEN_CODECS.register(modEventBus);
  */
 @Mod.EventBusSubscriber(modid = "phantasia", bus = Mod.EventBusSubscriber.Bus.FORGE)
 public final class PhantasiaDimension {
@@ -136,7 +134,7 @@ public final class PhantasiaDimension {
             // the dimension exists.
             net.phoenixvine.phantasia.Phantasia.LOGGER.warn(
                     "[Phantasia] Scene dimension '{}' not found — cold loads will be used. " +
-                    "Ensure dimension JSON is correctly placed in resources/data/phantasia/dimension/scene.json",
+                            "Ensure dimension JSON is correctly placed in resources/data/phantasia/dimension/scene.json",
                     LEVEL_KEY.location());
         } else {
             net.phoenixvine.phantasia.Phantasia.LOGGER.info(

@@ -9,11 +9,12 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 import net.phoenixvine.phantasia.Phantasia;
-import net.phoenixvine.phantasia.client.render.PhantasiaShaders; // Added Import
 import net.phoenixvine.phantasia.client.screens.*;
+import net.phoenixvine.phantasia.common.PhantasiaGuideLoader;
 import net.phoenixvine.phantasia.common.PhantasiaKeybind;
 import net.phoenixvine.phantasia.common.PhantasiaSceneLoader;
 import net.phoenixvine.phantasia.common.PhantasiaScriptLoader;
+
 
 @Mod.EventBusSubscriber(modid = Phantasia.MOD_ID, bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
 public class PhantasiaClient {
@@ -26,6 +27,7 @@ public class PhantasiaClient {
     }
 
     public static class VocalVibrancyClientTick {
+
         @SubscribeEvent
         public static void onClientTick(TickEvent.ClientTickEvent event) {
             if (event.phase != TickEvent.Phase.END) return;
@@ -37,11 +39,12 @@ public class PhantasiaClient {
         event.enqueueWork(() -> {
             PhantasiaScriptLoader.discoverAndLoad();
             PhantasiaSceneLoader.load();
+            PhantasiaGuideLoader.load(); // Added right after scene loader
 
             // Fix: Initialize shader manually using the active stable resource manager
             // This safely bypasses vanilla's early asset loop event that Oculus blocks.
             var resourceManager = Minecraft.getInstance().getResourceManager();
-            PhantasiaShaders.safeInit(resourceManager);
+
         });
     }
 

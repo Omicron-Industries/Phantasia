@@ -5,10 +5,19 @@ import com.lowdragmc.lowdraglib.utils.TrackedDummyWorld;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.VoxelShape;
+import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
+
+import javax.annotation.Nullable;
+import java.util.ArrayList;
+import java.util.List;
 
 @OnlyIn(Dist.CLIENT)
 public class PhantasiaTrackedDummyWorld extends TrackedDummyWorld {
@@ -18,54 +27,63 @@ public class PhantasiaTrackedDummyWorld extends TrackedDummyWorld {
     /**
      * Returns DummyWorld's own isolated chunk source instead of proxying to
      * the real ClientLevel's chunk source.
-     *
-     * TrackedDummyWorld.getChunkSource() returns the real ClientLevel's
-     * ChunkSource when proxyWorld is non-null (which it always is — we pass
-     * mc.level to the constructor). This makes Embeddium's terrain scanner
-     * treat SHARED_LEVEL blocks as real world terrain: it finds the chunks as
-     * "loaded", builds static VBOs for them, and renders them permanently as
-     * a frozen snapshot — overwriting PhantasiaWorldRenderer's output and
-     * causing the initial lag spike (Embeddium rebuilding sections on first load).
-     *
-     * Returning super.getChunkSource() (DummyWorld's own empty chunk source)
-     * makes the dummy world invisible to Embeddium's terrain pipeline entirely.
-     * getBlockState() reads directly from renderedBlocks (not through the chunk
-     * source) so the VBO bake is unaffected.
      */
     @Override
     public net.minecraft.world.level.chunk.ChunkSource getChunkSource() {
         return super.getChunkSource();
     }
 
+    @Override
+    public List<VoxelShape> getBlockCollisions(@Nullable Entity entity, AABB aabb) {
+        // FIX: Vanilla particles always pass null for the entity.
+        // By returning an empty list here, particles lose their collision
+        // geometry and will fly freely without freezing on invisible blocks.
+        if (entity == null) {
+            return java.util.Collections.emptyList();
+        }
+
+        List<VoxelShape> collisions = new ArrayList<>();
+
+        int minX = net.minecraft.util.Mth.floor(aabb.minX) - 1;
+        int maxX = net.minecraft.util.Mth.floor(aabb.maxX) + 1;
+        int minY = net.minecraft.util.Mth.floor(aabb.minY) - 1;
+        int maxY = net.minecraft.util.Mth.floor(aabb.maxY) + 1;
+        int minZ = net.minecraft.util.Mth.floor(aabb.minZ) - 1;
+        int maxZ = net.minecraft.util.Mth.floor(aabb.maxZ) + 1;
+
+        BlockPos.MutableBlockPos mutablePos = new BlockPos.MutableBlockPos();
+        CollisionContext context = CollisionContext.of(entity);
+
+        for (int x = minX; x <= maxX; x++) {
+            for (int y = minY; y <= maxY; y++) {
+                for (int z = minZ; z <= maxZ; z++) {
+                    mutablePos.set(x, y, z);
+                    BlockState state = this.getBlockState(mutablePos);
+                    if (!state.isAir()) {
+                        VoxelShape shape = state.getCollisionShape(this, mutablePos, context);
+                        if (!shape.isEmpty()) {
+                            VoxelShape movedShape = shape.move(x, y, z);
+                            if (Shapes.joinIsNotEmpty(movedShape, Shapes.create(aabb), net.minecraft.world.phys.shapes.BooleanOp.AND)) {
+                                collisions.add(movedShape);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return collisions;
+    }
+
     // ── Particle routing ──────────────────────────────────────────────────────
 
     /**
      * Routes animateTick particle spawns directly to mc.particleEngine.
-     *
-     * LDLib DummyWorld.addParticle() cannot construct Particle objects from
-     * ParticleOptions — that requires ParticleProvider lookups only present in
-     * mc.particleEngine. Routing here ensures particles from animateTick reach
-     * the same engine GT BER particles use (via the particleProxyLevel swap in
-     * drawTileEntities), so mc.particleEngine.render() draws them each frame.
-     *
-     * NOTE: TrackedDummyWorld.addFreshEntity(), getAllEntities(), tickWorld(),
-     * and getBlockTint() are all already correctly implemented in the superclass
-     * and do NOT need to be overridden here.
-     * - addFreshEntity() stores entities in this.entities (Int2ObjectArrayMap)
-     * - getAllEntities() returns a list from that map
-     * - tickWorld() ticks entities and BE tickers each call
-     * - getBlockTint() proxies to the real ClientLevel via proxyWorld
      */
     @Override
     public void addParticle(ParticleOptions particleData,
                             double x, double y, double z,
                             double xSpeed, double ySpeed, double zSpeed) {
         // Route to the dedicated PhantasiaParticleEngine rather than mc.particleEngine.
-        // Using mc.particleEngine causes two problems:
-        // 1. Particles appear at the dummy world's real coordinates in the actual world.
-        // 2. Real-world particles bleed into Phantasia's render pass.
-        // PhantasiaParticleEngine shares providers with mc.particleEngine so all GT
-        // particle types (MufflerParticle etc.) are available.
         net.phoenixvine.phantasia.client.render.PhantasiaParticleEngine.addParticle(
                 particleData, x, y, z, xSpeed, ySpeed, zSpeed);
     }
@@ -81,11 +99,6 @@ public class PhantasiaTrackedDummyWorld extends TrackedDummyWorld {
 
     /**
      * Drives one ambient animation tick for the block at {@code pos}.
-     *
-     * The hasTicker guard bypass: TFG's ActiveParticleBlock with hasTicker=true
-     * checks level.getBlockEntity(pos) != null and returns early if so. The
-     * dummy world has real BEs registered, so we temporarily remove the BE
-     * during the animateTick call and restore it in a finally block.
      */
     public void tickAnimateForPos(BlockPos pos, RandomSource random) {
         BlockState state = getBlockState(pos);

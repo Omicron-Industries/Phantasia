@@ -23,10 +23,10 @@ import java.util.List;
  * Lets the user:
  * - Change the machine ID (multiblock OR singleblock) and XYZ offset.
  * - Add, edit, and remove {@link PhantasiaSceneData.ItemConditionData} entries
- *   that show recipe conditions alongside this machine in the scene viewer.
+ * that show recipe conditions alongside this machine in the scene viewer.
  *
  * Changes are written directly into the parent editor's {@code data} object
- * (same reference) so they're immediately reflected.  The parent editor's
+ * (same reference) so they're immediately reflected. The parent editor's
  * {@link PhantasiaSceneEditorScreen#checkpoint()} is called before mutating
  * so the undo stack stays consistent.
  */
@@ -34,32 +34,32 @@ import java.util.List;
 public class PhantasiaPlacementEditorScreen extends Screen {
 
     // ── Theme ─────────────────────────────────────────────────────────────────
-    private static final int C_BG      = 0xFF080810;
-    private static final int C_BAR     = 0xEE0A0A14;
-    private static final int C_PANEL   = 0xDD0C0C1A;
-    private static final int C_ACCENT  = 0xFF4FC3F7;
-    private static final int C_BTN     = 0xBB151528;
+    private static final int C_BG = 0xFF080810;
+    private static final int C_BAR = 0xEE0A0A14;
+    private static final int C_PANEL = 0xDD0C0C1A;
+    private static final int C_ACCENT = 0xFF4FC3F7;
+    private static final int C_BTN = 0xBB151528;
     private static final int C_BTN_HOV = 0xBB1A2840;
     private static final int C_BTN_ACT = 0xFF0D3050;
-    private static final int C_TEXT    = 0xFFDDDDDD;
-    private static final int C_DIM     = 0xFF667788;
-    private static final int C_WARN    = 0xFFFFB74D;
-    private static final int C_GREEN   = 0xFF66BB6A;
-    private static final int C_RED     = 0xFFFF5252;
+    private static final int C_TEXT = 0xFFDDDDDD;
+    private static final int C_DIM = 0xFF667788;
+    private static final int C_WARN = 0xFFFFB74D;
+    private static final int C_GREEN = 0xFF66BB6A;
+    private static final int C_RED = 0xFFFF5252;
 
-    private static final int TOP_H   = 22;
+    private static final int TOP_H = 22;
     private static final int PANEL_W = 420;
 
-    private static final String[] TYPES       = { "input", "output", "catalyst" };
+    private static final String[] TYPES = { "input", "output", "catalyst" };
     private static final String[] TYPE_LABELS = { "Input", "Output", "Catalyst" };
 
-    private static final String[] TRACKS       = { "none",  "left", "right", "up",  "down", "pulse" };
-    private static final String[] TRACK_LABELS = { "Fixed", "→",    "←",     "↑",   "↓",    "Pulse" };
+    private static final String[] TRACKS = { "none", "left", "right", "up", "down", "pulse" };
+    private static final String[] TRACK_LABELS = { "Fixed", "→", "←", "↑", "↓", "Pulse" };
 
     // ── Parent ────────────────────────────────────────────────────────────────
     private final PhantasiaSceneEditorScreen parent;
-    private final PhantasiaSceneData         sceneData;
-    private final int                        placementIndex;
+    private final PhantasiaSceneData sceneData;
+    private final int placementIndex;
 
     // ── State ─────────────────────────────────────────────────────────────────
     /** Index of item being edited, -1 = none (add-new form is active). */
@@ -83,6 +83,7 @@ public class PhantasiaPlacementEditorScreen extends Screen {
 
     // ── Button list ───────────────────────────────────────────────────────────
     private record Btn(int x, int y, int w, int h, Runnable action) {
+
         boolean hit(double mx, double my) {
             return mx >= x && mx < x + w && my >= y && my < y + h;
         }
@@ -97,8 +98,8 @@ public class PhantasiaPlacementEditorScreen extends Screen {
                                           PhantasiaSceneData sceneData,
                                           int placementIndex) {
         super(Component.literal("Edit Placement"));
-        this.parent         = parent;
-        this.sceneData      = sceneData;
+        this.parent = parent;
+        this.sceneData = sceneData;
         this.placementIndex = placementIndex;
     }
 
@@ -122,15 +123,19 @@ public class PhantasiaPlacementEditorScreen extends Screen {
         machineIdBox.setHint(Component.literal("gtceu:electric_blast_furnace"));
         machineIdBox.setValue(p.machine != null ? p.machine : "");
 
-        offsetXBox = makeIntBox(); offsetXBox.setValue(String.valueOf(p.x));
-        offsetYBox = makeIntBox(); offsetYBox.setValue(String.valueOf(p.y));
-        offsetZBox = makeIntBox(); offsetZBox.setValue(String.valueOf(p.z));
+        offsetXBox = makeIntBox();
+        offsetXBox.setValue(String.valueOf(p.x));
+        offsetYBox = makeIntBox();
+        offsetYBox.setValue(String.valueOf(p.y));
+        offsetZBox = makeIntBox();
+        offsetZBox.setValue(String.valueOf(p.z));
 
         itemIdBox = addW(new EditBox(font, 0, 0, 200, 12, Component.empty()));
         itemIdBox.setMaxLength(128);
         itemIdBox.setHint(Component.literal("namespace:item_id"));
 
-        itemCountBox = makeIntBox(); itemCountBox.setHint(Component.literal("1"));
+        itemCountBox = makeIntBox();
+        itemCountBox.setHint(Component.literal("1"));
 
         itemLabelBox = addW(new EditBox(font, 0, 0, 100, 12, Component.empty()));
         itemLabelBox.setMaxLength(32);
@@ -186,8 +191,8 @@ public class PhantasiaPlacementEditorScreen extends Screen {
         g.fill(0, 0, width, TOP_H, C_BAR);
         g.fill(0, TOP_H - 1, width, TOP_H, C_ACCENT);
 
-        String title = "Edit Placement #" + placementIndex
-                + "  —  " + (pd().machine.isEmpty() ? "unnamed" : pd().machine);
+        String title = "Edit Placement #" + placementIndex + "  —  " +
+                (pd().machine.isEmpty() ? "unnamed" : pd().machine);
         g.drawCenteredString(font, title, width / 2, (TOP_H - 8) / 2, C_DIM);
 
         int rx = width - 4;
@@ -211,10 +216,10 @@ public class PhantasiaPlacementEditorScreen extends Screen {
     // ── Main panel ────────────────────────────────────────────────────────────
 
     private void renderPanel(GuiGraphics g, int mx, int my) {
-        int pw  = Math.min(PANEL_W, width - 20);
-        int px  = (width - pw) / 2;
-        int py  = TOP_H + 8;
-        int cy  = py;
+        int pw = Math.min(PANEL_W, width - 20);
+        int px = (width - pw) / 2;
+        int py = TOP_H + 8;
+        int cy = py;
 
         g.fill(px, py, px + pw, height - 8, C_PANEL);
         g.fill(px, py, px + pw, py + 1, C_ACCENT);
@@ -237,11 +242,14 @@ public class PhantasiaPlacementEditorScreen extends Screen {
         g.drawString(font, "Offset:", px + 8, cy + 2, C_DIM, false);
         int ox = px + 8 + font.width("Offset:") + 4;
         g.drawString(font, "X", ox, cy + 2, C_DIM, false);
-        place(offsetXBox, ox + 8, cy, 34, 12); ox += 46;
+        place(offsetXBox, ox + 8, cy, 34, 12);
+        ox += 46;
         g.drawString(font, "Y", ox, cy + 2, C_DIM, false);
-        place(offsetYBox, ox + 8, cy, 34, 12); ox += 46;
+        place(offsetYBox, ox + 8, cy, 34, 12);
+        ox += 46;
         g.drawString(font, "Z", ox, cy + 2, C_DIM, false);
-        place(offsetZBox, ox + 8, cy, 34, 12); ox += 46;
+        place(offsetZBox, ox + 8, cy, 34, 12);
+        ox += 46;
 
         boolean offHov = over(mx, my, ox, cy, 50, 12);
         g.fill(ox, cy, ox + 50, cy + 12, offHov ? C_BTN_HOV : C_BTN);
@@ -280,7 +288,8 @@ public class PhantasiaPlacementEditorScreen extends Screen {
         // Type selector for new item
         int bx = px + 8;
         for (int ti = 0; ti < TYPES.length; ti++) {
-            String t = TYPES[ti]; String tl = TYPE_LABELS[ti];
+            String t = TYPES[ti];
+            String tl = TYPE_LABELS[ti];
             int tw = font.width(tl) + 10;
             boolean sel = t.equals(newItemType);
             int ac = PhantasiaSceneData.ItemConditionData.staticAccentFor(t);
@@ -312,7 +321,8 @@ public class PhantasiaPlacementEditorScreen extends Screen {
         g.drawString(font, "Track:", px + 8, cy + 2, C_DIM, false);
         int tbx = px + 8 + font.width("Track:") + 4;
         for (int ti = 0; ti < TRACKS.length; ti++) {
-            String t = TRACKS[ti]; String tl = TRACK_LABELS[ti];
+            String t = TRACKS[ti];
+            String tl = TRACK_LABELS[ti];
             int tw = font.width(tl) + 8;
             boolean sel = t.equals(newItemTrack);
             boolean hov = over(mx, my, tbx, cy, tw, 12);
@@ -368,7 +378,9 @@ public class PhantasiaPlacementEditorScreen extends Screen {
 
         // Type badge
         String badge = item.type == null ? "in" : switch (item.type.toLowerCase(java.util.Locale.ROOT)) {
-            case "output" -> "out"; case "catalyst" -> "cat"; default -> "in";
+            case "output" -> "out";
+            case "catalyst" -> "cat";
+            default -> "in";
         };
         int badgeW = font.width(badge) + 6;
         g.fill(px + 7, cy + 2, px + 7 + badgeW, cy + 12, ac & 0x44FFFFFF | 0x44000000);
@@ -386,8 +398,10 @@ public class PhantasiaPlacementEditorScreen extends Screen {
         // Track indicator
         if (item.track != null && !"none".equals(item.track)) {
             String trackLabel = switch (item.track) {
-                case "left" -> "→"; case "right" -> "←";
-                case "up"   -> "↑"; case "down"  -> "↓";
+                case "left" -> "→";
+                case "right" -> "←";
+                case "up" -> "↑";
+                case "down" -> "↓";
                 case "pulse" -> "~";
                 default -> "?";
             };
@@ -411,7 +425,12 @@ public class PhantasiaPlacementEditorScreen extends Screen {
 
         // Click to expand/collapse edit
         btns.add(new Btn(px + 4, cy, pw - 30, 14, () -> {
-            if (editingItem == fii) { editingItem = -1; } else { editingItem = fii; populateEditBoxes(p); }
+            if (editingItem == fii) {
+                editingItem = -1;
+            } else {
+                editingItem = fii;
+                populateEditBoxes(p);
+            }
         }));
         cy += 15;
 
@@ -433,7 +452,8 @@ public class PhantasiaPlacementEditorScreen extends Screen {
         // Type selector
         int bx = px + 8;
         for (int ti = 0; ti < TYPES.length; ti++) {
-            String t = TYPES[ti]; String tl = TYPE_LABELS[ti];
+            String t = TYPES[ti];
+            String tl = TYPE_LABELS[ti];
             int tw = font.width(tl) + 10;
             boolean sel = t.equals(item.type);
             int ac = PhantasiaSceneData.ItemConditionData.staticAccentFor(t);
@@ -469,7 +489,8 @@ public class PhantasiaPlacementEditorScreen extends Screen {
         g.drawString(font, "Track:", px + 8, cy + 2, C_DIM, false);
         int tbx = px + 8 + font.width("Track:") + 4;
         for (int ti = 0; ti < TRACKS.length; ti++) {
-            String t = TRACKS[ti]; String tl = TRACK_LABELS[ti];
+            String t = TRACKS[ti];
+            String tl = TRACK_LABELS[ti];
             int tw = font.width(tl) + 8;
             boolean sel = t.equals(item.track == null ? "none" : item.track);
             boolean hov = over(mx, my, tbx, cy, tw, 12);
@@ -515,13 +536,15 @@ public class PhantasiaPlacementEditorScreen extends Screen {
             parent.checkpoint();
             String newId = itemIdBox.getValue().trim();
             if (!newId.isEmpty()) item.item = newId;
-            try { item.count = Math.max(1, Integer.parseInt(itemCountBox.getValue().trim())); }
-            catch (NumberFormatException ignored) {}
+            try {
+                item.count = Math.max(1, Integer.parseInt(itemCountBox.getValue().trim()));
+            } catch (NumberFormatException ignored) {}
             String lbl = itemLabelBox.getValue().trim();
             item.label = lbl.isEmpty() ? null : lbl;
             if (item.track != null && !"none".equals(item.track)) {
-                try { item.trackDurationTicks = Math.max(1, Integer.parseInt(itemDurationBox.getValue().trim())); }
-                catch (NumberFormatException ignored) {}
+                try {
+                    item.trackDurationTicks = Math.max(1, Integer.parseInt(itemDurationBox.getValue().trim()));
+                } catch (NumberFormatException ignored) {}
             }
             String desc = itemDescBox.getValue().trim();
             item.description = desc.isEmpty() ? null : desc;
@@ -562,22 +585,24 @@ public class PhantasiaPlacementEditorScreen extends Screen {
         String id = itemIdBox.getValue().trim();
         if (id.isEmpty()) return;
         int cnt = 1;
-        try { cnt = Math.max(1, Integer.parseInt(itemCountBox.getValue().trim())); }
-        catch (NumberFormatException ignored) {}
-        String lbl  = itemLabelBox.getValue().trim();
+        try {
+            cnt = Math.max(1, Integer.parseInt(itemCountBox.getValue().trim()));
+        } catch (NumberFormatException ignored) {}
+        String lbl = itemLabelBox.getValue().trim();
         String desc = itemDescBox.getValue().trim();
         String scId = itemMicrosceneBox.getValue().trim();
         int dur = 20;
-        try { dur = Math.max(1, Integer.parseInt(itemDurationBox.getValue().trim())); }
-        catch (NumberFormatException ignored) {}
+        try {
+            dur = Math.max(1, Integer.parseInt(itemDurationBox.getValue().trim()));
+        } catch (NumberFormatException ignored) {}
 
         parent.checkpoint();
-        PhantasiaSceneData.ItemConditionData item =
-                new PhantasiaSceneData.ItemConditionData(id, cnt, lbl.isEmpty() ? null : lbl, newItemType);
-        item.track             = newItemTrack;
+        PhantasiaSceneData.ItemConditionData item = new PhantasiaSceneData.ItemConditionData(id, cnt,
+                lbl.isEmpty() ? null : lbl, newItemType);
+        item.track = newItemTrack;
         item.trackDurationTicks = dur;
-        item.description       = desc.isEmpty() ? null : desc;
-        item.microsceneId      = scId.isEmpty() ? null : scId;
+        item.description = desc.isEmpty() ? null : desc;
+        item.microsceneId = scId.isEmpty() ? null : scId;
         pd().items.add(item);
 
         // Reset add form
@@ -611,19 +636,27 @@ public class PhantasiaPlacementEditorScreen extends Screen {
 
     @Override
     public boolean mouseClicked(double mx, double my, int button) {
-        for (Btn b : btns) if (b.hit(mx, my)) { b.action().run(); return true; }
+        for (Btn b : btns) if (b.hit(mx, my)) {
+            b.action().run();
+            return true;
+        }
         return super.mouseClicked(mx, my, button);
     }
 
     @Override
     public boolean keyPressed(int kc, int sc, int mod) {
         if (getFocused() != null && getFocused().keyPressed(kc, sc, mod)) return true;
-        if (kc == GLFW.GLFW_KEY_ESCAPE) { goBack(); return true; }
+        if (kc == GLFW.GLFW_KEY_ESCAPE) {
+            goBack();
+            return true;
+        }
         return super.keyPressed(kc, sc, mod);
     }
 
     @Override
-    public boolean isPauseScreen() { return false; }
+    public boolean isPauseScreen() {
+        return false;
+    }
 
     // ─────────────────────────────────────────────────────────────────────────
     // Helpers
@@ -633,13 +666,20 @@ public class PhantasiaPlacementEditorScreen extends Screen {
         for (var box : List.of(machineIdBox, offsetXBox, offsetYBox, offsetZBox,
                 itemIdBox, itemCountBox, itemLabelBox, itemDurationBox,
                 itemDescBox, itemMicrosceneBox)) {
-            if (box != null) { box.visible = false; box.active = false; }
+            if (box != null) {
+                box.visible = false;
+                box.active = false;
+            }
         }
     }
 
     private void place(EditBox box, int x, int y, int w, int h) {
-        box.setX(x); box.setY(y); box.setWidth(w); box.setHeight(h);
-        box.visible = true; box.active = true;
+        box.setX(x);
+        box.setY(y);
+        box.setWidth(w);
+        box.setHeight(h);
+        box.visible = true;
+        box.active = true;
     }
 
     private boolean over(int mx, int my, int x, int y, int w, int h) {
@@ -657,7 +697,10 @@ public class PhantasiaPlacementEditorScreen extends Screen {
     }
 
     private static int parseIntOrZero(String v) {
-        try { return Integer.parseInt(v.trim()); }
-        catch (NumberFormatException e) { return 0; }
+        try {
+            return Integer.parseInt(v.trim());
+        } catch (NumberFormatException e) {
+            return 0;
+        }
     }
 }

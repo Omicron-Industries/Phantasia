@@ -31,8 +31,8 @@ public final class PhantasiaSlotAllocator {
     private PhantasiaSlotAllocator() {}
 
     public static final int SLOT_WIDTH = 512;
-    public static final int GRID_SIDE  = 256;
-    public static final int ORIGIN_Y   = 50;
+    public static final int GRID_SIDE = 256;
+    public static final int ORIGIN_Y = 50;
 
     /**
      * Fixed render origin used by SHARED_LEVEL (the TrackedDummyWorld).

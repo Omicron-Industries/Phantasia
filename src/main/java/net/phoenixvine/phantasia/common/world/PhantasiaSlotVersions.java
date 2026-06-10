@@ -20,12 +20,12 @@ import java.util.Arrays;
  * ── Warm-start gate ──────────────────────────────────────────────────────────
  * isValid() now checks THREE conditions, all of which must be true:
  *
- *   1. The hash stamp file matches (shape and script haven't changed).
- *   2. The Phantasia dimension chunk at the slot origin is actually saved
- *      on disk (PhantasiaDimension.isChunkSaved). Handles first-launch, world
- *      copy, or manually deleted region files.
- *   3. The dimension ServerLevel is available (integrated server is running).
- *      If not (e.g. LAN client, dedicated client-only install), always cold.
+ * 1. The hash stamp file matches (shape and script haven't changed).
+ * 2. The Phantasia dimension chunk at the slot origin is actually saved
+ * on disk (PhantasiaDimension.isChunkSaved). Handles first-launch, world
+ * copy, or manually deleted region files.
+ * 3. The dimension ServerLevel is available (integrated server is running).
+ * If not (e.g. LAN client, dedicated client-only install), always cold.
  *
  * ── File location ─────────────────────────────────────────────────────────────
  * <gamedir>/phantasia/slot_versions.dat
@@ -44,8 +44,8 @@ public final class PhantasiaSlotVersions {
 
     /**
      * Returns true if a warm load is valid for the given machine:
-     *  - Hash stamps match (shape + script unchanged since last cold load).
-     *  - The Phantasia dimension chunk for this slot exists on disk.
+     * - Hash stamps match (shape + script unchanged since last cold load).
+     * - The Phantasia dimension chunk for this slot exists on disk.
      *
      * @param machineId  registry ID of the machine definition
      * @param shapeHash  result of hashShape() for the current shape
@@ -112,8 +112,7 @@ public final class PhantasiaSlotVersions {
                 keys[x][y] = new String[blocks[x][y].length];
                 for (int z = 0; z < blocks[x][y].length; z++) {
                     var bi = blocks[x][y][z];
-                    keys[x][y][z] = bi == null || bi.getBlockState() == null
-                            ? "" : bi.getBlockState().toString();
+                    keys[x][y][z] = bi == null || bi.getBlockState() == null ? "" : bi.getBlockState().toString();
                 }
             }
         }

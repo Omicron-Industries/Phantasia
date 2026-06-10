@@ -31,33 +31,33 @@ import java.util.List;
 public class PhantasiaScriptStepItemEditorScreen extends Screen {
 
     // ── Theme ─────────────────────────────────────────────────────────────────
-    private static final int C_BG      = 0xFF080810;
-    private static final int C_PANEL   = 0xDD0C0C1A;
-    private static final int C_ACCENT  = 0xFF4FC3F7;
-    private static final int C_BTN     = 0xBB151528;
+    private static final int C_BG = 0xFF080810;
+    private static final int C_PANEL = 0xDD0C0C1A;
+    private static final int C_ACCENT = 0xFF4FC3F7;
+    private static final int C_BTN = 0xBB151528;
     private static final int C_BTN_HOV = 0xBB1A2840;
     private static final int C_BTN_ACT = 0xFF0D3050;
-    private static final int C_TEXT    = 0xFFDDDDDD;
-    private static final int C_DIM     = 0xFF667788;
-    private static final int C_GREEN   = 0xFF66BB6A;
-    private static final int C_RED     = 0xFFFF5252;
+    private static final int C_TEXT = 0xFFDDDDDD;
+    private static final int C_DIM = 0xFF667788;
+    private static final int C_GREEN = 0xFF66BB6A;
+    private static final int C_RED = 0xFFFF5252;
 
-    private static final int TOP_H   = 22;
+    private static final int TOP_H = 22;
     private static final int PANEL_W = 440;
 
-    private static final String[] TYPES        = { "input", "output", "catalyst" };
-    private static final String[] TYPE_LABELS  = { "Input", "Output", "Catalyst" };
-    private static final String[] TRACKS       = { "none",  "left",  "right", "up",   "down",  "pulse" };
-    private static final String[] TRACK_LABELS = { "Fixed", "→",     "←",    "↑",    "↓",     "Pulse" };
+    private static final String[] TYPES = { "input", "output", "catalyst" };
+    private static final String[] TYPE_LABELS = { "Input", "Output", "Catalyst" };
+    private static final String[] TRACKS = { "none", "left", "right", "up", "down", "pulse" };
+    private static final String[] TRACK_LABELS = { "Fixed", "→", "←", "↑", "↓", "Pulse" };
 
     // ── Parent ────────────────────────────────────────────────────────────────
     private final PhantasiaScriptEditorScreen parent;
-    private final PhantasiaScriptData         scriptData;
-    private final int                         stepIndex;
+    private final PhantasiaScriptData scriptData;
+    private final int stepIndex;
 
     // ── State ─────────────────────────────────────────────────────────────────
-    private int    editingItem  = -1;
-    private String newItemType  = "input";
+    private int editingItem = -1;
+    private String newItemType = "input";
     private String newItemTrack = "none";
 
     // ── Widgets ───────────────────────────────────────────────────────────────
@@ -70,8 +70,12 @@ public class PhantasiaScriptStepItemEditorScreen extends Screen {
 
     // ── Btn ───────────────────────────────────────────────────────────────────
     private record Btn(int x, int y, int w, int h, Runnable action) {
-        boolean hit(double mx, double my) { return mx >= x && mx < x+w && my >= y && my < y+h; }
+
+        boolean hit(double mx, double my) {
+            return mx >= x && mx < x + w && my >= y && my < y + h;
+        }
     }
+
     private final List<Btn> btns = new ArrayList<>();
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -80,9 +84,9 @@ public class PhantasiaScriptStepItemEditorScreen extends Screen {
                                                PhantasiaScriptData scriptData,
                                                int stepIndex) {
         super(Component.literal("Step Items — Step " + (stepIndex + 1)));
-        this.parent     = parent;
+        this.parent = parent;
         this.scriptData = scriptData;
-        this.stepIndex  = stepIndex;
+        this.stepIndex = stepIndex;
     }
 
     private PhantasiaScriptData.StepData step() {
@@ -184,10 +188,10 @@ public class PhantasiaScriptStepItemEditorScreen extends Screen {
     }
 
     private void renderPanel(GuiGraphics g, int mx, int my) {
-        int pw  = Math.min(PANEL_W, width - 20);
-        int px  = (width - pw) / 2;
-        int py  = TOP_H + 8;
-        int cy  = py;
+        int pw = Math.min(PANEL_W, width - 20);
+        int px = (width - pw) / 2;
+        int py = TOP_H + 8;
+        int cy = py;
 
         g.fill(px, py, px + pw, height - 8, C_PANEL);
         g.fill(px, py, px + pw, py + 1, C_ACCENT);
@@ -217,7 +221,8 @@ public class PhantasiaScriptStepItemEditorScreen extends Screen {
         // Type selector
         int bx = px + 8;
         for (int ti = 0; ti < TYPES.length; ti++) {
-            String t = TYPES[ti]; String tl = TYPE_LABELS[ti];
+            String t = TYPES[ti];
+            String tl = TYPE_LABELS[ti];
             int tw = font.width(tl) + 10;
             boolean sel = t.equals(newItemType);
             int ac = PhantasiaSceneData.ItemConditionData.staticAccentFor(t);
@@ -248,7 +253,8 @@ public class PhantasiaScriptStepItemEditorScreen extends Screen {
         g.drawString(font, "Track:", px + 8, cy + 2, C_DIM, false);
         int tbx = px + 8 + font.width("Track:") + 4;
         for (int ti = 0; ti < TRACKS.length; ti++) {
-            String t = TRACKS[ti]; String tl = TRACK_LABELS[ti];
+            String t = TRACKS[ti];
+            String tl = TRACK_LABELS[ti];
             int tw = font.width(tl) + 8;
             boolean sel = t.equals(newItemTrack);
             boolean hov = over(mx, my, tbx, cy, tw, 12);
@@ -284,8 +290,8 @@ public class PhantasiaScriptStepItemEditorScreen extends Screen {
     }
 
     private int renderItemRow(GuiGraphics g, int mx, int my,
-                               int px, int cy, int pw,
-                               PhantasiaScriptData.StepData s, int ii) {
+                              int px, int cy, int pw,
+                              PhantasiaScriptData.StepData s, int ii) {
         PhantasiaSceneData.ItemConditionData it = s.items.get(ii);
         boolean editing = (editingItem == ii);
         int ac = it.accentColor();
@@ -297,7 +303,9 @@ public class PhantasiaScriptStepItemEditorScreen extends Screen {
 
         // Type badge
         String badge = switch (it.type == null ? "input" : it.type.toLowerCase(java.util.Locale.ROOT)) {
-            case "output" -> "out"; case "catalyst" -> "cat"; default -> "in";
+            case "output" -> "out";
+            case "catalyst" -> "cat";
+            default -> "in";
         };
         int badgeW = font.width(badge) + 6;
         g.fill(px + 7, cy + 2, px + 7 + badgeW, cy + 12, ac & 0x44FFFFFF | 0x44000000);
@@ -311,8 +319,12 @@ public class PhantasiaScriptStepItemEditorScreen extends Screen {
         // Track indicator
         if (it.track != null && !"none".equals(it.track)) {
             String ti = switch (it.track) {
-                case "left" -> "→"; case "right" -> "←";
-                case "up" -> "↑"; case "down" -> "↓"; case "pulse" -> "~"; default -> "?";
+                case "left" -> "→";
+                case "right" -> "←";
+                case "up" -> "↑";
+                case "down" -> "↓";
+                case "pulse" -> "~";
+                default -> "?";
             };
             g.drawString(font, ti, px + pw - 54, cy + 3, C_ACCENT, false);
         }
@@ -336,7 +348,12 @@ public class PhantasiaScriptStepItemEditorScreen extends Screen {
         }));
 
         btns.add(new Btn(px + 4, cy, pw - 30, 14, () -> {
-            if (editingItem == fii) { editingItem = -1; } else { editingItem = fii; populateBoxes(it); }
+            if (editingItem == fii) {
+                editingItem = -1;
+            } else {
+                editingItem = fii;
+                populateBoxes(it);
+            }
         }));
         cy += 15;
 
@@ -345,7 +362,8 @@ public class PhantasiaScriptStepItemEditorScreen extends Screen {
             // Type selector
             int bx = px + 8;
             for (int ti = 0; ti < TYPES.length; ti++) {
-                String t = TYPES[ti]; String tl = TYPE_LABELS[ti];
+                String t = TYPES[ti];
+                String tl = TYPE_LABELS[ti];
                 int tw = font.width(tl) + 10;
                 boolean sel = t.equals(it.type);
                 int iac = PhantasiaSceneData.ItemConditionData.staticAccentFor(t);
@@ -355,7 +373,9 @@ public class PhantasiaScriptStepItemEditorScreen extends Screen {
                 g.drawString(font, tl, bx + 5, cy + 2, sel ? iac : C_TEXT, false);
                 final String ft = t;
                 btns.add(new Btn(bx, cy, tw, 12, () -> {
-                    parent.checkpoint(); it.type = ft; parent.dirty = true;
+                    parent.checkpoint();
+                    it.type = ft;
+                    parent.dirty = true;
                 }));
                 bx += tw + 3;
             }
@@ -376,7 +396,8 @@ public class PhantasiaScriptStepItemEditorScreen extends Screen {
             g.drawString(font, "Track:", px + 8, cy + 2, C_DIM, false);
             int tbx = px + 8 + font.width("Track:") + 4;
             for (int ti = 0; ti < TRACKS.length; ti++) {
-                String t = TRACKS[ti]; String tl = TRACK_LABELS[ti];
+                String t = TRACKS[ti];
+                String tl = TRACK_LABELS[ti];
                 int tw = font.width(tl) + 8;
                 boolean sel = t.equals(it.track == null ? "none" : it.track);
                 boolean hov = over(mx, my, tbx, cy, tw, 12);
@@ -385,7 +406,9 @@ public class PhantasiaScriptStepItemEditorScreen extends Screen {
                 g.drawString(font, tl, tbx + 4, cy + 2, sel ? C_ACCENT : C_TEXT, false);
                 final String ft = t;
                 btns.add(new Btn(tbx, cy, tw, 12, () -> {
-                    parent.checkpoint(); it.track = ft; parent.dirty = true;
+                    parent.checkpoint();
+                    it.track = ft;
+                    parent.dirty = true;
                 }));
                 tbx += tw + 2;
             }
@@ -412,13 +435,15 @@ public class PhantasiaScriptStepItemEditorScreen extends Screen {
                 parent.checkpoint();
                 String id = itemIdBox.getValue().trim();
                 if (!id.isEmpty()) it.item = id;
-                try { it.count = Math.max(1, Integer.parseInt(itemCountBox.getValue().trim())); }
-                catch (NumberFormatException ignored) {}
+                try {
+                    it.count = Math.max(1, Integer.parseInt(itemCountBox.getValue().trim()));
+                } catch (NumberFormatException ignored) {}
                 String lbl = itemLabelBox.getValue().trim();
                 it.label = lbl.isEmpty() ? null : lbl;
                 if (it.track != null && !"none".equals(it.track)) {
-                    try { it.trackDurationTicks = Math.max(1, Integer.parseInt(itemDurationBox.getValue().trim())); }
-                    catch (NumberFormatException ignored) {}
+                    try {
+                        it.trackDurationTicks = Math.max(1, Integer.parseInt(itemDurationBox.getValue().trim()));
+                    } catch (NumberFormatException ignored) {}
                 }
                 String desc = itemDescBox.getValue().trim();
                 it.description = desc.isEmpty() ? null : desc;
@@ -441,27 +466,32 @@ public class PhantasiaScriptStepItemEditorScreen extends Screen {
         String id = itemIdBox.getValue().trim();
         if (id.isEmpty()) return;
         int cnt = 1;
-        try { cnt = Math.max(1, Integer.parseInt(itemCountBox.getValue().trim())); }
-        catch (NumberFormatException ignored) {}
-        String lbl  = itemLabelBox.getValue().trim();
+        try {
+            cnt = Math.max(1, Integer.parseInt(itemCountBox.getValue().trim()));
+        } catch (NumberFormatException ignored) {}
+        String lbl = itemLabelBox.getValue().trim();
         String desc = itemDescBox.getValue().trim();
-        String sc   = itemMicrosceneBox.getValue().trim();
+        String sc = itemMicrosceneBox.getValue().trim();
         int dur = 20;
-        try { dur = Math.max(1, Integer.parseInt(itemDurationBox.getValue().trim())); }
-        catch (NumberFormatException ignored) {}
+        try {
+            dur = Math.max(1, Integer.parseInt(itemDurationBox.getValue().trim()));
+        } catch (NumberFormatException ignored) {}
 
         parent.checkpoint();
-        PhantasiaSceneData.ItemConditionData item =
-                new PhantasiaSceneData.ItemConditionData(id, cnt, lbl.isEmpty() ? null : lbl, newItemType);
-        item.track              = newItemTrack;
+        PhantasiaSceneData.ItemConditionData item = new PhantasiaSceneData.ItemConditionData(id, cnt,
+                lbl.isEmpty() ? null : lbl, newItemType);
+        item.track = newItemTrack;
         item.trackDurationTicks = dur;
-        item.description        = desc.isEmpty() ? null : desc;
-        item.microsceneId       = sc.isEmpty()   ? null : sc;
+        item.description = desc.isEmpty() ? null : desc;
+        item.microsceneId = sc.isEmpty() ? null : sc;
         step().items.add(item);
 
-        itemIdBox.setValue(""); itemCountBox.setValue("");
-        itemLabelBox.setValue(""); itemDurationBox.setValue("");
-        itemDescBox.setValue(""); itemMicrosceneBox.setValue("");
+        itemIdBox.setValue("");
+        itemCountBox.setValue("");
+        itemLabelBox.setValue("");
+        itemDurationBox.setValue("");
+        itemDescBox.setValue("");
+        itemMicrosceneBox.setValue("");
         parent.dirty = true;
     }
 
@@ -484,19 +514,27 @@ public class PhantasiaScriptStepItemEditorScreen extends Screen {
 
     @Override
     public boolean mouseClicked(double mx, double my, int button) {
-        for (Btn b : btns) if (b.hit(mx, my)) { b.action().run(); return true; }
+        for (Btn b : btns) if (b.hit(mx, my)) {
+            b.action().run();
+            return true;
+        }
         return super.mouseClicked(mx, my, button);
     }
 
     @Override
     public boolean keyPressed(int kc, int sc, int mod) {
         if (getFocused() != null && getFocused().keyPressed(kc, sc, mod)) return true;
-        if (kc == GLFW.GLFW_KEY_ESCAPE) { goBack(); return true; }
+        if (kc == GLFW.GLFW_KEY_ESCAPE) {
+            goBack();
+            return true;
+        }
         return super.keyPressed(kc, sc, mod);
     }
 
     @Override
-    public boolean isPauseScreen() { return false; }
+    public boolean isPauseScreen() {
+        return false;
+    }
 
     // ─────────────────────────────────────────────────────────────────────────
     // Helpers
@@ -505,7 +543,10 @@ public class PhantasiaScriptStepItemEditorScreen extends Screen {
     private void hideAll() {
         for (var box : List.of(itemIdBox, itemCountBox, itemLabelBox, itemDurationBox,
                 itemDescBox, itemMicrosceneBox)) {
-            if (box != null) { box.visible = false; box.active = false; }
+            if (box != null) {
+                box.visible = false;
+                box.active = false;
+            }
         }
     }
 
@@ -517,8 +558,12 @@ public class PhantasiaScriptStepItemEditorScreen extends Screen {
     }
 
     private void place(EditBox box, int x, int y, int w, int h) {
-        box.setX(x); box.setY(y); box.setWidth(w); box.setHeight(h);
-        box.visible = true; box.active = true;
+        box.setX(x);
+        box.setY(y);
+        box.setWidth(w);
+        box.setHeight(h);
+        box.visible = true;
+        box.active = true;
     }
 
     private boolean over(int mx, int my, int x, int y, int w, int h) {

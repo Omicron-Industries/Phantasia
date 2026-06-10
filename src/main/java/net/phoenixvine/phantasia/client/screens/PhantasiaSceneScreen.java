@@ -11,7 +11,6 @@ import com.gregtechceu.gtceu.api.pattern.MultiblockShapeInfo;
 
 import com.lowdragmc.lowdraglib.utils.BlockInfo;
 
-import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
@@ -30,10 +29,8 @@ import net.minecraftforge.registries.ForgeRegistries;
 import net.phoenixvine.phantasia.client.camera.CameraView;
 import net.phoenixvine.phantasia.client.camera.LerpType;
 import net.phoenixvine.phantasia.client.camera.PhantasiaCamera;
-import net.phoenixvine.phantasia.client.render.PhantasiaShaders;
 import net.phoenixvine.phantasia.client.render.PhantasiaTrackedDummyWorld;
 import net.phoenixvine.phantasia.client.render.PhantasiaWorldRenderer;
-import net.phoenixvine.phantasia.client.screens.PhantasiaItemMicrosceneScreen;
 import net.phoenixvine.phantasia.common.*;
 import net.phoenixvine.phantasia.common.world.PhantasiaDimension;
 import net.phoenixvine.phantasia.common.world.PhantasiaSlotAllocator;
@@ -41,6 +38,7 @@ import net.phoenixvine.phantasia.common.world.PhantasiaSlotVersions;
 import net.phoenixvine.phantasia.utils.PhantasiaThemeUtils;
 import net.phoenixvine.phantasia.utils.PhantasiaUIUtils;
 
+import com.mojang.blaze3d.systems.RenderSystem;
 import org.jetbrains.annotations.NotNull;
 import org.joml.Vector3f;
 
@@ -87,9 +85,17 @@ public class PhantasiaSceneScreen extends Screen {
     private static final int FULL_PANEL_W = 168;
     private static final int COLLAPSED_PANEL_W = 18;
     private static final int TIMELINE_H = 26;
-    private static final int CAPTION_STRIP_H = 22;
+    private static final int CAPTION_STRIP_H = 38;
 
+    private final java.util.Map<net.minecraft.core.BlockPos, PhantasiaVariantGroup> positionToVariantGroupCache = new java.util.HashMap<>();
+    private boolean cacheInitialized = false;
 
+    private static final long SCREEN_PROFILE_WINDOW_NS = 5_000_000_000L; // Profile every 5 seconds
+    private long screenProfileWindowStart = -1;
+    private int screenProfiledFramesCount = 0;
+    private long totalScreenRenderTimeNs = 0;
+    private long maxScreenSpikeNs = 0;
+    private long totalVariantLookupTimeNs = 0;
 
     // ─────────────────────────────────────────────────────────────────────────
     // Camera defaults
@@ -111,7 +117,7 @@ public class PhantasiaSceneScreen extends Screen {
 
     private final Screen parent;
     public final MultiblockMachineDefinition definition;
-    private PhantasiaScript script;
+    PhantasiaScript script;
 
     private PhantasiaLoadedPattern pattern;
 
@@ -174,17 +180,7 @@ public class PhantasiaSceneScreen extends Screen {
     private int savedManualLayer = -1;
     private boolean buildPulseUp = true;
 
-    private int coilIndex = 1;
 
-    // Dynamically retrieve all registered coil blocks sorted by their temperature/tier
-    private static final List<BlockInfo> COIL_TIERS = java.util.stream.Stream.of(
-                    com.gregtechceu.gtceu.api.block.ICoilType.ALL_COILS_TEMPERATURE_SORTED.get())
-            .map(coil -> {
-                // Fetch the block associated with the coil material from the registry
-                var block = com.gregtechceu.gtceu.api.GTCEuAPI.HEATING_COILS.get(coil);
-                return new BlockInfo(block.get().defaultBlockState());
-            })
-            .toList();
 
     // ─────────────────────────────────────────────────────────────────────────
     // Caption
@@ -223,132 +219,10 @@ public class PhantasiaSceneScreen extends Screen {
         applyVisibility();
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // init()
-    // ─────────────────────────────────────────────────────────────────────────
 
     private List<BlockInfo> coilTiers = new ArrayList<>();
 
-    @Override
-    protected void init() {
-        super.init();
 
-        this.coilTiers = java.util.stream.Stream.of(
-                        com.gregtechceu.gtceu.api.block.ICoilType.ALL_COILS_TEMPERATURE_SORTED.get())
-                .map(coil -> {
-                    var block = com.gregtechceu.gtceu.api.GTCEuAPI.HEATING_COILS.get(coil);
-                    return new BlockInfo(block.get().defaultBlockState());
-                })
-                .toList();
-
-        if (SHARED_LEVEL == null) {
-            if (Minecraft.getInstance().level == null) {
-                onClose();
-                return;
-            }
-            SHARED_LEVEL = new PhantasiaTrackedDummyWorld();
-
-            // Fix: Instantiate with no arguments
-            SHARED_LEVEL.setParticleManager(new com.lowdragmc.lowdraglib.client.scene.ParticleManager());
-        }
-
-        availableShapes = definition.getMatchingShapes();
-        if (pattern == null && !availableShapes.isEmpty()) {
-            if (shapeIndex >= availableShapes.size()) shapeIndex = 0;
-            pattern = loadPattern(availableShapes.get(shapeIndex));
-            invalidateFilterSets();
-            // Sync coilIndex to whatever coil type is actually in the loaded pattern
-            // so the button label matches the displayed blocks from the first frame.
-            // coilIndex defaults to 1 (kanthal) but patterns typically load with
-            // cupronickel (index 0) from their MultiblockShapeInfo.
-            coilIndex = detectCoilIndex(pattern);
-            // Restore the persisted working state to SHARED_LEVEL immediately after
-            // pattern load. Pattern load writes fresh default states (ACTIVE=false).
-            // We restore from the static machineWorking field rather than recalculating
-            // from script+playbackTick because on a fresh screen instance playbackTick=0
-            // which would incorrectly evaluate to non-working for most scripts.
-            applyActiveStateToWorld(machineWorking);
-
-            // Compile variant groups now that the pattern is loaded.
-            // withVariants() receives ALL available shapes so auto-detection can
-            // find blocks that only appear in some shape variants (e.g. fusion glass
-            // is absent from shape 0 but present in shape 1).
-            script = script.withVariants(definition, pattern, availableShapes);
-            PhantasiaVariantState vs = PhantasiaVariantState.get();
-            vs.loadGroups(script.getVariantGroups());
-            vs.setOnChangeCallback(() -> {
-                if (renderer == null || pattern == null) return;
-                // Partial rebake: only the positions belonging to toggled variant
-                // groups, not the whole pattern.
-                Set<BlockPos> variantPositions = buildVariantWorldPositions(vs);
-                if (variantPositions.isEmpty()) {
-                    renderer.requestBake();
-                } else {
-                    renderer.requestPartialBake(variantPositions);
-                }
-            });
-        }
-
-        // ── Renderer ──────────────────────────────────────────────────────────
-        if (renderer == null) {
-            renderer = new PhantasiaWorldRenderer(SHARED_LEVEL);
-            if (pattern != null) {
-                renderer.setBaseplatePositions(pattern.baseplatePositions);
-                renderer.setControllerWorldPos(pattern.controllerWorldPos);
-
-                // Build the full bake set: ALL machine blocks + baseplate.
-                // Computed once; the renderer bakes all of it and never needs to
-                // rethink which blocks to include on a visibility change.
-                Set<BlockPos> fullBakeSet = new HashSet<>();
-                fullBakeSet.addAll(pattern.blockMap.keySet());
-                fullBakeSet.addAll(pattern.baseplatePositions);
-                renderer.setPatternBlocks(fullBakeSet);
-
-                // Assign compact IDs — also allocates the GPU visibility buffer.
-                renderer.assignBlockIds(fullBakeSet);
-
-                // Recompile the Phantasia block shader with the correct
-                // MAX_BLOCKS_DIV32 / PHANTASIA_LARGE_MACHINE define for this pattern.
-                PhantasiaShaders.recompileForPattern(
-                        renderer.getTotalBakedBlocks(),
-                        renderer.needsSSBO());
-
-                renderer.requestBake();
-            }
-        }
-        // Initialise the isolated particle engine for this scene.
-        // Must be called each time the scene opens (not just when renderer is new)
-        // so the engine is fresh and providers are current.
-        net.phoenixvine.phantasia.client.render.PhantasiaParticleEngine.init();
-        SHARED_LEVEL.entities.clear();
-
-        // ── Camera ────────────────────────────────────────────────────────────
-        if (camera == null) {
-            camera = buildFreshCamera();
-        } else if (camera.hasSavedSnapshot()) {
-            camera.restore();
-        } else if (!camera.isPlayerOwned()) {
-            resetCameraToDefault(LerpType.SNAP, 0);
-        }
-
-        // ── Synchronize Structure and Text ────────────────────────────────────
-        if (pattern != null) {
-            // Force the structure block states to match coilIndex (0) immediately on startup
-            updateCoilType();
-            applyVisibility();
-
-            // ── PERFORMANCE OPTIMIZATION: Populate Ambient Ticking Cache ──
-            // Instead of querying pattern maps every tick, cache the ticking positions once here.
-            this.ambientTickingPositions.clear();
-            for (net.minecraft.core.BlockPos wp : pattern.blockMap.keySet()) {
-                net.minecraft.world.level.block.state.BlockState state = SHARED_LEVEL.getBlockState(wp);
-                // Ignore air entirely, map only real positions
-                if (!state.isAir()) {
-                    this.ambientTickingPositions.add(wp);
-                }
-            }
-        }
-    }
 
     // ─────────────────────────────────────────────────────────────────────────
     // Camera helpers
@@ -476,7 +350,7 @@ public class PhantasiaSceneScreen extends Screen {
         // GT's 0.001-block overlay offset requires to avoid z-fighting.
         BlockPos renderOrigin = PhantasiaSlotAllocator.RENDER_ORIGIN;
 
-        int shapeHash  = PhantasiaSlotVersions.hashShape(shape.getBlocks());
+        int shapeHash = PhantasiaSlotVersions.hashShape(shape.getBlocks());
         int scriptHash = PhantasiaSlotVersions.hashScript(script.getSourceData());
 
         // isValid() checks hash stamps AND that the dimension chunk actually exists
@@ -506,18 +380,18 @@ public class PhantasiaSceneScreen extends Screen {
         SHARED_LEVEL.blockEntities.clear();
 
         BlockInfo[][][] raw = shape.getBlocks();
-        Map<BlockPos, BlockInfo> blockMap    = new HashMap<>();
-        Map<BlockPos, BlockPos>  localToWorld = new HashMap<>();
-        Set<BlockPos> baseplatePos  = new HashSet<>();
-        Set<BlockPos> bePos         = new HashSet<>();
-        BlockPos controllerWP       = null;
+        Map<BlockPos, BlockInfo> blockMap = new HashMap<>();
+        Map<BlockPos, BlockPos> localToWorld = new HashMap<>();
+        Set<BlockPos> baseplatePos = new HashSet<>();
+        Set<BlockPos> bePos = new HashSet<>();
+        BlockPos controllerWP = null;
         MultiblockControllerMachine controller = null;
 
         BlockInfo floor = BlockInfo.fromBlockState(Blocks.DEEPSLATE_BRICKS.defaultBlockState());
         int sxLen = raw.length;
         int szLen = sxLen > 0 && raw[0].length > 0 ? raw[0][0].length : 0;
-        int padX  = Math.max(2, sxLen / 2 + 1);
-        int padZ  = Math.max(2, szLen / 2 + 1);
+        int padX = Math.max(2, sxLen / 2 + 1);
+        int padZ = Math.max(2, szLen / 2 + 1);
 
         for (int bx = -padX; bx <= sxLen + padX; bx++)
             for (int bz = -padZ; bz <= szLen + padZ; bz++) {
@@ -559,23 +433,24 @@ public class PhantasiaSceneScreen extends Screen {
      * Cold load: places all blocks into SHARED_LEVEL at {@code renderOrigin} (near 0,0,0),
      * then writes them to the Phantasia dimension at {@code slotOrigin} for persistence.
      */
-    private PhantasiaLoadedPattern loadPatternCold(MultiblockShapeInfo shape, BlockPos renderOrigin, BlockPos slotOrigin) {
+    private PhantasiaLoadedPattern loadPatternCold(MultiblockShapeInfo shape, BlockPos renderOrigin,
+                                                   BlockPos slotOrigin) {
         SHARED_LEVEL.renderedBlocks.clear();
         SHARED_LEVEL.blockEntities.clear();
 
         BlockInfo[][][] raw = shape.getBlocks();
-        Map<BlockPos, BlockInfo> blockMap    = new HashMap<>();
-        Map<BlockPos, BlockPos>  localToWorld = new HashMap<>();
-        Set<BlockPos> baseplatePos  = new HashSet<>();
-        Set<BlockPos> bePos         = new HashSet<>();
-        BlockPos controllerWP       = null;
+        Map<BlockPos, BlockInfo> blockMap = new HashMap<>();
+        Map<BlockPos, BlockPos> localToWorld = new HashMap<>();
+        Set<BlockPos> baseplatePos = new HashSet<>();
+        Set<BlockPos> bePos = new HashSet<>();
+        BlockPos controllerWP = null;
         MultiblockControllerMachine controller = null;
 
         BlockInfo floor = BlockInfo.fromBlockState(Blocks.DEEPSLATE_BRICKS.defaultBlockState());
         int sxLen = raw.length;
         int szLen = sxLen > 0 && raw[0].length > 0 ? raw[0][0].length : 0;
-        int padX  = Math.max(2, sxLen / 2 + 1);
-        int padZ  = Math.max(2, szLen / 2 + 1);
+        int padX = Math.max(2, sxLen / 2 + 1);
+        int padZ = Math.max(2, szLen / 2 + 1);
 
         for (int bx = -padX; bx <= sxLen + padX; bx++)
             for (int bz = -padZ; bz <= szLen + padZ; bz++) {
@@ -628,16 +503,18 @@ public class PhantasiaSceneScreen extends Screen {
      * that subsequent screen opens can skip the shape.getBlocks() iteration
      * (warm-start). Also called during world-load pre-population.
      *
-     * <p>The write is submitted to the server thread asynchronously so the
-     * calling render-thread open is not blocked on disk I/O.</p>
+     * <p>
+     * The write is submitted to the server thread asynchronously so the
+     * calling render-thread open is not blocked on disk I/O.
+     * </p>
      */
     public static void coldPopulateDimensionSlot(ResourceLocation machineId,
                                                  Map<BlockPos, BlockInfo> blockMap) {
         var sl = PhantasiaDimension.getServerLevel();
         if (sl == null) return;
         try {
-            net.minecraft.server.MinecraftServer server =
-                    net.minecraftforge.server.ServerLifecycleHooks.getCurrentServer();
+            net.minecraft.server.MinecraftServer server = net.minecraftforge.server.ServerLifecycleHooks
+                    .getCurrentServer();
             if (server == null) return;
             server.submit(() -> {
                 for (Map.Entry<BlockPos, BlockInfo> e : blockMap.entrySet()) {
@@ -645,8 +522,8 @@ public class PhantasiaSceneScreen extends Screen {
                         BlockState state = e.getValue().getBlockState();
                         if (state != null && !state.isAir()) {
                             sl.setBlock(e.getKey(), state,
-                                    net.minecraft.world.level.block.Block.UPDATE_CLIENTS
-                                            | net.minecraft.world.level.block.Block.UPDATE_KNOWN_SHAPE);
+                                    net.minecraft.world.level.block.Block.UPDATE_CLIENTS |
+                                            net.minecraft.world.level.block.Block.UPDATE_KNOWN_SHAPE);
                         }
                     } catch (Exception ignored) {}
                 }
@@ -673,7 +550,6 @@ public class PhantasiaSceneScreen extends Screen {
             BlockPos controllerWP,
             MultiblockControllerMachine controller,
             BlockPos origin) {
-
         // Register every MetaMachineBlockEntity with the dummy world so that
         // TrackedDummyWorld.getBlockEntity(pos) returns them. Must happen BEFORE
         // onStructureFormed so the controller's own BE is in the world when
@@ -722,7 +598,10 @@ public class PhantasiaSceneScreen extends Screen {
             minY = Math.min(minY, lp.getY());
             maxY = Math.max(maxY, lp.getY());
         }
-        if (minY > maxY) { minY = 0; maxY = 0; }
+        if (minY > maxY) {
+            minY = 0;
+            maxY = 0;
+        }
 
         return new PhantasiaLoadedPattern(blockMap, localToWorld, baseplatePos,
                 controllerWP, bePos, origin, minY, maxY, controller, script);
@@ -837,9 +716,110 @@ public class PhantasiaSceneScreen extends Screen {
         };
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // tick()
-    // ─────────────────────────────────────────────────────────────────────────
+
+
+    @Override
+    protected void init() {
+        super.init();
+
+        // Invalidate our high-performance zero-allocation cache on screen re-initialization
+        this.cacheInitialized = false;
+        org.slf4j.LoggerFactory.getLogger("PhantasiaScreenCache").info("[Phantasia] Screen init triggered: Invalidating variant lookup cache maps.");
+
+        if (SHARED_LEVEL == null) {
+            if (Minecraft.getInstance().level == null) {
+                onClose();
+                return;
+            }
+            SHARED_LEVEL = new PhantasiaTrackedDummyWorld();
+
+            // Fix: Instantiate with no arguments
+            SHARED_LEVEL.setParticleManager(new com.lowdragmc.lowdraglib.client.scene.ParticleManager());
+        }
+
+        availableShapes = definition.getMatchingShapes();
+        if (pattern == null && !availableShapes.isEmpty()) {
+            if (shapeIndex >= availableShapes.size()) shapeIndex = 0;
+            pattern = loadPattern(availableShapes.get(shapeIndex));
+            invalidateFilterSets();
+
+            // Restore the persisted working state to SHARED_LEVEL immediately after
+            // pattern load. Pattern load writes fresh default states (ACTIVE=false).
+            applyActiveStateToWorld(machineWorking);
+
+            // Compile variant groups now that the pattern is loaded.
+            script = script.withVariants(definition, pattern, availableShapes);
+            PhantasiaVariantState vs = PhantasiaVariantState.get();
+            vs.loadGroups(script.getVariantGroups());
+
+            vs.setOnChangeCallback(() -> {
+                if (renderer == null || pattern == null) return;
+
+                // Hotfix/Optimization Hook: A variant selection changed! We must invalidate
+                // the cache map so it rebuilds the updated positional variant mappings.
+                this.cacheInitialized = false;
+
+                Set<BlockPos> variantPositions = buildVariantWorldPositions(vs);
+                if (variantPositions.isEmpty()) {
+                    renderer.requestBake();
+                } else {
+                    renderer.requestPartialBake(variantPositions);
+                }
+            });
+        }
+
+        // ── Renderer ──────────────────────────────────────────────────────────
+        if (renderer == null) {
+            renderer = new PhantasiaWorldRenderer(SHARED_LEVEL);
+        }
+        if (pattern != null) {
+            renderer.setBaseplatePositions(pattern.baseplatePositions);
+            renderer.setControllerWorldPos(pattern.controllerWorldPos);
+
+            // Tell the renderer the full set of pattern blocks (validity for bake targeting).
+            Set<BlockPos> fullBakeSet = new HashSet<>();
+            fullBakeSet.addAll(pattern.blockMap.keySet());
+            fullBakeSet.addAll(pattern.baseplatePositions);
+            renderer.setPatternBlocks(fullBakeSet);
+
+            renderer.requestBake();
+        }
+
+        // Initialise the isolated particle engine for this scene.
+        net.phoenixvine.phantasia.client.render.PhantasiaParticleEngine.init();
+        SHARED_LEVEL.entities.clear();
+
+        // ── Camera ────────────────────────────────────────────────────────────
+        if (camera == null) {
+            camera = buildFreshCamera();
+        } else if (camera.hasSavedSnapshot()) {
+            camera.restore();
+        } else if (!camera.isPlayerOwned()) {
+            resetCameraToDefault(LerpType.SNAP, 0);
+        }
+
+        // ── Synchronize Layer Visibility ──────────────────────────────────────
+        if (pattern != null) {
+            applyVisibility();
+
+            // ── PERFORMANCE OPTIMIZATION: Populate Ambient Ticking Cache ──
+            this.ambientTickingPositions.clear();
+            for (net.minecraft.core.BlockPos wp : pattern.blockMap.keySet()) {
+                net.minecraft.world.level.block.state.BlockState state = SHARED_LEVEL.getBlockState(wp);
+                if (!state.isAir()) {
+                    this.ambientTickingPositions.add(wp);
+                }
+            }
+        }
+
+        // Trigger an immediate proactive populate step on startup to verify cache alignment
+        ensureVariantCachePopulated();
+        org.slf4j.LoggerFactory.getLogger("PhantasiaScreenCache").info(String.format(
+                "[Phantasia] Cache initialization finalized successfully. Pre-cached %d variant blocks for O(1) rendering lookups.",
+                this.positionToVariantGroupCache.size()
+        ));
+    }
+
 
     @Override
     public void tick() {
@@ -881,8 +861,8 @@ public class PhantasiaSceneScreen extends Screen {
         if (SHARED_LEVEL != null && !scrubbing && playing && script != null) {
             PhantasiaScript.Step step = script.getActiveStep(playbackTick);
             if (step != null && !step.particleEffects().isEmpty()) {
-                long gameTick = net.minecraft.client.Minecraft.getInstance().level != null
-                        ? net.minecraft.client.Minecraft.getInstance().level.getGameTime() : 0;
+                long gameTick = net.minecraft.client.Minecraft.getInstance().level != null ?
+                        net.minecraft.client.Minecraft.getInstance().level.getGameTime() : 0;
                 BlockPos origin = getOriginForCurrentPattern();
                 for (net.phoenixvine.phantasia.common.PhantasiaParticleEffect fx : step.particleEffects()) {
                     BlockPos worldPos = fx.localPos().offset(origin);
@@ -905,11 +885,6 @@ public class PhantasiaSceneScreen extends Screen {
         }
 
         PhantasiaScript.Step step = script.getActiveStep(playbackTick);
-
-        if (step != null && step.forceCoil() != -1 && step.forceCoil() != coilIndex) {
-            coilIndex = step.forceCoil();
-            updateCoilType();
-        }
 
         if (playbackTick != prevTick && step != lastAppliedStep) {
             lastAppliedStep = step;
@@ -945,6 +920,8 @@ public class PhantasiaSceneScreen extends Screen {
             updateCaptionForStep(step);
         }
     }
+
+
 
     // Add this as a field in PhantasiaSceneScreen
     private final java.util.List<BlockPos> ambientTickingPositions = new java.util.ArrayList<>();
@@ -1117,61 +1094,68 @@ public class PhantasiaSceneScreen extends Screen {
         return 0;
     }
 
-    private void updateCoilType() {
-        if (pattern == null || pattern.blockMap == null || coilTiers.isEmpty()) return;
 
-        if (coilIndex >= coilTiers.size()) coilIndex = 0;
-        BlockInfo newCoil = coilTiers.get(coilIndex);
-
-        boolean currentlyWorking = script != null && script.getActiveStep(playbackTick) != null &&
-                script.getActiveStep(playbackTick).working() && playbackTick < script.getTotalTicks();
-
-        // Collect coil positions BEFORE mutating so the partial bake targets
-        // exactly the blocks that changed.
-        Set<BlockPos> coilPositions = new HashSet<>();
-        for (Map.Entry<BlockPos, BlockInfo> e : pattern.blockMap.entrySet()) {
-            if (e.getValue().getBlockState().getBlock()
-                    instanceof com.gregtechceu.gtceu.common.block.CoilBlock) {
-                coilPositions.add(e.getKey());
-            }
-        }
-
-        // Mutate block states in pattern.blockMap and SHARED_LEVEL.
-        for (BlockPos pos : coilPositions) {
-            pattern.blockMap.put(pos, newCoil);
-            if (SHARED_LEVEL != null)
-                SHARED_LEVEL.setBlock(pos, newCoil.getBlockState(), 3);
-        }
-
-        // Partial rebake: only the coil positions. For a large multiblock this
-        // means rebaking ~200–2000 blocks instead of the full 3M+, eliminating
-        // the stutter that previously came from renderer.invalidate() + full rebake.
-        if (renderer != null) {
-            if (!coilPositions.isEmpty()) {
-                renderer.requestPartialBake(coilPositions);
-            } else {
-                renderer.requestBake();
-            }
-        }
-
-        applyVisibility();
-        applyActiveStateToWorld(currentlyWorking);
-        if (script != null)
-            updateMachineState(script.getActiveStep(playbackTick));
-    }
     // ─────────────────────────────────────────────────────────────────────────
     // render()
     // ─────────────────────────────────────────────────────────────────────────
 
+
+    private void ensureVariantCachePopulated() {
+        if (cacheInitialized || script == null) return;
+        positionToVariantGroupCache.clear();
+
+        for (var group : script.getVariantGroups()) {
+            if (group == null || group.getPositionBaseIndex() == null) continue;
+            for (net.minecraft.core.BlockPos pos : group.getPositionBaseIndex().keySet()) {
+                if (pos != null) {
+                    positionToVariantGroupCache.put(pos, group);
+                }
+            }
+        }
+        cacheInitialized = true;
+    }
+
+    private void dumpScreenProfilingMetrics() {
+        if (screenProfiledFramesCount == 0) return;
+
+        double toMs = 1_000_000.0;
+        double avgScreenTotal = (totalScreenRenderTimeNs / (double) screenProfiledFramesCount) / toMs;
+        double maxScreenSpike = maxScreenSpikeNs / toMs;
+        double avgLookupTime = (totalVariantLookupTimeNs / (double) screenProfiledFramesCount) / toMs;
+
+        // Using standard logger matching your renderer structure
+        net.minecraft.client.Minecraft.getInstance().getReportingContext();
+        org.slf4j.LoggerFactory.getLogger("PhantasiaScreenProfiler").info(String.format(
+                "\n======= [PHANTASIA UI SCREEN PROFILER] =======\n" +
+                        " * Screen Frames Tracked:   %d\n" +
+                        " * Avg Screen Loop Render: %.3f ms  (Max Frame Spike: %.3f ms)\n" +
+                        " ─── Dynamic Layout Diagnostics ───\n" +
+                        "   -> Flattened Variant Lookup: %.4f ms (Zero-Allocation O(1))\n" +
+                        "   -> Registered Screen Elements Cache Size: %d entries\n" +
+                        "===================================================",
+                screenProfiledFramesCount, avgScreenTotal, maxScreenSpike, avgLookupTime, positionToVariantGroupCache.size()
+        ));
+
+        // Reset trackers cleanly
+        screenProfileWindowStart = System.nanoTime();
+        screenProfiledFramesCount = 0;
+        totalScreenRenderTimeNs = 0;
+        maxScreenSpikeNs = 0;
+        totalVariantLookupTimeNs = 0;
+    }
+
+
     @Override
     public void render(@NotNull GuiGraphics g, int mx, int my, float partial) {
-        activeButtons.clear();
+        long screenRenderStart = System.nanoTime();
+        if (screenProfileWindowStart == -1) {
+            screenProfileWindowStart = screenRenderStart;
+        }
 
+        activeButtons.clear();
+        ensureVariantCachePopulated();
 
         // ── FIX EMBEDDIUM CONTROLLER SHADER ANIMATION FREEZE ──
-        // Embeddium relies on RenderSystem's Shader Game Time uniform to animate
-        // LDLib/GregTech controller overlays. Since standard Screen rendering freezes
-        // this timer uniform, we manually calculate and push the active engine time here.
         if (Minecraft.getInstance().level != null) {
             long gameTime = Minecraft.getInstance().level.getGameTime();
             RenderSystem.setShaderGameTime(gameTime, partial);
@@ -1189,8 +1173,6 @@ public class PhantasiaSceneScreen extends Screen {
             renderer.setMousePos(mx, my);
             renderer.render(view, 0, CAPTION_STRIP_H, sw, sh);
             BlockHitResult hit = renderer.getLastHitResult();
-            // Only accept hits on blocks that are actually visible (in targetVisible set).
-            // Hidden blocks must not show hover info — their faces are transparent.
             if (hit != null && hit.getType() == HitResult.Type.BLOCK) {
                 BlockPos hp = hit.getBlockPos();
                 hoveredPos = renderer.isVisible(hp) ? hp : null;
@@ -1213,14 +1195,44 @@ public class PhantasiaSceneScreen extends Screen {
 
         int px = this.width - pw;
         if (hoveredPos != null && SHARED_LEVEL != null) {
+            long lookupStart = System.nanoTime();
             try {
-                BlockState st = SHARED_LEVEL.getBlockState(hoveredPos);
+                BlockState st = null;
+                if (script != null) {
+                    // Fully flattened O(1) cache lookup—completely bypassing nested iterator loop allocation!
+                    var group = positionToVariantGroupCache.get(hoveredPos);
+                    if (group != null) {
+                        int activeSel = net.phoenixvine.phantasia.common.PhantasiaVariantState.get().getSelection(group.getId());
+                        if (activeSel >= 0 && activeSel < group.getOptions().size()) {
+                            st = group.getOptions().get(activeSel);
+                        }
+                    }
+                }
+
+                // Fallback to the base level state if it's not a variant block
+                if (st == null) {
+                    st = SHARED_LEVEL.getBlockState(hoveredPos);
+                }
+
                 if (!st.isAir()) {
                     g.drawString(font, trunc(st.getBlock().getName().getString(), pw - 20),
                             px + 10, this.height - 20, C_DIM(), false);
                     if (mx < px) g.renderTooltip(font, st.getBlock().getName(), mx, my);
                 }
-            } catch (Exception ignored) {}
+            } catch (Exception ignored) {
+            } finally {
+                totalVariantLookupTimeNs += (System.nanoTime() - lookupStart);
+            }
+        }
+
+        // Record screen metrics tracking metrics
+        long frameDurationNs = System.nanoTime() - screenRenderStart;
+        totalScreenRenderTimeNs += frameDurationNs;
+        maxScreenSpikeNs = Math.max(maxScreenSpikeNs, frameDurationNs);
+        screenProfiledFramesCount++;
+
+        if (System.nanoTime() - screenProfileWindowStart >= SCREEN_PROFILE_WINDOW_NS) {
+            dumpScreenProfilingMetrics();
         }
     }
 
@@ -1230,10 +1242,10 @@ public class PhantasiaSceneScreen extends Screen {
 
     // ── Script item panel ─────────────────────────────────────────────────────
 
-    private static final int SIP_W    = 186;
-    private static final int SIP_ROW  = 38;
+    private static final int SIP_W = 186;
+    private static final int SIP_ROW = 38;
     private static final int SIP_ICON = 28;
-    private static final int SIP_HOV  = 36;
+    private static final int SIP_HOV = 36;
 
     /**
      * Renders the GuideME-style item panel for the current script step.
@@ -1250,7 +1262,7 @@ public class PhantasiaSceneScreen extends Screen {
         PhantasiaScriptData.StepData step = sd.getSteps().get(stepIdx);
         if (!step.showItems || step.items.isEmpty()) return;
 
-        int pw    = getCurrentPanelWidth();
+        int pw = getCurrentPanelWidth();
         int panelX = this.width - pw - SIP_W - 4;
         int panelY = CAPTION_STRIP_H + 4;
         int panelH = step.items.size() * SIP_ROW + 8;
@@ -1273,17 +1285,16 @@ public class PhantasiaSceneScreen extends Screen {
             g.fill(panelX + 2, ry, panelX + 3, ry + SIP_ROW - 1, ac);
 
             // Track animation
-            float[] anim  = computeSipTrackOffset(it, playbackTick);
-            int   alpha   = Math.max(0, Math.min(255, (int)(anim[2] * 255)));
-            int   iconSize = hov ? SIP_HOV : SIP_ICON;
-            int   iconX   = panelX + 5;
-            int   iconCY  = ry + (SIP_ROW - 1) / 2;
-            int   iconY   = iconCY - iconSize / 2 + Math.round(anim[1]);
+            float[] anim = computeSipTrackOffset(it, playbackTick);
+            int alpha = Math.max(0, Math.min(255, (int) (anim[2] * 255)));
+            int iconSize = hov ? SIP_HOV : SIP_ICON;
+            int iconX = panelX + 5;
+            int iconCY = ry + (SIP_ROW - 1) / 2;
+            int iconY = iconCY - iconSize / 2 + Math.round(anim[1]);
 
             net.minecraft.world.item.Item mcItem = resolveItemById(it.item);
             if (mcItem != null) {
-                net.minecraft.world.item.ItemStack stack =
-                        new net.minecraft.world.item.ItemStack(mcItem, it.count);
+                net.minecraft.world.item.ItemStack stack = new net.minecraft.world.item.ItemStack(mcItem, it.count);
                 float scale = iconSize / 16f;
                 if (alpha < 255) RenderSystem.setShaderColor(1f, 1f, 1f, alpha / 255f);
                 g.pose().pushPose();
@@ -1308,7 +1319,9 @@ public class PhantasiaSceneScreen extends Screen {
             ty += 10;
 
             String pillTxt = switch (it.type == null ? "input" : it.type.toLowerCase(java.util.Locale.ROOT)) {
-                case "output" -> "Out"; case "catalyst" -> "Cat"; default -> "In";
+                case "output" -> "Out";
+                case "catalyst" -> "Cat";
+                default -> "In";
             };
             int pillW = font.width(pillTxt) + 5;
             g.fill(tx, ty, tx + pillW, ty + 8, ac & 0x44FFFFFF | 0x44000000);
@@ -1326,8 +1339,8 @@ public class PhantasiaSceneScreen extends Screen {
             }
 
             // Click hint + button
-            boolean hasContent = (it.microsceneId != null && !it.microsceneId.isBlank())
-                    || (it.description != null && !it.description.isBlank());
+            boolean hasContent = (it.microsceneId != null && !it.microsceneId.isBlank()) ||
+                    (it.description != null && !it.description.isBlank());
             if (hasContent && hov) {
                 boolean hasScene = it.microsceneId != null && !it.microsceneId.isBlank();
                 String hint = hasScene ? "\u25BA Scene" : "\u25BA More";
@@ -1337,8 +1350,7 @@ public class PhantasiaSceneScreen extends Screen {
 
             final PhantasiaSceneData.ItemConditionData fIt = it;
             activeButtons.add(new PhantasiaUIUtils.ButtonAction(panelX + 2, ry, SIP_W - 4, SIP_ROW - 1, () -> {
-                PhantasiaSceneData microscene = fIt.microsceneId != null
-                        ? PhantasiaScenes.get(fIt.microsceneId) : null;
+                PhantasiaSceneData microscene = fIt.microsceneId != null ? PhantasiaScenes.get(fIt.microsceneId) : null;
                 Minecraft.getInstance().setScreen(
                         new PhantasiaItemMicrosceneScreen(
                                 PhantasiaSceneScreen.this, fIt, microscene));
@@ -1350,27 +1362,35 @@ public class PhantasiaSceneScreen extends Screen {
 
     private static float[] computeSipTrackOffset(PhantasiaSceneData.ItemConditionData it, int tick) {
         String track = it.track == null ? "none" : it.track.toLowerCase(java.util.Locale.ROOT);
-        if ("none".equals(track)) return new float[]{ 0, 0, 1f };
+        if ("none".equals(track)) return new float[] { 0, 0, 1f };
         int dur = Math.max(1, it.trackDurationTicks);
         float t = (tick % dur) / (float) dur;
         return switch (track) {
-            case "left"  -> { float fade = 1f - Math.abs(t - 0.5f) * 2f; yield new float[]{ t * 40f - 20f, 0, Math.max(0, fade) }; }
-            case "right" -> { float fade = 1f - Math.abs(t - 0.5f) * 2f; yield new float[]{ 20f - t * 40f, 0, Math.max(0, fade) }; }
-            case "up"    -> new float[]{ 0, -(t * 24f), Math.max(0, 1f - t) };
-            case "down"  -> new float[]{ 0,  (t * 24f), Math.max(0, 1f - t) };
-            case "pulse" -> new float[]{ 0, (float) Math.sin(t * 2 * Math.PI) * 3f, 1f };
-            default      -> new float[]{ 0, 0, 1f };
+            case "left" -> {
+                float fade = 1f - Math.abs(t - 0.5f) * 2f;
+                yield new float[] { t * 40f - 20f, 0, Math.max(0, fade) };
+            }
+            case "right" -> {
+                float fade = 1f - Math.abs(t - 0.5f) * 2f;
+                yield new float[] { 20f - t * 40f, 0, Math.max(0, fade) };
+            }
+            case "up" -> new float[] { 0, -(t * 24f), Math.max(0, 1f - t) };
+            case "down" -> new float[] { 0, (t * 24f), Math.max(0, 1f - t) };
+            case "pulse" -> new float[] { 0, (float) Math.sin(t * 2 * Math.PI) * 3f, 1f };
+            default -> new float[] { 0, 0, 1f };
         };
     }
 
     private static net.minecraft.world.item.Item resolveItemById(String id) {
         if (id == null || id.isBlank()) return null;
         try {
-            var rl = id.contains(":") ? new net.minecraft.resources.ResourceLocation(id)
-                    : new net.minecraft.resources.ResourceLocation("minecraft", id);
+            var rl = id.contains(":") ? new net.minecraft.resources.ResourceLocation(id) :
+                    new net.minecraft.resources.ResourceLocation("minecraft", id);
             var item = ForgeRegistries.ITEMS.getValue(rl);
             return (item == null || item == net.minecraft.world.item.Items.AIR) ? null : item;
-        } catch (Exception e) { return null; }
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private String sipTrunc(String s, int maxPx) {
@@ -1432,22 +1452,60 @@ public class PhantasiaSceneScreen extends Screen {
         g.pose().translate(0, 0, 500);
 
         int sw = this.width - getCurrentPanelWidth();
+        int maxW = sw - 24;                                      // horizontal margin each side
         int stripY = this.height - TIMELINE_H - CAPTION_STRIP_H;
+
         g.fill(0, stripY, sw, stripY + CAPTION_STRIP_H, 0xDD08080F);
         g.fill(0, stripY, sw, stripY + 1, 0xFF4FC3F7);
-        int ty = stripY + (CAPTION_STRIP_H - 8) / 2;
 
         if (captionOutgoing != null && captionOutAlpha > 0.05f) {
             int col = ((int) (captionOutAlpha * 160) << 24) | 0xBBBBBB;
-            g.drawCenteredString(font, trunc(captionOutgoing, sw - 20), sw / 2, ty, col);
+            drawWrappedCenteredCaption(g, captionOutgoing, sw, stripY, maxW, col);
         }
         if (captionCurrent != null && captionAlpha > 0.05f) {
             int col = ((int) (captionAlpha * 255) << 24) | 0xDDDDDD;
-            g.drawCenteredString(font, trunc(captionCurrent, sw - 20), sw / 2, ty, col);
+            drawWrappedCenteredCaption(g, captionCurrent, sw, stripY, maxW, col);
         }
+
         g.pose().popPose();
     }
 
+    /**
+     * Splits {@code text} into at most 3 lines at word boundaries, appending
+     * "…" to the last line if more text was cut. Lines are drawn centred
+     * horizontally and vertically within the caption strip.
+     */
+    private void drawWrappedCenteredCaption(GuiGraphics g, String text,
+                                            int sw, int stripY, int maxW, int col) {
+        // font.split respects maxW and splits on whitespace
+        var allLines = font.split(net.minecraft.network.chat.Component.literal(text), maxW);
+
+        boolean truncated = allLines.size() > 3;
+        var lines = truncated ? allLines.subList(0, 3) : allLines;
+
+        int lineH = font.lineHeight + 1;   // 9px per line
+        int totalH = lines.size() * lineH - 1;
+        int startY = stripY + (CAPTION_STRIP_H - totalH) / 2;
+
+        for (int i = 0; i < lines.size(); i++) {
+            net.minecraft.util.FormattedCharSequence line = lines.get(i);
+
+            // On the last displayed line, append "…" if we had to cut
+            if (truncated && i == lines.size() - 1) {
+                String truncStr = net.minecraft.network.chat.FormattedText
+                        .of(line.toString()).getString();
+                // Trim + append ellipsis so the line still fits maxW
+                String withEllipsis = trunc(
+                        net.minecraft.network.chat.Component.literal(truncStr)
+                                .getVisualOrderText().toString(),
+                        maxW - font.width("\u2026")) + "\u2026";
+                g.drawCenteredString(font, withEllipsis, sw / 2, startY + i * lineH, col);
+            } else {
+                g.drawString(font, line, sw / 2 - font.width(line) / 2,
+                        startY + i * lineH, col, false);
+            }
+        }
+    }
     // ─────────────────────────────────────────────────────────────────────────
     // Build-order banner
     // ─────────────────────────────────────────────────────────────────────────
@@ -1521,16 +1579,6 @@ public class PhantasiaSceneScreen extends Screen {
                 .anyMatch(i -> i.getBlockState().getBlock() instanceof com.gregtechceu.gtceu.common.block.CoilBlock);
         boolean hasRealSizeVariants = computeHasRealSizeVariants();
         boolean isCoilTierMachine = hasCoilBlocks && !hasRealSizeVariants;
-
-        if (isCoilTierMachine) {
-            String cn = COIL_TIERS.get(coilIndex).getBlockState().getBlock()
-                    .getName().getString();
-            regBtn(g, mx, my, px + 10, y, pw - 20, 16, "Coil: " + cn, () -> {
-                coilIndex = (coilIndex + 1) % COIL_TIERS.size();
-                updateCoilType();
-            });
-            y += 20;
-        }
 
         if (hasRealSizeVariants) {
             regBtn(g, mx, my, px + 10, y, pw - 20, 16,
@@ -1640,9 +1688,8 @@ public class PhantasiaSceneScreen extends Screen {
             y += 20;
         }
 
-
-        boolean hasVariants = script != null
-                && script.getVariantGroups().stream().anyMatch(PhantasiaVariantGroup::hasChoice);
+        boolean hasVariants = script != null &&
+                script.getVariantGroups().stream().anyMatch(PhantasiaVariantGroup::hasChoice);
         if (hasVariants) {
             regIconBtn(g, mx, my, px + 10, y, pw - 20, 16, "⚙", "Variants",
                     false, this::openVariantsScreen);
@@ -1683,15 +1730,12 @@ public class PhantasiaSceneScreen extends Screen {
         }
 
         if (mx < px && my > CAPTION_STRIP_H && my < tlY) {
+            // FIX: Solved the dangling 'if' syntax block and hooked up the inspector subscreen
             if (btn == 1 && hoveredPos != null && SHARED_LEVEL != null) {
-                try {
-                    if (!SHARED_LEVEL.getBlockState(hoveredPos).isAir()) {
-                        if (camera != null) camera.save();
-                        Minecraft.getInstance().setScreen(
-                                new PhantasiaBlockInspectScreen(hoveredPos, pattern, this));
-                        return true;
-                    }
-                } catch (Exception ignored) {}
+                if (!SHARED_LEVEL.getBlockState(hoveredPos).isAir()) {
+                    Minecraft.getInstance().setScreen(new PhantasiaBlockInspectScreen(hoveredPos, pattern, this));
+                    return true;
+                }
             }
             if (btn == 2 && camera != null && !camera.isLocked()) {
                 isPanning = true;

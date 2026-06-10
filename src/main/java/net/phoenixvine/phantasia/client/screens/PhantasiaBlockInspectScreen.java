@@ -53,7 +53,25 @@ public class PhantasiaBlockInspectScreen extends Screen {
         this.pos = pos;
         this.pattern = pattern;
         this.parent = parent;
-        this.state = PhantasiaSceneScreen.SHARED_LEVEL.getBlockState(pos);
+
+        // Query VariantState first to get the dynamically selected variant choice
+        BlockState dynamicState = null;
+        if (parent instanceof PhantasiaSceneScreen scene && scene.script != null) {
+            for (var group : scene.script.getVariantGroups()) {
+                if (group.getPositionBaseIndex().containsKey(pos)) {
+                    int activeSel = net.phoenixvine.phantasia.common.PhantasiaVariantState.get()
+                            .getSelection(group.getId());
+                    // FIX: Grab the BlockState directly from the flat options list using the active index
+                    if (activeSel >= 0 && activeSel < group.getOptions().size()) {
+                        dynamicState = group.getOptions().get(activeSel);
+                    }
+                    break;
+                }
+            }
+        }
+
+        // Fallback to standard level blocks if no dynamic variant exists
+        this.state = (dynamicState != null) ? dynamicState : PhantasiaSceneScreen.SHARED_LEVEL.getBlockState(pos);
 
         collectData();
     }

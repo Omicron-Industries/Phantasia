@@ -1,7 +1,5 @@
 package net.phoenixvine.phantasia.client.screens;
 
-import com.mojang.blaze3d.systems.RenderSystem;
-
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
@@ -13,6 +11,8 @@ import net.phoenixvine.phantasia.common.PhantasiaVariantState;
 import net.phoenixvine.phantasia.utils.PhantasiaThemeUtils;
 import net.phoenixvine.phantasia.utils.PhantasiaUIUtils;
 
+import com.mojang.blaze3d.systems.RenderSystem;
+
 import java.util.*;
 
 import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
@@ -23,10 +23,12 @@ import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
  * (Optional Blocks / Hatches & Buses / Mufflers / Casings), each with a
  * dropdown to select which block variant to display in the scene.
  *
- * <p>Only groups with {@link PhantasiaVariantGroup#hasChoice()} = true are shown.
+ * <p>
+ * Only groups with {@link PhantasiaVariantGroup#hasChoice()} = true are shown.
  * Empty categories are hidden entirely.
  *
- * <p>Selections are immediately applied to {@link PhantasiaVariantState},
+ * <p>
+ * Selections are immediately applied to {@link PhantasiaVariantState},
  * which triggers a renderer rebake in the parent scene screen via the
  * registered onChange callback.
  */
@@ -50,8 +52,7 @@ public class PhantasiaVariantsScreen extends Screen {
     private final PhantasiaVariantState variantState;
 
     /** Groups that actually have a choice, grouped by category. */
-    private final Map<PhantasiaVariantGroup.Category, List<PhantasiaVariantGroup>> categorised =
-            new LinkedHashMap<>();
+    private final Map<PhantasiaVariantGroup.Category, List<PhantasiaVariantGroup>> categorised = new LinkedHashMap<>();
 
     private final List<PhantasiaUIUtils.ButtonAction> activeButtons = new ArrayList<>();
 
@@ -132,8 +133,8 @@ public class PhantasiaVariantsScreen extends Screen {
                     contentX, y + 4, 0xAAAAAA);
             totalContentH = 20;
         } else {
-            for (Map.Entry<PhantasiaVariantGroup.Category, List<PhantasiaVariantGroup>> entry
-                    : categorised.entrySet()) {
+            for (Map.Entry<PhantasiaVariantGroup.Category, List<PhantasiaVariantGroup>> entry : categorised
+                    .entrySet()) {
                 PhantasiaVariantGroup.Category cat = entry.getKey();
                 List<PhantasiaVariantGroup> groups = entry.getValue();
 
@@ -176,8 +177,8 @@ public class PhantasiaVariantsScreen extends Screen {
     }
 
     private int renderGroupRow(GuiGraphics g, int mx, int my,
-                                int contentX, int contentW, int y,
-                                PhantasiaVariantGroup group) {
+                               int contentX, int contentW, int y,
+                               PhantasiaVariantGroup group) {
         int rowY = y;
 
         // Row background (alternating)
@@ -196,8 +197,7 @@ public class PhantasiaVariantsScreen extends Screen {
 
         int selectedIdx = variantState.getSelection(group.getId());
         List<String> labels = group.getOptionLabels();
-        String selectedLabel = selectedIdx >= 0 && selectedIdx < labels.size()
-                ? labels.get(selectedIdx) : "?";
+        String selectedLabel = selectedIdx >= 0 && selectedIdx < labels.size() ? labels.get(selectedIdx) : "?";
 
         boolean ddOpen = group.getId().equals(openDropdownGroupId);
         boolean ddHov = isOver(mx, my, ddX, ddY, DROPDOWN_W, ddH);
@@ -221,7 +221,7 @@ public class PhantasiaVariantsScreen extends Screen {
     }
 
     /**
-     /**
+     * /**
      * Renders the currently open dropdown list above all other content.
      * Finds the row position of the open group, strictly expanding DOWNWARDS,
      * capping at either 8 items or the bottom panel edge (whichever comes first).
@@ -244,8 +244,7 @@ public class PhantasiaVariantsScreen extends Screen {
         // Find Y position of this group's row by precisely mimicking the render loop layout
         int rowY = contentStartY - scrollY;
         outer:
-        for (Map.Entry<PhantasiaVariantGroup.Category, List<PhantasiaVariantGroup>> entry
-                : categorised.entrySet()) {
+        for (Map.Entry<PhantasiaVariantGroup.Category, List<PhantasiaVariantGroup>> entry : categorised.entrySet()) {
             rowY += SECTION_HEADER_H + 2;
             for (PhantasiaVariantGroup g2 : entry.getValue()) {
                 if (g2.getId().equals(openDropdownGroupId)) {
@@ -299,16 +298,16 @@ public class PhantasiaVariantsScreen extends Screen {
             int itemY = dropY + (i * DROPDOWN_ITEM_H) - dropdownScrollY;
 
             // Mouse hover checks must hit both the item bounds and the global dropdown visible box
-            boolean itemHov = isOver(mx, my, ddX, itemY, DROPDOWN_W, DROPDOWN_ITEM_H)
-                    && isOver(mx, my, ddX, dropY, DROPDOWN_W, visibleListH);
+            boolean itemHov = isOver(mx, my, ddX, itemY, DROPDOWN_W, DROPDOWN_ITEM_H) &&
+                    isOver(mx, my, ddX, dropY, DROPDOWN_W, visibleListH);
 
             boolean itemSel = i == selectedIdx;
 
             int itemBg = itemSel ? 0xFF2A2A50 : (itemHov ? 0xFF1E1E35 : 0x00000000);
             g.fill(ddX, itemY, ddX + DROPDOWN_W, itemY + DROPDOWN_ITEM_H, itemBg);
 
-            String optLabel = i < openGroup.getOptionLabels().size()
-                    ? openGroup.getOptionLabels().get(i) : "Option " + i;
+            String optLabel = i < openGroup.getOptionLabels().size() ? openGroup.getOptionLabels().get(i) :
+                    "Option " + i;
             int textColor = itemSel ? 0xAABBFF : (itemHov ? 0xEEEEEE : 0xBBBBBB);
 
             g.drawString(font, trunc(optLabel, DROPDOWN_W - 20), ddX + 4, itemY + 4, textColor);
@@ -321,10 +320,10 @@ public class PhantasiaVariantsScreen extends Screen {
             final String gid = openGroup.getId();
             activeButtons.add(new PhantasiaUIUtils.ButtonAction(ddX, itemY, DROPDOWN_W,
                     DROPDOWN_ITEM_H, () -> {
-                variantState.setSelection(gid, finalI);
-                openDropdownGroupId = null;
-                dropdownScrollY = 0;
-            }));
+                        variantState.setSelection(gid, finalI);
+                        openDropdownGroupId = null;
+                        dropdownScrollY = 0;
+                    }));
         }
 
         RenderSystem.disableScissor();
@@ -355,7 +354,8 @@ public class PhantasiaVariantsScreen extends Screen {
                 // Recalculate dropY exactly like the render loop
                 int rowY = (20 + 20 + 4) - scrollY; // panelY + titleBarH + 4
                 outer:
-                for (Map.Entry<PhantasiaVariantGroup.Category, List<PhantasiaVariantGroup>> entry : categorised.entrySet()) {
+                for (Map.Entry<PhantasiaVariantGroup.Category, List<PhantasiaVariantGroup>> entry : categorised
+                        .entrySet()) {
                     rowY += SECTION_HEADER_H + 2;
                     for (PhantasiaVariantGroup g2 : entry.getValue()) {
                         if (g2.getId().equals(openDropdownGroupId)) break outer;
@@ -373,7 +373,7 @@ public class PhantasiaVariantsScreen extends Screen {
                 int maxAllowedH = (20 + (height - 40) - 4) - dropY; // (panelY + panelH - 4) - dropY
                 int visibleListH = Math.max(DROPDOWN_ITEM_H, Math.min(idealListH, maxAllowedH));
 
-                boolean clickIsInsideDropdownArea = isOver((int)mx, (int)my, ddX, dropY, DROPDOWN_W, visibleListH);
+                boolean clickIsInsideDropdownArea = isOver((int) mx, (int) my, ddX, dropY, DROPDOWN_W, visibleListH);
 
                 if (clickIsInsideDropdownArea) {
                     // Only scan buttons that actually fit inside the visible scissored bounding box
@@ -381,12 +381,14 @@ public class PhantasiaVariantsScreen extends Screen {
                         PhantasiaUIUtils.ButtonAction action = activeButtons.get(i);
 
                         // The button action's center/Y must sit inside the scissored view boundaries
-                        if (action.hit(mx, my) && action.y() >= dropY && (action.y() + action.h()) <= (dropY + visibleListH)) {
+                        if (action.hit(mx, my) && action.y() >= dropY &&
+                                (action.y() + action.h()) <= (dropY + visibleListH)) {
                             action.action().run();
                             return true; // Click consumed by dropdown item
                         }
                     }
-                    return true; // Clicked on the dropdown background/dead-space; consume it anyway so it doesn't pass through
+                    return true; // Clicked on the dropdown background/dead-space; consume it anyway so it doesn't pass
+                                 // through
                 } else {
                     // Clicked outside the open dropdown window entirely
                     // Check if they clicked the dropdown trigger button itself to toggle close it
@@ -431,7 +433,8 @@ public class PhantasiaVariantsScreen extends Screen {
                 int maxScroll = Math.max(0, totalListH - visibleListH);
 
                 if (maxScroll > 0) {
-                    dropdownScrollY = Math.max(0, Math.min(dropdownScrollY - (int) (delta * DROPDOWN_ITEM_H), maxScroll));
+                    dropdownScrollY = Math.max(0,
+                            Math.min(dropdownScrollY - (int) (delta * DROPDOWN_ITEM_H), maxScroll));
                     return true;
                 }
             }
