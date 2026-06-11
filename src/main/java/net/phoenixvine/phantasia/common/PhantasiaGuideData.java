@@ -46,6 +46,7 @@ public class PhantasiaGuideData {
     @SerializedName("id")
     public String id = "";
 
+
     /** Display title shown in the header bar and selection screen. */
     @SerializedName("title")
     public String title = "Untitled Guide";
@@ -79,6 +80,10 @@ public class PhantasiaGuideData {
          */
         @SerializedName("headline")
         public String headline = null;
+
+
+        @SerializedName("scriptId") // Adds field mapping to your guide json schemas
+        public String scriptId = null;
 
         /**
          * Body text. Supports newlines (\n) and Minecraft § colour codes.
@@ -124,13 +129,14 @@ public class PhantasiaGuideData {
             PageData c = new PageData(headline, text);
             c.guideId = guideId;
             c.sceneId = sceneId;
+            c.scriptId = scriptId; // Include new field in object copies
             for (PhantasiaSceneData.ItemConditionData it : items) c.items.add(it.copy());
             return c;
         }
 
         public boolean hasContent() {
             return (headline != null && !headline.isBlank()) || (text != null && !text.isBlank()) || !items.isEmpty() ||
-                    guideId != null || sceneId != null;
+                    guideId != null || sceneId != null || scriptId != null; // Update content check
         }
     }
 

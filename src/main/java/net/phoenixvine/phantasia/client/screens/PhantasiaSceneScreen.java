@@ -2,6 +2,7 @@ package net.phoenixvine.phantasia.client.screens;
 
 import com.gregtechceu.gtceu.api.block.MetaMachineBlock;
 import com.gregtechceu.gtceu.api.blockentity.MetaMachineBlockEntity;
+import com.gregtechceu.gtceu.api.machine.feature.multiblock.IMultiPart;
 import com.gregtechceu.gtceu.api.machine.MultiblockMachineDefinition;
 import com.gregtechceu.gtceu.api.machine.multiblock.MultiblockControllerMachine;
 import com.gregtechceu.gtceu.api.machine.multiblock.WorkableMultiblockMachine;
@@ -19,6 +20,8 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.EntityBlock;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.phys.BlockHitResult;
@@ -44,6 +47,8 @@ import org.joml.Vector3f;
 
 import java.util.*;
 
+
+import static com.gregtechceu.gtceu.api.machine.trait.RecipeLogic.Status.SUSPEND;
 import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
 
 @OnlyIn(Dist.CLIENT)
@@ -333,7 +338,7 @@ public class PhantasiaSceneScreen extends Screen {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // Pattern loading
+    // Pattern loading (Fully Fake World Schema approach)
     // ─────────────────────────────────────────────────────────────────────────
 
     private PhantasiaLoadedPattern loadPattern(MultiblockShapeInfo shape) {
@@ -366,67 +371,11 @@ public class PhantasiaSceneScreen extends Screen {
         }
     }
 
-    /**
-     * Warm load: block states are already in SHARED_LEVEL from a previous session.
-     * Skips the shape.getBlocks() iteration and SHARED_LEVEL.addBlocks(); only
-     * rebuilds the index maps and re-registers BEs (BEs are ephemeral, not saved).
-     */
-    private PhantasiaLoadedPattern loadPatternWarm(MultiblockShapeInfo shape, BlockPos renderOrigin) {
-        SHARED_LEVEL.blockEntities.clear();
-
-        BlockInfo[][][] raw = shape.getBlocks();
-        Map<BlockPos, BlockInfo> blockMap = new HashMap<>();
-        Map<BlockPos, BlockPos> localToWorld = new HashMap<>();
-        Set<BlockPos> baseplatePos = new HashSet<>();
-        Set<BlockPos> bePos = new HashSet<>();
-        BlockPos controllerWP = null;
-        MultiblockControllerMachine controller = null;
-
-        BlockInfo floor = BlockInfo.fromBlockState(Blocks.DEEPSLATE_BRICKS.defaultBlockState());
-        int sxLen = raw.length;
-        int szLen = sxLen > 0 && raw[0].length > 0 ? raw[0][0].length : 0;
-        int padX = Math.max(2, sxLen / 2 + 1);
-        int padZ = Math.max(2, szLen / 2 + 1);
-
-        for (int bx = -padX; bx <= sxLen + padX; bx++)
-            for (int bz = -padZ; bz <= szLen + padZ; bz++) {
-                BlockPos wp = renderOrigin.offset(bx, -1, bz);
-                blockMap.put(wp, floor);
-                baseplatePos.add(wp);
-            }
-
-        for (int x = 0; x < raw.length; x++)
-            for (int y = 0; y < raw[x].length; y++)
-                for (int z = 0; z < raw[x][y].length; z++) {
-                    BlockInfo info = raw[x][y][z];
-                    if (info == null) continue;
-                    BlockPos lp = new BlockPos(x, y, z);
-                    BlockPos wp = renderOrigin.offset(x, y, z);
-                    try {
-                        var be = info.getBlockEntity(wp);
-                        if (be instanceof MetaMachineBlockEntity mbe) {
-                            mbe.setLevel(SHARED_LEVEL);
-                            var machine = mbe.getMetaMachine();
-                            if (machine instanceof MultiblockControllerMachine ctrl && controllerWP == null) {
-                                controller = ctrl;
-                                controllerWP = wp;
-                            }
-                            bePos.add(wp);
-                        }
-                    } catch (Exception ignored) {}
-                    blockMap.put(wp, info);
-                    localToWorld.put(lp, wp);
-                }
-
-        // Block states already in SHARED_LEVEL.renderedBlocks — skip addBlocks().
-        // Only need to register BEs and call onStructureFormed.
-        return finalisePattern(raw, blockMap, localToWorld, baseplatePos, bePos,
-                controllerWP, controller, renderOrigin);
-    }
 
     /**
      * Cold load: places all blocks into SHARED_LEVEL at {@code renderOrigin} (near 0,0,0),
-     * then writes them to the Phantasia dimension at {@code slotOrigin} for persistence.
+     * dynamically spins up Schema entities, then writes them to the Phantasia dimension at
+     * {@code slotOrigin} for persistence.
      */
     private PhantasiaLoadedPattern loadPatternCold(MultiblockShapeInfo shape, BlockPos renderOrigin,
                                                    BlockPos slotOrigin) {
@@ -440,6 +389,87 @@ public class PhantasiaSceneScreen extends Screen {
         Set<BlockPos> bePos = new HashSet<>();
         BlockPos controllerWP = null;
         MultiblockControllerMachine controller = null;
+        List<IMultiPart> parts = new ArrayList<>();
+
+        BlockInfo floor = BlockInfo.fromBlockState(Blocks.DEEPSLATE_BRICKS.defaultBlockState());
+        int sxLen = raw.length;
+        int szLen = sxLen > 0 && raw[0].length > 0 ? raw[0][0].length : 0;
+        int padX = Math.max(2, sxLen / 2 + 1);
+        int padZ = Math.max(2, szLen / 2 + 1);
+
+        for (int bx = -padX; bx <= sxLen + padX; bx++)
+            for (int bz = -padZ; bz <= szLen + padZ; bz++) {
+                BlockPos wp = renderOrigin.offset(bx, -1, bz);
+                blockMap.put(wp, floor);
+                baseplatePos.add(wp);
+
+                // FIX NADA ELSE: Map the baseplate into the dummy world so the renderer registers it!
+                SHARED_LEVEL.setBlock(wp, floor.getBlockState(), 3);
+            }
+
+        for (int x = 0; x < raw.length; x++)
+            for (int y = 0; y < raw[x].length; y++)
+                for (int z = 0; z < raw[x][y].length; z++) {
+                    BlockInfo info = raw[x][y][z];
+                    if (info == null) continue;
+                    BlockPos lp = new BlockPos(x, y, z);
+                    BlockPos wp = renderOrigin.offset(x, y, z);
+
+                    blockMap.put(wp, info);
+                    localToWorld.put(lp, wp);
+
+                    BlockState state = info.getBlockState();
+                    SHARED_LEVEL.setBlock(wp, state, 3);
+
+                    if (state.getBlock() instanceof EntityBlock entityBlock) {
+                        BlockEntity newEntity = entityBlock.newBlockEntity(wp, state);
+                        if (newEntity != null) {
+                            SHARED_LEVEL.setInnerBlockEntity(newEntity);
+                            if (newEntity instanceof MetaMachineBlockEntity mmbe) {
+                                mmbe.setLevel(SHARED_LEVEL);
+                                var machine = mmbe.getMetaMachine();
+                                if (machine instanceof MultiblockControllerMachine ctrl && controllerWP == null) {
+                                    controller = ctrl;
+                                    controllerWP = wp;
+                                } else if (machine instanceof IMultiPart part) {
+                                    parts.add(part);
+                                }
+                            }
+                            bePos.add(wp);
+                        }
+                    }
+                }
+
+        // Persist to the Phantasia dimension at slot-space coords for warm-start.
+        // Build a slot-space copy by re-offsetting each render-local position.
+        Map<BlockPos, BlockInfo> slotSpaceMap = new HashMap<>(blockMap.size());
+        for (Map.Entry<BlockPos, BlockInfo> e : blockMap.entrySet()) {
+            // Convert render-local wp back to local offset, then apply slotOrigin.
+            BlockPos localOffset = e.getKey().subtract(renderOrigin);
+            slotSpaceMap.put(slotOrigin.offset(localOffset), e.getValue());
+        }
+        coldPopulateDimensionSlot(definition.getId(), slotSpaceMap);
+
+        return finalisePattern(raw, blockMap, localToWorld, baseplatePos, bePos,
+                controllerWP, controller, renderOrigin, parts);
+    }
+
+    /**
+     * Warm load: block states are already in SHARED_LEVEL from a previous session.
+     * Skips the shape.getBlocks() iteration and SHARED_LEVEL.addBlocks(); only
+     * rebuilds the index maps and re-registers BEs dynamically utilizing the Schema logic.
+     */
+    private PhantasiaLoadedPattern loadPatternWarm(MultiblockShapeInfo shape, BlockPos renderOrigin) {
+        SHARED_LEVEL.blockEntities.clear();
+
+        BlockInfo[][][] raw = shape.getBlocks();
+        Map<BlockPos, BlockInfo> blockMap = new HashMap<>();
+        Map<BlockPos, BlockPos> localToWorld = new HashMap<>();
+        Set<BlockPos> baseplatePos = new HashSet<>();
+        Set<BlockPos> bePos = new HashSet<>();
+        BlockPos controllerWP = null;
+        MultiblockControllerMachine controller = null;
+        List<IMultiPart> parts = new ArrayList<>();
 
         BlockInfo floor = BlockInfo.fromBlockState(Blocks.DEEPSLATE_BRICKS.defaultBlockState());
         int sxLen = raw.length;
@@ -461,37 +491,34 @@ public class PhantasiaSceneScreen extends Screen {
                     if (info == null) continue;
                     BlockPos lp = new BlockPos(x, y, z);
                     BlockPos wp = renderOrigin.offset(x, y, z);
-                    try {
-                        var be = info.getBlockEntity(wp);
-                        if (be instanceof MetaMachineBlockEntity mbe) {
-                            mbe.setLevel(SHARED_LEVEL);
-                            var machine = mbe.getMetaMachine();
-                            if (machine instanceof MultiblockControllerMachine ctrl && controllerWP == null) {
-                                controller = ctrl;
-                                controllerWP = wp;
+
+                    blockMap.put(wp, info);
+                    localToWorld.put(lp, wp);
+
+                    BlockState state = SHARED_LEVEL.getBlockState(wp);
+                    if (state.getBlock() instanceof EntityBlock entityBlock) {
+                        BlockEntity newEntity = entityBlock.newBlockEntity(wp, state);
+                        if (newEntity != null) {
+                            SHARED_LEVEL.setInnerBlockEntity(newEntity);
+                            if (newEntity instanceof MetaMachineBlockEntity mmbe) {
+                                mmbe.setLevel(SHARED_LEVEL);
+                                var machine = mmbe.getMetaMachine();
+                                if (machine instanceof MultiblockControllerMachine ctrl && controllerWP == null) {
+                                    controller = ctrl;
+                                    controllerWP = wp;
+                                } else if (machine instanceof IMultiPart part) {
+                                    parts.add(part);
+                                }
                             }
                             bePos.add(wp);
                         }
-                    } catch (Exception ignored) {}
-                    blockMap.put(wp, info);
-                    localToWorld.put(lp, wp);
+                    }
                 }
 
-        SHARED_LEVEL.addBlocks(blockMap);
-
-        // Persist to the Phantasia dimension at slot-space coords for warm-start.
-        // Build a slot-space copy by re-offsetting each render-local position.
-        Map<BlockPos, BlockInfo> slotSpaceMap = new HashMap<>(blockMap.size());
-        for (Map.Entry<BlockPos, BlockInfo> e : blockMap.entrySet()) {
-            // Convert render-local wp back to local offset, then apply slotOrigin.
-            BlockPos localOffset = e.getKey().subtract(renderOrigin);
-            slotSpaceMap.put(slotOrigin.offset(localOffset), e.getValue());
-        }
-        coldPopulateDimensionSlot(definition.getId(), slotSpaceMap);
-
         return finalisePattern(raw, blockMap, localToWorld, baseplatePos, bePos,
-                controllerWP, controller, renderOrigin);
+                controllerWP, controller, renderOrigin, parts);
     }
+
 
     /**
      * Writes the blocks in {@code blockMap} to the Phantasia scene dimension so
@@ -533,58 +560,44 @@ public class PhantasiaSceneScreen extends Screen {
     }
 
     /**
-     * Common tail of both load paths: register BEs, call onStructureFormed,
-     * compute Y extents, and construct the PhantasiaLoadedPattern.
+     * Common tail of both load paths: applies GTCEu exact multiblock structural logic natively,
+     * computes Y extents, and constructs the PhantasiaLoadedPattern.
      */
     private PhantasiaLoadedPattern finalisePattern(
-                                                   BlockInfo[][][] raw,
-                                                   Map<BlockPos, BlockInfo> blockMap,
-                                                   Map<BlockPos, BlockPos> localToWorld,
-                                                   Set<BlockPos> baseplatePos,
-                                                   Set<BlockPos> bePos,
-                                                   BlockPos controllerWP,
-                                                   MultiblockControllerMachine controller,
-                                                   BlockPos origin) {
-        // Register every MetaMachineBlockEntity with the dummy world so that
-        // TrackedDummyWorld.getBlockEntity(pos) returns them. Must happen BEFORE
-        // onStructureFormed so the controller's own BE is in the world when
-        // formation logic queries it.
-        for (BlockPos bp : bePos) {
-            try {
-                BlockInfo info = blockMap.get(bp);
-                if (info == null) continue;
-                var be = info.getBlockEntity(bp);
-                if (be != null) {
-                    be.setLevel(SHARED_LEVEL);
-                    SHARED_LEVEL.setInnerBlockEntity(be);
-                }
-            } catch (Exception ignored) {}
-        }
+            BlockInfo[][][] raw,
+            Map<BlockPos, BlockInfo> blockMap,
+            Map<BlockPos, BlockPos> localToWorld,
+            Set<BlockPos> baseplatePos,
+            Set<BlockPos> bePos,
+            BlockPos controllerWP,
+            MultiblockControllerMachine controller,
+            BlockPos origin,
+            List<IMultiPart> parts) {
+
         net.phoenixvine.phantasia.Phantasia.LOGGER.info(
                 "[Phantasia] Registered {} block entities with SHARED_LEVEL", bePos.size());
 
         if (controller != null) {
             try {
-                BlockPattern pat = controller.getPattern();
-                net.phoenixvine.phantasia.Phantasia.LOGGER.info(
-                        "[Phantasia] loadPattern: controller={}, pattern={}, multiblockState={}",
-                        controller.getClass().getSimpleName(),
-                        pat != null ? "present" : "null",
-                        controller.getMultiblockState());
-                if (pat != null) {
-                    boolean matched = pat.checkPatternAt(controller.getMultiblockState(), true);
-                    net.phoenixvine.phantasia.Phantasia.LOGGER.info(
-                            "[Phantasia] checkPatternAt result: {}", matched);
-                    if (matched) {
-                        controller.onStructureFormed();
-                        net.phoenixvine.phantasia.Phantasia.LOGGER.info(
-                                "[Phantasia] onStructureFormed completed, entities in world: {}",
-                                SHARED_LEVEL.getAllEntities().spliterator().estimateSize());
-                    }
+                var mState = controller.getMultiblockState();
+                if (mState != null) {
+                    mState.setError(null);
+
+                    // FIXED: Changed .put() to .set() to match your PatternMatchContext API
+                    mState.getMatchContext().set("parts", new java.util.HashSet<>(parts));
                 }
+
+                controller.getPatternLock().lock();
+                try {
+                    controller.onStructureFormed();
+                } finally {
+                    controller.getPatternLock().unlock();
+                }
+
+                net.phoenixvine.phantasia.Phantasia.LOGGER.info("[Phantasia] onStructureFormed fully simulated via fake world!");
             } catch (Exception e) {
                 net.phoenixvine.phantasia.Phantasia.LOGGER.error(
-                        "[Phantasia] onStructureFormed failed: {}", e.getMessage(), e);
+                        "[Phantasia] formStructure failed: {}", e.getMessage(), e);
             }
         }
 
@@ -1157,12 +1170,18 @@ public class PhantasiaSceneScreen extends Screen {
 
         if (renderer != null && camera != null) {
             CameraView view = camera.getView(partial);
+
+            // ── FIX: Apply viewport offset context to mouse coords handed down to the FBO color-pick pass ──
             renderer.setMousePos(mx, my);
             renderer.render(view, 0, CAPTION_STRIP_H, sw, sh);
+
             BlockHitResult hit = renderer.getLastHitResult();
             if (hit != null && hit.getType() == HitResult.Type.BLOCK) {
                 BlockPos hp = hit.getBlockPos();
-                hoveredPos = renderer.isVisible(hp) ? hp : null;
+
+                // ── FIX: Ensure baseplate blocks are recognized as valid elements to hover over ──
+                boolean isBaseplate = pattern != null && pattern.baseplatePositions.contains(hp);
+                hoveredPos = (renderer.isVisible(hp) || isBaseplate) ? hp : null;
             } else {
                 hoveredPos = null;
             }

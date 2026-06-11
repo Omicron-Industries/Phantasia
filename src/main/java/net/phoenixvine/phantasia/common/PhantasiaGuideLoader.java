@@ -23,11 +23,11 @@ public final class PhantasiaGuideLoader {
         try {
             // Locate config/phantasia/guides directory
             Path guidesDir = Minecraft.getInstance().gameDirectory.toPath()
-                    .resolve("config/phantasia/guides");
+                    .resolve("phantasia/guides");
 
             if (!Files.exists(guidesDir)) {
                 Files.createDirectories(guidesDir);
-                Phantasia.LOGGER.info("[Phantasia] Created guides config directory at: {}", guidesDir);
+                Phantasia.LOGGER.info("[Phantasia] Created guides directory at: {}", guidesDir);
                 return;
             }
 
@@ -43,6 +43,13 @@ public final class PhantasiaGuideLoader {
         } catch (Exception e) {
             Phantasia.LOGGER.error("[Phantasia] Critical error walking guide directories: {}", e.getMessage(), e);
         }
+    }
+
+    /**
+     * Clears the guide registry and re-reads all files from disk.
+     */
+    public static void reload() {
+        load();
     }
 
     private static void loadGuideFile(Path path) {

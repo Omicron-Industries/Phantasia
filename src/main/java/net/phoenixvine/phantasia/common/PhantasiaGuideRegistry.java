@@ -1,5 +1,7 @@
 package net.phoenixvine.phantasia.common;
 
+import net.phoenixvine.phantasia.Phantasia;
+
 import java.util.*;
 
 /**
@@ -31,22 +33,28 @@ public final class PhantasiaGuideRegistry {
     }
 
     /**
-     * Persists a guide back to the user's config directory.
      * Called by {@link net.phoenixvine.phantasia.client.screens.PhantasiaGuideEditorScreen}.
      */
     public static void save(PhantasiaGuideData guide) {
+        if (guide.id == null || guide.id.isBlank()) {
+            Phantasia.LOGGER.error("[Phantasia] Cannot save a guide with a missing or empty ID!");
+            return;
+        }
+
         register(guide);
         try {
             java.nio.file.Path dir = net.minecraft.client.Minecraft.getInstance().gameDirectory.toPath()
-                    .resolve("config/phantasia/guides");
+                    .resolve("phantasia/guides");
             java.nio.file.Files.createDirectories(dir);
-            String fileName = guide.id.replace(":", "/") + ".json";
-            java.nio.file.Path file = dir.resolve(fileName);
-            java.nio.file.Files.createDirectories(file.getParent());
+
+            // Replace colon with an underscore so it saves cleanly as a single file in the directory
+            String sanitizedName = guide.id.replace(":", "_") + ".json";
+            java.nio.file.Path file = dir.resolve(sanitizedName);
+
             java.nio.file.Files.writeString(file, guide.toJson());
+            Phantasia.LOGGER.info("[Phantasia] Successfully saved guide file to: {}", file);
         } catch (Exception e) {
-            net.phoenixvine.phantasia.Phantasia.LOGGER.error(
-                    "[Phantasia] Failed to save guide {}: {}", guide.id, e.getMessage());
+            Phantasia.LOGGER.error("[Phantasia] Failed to save guide to disk: ", e);
         }
     }
 }
