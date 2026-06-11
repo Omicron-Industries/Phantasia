@@ -490,7 +490,7 @@ public final class PhantasiaWorldRenderer {
      * back into world space. Uses Minecraft's exact voxel clip trace for pixel-perfect interactions.
      */
     @Nullable
-    private BlockHitResult doDepthSampleRead(CameraViewt glW, int glH, double guiScale, int windowH) {
+    private BlockHitResult doDepthSampleRead(CameraView view, int glX, int glY, int glW, int glH, double guiScale, int windowH) {
         int mouseGlX = (int)(guiMouseX * guiScale);
         int mouseGlY = (int)(windowH - guiMouseY * guiScale);
 
