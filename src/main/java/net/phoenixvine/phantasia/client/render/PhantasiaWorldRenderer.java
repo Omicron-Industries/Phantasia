@@ -92,6 +92,7 @@ public final class PhantasiaWorldRenderer {
     /** Instance field — not static — so multiple renderer instances don't share a timer. */
     private long lastTraceTime = 0;
 
+
     @Nullable
     public BlockHitResult getLastHitResult() {
         return this.lastHitResult;
@@ -535,152 +536,75 @@ public final class PhantasiaWorldRenderer {
     }
 
     /**
-     * CPU-side ray-AABB pick. Unprojects the mouse cursor into a world-space ray using
-     * the snapshotted view/projection matrices, then walks every visible block and finds
-     * the nearest unit-cube intersection. Works correctly at any camera angle — the old
-     * depth-buffer approach always returned the topmost pixel (baseplate or roof) and
-     * could never reach blocks on the sides of the structure from oblique views.
-     *
-     * Cost: O(visibleBlocks) AABB slab tests per frame, ~0.1–0.5 ms for typical GT multiblocks.
-     * No GPU readback, no framebuffer stall.
+     * Casts a ray from the camera through the mouse cursor using world.clip(),
+     * iteratively skipping hidden blocks until a visible one is hit.
+     * Uses Minecraft's actual voxel traversal so non-full-cube shapes (slabs,
+     * stairs, etc.) are handled correctly — unlike unit-cube AABB testing.
      */
     @Nullable
     private BlockHitResult doDepthSampleRead(CameraView view, int glX, int glY, int glW, int glH, double guiScale,
                                              int windowH) {
-        // ── 1. Bounds-check: cursor must be inside the scene viewport ─────────
+        // 1. Bounds-check: cursor must be inside the scene viewport.
         int mouseGlX = (int) (guiMouseX * guiScale);
         int mouseGlY = (int) (windowH - guiMouseY * guiScale);
         if (mouseGlX < glX || mouseGlX >= glX + glW || mouseGlY < glY || mouseGlY >= glY + glH) {
             return null;
         }
 
-        // ── 2. Unproject near and far plane points to get the ray ─────────────
-        // Reuse the already-snapshotted MV/Proj/VP arrays from snapshotMatrices().
+        // 2. Unproject near (depth=0) and far (depth=1) plane points to build the ray.
         for (int i = 0; i < 16; i++) SCRATCH_MV.put(i, snapMV[i]);
         for (int i = 0; i < 16; i++) SCRATCH_PROJ.put(i, snapProj[i]);
         for (int i = 0; i < 4; i++) SCRATCH_VP.put(i, snapVP[i]);
-        SCRATCH_MV.rewind();
-        SCRATCH_PROJ.rewind();
-        SCRATCH_VP.rewind();
-        UNPROJECT_OUT.rewind();
+        SCRATCH_MV.rewind(); SCRATCH_PROJ.rewind(); SCRATCH_VP.rewind(); UNPROJECT_OUT.rewind();
 
-        // Near plane (depth=0) → ray origin
         Project.gluUnProject(mouseGlX, mouseGlY, 0f, SCRATCH_MV, SCRATCH_PROJ, SCRATCH_VP, UNPROJECT_OUT);
-        double nearX = UNPROJECT_OUT.get(0);
-        double nearY = UNPROJECT_OUT.get(1);
-        double nearZ = UNPROJECT_OUT.get(2);
+        double nearX = UNPROJECT_OUT.get(0), nearY = UNPROJECT_OUT.get(1), nearZ = UNPROJECT_OUT.get(2);
 
-        // Rewind and reuse buffers for far plane
         for (int i = 0; i < 16; i++) SCRATCH_MV.put(i, snapMV[i]);
         for (int i = 0; i < 16; i++) SCRATCH_PROJ.put(i, snapProj[i]);
         for (int i = 0; i < 4; i++) SCRATCH_VP.put(i, snapVP[i]);
-        SCRATCH_MV.rewind();
-        SCRATCH_PROJ.rewind();
-        SCRATCH_VP.rewind();
-        UNPROJECT_OUT.rewind();
+        SCRATCH_MV.rewind(); SCRATCH_PROJ.rewind(); SCRATCH_VP.rewind(); UNPROJECT_OUT.rewind();
 
-        // Far plane (depth=1) → ray far point
         Project.gluUnProject(mouseGlX, mouseGlY, 1f, SCRATCH_MV, SCRATCH_PROJ, SCRATCH_VP, UNPROJECT_OUT);
-        double farX = UNPROJECT_OUT.get(0);
-        double farY = UNPROJECT_OUT.get(1);
-        double farZ = UNPROJECT_OUT.get(2);
+        double farX = UNPROJECT_OUT.get(0), farY = UNPROJECT_OUT.get(1), farZ = UNPROJECT_OUT.get(2);
 
-        // Unproject produces slot-relative coordinates; convert to world space.
-        double ox = this.slotOrigin != null ? this.slotOrigin.getX() : 0.0;
-        double oy = this.slotOrigin != null ? this.slotOrigin.getY() : 0.0;
-        double oz = this.slotOrigin != null ? this.slotOrigin.getZ() : 0.0;
+        // Unproject yields slot-relative coords; shift to world space.
+        double ox = slotOrigin != null ? slotOrigin.getX() : 0.0;
+        double oy = slotOrigin != null ? slotOrigin.getY() : 0.0;
+        double oz = slotOrigin != null ? slotOrigin.getZ() : 0.0;
+        Vec3 rayStart = new Vec3(nearX + ox, nearY + oy, nearZ + oz);
+        Vec3 farPt    = new Vec3(farX  + ox, farY  + oy, farZ  + oz);
 
-        // Ray origin in world space
-        final double ro_x = nearX + ox, ro_y = nearY + oy, ro_z = nearZ + oz;
+        Vec3 lookDir = farPt.subtract(rayStart).normalize();
+        if (lookDir.lengthSqr() < 1e-10) return null;
 
-        // Normalise direction into new finals so the intermediate mutable is not captured
-        double rdRawX = farX - nearX, rdRawY = farY - nearY, rdRawZ = farZ - nearZ;
-        double rdLen = Math.sqrt(rdRawX * rdRawX + rdRawY * rdRawY + rdRawZ * rdRawZ);
-        if (rdLen < 1e-10) return null;
-        final double rd_x = rdRawX / rdLen, rd_y = rdRawY / rdLen, rd_z = rdRawZ / rdLen;
+        // Ray end 200 blocks out - far enough for any GT multiblock.
+        Vec3 rayEnd = rayStart.add(lookDir.scale(200.0));
 
-        // Precompute reciprocals for slab test
-        final double inv_x = Math.abs(rd_x) > 1e-10 ? 1.0 / rd_x : Double.MAX_VALUE;
-        final double inv_y = Math.abs(rd_y) > 1e-10 ? 1.0 / rd_y : Double.MAX_VALUE;
-        final double inv_z = Math.abs(rd_z) > 1e-10 ? 1.0 / rd_z : Double.MAX_VALUE;
+        // 3. Iterative world.clip(): use Minecraft's voxel traversal which respects
+        //    actual block shape (slabs, stairs, hatches, etc.). Hidden blocks are
+        //    transparent to the ray - nudge past them and retry up to 32 times.
+        for (int attempt = 0; attempt < 32; attempt++) {
+            net.minecraft.world.level.ClipContext ctx = new net.minecraft.world.level.ClipContext(
+                    rayStart, rayEnd,
+                    net.minecraft.world.level.ClipContext.Block.OUTLINE,
+                    net.minecraft.world.level.ClipContext.Fluid.NONE,
+                    cameraEntity);
 
-        // ── 3. Ray-AABB slab test over all visible blocks ─────────────────────
-        // Plain loops — avoids the effectively-final restriction on captured locals.
-        double bestT = Double.MAX_VALUE;
-        int bestFaceOrd = net.minecraft.core.Direction.UP.ordinal();
-        int bestX = 0, bestY = 0, bestZ = 0;
-
-        for (int pass = 0; pass < 2; pass++) {
-            Iterable<BlockPos> set = pass == 0 ? targetVisible : baseplatePositions;
-            for (BlockPos pos : set) {
-                double bx0 = pos.getX(), bx1 = bx0 + 1.0;
-                double by0 = pos.getY(), by1 = by0 + 1.0;
-                double bz0 = pos.getZ(), bz1 = bz0 + 1.0;
-
-                double tx0 = (bx0 - ro_x) * inv_x, tx1 = (bx1 - ro_x) * inv_x;
-                if (tx0 > tx1) {
-                    double tmp = tx0;
-                    tx0 = tx1;
-                    tx1 = tmp;
-                }
-                double ty0 = (by0 - ro_y) * inv_y, ty1 = (by1 - ro_y) * inv_y;
-                if (ty0 > ty1) {
-                    double tmp = ty0;
-                    ty0 = ty1;
-                    ty1 = tmp;
-                }
-                double tz0 = (bz0 - ro_z) * inv_z, tz1 = (bz1 - ro_z) * inv_z;
-                if (tz0 > tz1) {
-                    double tmp = tz0;
-                    tz0 = tz1;
-                    tz1 = tmp;
-                }
-
-                // Determine entry axis via int - avoids float equality comparison
-                double tEnter;
-                int enterAxis; // 0=X, 1=Y, 2=Z
-                if (tx0 >= ty0 && tx0 >= tz0) {
-                    tEnter = tx0;
-                    enterAxis = 0;
-                } else if (ty0 >= tz0) {
-                    tEnter = ty0;
-                    enterAxis = 1;
-                } else {
-                    tEnter = tz0;
-                    enterAxis = 2;
-                }
-                double tExit = Math.min(Math.min(tx1, ty1), tz1);
-                if (tExit < 0 || tEnter > tExit) continue;
-                double t = tEnter < 0 ? tExit : tEnter;
-                if (t < 0 || t >= bestT) continue;
-
-                // Only accept this hit if the entry face is exposed (neighbour in that
-                // direction is not also a visible block). Without this check, interior
-                // blocks buried inside the structure win the nearest-t contest even
-                // though their faces are never rendered.
-                net.minecraft.core.Direction entryFace;
-                if (enterAxis == 0)
-                    entryFace = rd_x > 0 ? net.minecraft.core.Direction.WEST : net.minecraft.core.Direction.EAST;
-                else if (enterAxis == 1)
-                    entryFace = rd_y > 0 ? net.minecraft.core.Direction.DOWN : net.minecraft.core.Direction.UP;
-                else entryFace = rd_z > 0 ? net.minecraft.core.Direction.NORTH : net.minecraft.core.Direction.SOUTH;
-                BlockPos neighbour = pos.relative(entryFace.getOpposite());
-                if (targetVisible.contains(neighbour) || baseplatePositions.contains(neighbour)) continue;
-
-                bestT = t;
-                bestX = pos.getX();
-                bestY = pos.getY();
-                bestZ = pos.getZ();
-                bestFaceOrd = entryFace.ordinal();
+            BlockHitResult result = world.clip(ctx);
+            if (result == null || result.getType() == net.minecraft.world.phys.HitResult.Type.MISS) {
+                return null;
             }
+
+            BlockPos pos = result.getBlockPos();
+            if (targetVisible.contains(pos) || baseplatePositions.contains(pos)) {
+                return result;
+            }
+
+            // Hidden block - nudge ray start just past the hit face and retry.
+            rayStart = result.getLocation().add(lookDir.scale(0.02));
         }
-
-        if (bestT == Double.MAX_VALUE) return null;
-
-        BlockPos hitPos = new BlockPos(bestX, bestY, bestZ);
-        net.minecraft.core.Direction hitFace = net.minecraft.core.Direction.values()[bestFaceOrd];
-        Vec3 hitVec = new Vec3(ro_x + rd_x * bestT, ro_y + rd_y * bestT, ro_z + rd_z * bestT);
-        return new BlockHitResult(hitVec, hitFace, hitPos, false);
+        return null;
     }
 
     private void dumpProfilingData() {
