@@ -92,35 +92,74 @@ public final class PhantasiaWorldRenderer {
     /** Instance field — not static — so multiple renderer instances don't share a timer. */
     private long lastTraceTime = 0;
 
-
     @Nullable
     public BlockHitResult getLastHitResult() {
         return this.lastHitResult;
     }
 
-    // ── Production-Pack Modpack Profiler ──────────────────────────────────────
-    private static final long PROFILE_WINDOW_NS = 5_000_000_000L; // Log every 5 seconds
+    // ── Profiler ──────────────────────────────────────────────────────────────
+    // Window: emit a report every 5 s of wall-clock render time.
+    private static final long PROFILE_WINDOW_NS = 5_000_000_000L;
+    private static final int SPIKE_HISTORY_SIZE = 64; // ring-buffer of recent frame times
+
     private long profileWindowStart = -1;
     private int profiledFramesCount = 0;
+
+    // ── Per-window accumulators ───────────────────────────────────────────────
     private long totalRenderTimeNs = 0;
     private long maxRenderTimeNs = 0;
-
-    // Baseline Phase Metrics
     private long totalSetupTimeNs = 0;
     private long totalVboTimeNs = 0;
     private long totalDynamicTimeNs = 0;
     private long totalParticleTickTimeNs = 0;
     private long totalRayTraceTimeNs = 0;
+    private long totalPrePhaseTimeNs = 0; // tickAlpha, swaps, bake scheduling, sprite marker
 
-    // Micro-Optimizations Deep Metrics
-    private long totalBerRenderTimeNs = 0; // Pure overhead inside individual machine render calls
-    private long totalClipContextTimeNs = 0; // Cost of voxel clip steps inside your custom raytracer
+    // Sub-phase: inside Phase 3 (Dynamic & BERs)
+    private long totalBerTimeNs = 0; // cumulative BER render time
+    private long totalEntityTimeNs = 0; // cumulative entity render time
+    private long totalDynRendererTimeNs = 0; // cumulative dynamic-renderer time
+    private long totalBufFlushTimeNs = 0; // buffers.endBatch() cost
+
+    // Sub-phase: inside Phase 4 (Particles & Ticks)
+    private long totalParticleRenderNs = 0; // particle draw only
+    private long totalWorldTickNs = 0; // world.tickWorld() + animateTick
+
+    // Sub-phase: ray trace internals
+    private long totalClipContextTimeNs = 0; // cumulative world.clip() cost
+    private int totalRayAttempts = 0; // sum of retry counts over window
+    private int maxRayIterations = 0; // worst-case retry depth this window
+    private int rayTraceCallsThisWindow = 0; // how many frames actually ran a trace
+
+    // BER detail
+    private long totalBerRenderTimeNs = 0; // alias kept for call sites
     private int maxBerCountTracked = 0;
-    private int maxRayIterationsTracked = 0;
+    private int maxRayIterationsTracked = 0; // alias kept for dumpProfilingData
 
-    private long totalBeTimeNs = 0;
-    private long totalParticleTimeNs = 0;
+    // Bake start timestamps (written on bake thread, read on render thread at swap)
+    private volatile long fullBakeStartNs = 0;
+    private volatile long partialBakeStartNs = 0;
+    private volatile int lastBakeBlockCount = 0;
 
+    // Bake timing (accumulated across async completions — written from render thread on swap)
+    private long lastFullBakeDurationNs = 0;
+    private long lastPartialBakeDurationNs = 0;
+    private int bakeCompletionsThisWindow = 0;
+    private long totalBakeTimeNs = 0;
+
+    // Spike ring-buffer: store last SPIKE_HISTORY_SIZE frame durations (ms * 1000 = µs)
+    private final long[] spikeHistory = new long[SPIKE_HISTORY_SIZE];
+    private int spikeHead = 0; // next write index
+
+    // Frame budget warnings — log once per window if thresholds exceeded
+    private int framesOver8ms = 0;
+    private int framesOver16ms = 0;
+    private int framesOver33ms = 0;
+
+    // Per-frame temporaries (set at render start, read by sub-methods)
+    private int frameParticleCount = 0;
+    private int frameBerCount = 0;
+    private int frameRayDepth = 0;
     private final float[] snapMV = new float[16];
     private final float[] snapProj = new float[16];
     private final int[] snapVP = new int[4];
@@ -365,6 +404,7 @@ public final class PhantasiaWorldRenderer {
             profileWindowStart = renderStart;
         }
 
+        long tPre = System.nanoTime();
         tickAlpha();
 
         if (backReady) swapFullBuffers();
@@ -384,6 +424,7 @@ public final class PhantasiaWorldRenderer {
                 scheduleFullBake();
             }
         }
+        totalPrePhaseTimeNs += (System.nanoTime() - tPre);
 
         Minecraft mc = Minecraft.getInstance();
         double scale = mc.getWindow().getGuiScale();
@@ -450,16 +491,32 @@ public final class PhantasiaWorldRenderer {
             // The global MV stack already contains the full camera-view transform; passing it
             // to GT's machine BER causes the slot-relative translation to double-stack with
             // the camera matrix, making the controller "run away" on zoom.
-            // A fresh PoseStack starts at identity — the slot-relative translate inside each
+            // A fresh PoseStack starts at identity -- the slot-relative translate inside each
             // draw method then puts it exactly where the block lives in slot-relative space,
             // which is what GT's BER expects.
             PoseStack localPoseStack = new PoseStack();
 
-            drawTileEntities(localPoseStack, buffers, partial, camX, camY, camZ);
-            drawEntities(localPoseStack, buffers, partial, camX, camY, camZ);
-            drawDynamicRenderers(localPoseStack, buffers, partial, camX, camY, camZ);
+            frameBerCount = 0; // reset per-frame profiler counters
+            frameRayDepth = 0;
+            frameParticleCount = 0;
 
+            long _p3ber = System.nanoTime();
+            drawTileEntities(localPoseStack, buffers, partial, camX, camY, camZ);
+            totalBerTimeNs += (System.nanoTime() - _p3ber);
+
+            long _p3ent = System.nanoTime();
+            drawEntities(localPoseStack, buffers, partial, camX, camY, camZ);
+            totalEntityTimeNs += (System.nanoTime() - _p3ent);
+
+            long _p3dyn = System.nanoTime();
+            drawDynamicRenderers(localPoseStack, buffers, partial, camX, camY, camZ);
+            totalDynRendererTimeNs += (System.nanoTime() - _p3dyn);
+
+            long _p3flush = System.nanoTime();
             buffers.endBatch();
+            totalBufFlushTimeNs += (System.nanoTime() - _p3flush);
+
+            maxBerCountTracked = Math.max(maxBerCountTracked, frameBerCount);
             totalDynamicTimeNs += (System.nanoTime() - t2);
 
             // ── PHASE 4: PARTICLES & WORLD TICKING ──
@@ -471,8 +528,10 @@ public final class PhantasiaWorldRenderer {
                     mv.pushPose();
                     mv.translate(camPos.x, camPos.y, camPos.z);
                     RenderSystem.applyModelViewMatrix();
+                    long _partRender = System.nanoTime();
                     PhantasiaParticleEngine.renderDirect(buffers, mc.gameRenderer.lightTexture(), this.camera, partial);
                     buffers.endBatch();
+                    totalParticleRenderNs += (System.nanoTime() - _partRender);
                     mv.popPose();
                     RenderSystem.applyModelViewMatrix();
                 } catch (Exception e) {
@@ -481,6 +540,7 @@ public final class PhantasiaWorldRenderer {
             }
 
             if (tickedThisFrame) {
+                long _tickStart = System.nanoTime();
                 PhantasiaParticleEngine.tick();
                 world.tickWorld();
                 // Checking package-local implementation of TrackedDummyWorld if applicable
@@ -488,31 +548,32 @@ public final class PhantasiaWorldRenderer {
                     RandomSource ar = RandomSource.createNewThreadLocalInstance();
                     for (BlockPos pos : animateTickEligible) ptdw.tickAnimateForPos(pos, ar);
                 }
+                totalWorldTickNs += (System.nanoTime() - _tickStart);
             }
             totalParticleTickTimeNs += (System.nanoTime() - t3);
 
             turnOffLight();
 
-            // ── PHASE 5: DEPTH-SAMPLE PICK PASS ──
+            // ── PHASE 5: RAY TRACE PICK PASS ──
             long t4 = System.nanoTime();
             long currentSystemTime = System.currentTimeMillis();
-
-            // Sample every display frame (~16ms). glReadPixels on 1 pixel is <0.05ms —
-            // the 50ms window was overly conservative and caused visible hover lag.
             final long SAMPLE_INTERVAL_MS = 16;
 
             if (currentSystemTime - lastTraceTime > SAMPLE_INTERVAL_MS || cachedPickResult == null) {
-                // Only execute the heavy GPU read stall periodically
+                frameRayDepth = 0; // reset; doDepthSampleRead increments per retry
                 cachedPickResult = doDepthSampleRead(view, glX, glY, glW, glH, scale, windowH);
                 lastHitResult = cachedPickResult;
-                lastTraceTime = currentSystemTime; // Update the tracking timestamp
+                lastTraceTime = currentSystemTime;
+                rayTraceCallsThisWindow++;
+                totalRayAttempts += frameRayDepth;
+                maxRayIterations = Math.max(maxRayIterations, frameRayDepth);
+                maxRayIterationsTracked = maxRayIterations;
             } else {
-                // Reuse the cached result from the last 50ms window to keep rendering smooth
                 cachedPickResult = lastHitResult;
             }
             totalRayTraceTimeNs += (System.nanoTime() - t4);
 
-            resetCamera();;
+            resetCamera();
 
         } finally {
             // ── RESTORE ORIGINAL CAMERA CONTEXT ──
@@ -529,6 +590,18 @@ public final class PhantasiaWorldRenderer {
         totalRenderTimeNs += frameDurationNs;
         maxRenderTimeNs = Math.max(maxRenderTimeNs, frameDurationNs);
         profiledFramesCount++;
+
+        // Spike ring-buffer
+        spikeHistory[spikeHead] = frameDurationNs;
+        spikeHead = (spikeHead + 1) % SPIKE_HISTORY_SIZE;
+
+        // Budget violation counters
+        long frameMs8 = 8_000_000L;
+        long frameMs16 = 16_000_000L;
+        long frameMs33 = 33_000_000L;
+        if (frameDurationNs > frameMs8) framesOver8ms++;
+        if (frameDurationNs > frameMs16) framesOver16ms++;
+        if (frameDurationNs > frameMs33) framesOver33ms++;
 
         if (System.nanoTime() - profileWindowStart >= PROFILE_WINDOW_NS) {
             dumpProfilingData();
@@ -555,7 +628,10 @@ public final class PhantasiaWorldRenderer {
         for (int i = 0; i < 16; i++) SCRATCH_MV.put(i, snapMV[i]);
         for (int i = 0; i < 16; i++) SCRATCH_PROJ.put(i, snapProj[i]);
         for (int i = 0; i < 4; i++) SCRATCH_VP.put(i, snapVP[i]);
-        SCRATCH_MV.rewind(); SCRATCH_PROJ.rewind(); SCRATCH_VP.rewind(); UNPROJECT_OUT.rewind();
+        SCRATCH_MV.rewind();
+        SCRATCH_PROJ.rewind();
+        SCRATCH_VP.rewind();
+        UNPROJECT_OUT.rewind();
 
         Project.gluUnProject(mouseGlX, mouseGlY, 0f, SCRATCH_MV, SCRATCH_PROJ, SCRATCH_VP, UNPROJECT_OUT);
         double nearX = UNPROJECT_OUT.get(0), nearY = UNPROJECT_OUT.get(1), nearZ = UNPROJECT_OUT.get(2);
@@ -563,7 +639,10 @@ public final class PhantasiaWorldRenderer {
         for (int i = 0; i < 16; i++) SCRATCH_MV.put(i, snapMV[i]);
         for (int i = 0; i < 16; i++) SCRATCH_PROJ.put(i, snapProj[i]);
         for (int i = 0; i < 4; i++) SCRATCH_VP.put(i, snapVP[i]);
-        SCRATCH_MV.rewind(); SCRATCH_PROJ.rewind(); SCRATCH_VP.rewind(); UNPROJECT_OUT.rewind();
+        SCRATCH_MV.rewind();
+        SCRATCH_PROJ.rewind();
+        SCRATCH_VP.rewind();
+        UNPROJECT_OUT.rewind();
 
         Project.gluUnProject(mouseGlX, mouseGlY, 1f, SCRATCH_MV, SCRATCH_PROJ, SCRATCH_VP, UNPROJECT_OUT);
         double farX = UNPROJECT_OUT.get(0), farY = UNPROJECT_OUT.get(1), farZ = UNPROJECT_OUT.get(2);
@@ -573,7 +652,7 @@ public final class PhantasiaWorldRenderer {
         double oy = slotOrigin != null ? slotOrigin.getY() : 0.0;
         double oz = slotOrigin != null ? slotOrigin.getZ() : 0.0;
         Vec3 rayStart = new Vec3(nearX + ox, nearY + oy, nearZ + oz);
-        Vec3 farPt    = new Vec3(farX  + ox, farY  + oy, farZ  + oz);
+        Vec3 farPt = new Vec3(farX + ox, farY + oy, farZ + oz);
 
         Vec3 lookDir = farPt.subtract(rayStart).normalize();
         if (lookDir.lengthSqr() < 1e-10) return null;
@@ -582,8 +661,8 @@ public final class PhantasiaWorldRenderer {
         Vec3 rayEnd = rayStart.add(lookDir.scale(200.0));
 
         // 3. Iterative world.clip(): use Minecraft's voxel traversal which respects
-        //    actual block shape (slabs, stairs, hatches, etc.). Hidden blocks are
-        //    transparent to the ray - nudge past them and retry up to 32 times.
+        // actual block shape (slabs, stairs, hatches, etc.). Hidden blocks are
+        // transparent to the ray - nudge past them and retry up to 32 times.
         for (int attempt = 0; attempt < 32; attempt++) {
             net.minecraft.world.level.ClipContext ctx = new net.minecraft.world.level.ClipContext(
                     rayStart, rayEnd,
@@ -603,6 +682,7 @@ public final class PhantasiaWorldRenderer {
 
             // Hidden block - nudge ray start just past the hit face and retry.
             rayStart = result.getLocation().add(lookDir.scale(0.02));
+            frameRayDepth++;
         }
         return null;
     }
@@ -610,37 +690,104 @@ public final class PhantasiaWorldRenderer {
     private void dumpProfilingData() {
         if (profiledFramesCount == 0) return;
 
-        double toMs = 1_000_000.0;
-        double avgTotal = (totalRenderTimeNs / (double) profiledFramesCount) / toMs;
-        double maxTotal = maxRenderTimeNs / toMs;
+        final double MS = 1_000_000.0;
+        final double n = profiledFramesCount;
 
-        double avgSetup = (totalSetupTimeNs / (double) profiledFramesCount) / toMs;
-        double avgVbo = (totalVboTimeNs / (double) profiledFramesCount) / toMs;
-        double avgDynamic = (totalDynamicTimeNs / (double) profiledFramesCount) / toMs;
-        double avgParticles = (totalParticleTickTimeNs / (double) profiledFramesCount) / toMs;
-        double avgRayTrace = (totalRayTraceTimeNs / (double) profiledFramesCount) / toMs;
+        // ── Frame totals ──────────────────────────────────────────────────────
+        double avgTotal = (totalRenderTimeNs / n) / MS;
+        double maxTotal = maxRenderTimeNs / MS;
 
-        double microBerAvg = (totalBerRenderTimeNs / (double) profiledFramesCount) / toMs;
-        double microClipAvg = (totalClipContextTimeNs / (double) profiledFramesCount) / toMs;
+        // Percentile spike from ring-buffer: sort the last SPIKE_HISTORY_SIZE entries
+        int filled = Math.min(profiledFramesCount, SPIKE_HISTORY_SIZE);
+        long[] sorted = new long[filled];
+        for (int i = 0; i < filled; i++)
+            sorted[i] = spikeHistory[(spikeHead - 1 - i + SPIKE_HISTORY_SIZE) % SPIKE_HISTORY_SIZE];
+        java.util.Arrays.sort(sorted);
+        double p95 = filled > 0 ? sorted[(int) (filled * 0.95)] / MS : 0;
+        double p99 = filled > 0 ? sorted[Math.min(filled - 1, (int) (filled * 0.99))] / MS : 0;
+
+        // ── Phase breakdown ───────────────────────────────────────────────────
+        double avgPre = (totalPrePhaseTimeNs / n) / MS;
+        double avgSetup = (totalSetupTimeNs / n) / MS;
+        double avgVbo = (totalVboTimeNs / n) / MS;
+        double avgDynamic = (totalDynamicTimeNs / n) / MS;
+        double avgParticle = (totalParticleTickTimeNs / n) / MS;
+        double avgRay = (totalRayTraceTimeNs / n) / MS;
+        double unaccounted = avgTotal - avgPre - avgSetup - avgVbo - avgDynamic - avgParticle - avgRay;
+
+        // ── Phase 3 sub-breakdown ─────────────────────────────────────────────
+        double avgBer = (totalBerTimeNs / n) / MS;
+        double avgEntity = (totalEntityTimeNs / n) / MS;
+        double avgDynRend = (totalDynRendererTimeNs / n) / MS;
+        double avgBufFlush = (totalBufFlushTimeNs / n) / MS;
+
+        // ── Phase 4 sub-breakdown ─────────────────────────────────────────────
+        double avgPartRender = (totalParticleRenderNs / n) / MS;
+        double avgWorldTick = (totalWorldTickNs / n) / MS;
+
+        // ── Ray trace internals ───────────────────────────────────────────────
+        double avgClip = rayTraceCallsThisWindow > 0 ?
+                (totalClipContextTimeNs / (double) rayTraceCallsThisWindow) / MS : 0;
+        double avgRayDepth = rayTraceCallsThisWindow > 0 ? totalRayAttempts / (double) rayTraceCallsThisWindow : 0;
+
+        // ── Bake stats ────────────────────────────────────────────────────────
+        double avgBake = bakeCompletionsThisWindow > 0 ? (totalBakeTimeNs / (double) bakeCompletionsThisWindow) / MS :
+                0;
+
+        // ── Budget summary ────────────────────────────────────────────────────
+        double pctOver8 = (framesOver8ms / n) * 100.0;
+        double pctOver16 = (framesOver16ms / n) * 100.0;
+        double pctOver33 = (framesOver33ms / n) * 100.0;
 
         LOGGER.info(String.format(
-                "\n======= [PHANTASIA PRODUCTION PACK PROFILER] =======\n" +
-                        " * Frames Tracked:       %d\n" +
-                        " * Avg Frame Render:     %.3f ms  (Max Spike: %.3f ms)\n" +
-                        " ─── Engine Phase Breakdown ───\n" +
-                        "   -> Setup & Matrices:  %.3f ms\n" +
-                        "   -> VBO Drawing:       %.3f ms\n" +
-                        "   -> Dynamic & BERs:    %.3f ms\n" +
-                        "   -> Particles & Ticks: %.3f ms\n" +
-                        "   -> Ray Trace Lookup:  %.3f ms\n" +
-                        " ─── Modpack Stress Diagnostics ───\n" +
-                        "   -> Active Machine BERs Tracked: %d  (Pure Render Cost: %.3f ms)\n" +
-                        "   -> Max Ray Intersection Depth:  %d  (Pure Clip Cost:   %.3f ms)\n" +
-                        "===================================================",
-                profiledFramesCount, avgTotal, maxTotal, avgSetup, avgVbo, avgDynamic, avgParticles, avgRayTrace,
-                maxBerCountTracked, microBerAvg, maxRayIterationsTracked, microClipAvg));
+                "\n" +
+                        "======= [PHANTASIA DEEP PROFILER] =======\n" +
+                        " Frames: %d   Window: %.1f s\n" +
+                        " Avg Frame:  %.3f ms   Max: %.3f ms   P95: %.3f ms   P99: %.3f ms\n" +
+                        " Budget violations: >8ms=%.1f%%   >16ms=%.1f%%   >33ms=%.1f%%\n" +
+                        "\n" +
+                        " ── Phase Breakdown (avg/frame) ──────────────────────────────────\n" +
+                        "   Phase 0 Pre (swap/sched) : %7.3f ms\n" +
+                        "   Phase 1 Setup & Matrices : %7.3f ms\n" +
+                        "   Phase 2 VBO Draw         : %7.3f ms\n" +
+                        "   Phase 3 BERs & Dynamic   : %7.3f ms\n" +
+                        "   Phase 4 Particles & Tick : %7.3f ms\n" +
+                        "   Phase 5 Ray Trace        : %7.3f ms\n" +
+                        "   Unaccounted overhead     : %7.3f ms\n" +
+                        "\n" +
+                        " ── Phase 3 Sub-Breakdown ────────────────────────────────────────\n" +
+                        "   Block Entity Renderers   : %7.3f ms  (max BERs/frame: %d)\n" +
+                        "   Entity Renderers         : %7.3f ms\n" +
+                        "   Dynamic Renderers        : %7.3f ms\n" +
+                        "   BufferSource.endBatch()  : %7.3f ms\n" +
+                        "\n" +
+                        " ── Phase 4 Sub-Breakdown ────────────────────────────────────────\n" +
+                        "   Particle Render          : %7.3f ms\n" +
+                        "   World Tick + AnimTick    : %7.3f ms\n" +
+                        "\n" +
+                        " ── Ray Trace Internals ──────────────────────────────────────────\n" +
+                        "   Avg clip cost (per call) : %7.3f ms  Max depth: %d  Avg depth: %.2f\n" +
+                        "\n" +
+                        " ── Bake Thread ──────────────────────────────────────────────────\n" +
+                        "   Completions this window  : %d\n" +
+                        "   Avg bake duration        : %7.3f ms\n" +
+                        "   Last full bake           : %7.3f ms  (%d blocks)\n" +
+                        "   Last partial bake        : %7.3f ms\n" +
+                        "=========================================",
+                profiledFramesCount,
+                PROFILE_WINDOW_NS / 1_000_000_000.0,
+                avgTotal, maxTotal, p95, p99,
+                pctOver8, pctOver16, pctOver33,
+                avgPre, avgSetup, avgVbo, avgDynamic, avgParticle, avgRay, unaccounted,
+                avgBer, maxBerCountTracked,
+                avgEntity, avgDynRend, avgBufFlush,
+                avgPartRender, avgWorldTick,
+                avgClip, maxRayIterations, avgRayDepth,
+                bakeCompletionsThisWindow, avgBake,
+                lastFullBakeDurationNs / MS, lastBakeBlockCount,
+                lastPartialBakeDurationNs / MS));
 
-        // Reset trackers
+        // ── Reset window ──────────────────────────────────────────────────────
         profileWindowStart = System.nanoTime();
         profiledFramesCount = 0;
         totalRenderTimeNs = 0;
@@ -650,12 +797,26 @@ public final class PhantasiaWorldRenderer {
         totalDynamicTimeNs = 0;
         totalParticleTickTimeNs = 0;
         totalRayTraceTimeNs = 0;
-        totalBerRenderTimeNs = 0;
+        totalPrePhaseTimeNs = 0;
+        totalBerTimeNs = 0;
+        totalEntityTimeNs = 0;
+        totalDynRendererTimeNs = 0;
+        totalBufFlushTimeNs = 0;
+        totalParticleRenderNs = 0;
+        totalWorldTickNs = 0;
         totalClipContextTimeNs = 0;
+        totalRayAttempts = 0;
+        maxRayIterations = 0;
+        rayTraceCallsThisWindow = 0;
+        totalBerRenderTimeNs = 0;
         maxBerCountTracked = 0;
         maxRayIterationsTracked = 0;
+        bakeCompletionsThisWindow = 0;
+        totalBakeTimeNs = 0;
+        framesOver8ms = 0;
+        framesOver16ms = 0;
+        framesOver33ms = 0;
     }
-
     // ── Alpha tick ────────────────────────────────────────────────────────────
 
     private void tickAlpha() {
@@ -679,6 +840,12 @@ public final class PhantasiaWorldRenderer {
     // ── Buffer swaps ──────────────────────────────────────────────────────────
 
     private void swapFullBuffers() {
+        if (fullBakeStartNs > 0) {
+            lastFullBakeDurationNs = System.nanoTime() - fullBakeStartNs;
+            totalBakeTimeNs += lastFullBakeDurationNs;
+            bakeCompletionsThisWindow++;
+            fullBakeStartNs = 0;
+        }
         for (int i = 0; i < LAYER_COUNT; i++) {
             VertexBuffer tmp = front[i];
             front[i] = back[i];
@@ -719,6 +886,8 @@ public final class PhantasiaWorldRenderer {
 
         pendingUploads.set(LAYER_COUNT);
         bakeFuture = BAKE_POOL.submit(() -> {
+            fullBakeStartNs = System.nanoTime();
+            lastBakeBlockCount = snapshot.size();
             Minecraft mc = Minecraft.getInstance();
             BlockRenderDispatcher brd = mc.getBlockRenderer();
             RandomSource random = RandomSource.createNewThreadLocalInstance();
@@ -733,35 +902,34 @@ public final class PhantasiaWorldRenderer {
             Map<RenderType, List<BlockPos>> fluidBuckets = new HashMap<>(LAYER_COUNT);
             bucket(brd, random, snapshot, solidBuckets, fluidBuckets);
 
+            // Bake ALL layers to CPU buffers first (no render-thread sync needed),
+            // then enqueue all GPU uploads in one batch. The old per-layer semaphore
+            // forced the bake thread to wait a full frame per layer for the render
+            // thread to drain recordRenderCall -- adding LAYER_COUNT * ~16ms = ~300ms
+            // of pure waiting to every bake.
             Set<BlockPos> animatedBack = new HashSet<>();
+            BakedLayer[] baked = new BakedLayer[LAYER_COUNT];
             try {
-                Semaphore slot = new Semaphore(0);
                 for (int i = 0; i < LAYER_COUNT; i++) {
                     if (Thread.interrupted()) return;
-                    BakedLayer bl = bakeLayerToBuffer(brd, random, LAYERS.get(i),
+                    baked[i] = bakeLayerToBuffer(brd, random, LAYERS.get(i),
                             solidBuckets.getOrDefault(LAYERS.get(i), List.of()),
                             fluidBuckets.getOrDefault(LAYERS.get(i), List.of()),
                             animatedBack);
-                    final int fi = i;
-                    RenderSystem.recordRenderCall(() -> {
-                        try {
-                            uploadToVBO(back[fi], bl);
-                            if (pendingUploads.decrementAndGet() == 0) backReady = true;
-                        } finally {
-                            slot.release();
-                        }
-                    });
-                    try {
-                        slot.acquire();
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                        return;
-                    }
                 }
             } finally {
                 ModelBlockRenderer.clearCache();
                 restoreVariants(hiddenSaved);
                 restoreVariants(variantSaved);
+            }
+            // Enqueue all uploads together -- render thread processes them next frame.
+            for (int i = 0; i < LAYER_COUNT; i++) {
+                final int fi = i;
+                final BakedLayer bl = baked[fi];
+                RenderSystem.recordRenderCall(() -> {
+                    uploadToVBO(back[fi], bl);
+                    if (pendingUploads.decrementAndGet() == 0) backReady = true;
+                });
             }
             backAnimatedPositions = animatedBack;
             Set<BlockPos> tes = new HashSet<>();
@@ -805,34 +973,27 @@ public final class PhantasiaWorldRenderer {
             bucket(brd, random, valid, solidBuckets, fluidBuckets);
 
             Set<BlockPos> animatedBack = new HashSet<>();
+            BakedLayer[] baked = new BakedLayer[LAYER_COUNT];
             try {
-                Semaphore slot = new Semaphore(0);
                 for (int i = 0; i < LAYER_COUNT; i++) {
                     if (Thread.interrupted()) return;
-                    BakedLayer bl = bakeLayerToBuffer(brd, random, LAYERS.get(i),
+                    baked[i] = bakeLayerToBuffer(brd, random, LAYERS.get(i),
                             solidBuckets.getOrDefault(LAYERS.get(i), List.of()),
                             fluidBuckets.getOrDefault(LAYERS.get(i), List.of()),
                             animatedBack);
-                    final int fi = i;
-                    RenderSystem.recordRenderCall(() -> {
-                        try {
-                            uploadToVBO(overlay[fi], bl);
-                            if (pendingUploads.decrementAndGet() == 0) overlayReady = true;
-                        } finally {
-                            slot.release();
-                        }
-                    });
-                    try {
-                        slot.acquire();
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                        return;
-                    }
                 }
             } finally {
                 ModelBlockRenderer.clearCache();
                 restoreVariants(hiddenSaved);
                 restoreVariants(variantSaved);
+            }
+            for (int i = 0; i < LAYER_COUNT; i++) {
+                final int fi = i;
+                final BakedLayer bl = baked[fi];
+                RenderSystem.recordRenderCall(() -> {
+                    uploadToVBO(overlay[fi], bl);
+                    if (pendingUploads.decrementAndGet() == 0) overlayReady = true;
+                });
             }
         });
     }
@@ -1151,6 +1312,7 @@ public final class PhantasiaWorldRenderer {
             long berStart = System.nanoTime();
             try {
                 ber.render(be, partial, poseStack, buffers, 15728880, OverlayTexture.NO_OVERLAY);
+                frameBerCount++;
                 if (tickedThisFrame) driveClientTick(be);
             } catch (Exception e) {
                 LOGGER.warn("[Phantasia] BE render error at {}: {}", pos, e.getMessage());
