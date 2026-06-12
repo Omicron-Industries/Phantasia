@@ -12,12 +12,14 @@ import net.minecraft.world.item.Items;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.registries.ForgeRegistries;
-import net.phoenixvine.phantasia.common.PhantasiaGuideData;
-import net.phoenixvine.phantasia.common.PhantasiaGuideData.PageData;
-import net.phoenixvine.phantasia.common.PhantasiaGuideRegistry;
-import net.phoenixvine.phantasia.common.PhantasiaSceneData;
-import net.phoenixvine.phantasia.common.PhantasiaScenes;
-import net.phoenixvine.phantasia.common.PhantasiaScripts;
+import net.phoenixvine.phantasia.client.screens.editors.PhantasiaGuideEditorScreen;
+import net.phoenixvine.phantasia.client.screens.editors.PhantasiaSceneEditorScreen;
+import net.phoenixvine.phantasia.common.data.guides.PhantasiaGuideData;
+import net.phoenixvine.phantasia.common.data.guides.PhantasiaGuideData.PageData;
+import net.phoenixvine.phantasia.common.data.guides.PhantasiaGuideRegistry;
+import net.phoenixvine.phantasia.common.data.scene.PhantasiaSceneData;
+import net.phoenixvine.phantasia.common.data.scene.PhantasiaScenes;
+import net.phoenixvine.phantasia.common.data.script.PhantasiaScripts;
 
 import java.util.*;
 
@@ -63,15 +65,14 @@ public class PhantasiaGuideScreen extends Screen {
      * Updated to support linkedScriptId parameter compilation.
      */
     private record GuidePage(
-            String headline,
-            String text,
-            List<CardEntry> cards,
-            List<PhantasiaSceneData.SceneMistakeData> mistakes,
-            String linkedGuideId,
-            String linkedSceneId,
-            String linkedScriptId, // Added compilation token
-            Object editTarget
-    ) {}
+                             String headline,
+                             String text,
+                             List<CardEntry> cards,
+                             List<PhantasiaSceneData.SceneMistakeData> mistakes,
+                             String linkedGuideId,
+                             String linkedSceneId,
+                             String linkedScriptId, // Added compilation token
+                             Object editTarget) {}
 
     private record CardEntry(PhantasiaSceneData.ItemConditionData item, ItemStack stack) {}
 
@@ -87,6 +88,7 @@ public class PhantasiaGuideScreen extends Screen {
     private int lastContentH = 0;
 
     private record Btn(int x, int y, int w, int h, Runnable action) {
+
         boolean hit(double mx, double my) {
             return mx >= x && mx < x + w && my >= y && my < y + h;
         }
@@ -143,8 +145,7 @@ public class PhantasiaGuideScreen extends Screen {
                     pd.headline, pd.text, cards,
                     List.of(),
                     pd.guideId, pd.sceneId, pd.scriptId, // Compiles the new script string
-                    gd
-            ));
+                    gd));
         }
     }
 
@@ -256,7 +257,8 @@ public class PhantasiaGuideScreen extends Screen {
         // Page Counter Indicator
         if (pages.size() > 1) {
             g.drawString(font,
-                    (source instanceof PhantasiaGuideData ? "Page " : "Step ") + (pageIndex + 1) + " of " + pages.size(),
+                    (source instanceof PhantasiaGuideData ? "Page " : "Step ") + (pageIndex + 1) + " of " +
+                            pages.size(),
                     colX, y, C_DIM, false);
             y += font.lineHeight + 5;
         }
@@ -340,9 +342,11 @@ public class PhantasiaGuideScreen extends Screen {
         // ── ADDED: Script Verification and Navigation Button Block ───────────
         if (page.linkedScriptId() != null && !page.linkedScriptId().isBlank()) {
             ResourceLocation rl = ResourceLocation.parse(page.linkedScriptId());
-            com.gregtechceu.gtceu.api.machine.MachineDefinition def = com.gregtechceu.gtceu.api.registry.GTRegistries.MACHINES.get(rl);
+            com.gregtechceu.gtceu.api.machine.MachineDefinition def = com.gregtechceu.gtceu.api.registry.GTRegistries.MACHINES
+                    .get(rl);
 
-            if (def instanceof com.gregtechceu.gtceu.api.machine.MultiblockMachineDefinition multi && PhantasiaScripts.has(multi)) {
+            if (def instanceof com.gregtechceu.gtceu.api.machine.MultiblockMachineDefinition multi &&
+                    PhantasiaScripts.has(multi)) {
                 y = renderLinkBtn(g, mx, my, colX, y, colW,
                         "⚙ View Automated Script →",
                         () -> Minecraft.getInstance().setScreen(new PhantasiaSceneScreen(multi, this))) + 6;
@@ -466,7 +470,8 @@ public class PhantasiaGuideScreen extends Screen {
                 font.width("Next  ▶") + 14, bH, "Next  ▶", pageIndex < pages.size() - 1, () -> navigate(+1));
     }
 
-    private void navBtn(GuiGraphics g, int mx, int my, int x, int y, int w, int h, String label, boolean enabled, Runnable action) {
+    private void navBtn(GuiGraphics g, int mx, int my, int x, int y, int w, int h, String label, boolean enabled,
+                        Runnable action) {
         boolean hov = enabled && over(mx, my, x, y, w, h);
         g.fill(x, y, x + w, y + h, hov ? C_BTN_HOV : (enabled ? C_BTN : 0x33111128));
         if (hov) g.fill(x, y, x + w, y + 1, C_ACCENT);
@@ -524,8 +529,7 @@ public class PhantasiaGuideScreen extends Screen {
                 g.pose(),
                 g.bufferSource(),
                 Minecraft.getInstance().level,
-                0
-        );
+                0);
 
         g.bufferSource().endBatch();
         g.pose().popPose();

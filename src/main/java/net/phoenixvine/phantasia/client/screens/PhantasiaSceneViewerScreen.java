@@ -16,8 +16,9 @@ import net.phoenixvine.phantasia.client.camera.LerpType;
 import net.phoenixvine.phantasia.client.camera.PhantasiaCamera;
 import net.phoenixvine.phantasia.client.render.PhantasiaTrackedDummyWorld;
 import net.phoenixvine.phantasia.client.render.PhantasiaWorldRenderer;
-import net.phoenixvine.phantasia.common.PhantasiaSceneData;
-import net.phoenixvine.phantasia.common.PhantasiaScenePattern;
+import net.phoenixvine.phantasia.client.screens.editors.PhantasiaSceneEditorScreen;
+import net.phoenixvine.phantasia.common.data.pattern.PhantasiaScenePattern;
+import net.phoenixvine.phantasia.common.data.scene.PhantasiaSceneData;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import org.joml.Vector3f;

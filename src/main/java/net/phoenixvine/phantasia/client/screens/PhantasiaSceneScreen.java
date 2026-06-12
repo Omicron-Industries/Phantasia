@@ -2,12 +2,11 @@ package net.phoenixvine.phantasia.client.screens;
 
 import com.gregtechceu.gtceu.api.block.MetaMachineBlock;
 import com.gregtechceu.gtceu.api.blockentity.MetaMachineBlockEntity;
-import com.gregtechceu.gtceu.api.machine.feature.multiblock.IMultiPart;
 import com.gregtechceu.gtceu.api.machine.MultiblockMachineDefinition;
+import com.gregtechceu.gtceu.api.machine.feature.multiblock.IMultiPart;
 import com.gregtechceu.gtceu.api.machine.multiblock.MultiblockControllerMachine;
 import com.gregtechceu.gtceu.api.machine.multiblock.WorkableMultiblockMachine;
 import com.gregtechceu.gtceu.api.machine.trait.RecipeLogic;
-import com.gregtechceu.gtceu.api.pattern.BlockPattern;
 import com.gregtechceu.gtceu.api.pattern.MultiblockShapeInfo;
 
 import com.lowdragmc.lowdraglib.utils.BlockInfo;
@@ -34,10 +33,20 @@ import net.phoenixvine.phantasia.client.camera.LerpType;
 import net.phoenixvine.phantasia.client.camera.PhantasiaCamera;
 import net.phoenixvine.phantasia.client.render.PhantasiaTrackedDummyWorld;
 import net.phoenixvine.phantasia.client.render.PhantasiaWorldRenderer;
-import net.phoenixvine.phantasia.common.*;
+import net.phoenixvine.phantasia.client.screens.editors.PhantasiaScriptEditorScreen;
+import net.phoenixvine.phantasia.client.screens.subscreen.*;
+import net.phoenixvine.phantasia.common.data.pattern.PhantasiaLoadedPattern;
+import net.phoenixvine.phantasia.common.data.scene.PhantasiaSceneData;
+import net.phoenixvine.phantasia.common.data.scene.PhantasiaScenes;
+import net.phoenixvine.phantasia.common.data.script.PhantasiaScript;
+import net.phoenixvine.phantasia.common.data.script.PhantasiaScriptData;
+import net.phoenixvine.phantasia.common.data.script.PhantasiaScripts;
+import net.phoenixvine.phantasia.common.data.variant.PhantasiaVariantGroup;
+import net.phoenixvine.phantasia.common.data.variant.PhantasiaVariantState;
 import net.phoenixvine.phantasia.common.world.PhantasiaDimension;
 import net.phoenixvine.phantasia.common.world.PhantasiaSlotAllocator;
 import net.phoenixvine.phantasia.common.world.PhantasiaSlotVersions;
+import net.phoenixvine.phantasia.integration.emi.PhantasiaEmiPlugin;
 import net.phoenixvine.phantasia.utils.PhantasiaThemeUtils;
 import net.phoenixvine.phantasia.utils.PhantasiaUIUtils;
 
@@ -47,8 +56,6 @@ import org.joml.Vector3f;
 
 import java.util.*;
 
-
-import static com.gregtechceu.gtceu.api.machine.trait.RecipeLogic.Status.SUSPEND;
 import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
 
 @OnlyIn(Dist.CLIENT)
@@ -114,7 +121,7 @@ public class PhantasiaSceneScreen extends Screen {
     private static final float CAM_ZOOM_MIN = 2.0f;
     private static final float CAM_ZOOM_MAX = 300.0f;
     private static final float CAM_ORBIT_SENSITIVITY = 0.5f;
-    private static final float CAM_PAN_SPEED = 0.02f;
+    public static final float CAM_PAN_SPEED = 0.02f;
 
     // ─────────────────────────────────────────────────────────────────────────
     // Core state
@@ -122,7 +129,7 @@ public class PhantasiaSceneScreen extends Screen {
 
     private final Screen parent;
     public final MultiblockMachineDefinition definition;
-    PhantasiaScript script;
+    public PhantasiaScript script;
 
     private PhantasiaLoadedPattern pattern;
 
@@ -371,7 +378,6 @@ public class PhantasiaSceneScreen extends Screen {
         }
     }
 
-
     /**
      * Cold load: places all blocks into SHARED_LEVEL at {@code renderOrigin} (near 0,0,0),
      * dynamically spins up Schema entities, then writes them to the Phantasia dimension at
@@ -519,7 +525,6 @@ public class PhantasiaSceneScreen extends Screen {
                 controllerWP, controller, renderOrigin, parts);
     }
 
-
     /**
      * Writes the blocks in {@code blockMap} to the Phantasia scene dimension so
      * that subsequent screen opens can skip the shape.getBlocks() iteration
@@ -564,16 +569,15 @@ public class PhantasiaSceneScreen extends Screen {
      * computes Y extents, and constructs the PhantasiaLoadedPattern.
      */
     private PhantasiaLoadedPattern finalisePattern(
-            BlockInfo[][][] raw,
-            Map<BlockPos, BlockInfo> blockMap,
-            Map<BlockPos, BlockPos> localToWorld,
-            Set<BlockPos> baseplatePos,
-            Set<BlockPos> bePos,
-            BlockPos controllerWP,
-            MultiblockControllerMachine controller,
-            BlockPos origin,
-            List<IMultiPart> parts) {
-
+                                                   BlockInfo[][][] raw,
+                                                   Map<BlockPos, BlockInfo> blockMap,
+                                                   Map<BlockPos, BlockPos> localToWorld,
+                                                   Set<BlockPos> baseplatePos,
+                                                   Set<BlockPos> bePos,
+                                                   BlockPos controllerWP,
+                                                   MultiblockControllerMachine controller,
+                                                   BlockPos origin,
+                                                   List<IMultiPart> parts) {
         net.phoenixvine.phantasia.Phantasia.LOGGER.info(
                 "[Phantasia] Registered {} block entities with SHARED_LEVEL", bePos.size());
 
@@ -594,7 +598,8 @@ public class PhantasiaSceneScreen extends Screen {
                     controller.getPatternLock().unlock();
                 }
 
-                net.phoenixvine.phantasia.Phantasia.LOGGER.info("[Phantasia] onStructureFormed fully simulated via fake world!");
+                net.phoenixvine.phantasia.Phantasia.LOGGER
+                        .info("[Phantasia] onStructureFormed fully simulated via fake world!");
             } catch (Exception e) {
                 net.phoenixvine.phantasia.Phantasia.LOGGER.error(
                         "[Phantasia] formStructure failed: {}", e.getMessage(), e);
@@ -1208,7 +1213,7 @@ public class PhantasiaSceneScreen extends Screen {
                     // Fully flattened O(1) cache lookup—completely bypassing nested iterator loop allocation!
                     var group = positionToVariantGroupCache.get(hoveredPos);
                     if (group != null) {
-                        int activeSel = net.phoenixvine.phantasia.common.PhantasiaVariantState.get()
+                        int activeSel = PhantasiaVariantState.get()
                                 .getSelection(group.getId());
                         if (activeSel >= 0 && activeSel < group.getOptions().size()) {
                             st = group.getOptions().get(activeSel);

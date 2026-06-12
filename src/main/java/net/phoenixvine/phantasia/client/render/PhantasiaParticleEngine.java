@@ -2,7 +2,6 @@ package net.phoenixvine.phantasia.client.render;
 
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.particle.Particle;
 import net.minecraft.client.particle.ParticleEngine;
 import net.minecraft.client.particle.ParticleRenderType;
@@ -20,40 +19,14 @@ import java.util.*;
 
 import javax.annotation.Nullable;
 
-/**
- * Phantasia particle system.
- *
- * Architecture: particles go into mc.particleEngine via normal ClientLevel.addParticle()
- * calls — no separate engine, no field swapping, no level juggling. We track which
- * particles are "ours" by identity in a Set<Particle>. At render time we iterate the
- * real engine's queue, draw only our particles ourselves (bypassing Oculus's render()
- * mixin), and suppress our particles from the normal ParticleEngine.render() pass
- * by temporarily marking them removed during that pass.
- *
- * Why not a separate ParticleEngine:
- * mc.particleEngine is final in Minecraft — reflection set silently fails.
- * ClientLevel.addParticle() always calls Minecraft.getInstance().particleEngine
- * regardless of be.setLevel() or machine-level field swaps.
- *
- * Why not call particle.render():
- * Oculus patches Particle.render() at class-load time unconditionally.
- * We use renderParticleManual() to emit quads directly into the BufferBuilder.
- */
 @OnlyIn(Dist.CLIENT)
 public class PhantasiaParticleEngine {
 
     private static final Logger LOGGER = LogManager.getLogger("Phantasia");
 
-    // Particle types for which we've already logged a missing-provider warning.
     private static final Set<Object> warnedMissingProvider = Collections.newSetFromMap(new IdentityHashMap<>());
-    // Identity-keyed (IdentityHashMap as a Set) so we don't interfere with
-    // particles that happen to implement equals().
     private static Set<Particle> ownedParticles = Collections.newSetFromMap(new IdentityHashMap<>());
 
-    // Empty dummy world used as the collision level for spawned particles.
-    // Particles tick their collision check against this world — since it has no
-    // blocks, getBlockCollisions(null, aabb) returns empty and particles move freely.
-    // The particles still live in mc.particleEngine (Oculus sees them normally).
     @Nullable
     private static net.phoenixvine.phantasia.client.render.PhantasiaTrackedDummyWorld particleCollisionWorld = null;
 
@@ -64,7 +37,6 @@ public class PhantasiaParticleEngine {
         return particleCollisionWorld;
     }
 
-    // The real particle queue in mc.particleEngine — resolved once.
     @Nullable
     private static Field particleQueueField = null;
     private static boolean fieldsResolved = false;
@@ -81,8 +53,6 @@ public class PhantasiaParticleEngine {
     }
 
     public static void destroy() {
-        // Mark all owned particles as removed so mc.particleEngine culls them
-        // on its next tick — they won't render or linger in the real world.
         for (Particle p : ownedParticles) {
             try {
                 p.remove();
@@ -93,7 +63,6 @@ public class PhantasiaParticleEngine {
         particleCollisionWorld = null;
     }
 
-    // Kept for call-site compatibility
     @Nullable
     public static ParticleEngine get() {
         return Minecraft.getInstance().particleEngine;
@@ -106,15 +75,7 @@ public class PhantasiaParticleEngine {
 
     // ── Particle creation ─────────────────────────────────────────────────────
 
-    /**
-     * Adds a particle to mc.particleEngine and registers it as owned by Phantasia.
-     *
-     * We snapshot the queue before and after createParticle() to find the new
-     * particle by identity — createParticle() doesn't return the particle it adds.
-     * The new particle is added to ownedParticles for tracking.
-     */
     @SuppressWarnings("unchecked")
-    // Providers map field on ParticleEngine (ResourceLocation → ParticleProvider)
     @Nullable
     private static Field providersField = null;
     private static boolean providersResolved = false;
@@ -126,10 +87,6 @@ public class PhantasiaParticleEngine {
         Minecraft mc = Minecraft.getInstance();
         if (mc.particleEngine == null || particleQueueField == null) return;
 
-        // We cannot use mc.particleEngine.createParticle() because it checks
-        // level.isLoaded(pos) before creating the particle. The scene blocks live at
-        // (0-N, 50, 0-N) which is almost never loaded in mc.level, so createParticle
-        // silently returns null every time. We bypass it by calling the provider directly.
         try {
             if (!providersResolved) resolveProvidersField(mc);
 
@@ -155,7 +112,6 @@ public class PhantasiaParticleEngine {
                 return;
             }
 
-            // Add directly to the queue, bypassing the chunk-loaded distance check
             Map<ParticleRenderType, Queue<Particle>> queueMap = (Map<ParticleRenderType, Queue<Particle>>) particleQueueField
                     .get(mc.particleEngine);
             ParticleRenderType renderType = particle.getRenderType();
@@ -178,7 +134,6 @@ public class PhantasiaParticleEngine {
                     f.setAccessible(true);
                     java.lang.reflect.Type generic = f.getGenericType();
                     String sig = generic != null ? generic.getTypeName() : "";
-                    // Provider map: Map<ResourceLocation, ParticleProvider<?>>
                     if (sig.contains("ResourceLocation") && sig.contains("ParticleProvider")) {
                         providersField = f;
                         LOGGER.info("[Phantasia] providers field: {}.{}", c.getSimpleName(), f.getName());
@@ -187,8 +142,7 @@ public class PhantasiaParticleEngine {
                 } catch (Exception ignored) {}
             }
         }
-        // Named fallback
-        for (String name : new String[] { "providers", "f_107344_", "field_78877_h" }) {
+        for (String name : new String[] { "providers", "f_107293_", "f_107344_", "field_78877_h" }) {
             try {
                 Field f = ParticleEngine.class.getDeclaredField(name);
                 f.setAccessible(true);
@@ -200,17 +154,9 @@ public class PhantasiaParticleEngine {
         LOGGER.error("[Phantasia] providers field not found — particles will not work");
     }
 
-    // ── Tick ──────────────────────────────────────────────────────────────────
-
-    /**
-     * Removes dead owned particles from the tracking set.
-     * mc.particleEngine ticks and removes them from its queue itself.
-     */
     public static void tick() {
         ownedParticles.removeIf(p -> !p.isAlive());
     }
-
-    // ── Oculus ────────────────────────────────────────────────────────────────
 
     private static Boolean oculusPresent = null;
 
@@ -226,26 +172,12 @@ public class PhantasiaParticleEngine {
         return oculusPresent;
     }
 
-    // Kept for call-site compat — always false now (we always render, never skip)
     public static boolean isOculusBlockingParticles() {
         return false;
     }
 
     // ── Render ────────────────────────────────────────────────────────────────
 
-    /**
-     * Renders only owned particles, using manual quad emission to bypass Oculus.
-     *
-     * To prevent owned particles from also being drawn by the normal
-     * ParticleEngine.render() pass (which would double-draw them, or worse,
-     * go through Oculus's mixin), we temporarily mark them removed before
-     * the normal render pass runs, then restore them after. This method is
-     * called BEFORE the normal game render loop from PhantasiaWorldRenderer,
-     * so owned particles are invisible to the normal pass for that frame.
-     *
-     * For non-Oculus environments, particle.render() would work, but we use
-     * the manual path unconditionally so behaviour is identical with/without Oculus.
-     */
     @SuppressWarnings("unchecked")
     public static void renderDirect(
                                     net.minecraft.client.renderer.MultiBufferSource.BufferSource buffers,
@@ -261,6 +193,9 @@ public class PhantasiaParticleEngine {
             Map<ParticleRenderType, Queue<Particle>> particleMap = (Map<ParticleRenderType, Queue<Particle>>) particleQueueField
                     .get(mc.particleEngine);
             if (particleMap.isEmpty()) return;
+
+            com.mojang.blaze3d.vertex.PoseStack poseStack = com.mojang.blaze3d.systems.RenderSystem.getModelViewStack();
+            poseStack.pushPose();
 
             lightTexture.turnOnLightLayer();
             com.mojang.blaze3d.systems.RenderSystem.enableDepthTest();
@@ -283,7 +218,6 @@ public class PhantasiaParticleEngine {
                 Queue<Particle> queue = entry.getValue();
                 if (renderType == ParticleRenderType.NO_RENDER) continue;
 
-                // Collect owned particles in this bucket
                 List<Particle> toRender = new ArrayList<>();
                 for (Particle p : queue) {
                     if (ownedParticles.contains(p)) toRender.add(p);
@@ -302,6 +236,10 @@ public class PhantasiaParticleEngine {
             }
 
             lightTexture.turnOffLightLayer();
+
+            poseStack.popPose();
+            com.mojang.blaze3d.systems.RenderSystem.applyModelViewMatrix();
+
         } catch (Exception e) {
             LOGGER.warn("[Phantasia] renderDirect failed: {}", e.getMessage());
         }
@@ -310,44 +248,72 @@ public class PhantasiaParticleEngine {
     // ── Particle field cache ───────────────────────────────────────────────────
 
     private static boolean particleFieldsResolved = false;
-    private static Field f_x, f_y, f_z;           // xo/yo/zo (previous pos, double)
-    private static Field f_px, f_py, f_pz;        // x/y/z (current pos, double)
-    private static Field f_rr, f_rg, f_rb, f_ra;  // rCol, gCol, bCol, alpha (float)
-    private static Field f_scale;                   // quadSize from SingleQuadParticle (float, half-size)
+    private static Field f_x, f_y, f_z;
+    private static Field f_px, f_py, f_pz;
+    private static Field f_rr, f_rg, f_rb, f_ra;
+    private static Field f_scale;
     private static boolean scaleIsQuadSize = false;
-    private static Field f_sprite;                 // TextureAtlasSprite from TextureSheetParticle
+    private static Field f_sprite;
 
     private static void resolveParticleFields() {
         if (particleFieldsResolved) return;
         particleFieldsResolved = true;
 
-        f_x = findField(Particle.class, double.class, "xo", "f_107374_");
-        f_y = findField(Particle.class, double.class, "yo", "f_107373_");
-        f_z = findField(Particle.class, double.class, "zo", "f_107372_");
-        f_px = findField(Particle.class, double.class, "x", "f_107382_");
-        f_py = findField(Particle.class, double.class, "y", "f_107383_");
-        f_pz = findField(Particle.class, double.class, "z", "f_107381_");
-        f_rr = findField(Particle.class, float.class, "rCol", "f_107390_");
-        f_rg = findField(Particle.class, float.class, "gCol", "f_107389_");
-        f_rb = findField(Particle.class, float.class, "bCol", "f_107388_");
-        f_ra = findField(Particle.class, float.class, "alpha", "f_107392_");
-
-        // Prefer quadSize (SingleQuadParticle) over bbWidth (Particle) — quadSize is
-        // the actual render half-size; bbWidth is the hitbox full-width.
-        Field qs = findField(net.minecraft.client.particle.SingleQuadParticle.class,
-                float.class, "quadSize", "f_107518_");
-        if (qs != null) {
-            f_scale = qs;
-            scaleIsQuadSize = true;
-        } else {
-            f_scale = findField(Particle.class, float.class, "bbWidth", "f_107395_");
-            scaleIsQuadSize = false;
+        // 1. Resolve Double fields (position coordinates) dynamically by class structure layout
+        try {
+            List<Field> doubleFields = new ArrayList<>();
+            for (Field f : Particle.class.getDeclaredFields()) {
+                if (!java.lang.reflect.Modifier.isStatic(f.getModifiers()) && f.getType() == double.class) {
+                    f.setAccessible(true);
+                    doubleFields.add(f);
+                }
+            }
+            // Particle.class sequentially declares: xo, yo, zo, x, y, z
+            if (doubleFields.size() >= 6) {
+                f_x = doubleFields.get(0);
+                f_y = doubleFields.get(1);
+                f_z = doubleFields.get(2);
+                f_px = doubleFields.get(3);
+                f_py = doubleFields.get(4);
+                f_pz = doubleFields.get(5);
+            }
+        } catch (Exception e) {
+            LOGGER.warn("[Phantasia] Failed to resolve positional fields: {}", e.getMessage());
         }
 
-        // TextureAtlasSprite field on TextureSheetParticle — try names then type-scan
+        // 2. Resolve Float fields (colors and sizes)
+        try {
+            List<Field> floatFields = new ArrayList<>();
+            for (Field f : Particle.class.getDeclaredFields()) {
+                if (!java.lang.reflect.Modifier.isStatic(f.getModifiers()) && f.getType() == float.class) {
+                    f.setAccessible(true);
+                    floatFields.add(f);
+                }
+            }
+
+            f_rr = findField(Particle.class, float.class, "rCol", "f_107227_", "f_107390_");
+            f_rg = findField(Particle.class, float.class, "gCol", "f_107228_", "f_107389_");
+            f_rb = findField(Particle.class, float.class, "bCol", "f_107229_", "f_107388_");
+            f_ra = findField(Particle.class, float.class, "alpha", "f_107230_", "f_107392_");
+
+            Field qs = findField(net.minecraft.client.particle.SingleQuadParticle.class, float.class, "quadSize",
+                    "f_107663_", "f_107518_");
+            if (qs != null) {
+                f_scale = qs;
+                scaleIsQuadSize = true;
+            } else {
+                f_scale = findField(Particle.class, float.class, "bbWidth", "f_107221_", "f_107395_");
+                // Bulletproof Fallback: The first float field in Particle.class is ALWAYS bbWidth
+                if (f_scale == null && !floatFields.isEmpty()) f_scale = floatFields.get(0);
+                scaleIsQuadSize = false;
+            }
+        } catch (Exception e) {}
+
+        // 3. Resolve Sprite Field
         f_sprite = findField(net.minecraft.client.particle.TextureSheetParticle.class,
                 net.minecraft.client.renderer.texture.TextureAtlasSprite.class,
-                "sprite", "f_107534_");
+                "sprite", "f_108321_", "f_107534_"); // F_108321_ is specific to 1.20 SRG
+
         if (f_sprite == null) {
             for (Class<?> c = net.minecraft.client.particle.TextureSheetParticle.class; c != null &&
                     f_sprite == null; c = c.getSuperclass()) {
@@ -356,7 +322,6 @@ public class PhantasiaParticleEngine {
                             !java.lang.reflect.Modifier.isStatic(f.getModifiers())) {
                         f.setAccessible(true);
                         f_sprite = f;
-                        LOGGER.info("[Phantasia] sprite field by type-scan: {}.{}", c.getSimpleName(), f.getName());
                     }
                 }
             }
@@ -393,7 +358,6 @@ public class PhantasiaParticleEngine {
                                              float ux, float uy, float uz) {
         try {
             if (!(particle instanceof net.minecraft.client.particle.TextureSheetParticle) || f_sprite == null) {
-                // Non-TextureSheetParticle — call render() directly (Oculus doesn't patch these)
                 particle.render(bb, camera, partial);
                 return;
             }
@@ -462,9 +426,8 @@ public class PhantasiaParticleEngine {
             }
         }
 
-        // Named fallback
         if (particleQueueField == null) {
-            for (String name : new String[] { "particles", "f_107347_", "field_78879_a" }) {
+            for (String name : new String[] { "particles", "f_107289_", "f_107347_", "field_78879_a" }) {
                 try {
                     Field f = ParticleEngine.class.getDeclaredField(name);
                     f.setAccessible(true);

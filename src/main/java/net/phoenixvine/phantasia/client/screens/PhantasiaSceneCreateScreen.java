@@ -7,9 +7,10 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
-import net.phoenixvine.phantasia.common.PhantasiaSceneData;
-import net.phoenixvine.phantasia.common.PhantasiaSceneLoader;
-import net.phoenixvine.phantasia.common.PhantasiaScenes;
+import net.phoenixvine.phantasia.client.screens.editors.PhantasiaSceneEditorScreen;
+import net.phoenixvine.phantasia.common.data.scene.PhantasiaSceneData;
+import net.phoenixvine.phantasia.common.data.scene.PhantasiaSceneLoader;
+import net.phoenixvine.phantasia.common.data.scene.PhantasiaScenes;
 
 import org.lwjgl.glfw.GLFW;
 

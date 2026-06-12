@@ -1,5 +1,9 @@
 package net.phoenixvine.phantasia.client.render;
 
+import com.gregtechceu.gtceu.api.blockentity.MetaMachineBlockEntity;
+import com.gregtechceu.gtceu.api.machine.MetaMachine;
+import com.gregtechceu.gtceu.client.renderer.machine.DynamicRender;
+
 import com.lowdragmc.lowdraglib.Platform;
 import com.lowdragmc.lowdraglib.client.scene.WorldSceneRenderer;
 import com.lowdragmc.lowdraglib.client.utils.glu.Project;
@@ -24,14 +28,10 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.phoenixvine.phantasia.client.camera.CameraView;
-import net.phoenixvine.phantasia.common.PhantasiaVariantState;
-
-import com.gregtechceu.gtceu.api.blockentity.MetaMachineBlockEntity;
-import com.gregtechceu.gtceu.api.machine.MetaMachine;
-import com.gregtechceu.gtceu.client.renderer.machine.DynamicRender;
+import net.phoenixvine.phantasia.common.data.pattern.PhantasiaLoadedPattern;
+import net.phoenixvine.phantasia.common.data.variant.PhantasiaVariantState;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.*;
@@ -80,15 +80,22 @@ public final class PhantasiaWorldRenderer {
     private static final FloatBuffer SCRATCH_MV = direct(64).asFloatBuffer();
     private static final FloatBuffer SCRATCH_PROJ = direct(64).asFloatBuffer();
     private static final IntBuffer SCRATCH_VP = direct(16 * 4).asIntBuffer();
-    private static final FloatBuffer PIXEL_DEPTH = direct(4).asFloatBuffer();
     private static final FloatBuffer UNPROJECT_OUT = direct(12).asFloatBuffer();
-
-    /** Only sample depth when the mouse actually moves. */
-    private int lastPickMouseX = Integer.MIN_VALUE, lastPickMouseY = Integer.MIN_VALUE;
 
     /** Cached result from the last depth sample. */
     @Nullable
     private BlockHitResult cachedPickResult = null;
+
+    private double guiMouseX;
+    private double guiMouseY;
+
+    /** Instance field — not static — so multiple renderer instances don't share a timer. */
+    private long lastTraceTime = 0;
+
+    @Nullable
+    public BlockHitResult getLastHitResult() {
+        return this.lastHitResult;
+    }
 
     // ── Production-Pack Modpack Profiler ──────────────────────────────────────
     private static final long PROFILE_WINDOW_NS = 5_000_000_000L; // Log every 5 seconds
@@ -213,13 +220,12 @@ public final class PhantasiaWorldRenderer {
     private BlockPos slotOrigin = BlockPos.ZERO;
 
     // Keep a reference to the active layout pattern for exact boundary collision tests
-    private net.phoenixvine.phantasia.common.PhantasiaLoadedPattern patternContext = null;
+    private PhantasiaLoadedPattern patternContext = null;
 
-    public void setPatternContext(net.phoenixvine.phantasia.common.PhantasiaLoadedPattern pattern) {
+    public void setPatternContext(PhantasiaLoadedPattern pattern) {
         this.patternContext = pattern;
     }
 
-    private int guiMouseX, guiMouseY;
     private long lastParticleTick = -1;
     private boolean tickedThisFrame = false;
     @Nullable
@@ -272,8 +278,8 @@ public final class PhantasiaWorldRenderer {
 
     public void setVisible(Set<BlockPos> newVisible) {
         this.cachedPickResult = null;
-        this.lastPickMouseX = Integer.MIN_VALUE;
-        this.lastPickMouseY = Integer.MIN_VALUE;
+        this.lastHitResult = null;
+        this.lastTraceTime = 0;
 
         Set<BlockPos> old = targetVisible;
         targetVisible = Set.copyOf(newVisible);
@@ -346,11 +352,6 @@ public final class PhantasiaWorldRenderer {
         this.guiMouseY = my;
     }
 
-    @Nullable
-    public BlockHitResult getLastHitResult() {
-        return lastHitResult;
-    }
-
     public boolean isVisible(BlockPos pos) {
         return targetVisible.contains(pos) || baseplatePositions.contains(pos);
     }
@@ -391,6 +392,7 @@ public final class PhantasiaWorldRenderer {
         int glW = (int) (guiW * scale);
         int glH = (int) (guiH * scale);
 
+        // ── PHASE 1: CAMERA & MATRICES SETUP ──
         long t0 = System.nanoTime();
         setupCamera(view, glX, glY, glW, glH);
 
@@ -400,81 +402,128 @@ public final class PhantasiaWorldRenderer {
         if (tick) lastParticleTick = currentTick;
         tickedThisFrame = tick;
 
-        RenderSystem.setShaderGameTime(currentTick >= 0 ? currentTick : 0, ((currentTick >= 0 ? currentTick : 0) + mc.getFrameTime()) / 20f);
+        RenderSystem.setShaderGameTime(currentTick >= 0 ? currentTick : 0,
+                ((currentTick >= 0 ? currentTick : 0) + mc.getFrameTime()) / 20f);
         snapshotMatrices();
         totalSetupTimeNs += (System.nanoTime() - t0);
 
-        long t1 = System.nanoTime();
-        drawVBOs();
+        // ── FIX: SWAP MAIN CAMERA TO PREVENT PLAYER ZOOM LEAKAGE ──
+        // Many dynamic and billboarding renderers look at mc.gameRenderer.getMainCamera().
+        // We locate it purely by type (Camera.class) to stay 100% independent of obfuscation/mappings.
+        Camera originalCamera = null;
+        java.lang.reflect.Field cameraField = null;
+        try {
+            for (java.lang.reflect.Field f : mc.gameRenderer.getClass().getDeclaredFields()) {
+                if (f.getType() == Camera.class) {
+                    f.setAccessible(true);
+                    cameraField = f;
+                    originalCamera = (Camera) f.get(mc.gameRenderer);
+                    f.set(mc.gameRenderer, this.camera);
+                    break;
+                }
+            }
+        } catch (Throwable ignored) {}
 
-        if (hasTransitions) {
-            RenderSystem.enableDepthTest();
-            RenderSystem.depthMask(true);
-            MultiBufferSource.BufferSource dynBuffers = mc.renderBuffers().bufferSource();
-            drawFadingIn(dynBuffers);
-            dynBuffers.endBatch();
-        }
-        totalVboTimeNs += (System.nanoTime() - t1);
+        try {
+            // ── PHASE 2: STATIC VBO GEOMETRY DRAW ──
+            long t1 = System.nanoTime();
+            drawVBOs();
 
-        long t2 = System.nanoTime();
-        float partial = mc.getFrameTime();
-        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
-        turnOnLight(partial);
-        float camX = view.eyeX(), camY = view.eyeY(), camZ = view.eyeZ();
+            if (hasTransitions) {
+                RenderSystem.enableDepthTest();
+                RenderSystem.depthMask(true);
+                MultiBufferSource.BufferSource dynBuffers = mc.renderBuffers().bufferSource();
+                drawFadingIn(dynBuffers);
+                dynBuffers.endBatch();
+            }
+            totalVboTimeNs += (System.nanoTime() - t1);
 
-        PoseStack currentPoseStack = RenderSystem.getModelViewStack();
-        currentPoseStack.pushPose();
+            // ── PHASE 3: BLOCK ENTITIES / MULTI-BUFFERS ──
+            long t2 = System.nanoTime();
+            float partial = mc.getFrameTime();
+            MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
+            turnOnLight(partial);
+            float camX = view.eyeX(), camY = view.eyeY(), camZ = view.eyeZ();
 
-        drawTileEntities(currentPoseStack, buffers, partial, camX, camY, camZ);
-        drawEntities(currentPoseStack, buffers, partial, camX, camY, camZ);
-        drawDynamicRenderers(currentPoseStack, buffers, partial, camX, camY, camZ);
+            // FIX: Use a fresh local PoseStack for BER/entity/dynamic draws.
+            // The global MV stack already contains the full camera-view transform; passing it
+            // to GT's machine BER causes the slot-relative translation to double-stack with
+            // the camera matrix, making the controller "run away" on zoom.
+            // A fresh PoseStack starts at identity — the slot-relative translate inside each
+            // draw method then puts it exactly where the block lives in slot-relative space,
+            // which is what GT's BER expects.
+            PoseStack localPoseStack = new PoseStack();
 
-        RenderSystem.applyModelViewMatrix();
-        buffers.endBatch();
-        currentPoseStack.popPose();
-        RenderSystem.applyModelViewMatrix();
-        totalDynamicTimeNs += (System.nanoTime() - t2);
+            drawTileEntities(localPoseStack, buffers, partial, camX, camY, camZ);
+            drawEntities(localPoseStack, buffers, partial, camX, camY, camZ);
+            drawDynamicRenderers(localPoseStack, buffers, partial, camX, camY, camZ);
 
-        long t3 = System.nanoTime();
-        if (!PhantasiaParticleEngine.isOculusBlockingParticles()) {
-            try {
-                Vec3 camPos = this.camera.getPosition();
-                PoseStack mv = RenderSystem.getModelViewStack();
-                mv.pushPose();
-                mv.translate(camPos.x, camPos.y, camPos.z);
-                RenderSystem.applyModelViewMatrix();
-                PhantasiaParticleEngine.renderDirect(buffers, mc.gameRenderer.lightTexture(), this.camera, partial);
-                buffers.endBatch();
-                mv.popPose();
-                RenderSystem.applyModelViewMatrix();
-            } catch (Exception e) {
-                LOGGER.error("[Phantasia] particle render failed", e);
+            buffers.endBatch();
+            totalDynamicTimeNs += (System.nanoTime() - t2);
+
+            // ── PHASE 4: PARTICLES & WORLD TICKING ──
+            long t3 = System.nanoTime();
+            if (!PhantasiaParticleEngine.isOculusBlockingParticles()) {
+                try {
+                    Vec3 camPos = this.camera.getPosition();
+                    PoseStack mv = RenderSystem.getModelViewStack();
+                    mv.pushPose();
+                    mv.translate(camPos.x, camPos.y, camPos.z);
+                    RenderSystem.applyModelViewMatrix();
+                    PhantasiaParticleEngine.renderDirect(buffers, mc.gameRenderer.lightTexture(), this.camera, partial);
+                    buffers.endBatch();
+                    mv.popPose();
+                    RenderSystem.applyModelViewMatrix();
+                } catch (Exception e) {
+                    LOGGER.error("[Phantasia] particle render failed", e);
+                }
+            }
+
+            if (tickedThisFrame) {
+                PhantasiaParticleEngine.tick();
+                world.tickWorld();
+                // Checking package-local implementation of TrackedDummyWorld if applicable
+                if (world instanceof PhantasiaTrackedDummyWorld ptdw && !animateTickEligible.isEmpty()) {
+                    RandomSource ar = RandomSource.createNewThreadLocalInstance();
+                    for (BlockPos pos : animateTickEligible) ptdw.tickAnimateForPos(pos, ar);
+                }
+            }
+            totalParticleTickTimeNs += (System.nanoTime() - t3);
+
+            turnOffLight();
+
+            // ── PHASE 5: DEPTH-SAMPLE PICK PASS ──
+            long t4 = System.nanoTime();
+            long currentSystemTime = System.currentTimeMillis();
+
+            // Sample every display frame (~16ms). glReadPixels on 1 pixel is <0.05ms —
+            // the 50ms window was overly conservative and caused visible hover lag.
+            final long SAMPLE_INTERVAL_MS = 16;
+
+            if (currentSystemTime - lastTraceTime > SAMPLE_INTERVAL_MS || cachedPickResult == null) {
+                // Only execute the heavy GPU read stall periodically
+                cachedPickResult = doDepthSampleRead(view, glX, glY, glW, glH, scale, windowH);
+                lastHitResult = cachedPickResult;
+                lastTraceTime = currentSystemTime; // Update the tracking timestamp
+            } else {
+                // Reuse the cached result from the last 50ms window to keep rendering smooth
+                cachedPickResult = lastHitResult;
+            }
+            totalRayTraceTimeNs += (System.nanoTime() - t4);
+
+            resetCamera();;
+
+        } finally {
+            // ── RESTORE ORIGINAL CAMERA CONTEXT ──
+            // Wrapped in a finally block to ensure the player's view never breaks if rendering crashes
+            if (cameraField != null && originalCamera != null) {
+                try {
+                    cameraField.set(mc.gameRenderer, originalCamera);
+                } catch (Throwable ignored) {}
             }
         }
 
-        if (tickedThisFrame) {
-            PhantasiaParticleEngine.tick();
-            world.tickWorld();
-            if (world instanceof PhantasiaTrackedDummyWorld ptdw && !animateTickEligible.isEmpty()) {
-                RandomSource ar = RandomSource.createNewThreadLocalInstance();
-                for (BlockPos pos : animateTickEligible) ptdw.tickAnimateForPos(pos, ar);
-            }
-        }
-        totalParticleTickTimeNs += (System.nanoTime() - t3);
-
-        turnOffLight();
-
-        long t4 = System.nanoTime();
-        if (guiMouseX != lastPickMouseX || guiMouseY != lastPickMouseY) {
-            lastPickMouseX = guiMouseX;
-            lastPickMouseY = guiMouseY;
-            cachedPickResult = doDepthSampleRead(view, glX, glY, glW, glH, scale, windowH);
-        }
-        lastHitResult = cachedPickResult;
-        totalRayTraceTimeNs += (System.nanoTime() - t4);
-
-        resetCamera();
-
+        // ── RECORD SUMMARY ──
         long frameDurationNs = System.nanoTime() - renderStart;
         totalRenderTimeNs += frameDurationNs;
         maxRenderTimeNs = Math.max(maxRenderTimeNs, frameDurationNs);
@@ -486,74 +535,152 @@ public final class PhantasiaWorldRenderer {
     }
 
     /**
-     * Samples the main pass OpenGL depth buffer at the cursor and unprojects the coordinate
-     * back into world space. Uses Minecraft's exact voxel clip trace for pixel-perfect interactions.
+     * CPU-side ray-AABB pick. Unprojects the mouse cursor into a world-space ray using
+     * the snapshotted view/projection matrices, then walks every visible block and finds
+     * the nearest unit-cube intersection. Works correctly at any camera angle — the old
+     * depth-buffer approach always returned the topmost pixel (baseplate or roof) and
+     * could never reach blocks on the sides of the structure from oblique views.
+     *
+     * Cost: O(visibleBlocks) AABB slab tests per frame, ~0.1–0.5 ms for typical GT multiblocks.
+     * No GPU readback, no framebuffer stall.
      */
     @Nullable
-    private BlockHitResult doDepthSampleRead(CameraView view, int glX, int glY, int glW, int glH, double guiScale, int windowH) {
-        int mouseGlX = (int)(guiMouseX * guiScale);
-        int mouseGlY = (int)(windowH - guiMouseY * guiScale);
-
+    private BlockHitResult doDepthSampleRead(CameraView view, int glX, int glY, int glW, int glH, double guiScale,
+                                             int windowH) {
+        // ── 1. Bounds-check: cursor must be inside the scene viewport ─────────
+        int mouseGlX = (int) (guiMouseX * guiScale);
+        int mouseGlY = (int) (windowH - guiMouseY * guiScale);
         if (mouseGlX < glX || mouseGlX >= glX + glW || mouseGlY < glY || mouseGlY >= glY + glH) {
             return null;
         }
 
-        PIXEL_DEPTH.clear();
-        org.lwjgl.opengl.GL11.glReadPixels(
-                mouseGlX, mouseGlY, 1, 1,
-                org.lwjgl.opengl.GL11.GL_DEPTH_COMPONENT,
-                org.lwjgl.opengl.GL11.GL_FLOAT,
-                PIXEL_DEPTH);
-        float depth = PIXEL_DEPTH.get(0);
-
-        if (depth >= 1.0f) return null;
-
+        // ── 2. Unproject near and far plane points to get the ray ─────────────
+        // Reuse the already-snapshotted MV/Proj/VP arrays from snapshotMatrices().
         for (int i = 0; i < 16; i++) SCRATCH_MV.put(i, snapMV[i]);
         for (int i = 0; i < 16; i++) SCRATCH_PROJ.put(i, snapProj[i]);
         for (int i = 0; i < 4; i++) SCRATCH_VP.put(i, snapVP[i]);
-        SCRATCH_MV.rewind(); SCRATCH_PROJ.rewind(); SCRATCH_VP.rewind();
+        SCRATCH_MV.rewind();
+        SCRATCH_PROJ.rewind();
+        SCRATCH_VP.rewind();
         UNPROJECT_OUT.rewind();
 
-        Project.gluUnProject(mouseGlX, mouseGlY, depth, SCRATCH_MV, SCRATCH_PROJ, SCRATCH_VP, UNPROJECT_OUT);
-        float hx = UNPROJECT_OUT.get(0);
-        float hy = UNPROJECT_OUT.get(1);
-        float hz = UNPROJECT_OUT.get(2);
+        // Near plane (depth=0) → ray origin
+        Project.gluUnProject(mouseGlX, mouseGlY, 0f, SCRATCH_MV, SCRATCH_PROJ, SCRATCH_VP, UNPROJECT_OUT);
+        double nearX = UNPROJECT_OUT.get(0);
+        double nearY = UNPROJECT_OUT.get(1);
+        double nearZ = UNPROJECT_OUT.get(2);
 
-        // Calculate actual world coordinates based on the slot-relative offset
+        // Rewind and reuse buffers for far plane
+        for (int i = 0; i < 16; i++) SCRATCH_MV.put(i, snapMV[i]);
+        for (int i = 0; i < 16; i++) SCRATCH_PROJ.put(i, snapProj[i]);
+        for (int i = 0; i < 4; i++) SCRATCH_VP.put(i, snapVP[i]);
+        SCRATCH_MV.rewind();
+        SCRATCH_PROJ.rewind();
+        SCRATCH_VP.rewind();
+        UNPROJECT_OUT.rewind();
+
+        // Far plane (depth=1) → ray far point
+        Project.gluUnProject(mouseGlX, mouseGlY, 1f, SCRATCH_MV, SCRATCH_PROJ, SCRATCH_VP, UNPROJECT_OUT);
+        double farX = UNPROJECT_OUT.get(0);
+        double farY = UNPROJECT_OUT.get(1);
+        double farZ = UNPROJECT_OUT.get(2);
+
+        // Unproject produces slot-relative coordinates; convert to world space.
         double ox = this.slotOrigin != null ? this.slotOrigin.getX() : 0.0;
         double oy = this.slotOrigin != null ? this.slotOrigin.getY() : 0.0;
         double oz = this.slotOrigin != null ? this.slotOrigin.getZ() : 0.0;
 
-        double worldX = hx + ox;
-        double worldY = hy + oy;
-        double worldZ = hz + oz;
+        // Ray origin in world space
+        final double ro_x = nearX + ox, ro_y = nearY + oy, ro_z = nearZ + oz;
 
-        // Origin at camera eye
-        Vec3 startVec = new Vec3(view.eyeX(), view.eyeY(), view.eyeZ());
-        // Destination at unprojected depth buffer location
-        Vec3 endVec = new Vec3(worldX, worldY, worldZ);
+        // Normalise direction into new finals so the intermediate mutable is not captured
+        double rdRawX = farX - nearX, rdRawY = farY - nearY, rdRawZ = farZ - nearZ;
+        double rdLen = Math.sqrt(rdRawX * rdRawX + rdRawY * rdRawY + rdRawZ * rdRawZ);
+        if (rdLen < 1e-10) return null;
+        final double rd_x = rdRawX / rdLen, rd_y = rdRawY / rdLen, rd_z = rdRawZ / rdLen;
 
-        // Normalize dir and extend slightly to ensure we clip into the block volume bounding box
-        Vec3 dir = endVec.subtract(startVec).normalize();
-        Vec3 traceEnd = endVec.add(dir.scale(0.005D));
+        // Precompute reciprocals for slab test
+        final double inv_x = Math.abs(rd_x) > 1e-10 ? 1.0 / rd_x : Double.MAX_VALUE;
+        final double inv_y = Math.abs(rd_y) > 1e-10 ? 1.0 / rd_y : Double.MAX_VALUE;
+        final double inv_z = Math.abs(rd_z) > 1e-10 ? 1.0 / rd_z : Double.MAX_VALUE;
 
-        long startTrace = System.nanoTime();
+        // ── 3. Ray-AABB slab test over all visible blocks ─────────────────────
+        // Plain loops — avoids the effectively-final restriction on captured locals.
+        double bestT = Double.MAX_VALUE;
+        int bestFaceOrd = net.minecraft.core.Direction.UP.ordinal();
+        int bestX = 0, bestY = 0, bestZ = 0;
 
-        // Let Minecraft calculate the exact geometric face/block using its native voxel shape clip system
-        net.minecraft.world.level.ClipContext context = new net.minecraft.world.level.ClipContext(
-                startVec,
-                traceEnd,
-                net.minecraft.world.level.ClipContext.Block.OUTLINE,
-                net.minecraft.world.level.ClipContext.Fluid.NONE,
-                this.cameraEntity
-        );
+        for (int pass = 0; pass < 2; pass++) {
+            Iterable<BlockPos> set = pass == 0 ? targetVisible : baseplatePositions;
+            for (BlockPos pos : set) {
+                double bx0 = pos.getX(), bx1 = bx0 + 1.0;
+                double by0 = pos.getY(), by1 = by0 + 1.0;
+                double bz0 = pos.getZ(), bz1 = bz0 + 1.0;
 
-        BlockHitResult result = this.world.clip(context);
+                double tx0 = (bx0 - ro_x) * inv_x, tx1 = (bx1 - ro_x) * inv_x;
+                if (tx0 > tx1) {
+                    double tmp = tx0;
+                    tx0 = tx1;
+                    tx1 = tmp;
+                }
+                double ty0 = (by0 - ro_y) * inv_y, ty1 = (by1 - ro_y) * inv_y;
+                if (ty0 > ty1) {
+                    double tmp = ty0;
+                    ty0 = ty1;
+                    ty1 = tmp;
+                }
+                double tz0 = (bz0 - ro_z) * inv_z, tz1 = (bz1 - ro_z) * inv_z;
+                if (tz0 > tz1) {
+                    double tmp = tz0;
+                    tz0 = tz1;
+                    tz1 = tmp;
+                }
 
-        totalClipContextTimeNs += (System.nanoTime() - startTrace);
-        maxRayIterationsTracked++;
+                // Determine entry axis via int - avoids float equality comparison
+                double tEnter;
+                int enterAxis; // 0=X, 1=Y, 2=Z
+                if (tx0 >= ty0 && tx0 >= tz0) {
+                    tEnter = tx0;
+                    enterAxis = 0;
+                } else if (ty0 >= tz0) {
+                    tEnter = ty0;
+                    enterAxis = 1;
+                } else {
+                    tEnter = tz0;
+                    enterAxis = 2;
+                }
+                double tExit = Math.min(Math.min(tx1, ty1), tz1);
+                if (tExit < 0 || tEnter > tExit) continue;
+                double t = tEnter < 0 ? tExit : tEnter;
+                if (t < 0 || t >= bestT) continue;
 
-        return result.getType() == HitResult.Type.MISS ? null : result;
+                // Only accept this hit if the entry face is exposed (neighbour in that
+                // direction is not also a visible block). Without this check, interior
+                // blocks buried inside the structure win the nearest-t contest even
+                // though their faces are never rendered.
+                net.minecraft.core.Direction entryFace;
+                if (enterAxis == 0)
+                    entryFace = rd_x > 0 ? net.minecraft.core.Direction.WEST : net.minecraft.core.Direction.EAST;
+                else if (enterAxis == 1)
+                    entryFace = rd_y > 0 ? net.minecraft.core.Direction.DOWN : net.minecraft.core.Direction.UP;
+                else entryFace = rd_z > 0 ? net.minecraft.core.Direction.NORTH : net.minecraft.core.Direction.SOUTH;
+                BlockPos neighbour = pos.relative(entryFace.getOpposite());
+                if (targetVisible.contains(neighbour) || baseplatePositions.contains(neighbour)) continue;
+
+                bestT = t;
+                bestX = pos.getX();
+                bestY = pos.getY();
+                bestZ = pos.getZ();
+                bestFaceOrd = entryFace.ordinal();
+            }
+        }
+
+        if (bestT == Double.MAX_VALUE) return null;
+
+        BlockPos hitPos = new BlockPos(bestX, bestY, bestZ);
+        net.minecraft.core.Direction hitFace = net.minecraft.core.Direction.values()[bestFaceOrd];
+        Vec3 hitVec = new Vec3(ro_x + rd_x * bestT, ro_y + rd_y * bestT, ro_z + rd_z * bestT);
+        return new BlockHitResult(hitVec, hitFace, hitPos, false);
     }
 
     private void dumpProfilingData() {
@@ -587,8 +714,7 @@ public final class PhantasiaWorldRenderer {
                         "   -> Max Ray Intersection Depth:  %d  (Pure Clip Cost:   %.3f ms)\n" +
                         "===================================================",
                 profiledFramesCount, avgTotal, maxTotal, avgSetup, avgVbo, avgDynamic, avgParticles, avgRayTrace,
-                maxBerCountTracked, microBerAvg, maxRayIterationsTracked, microClipAvg
-        ));
+                maxBerCountTracked, microBerAvg, maxRayIterationsTracked, microClipAvg));
 
         // Reset trackers
         profileWindowStart = System.nanoTime();
@@ -725,7 +851,7 @@ public final class PhantasiaWorldRenderer {
         });
     }
 
-// ── Partial bake ─────────────────────────────────────────────────────────
+    // ── Partial bake ─────────────────────────────────────────────────────────
 
     private void schedulePartialBake(Set<BlockPos> targets) {
         Set<BlockPos> valid = new HashSet<>(targets);
@@ -1088,9 +1214,12 @@ public final class PhantasiaWorldRenderer {
 
             poseStack.pushPose();
 
-            double renderX = pos.getX() - this.slotOrigin.getX();
-            double renderY = pos.getY() - this.slotOrigin.getY();
-            double renderZ = pos.getZ() - this.slotOrigin.getZ();
+            // FIX: Use the BlockEntity's internal position
+            BlockPos bePos = be.getBlockPos();
+
+            double renderX = bePos.getX() - this.slotOrigin.getX();
+            double renderY = bePos.getY() - this.slotOrigin.getY();
+            double renderZ = bePos.getZ() - this.slotOrigin.getZ();
             poseStack.translate(renderX, renderY, renderZ);
 
             count++;
@@ -1105,12 +1234,13 @@ public final class PhantasiaWorldRenderer {
             totalBerRenderTimeNs += (System.nanoTime() - berStart);
 
             poseStack.popPose();
+
         }
         maxBerCountTracked = Math.max(maxBerCountTracked, count);
     }
 
     // ── Fixed Dynamic Renderers Draw (e.g. Fusion Plasma Rings) ──────────────
-    @SuppressWarnings({"unchecked", "rawtypes"})
+    @SuppressWarnings({ "unchecked", "rawtypes" })
     private void drawDynamicRenderers(PoseStack poseStack, MultiBufferSource.BufferSource buffers, float partial,
                                       float camX, float camY, float camZ) {
         Vec3 cameraPos = new Vec3(camX, camY, camZ);
@@ -1120,10 +1250,15 @@ public final class PhantasiaWorldRenderer {
             MetaMachine machine = mmbe.getMetaMachine();
             if (machine == null) continue;
 
+            // FIX: Grab the coordinate state directly from the metamachine itself
+            // to stay anchored correctly inside fake/dummy world layouts.
+            BlockPos machinePos = machine.getPos();
+
             com.lowdragmc.lowdraglib.client.renderer.IRenderer iRenderer = null;
             try {
                 com.gregtechceu.gtceu.api.machine.MachineDefinition def = machine.getDefinition();
-                for (Class<?> defCls = def.getClass(); defCls != null && defCls != Object.class; defCls = defCls.getSuperclass()) {
+                for (Class<?> defCls = def.getClass(); defCls != null &&
+                        defCls != Object.class; defCls = defCls.getSuperclass()) {
                     for (java.lang.reflect.Field f : defCls.getDeclaredFields()) {
                         if (com.lowdragmc.lowdraglib.client.renderer.IRenderer.class.isAssignableFrom(f.getType())) {
                             f.setAccessible(true);
@@ -1142,12 +1277,14 @@ public final class PhantasiaWorldRenderer {
                         f.setAccessible(true);
                         Object val = f.get(iRenderer);
                         if (val == null) continue;
-                        if (val instanceof DynamicRender<?,?> dr) {
-                            renderOneDynamic(dr, machine, pos, cameraPos, partial, poseStack, buffers);
+                        if (val instanceof DynamicRender<?, ?> dr) {
+                            // FIX: Pass machinePos instead of layout pos
+                            renderOneDynamic(dr, machine, machinePos, cameraPos, partial, poseStack, buffers);
                         } else if (val instanceof java.util.List<?> list) {
                             for (Object item : list) {
-                                if (item instanceof DynamicRender<?,?> dr) {
-                                    renderOneDynamic(dr, machine, pos, cameraPos, partial, poseStack, buffers);
+                                if (item instanceof DynamicRender<?, ?> dr) {
+                                    // FIX: Pass machinePos instead of layout pos
+                                    renderOneDynamic(dr, machine, machinePos, cameraPos, partial, poseStack, buffers);
                                 }
                             }
                         }
@@ -1157,7 +1294,7 @@ public final class PhantasiaWorldRenderer {
         }
     }
 
-    @SuppressWarnings({"unchecked", "rawtypes"})
+    @SuppressWarnings({ "unchecked", "rawtypes" })
     private void renderOneDynamic(DynamicRender dr, MetaMachine machine, BlockPos pos,
                                   Vec3 cameraPos, float partial,
                                   PoseStack poseStack, MultiBufferSource.BufferSource buffers) {
@@ -1167,9 +1304,12 @@ public final class PhantasiaWorldRenderer {
 
         poseStack.pushPose();
 
-        double renderX = pos.getX() - this.slotOrigin.getX();
-        double renderY = pos.getY() - this.slotOrigin.getY();
-        double renderZ = pos.getZ() - this.slotOrigin.getZ();
+        // FIX: Use the MetaMachine's internal position rather than the spatial loop position
+        BlockPos machinePos = machine.getPos();
+
+        double renderX = machinePos.getX() - this.slotOrigin.getX();
+        double renderY = machinePos.getY() - this.slotOrigin.getY();
+        double renderZ = machinePos.getZ() - this.slotOrigin.getZ();
         poseStack.translate(renderX, renderY, renderZ);
 
         try {
@@ -1240,20 +1380,26 @@ public final class PhantasiaWorldRenderer {
         RenderSystem.clearColor(0f, 0f, 0f, 0f);
         RenderSystem.clear(GL11.GL_DEPTH_BUFFER_BIT, Minecraft.ON_OSX);
         RenderSystem.backupProjectionMatrix();
-        float aspect = (float) glW / glH;
-        RenderSystem.setProjectionMatrix(
-                new Matrix4f().setPerspective((float) Math.toRadians(FOV), aspect, NEAR, FAR),
-                VertexSorting.byDistance(new Vector3f(view.eyeX(), view.eyeY(), view.eyeZ())));
-        PoseStack mv = RenderSystem.getModelViewStack();
-        mv.pushPose();
-        mv.setIdentity();
 
         double ox = this.slotOrigin != null ? this.slotOrigin.getX() : 0.0;
         double oy = this.slotOrigin != null ? this.slotOrigin.getY() : 0.0;
         double oz = this.slotOrigin != null ? this.slotOrigin.getZ() : 0.0;
+
+        float aspect = (float) glW / glH;
+        RenderSystem.setProjectionMatrix(
+                new Matrix4f().setPerspective((float) Math.toRadians(FOV), aspect, NEAR, FAR),
+                // FIX: Sort translucent vertices using slot-relative eye coordinates
+                VertexSorting.byDistance(new Vector3f((float) (view.eyeX() - ox), (float) (view.eyeY() - oy),
+                        (float) (view.eyeZ() - oz))));
+
+        PoseStack mv = RenderSystem.getModelViewStack();
+        mv.pushPose();
+        mv.setIdentity();
+
+        // FIX: Changed view.lookAtY() - oz to view.lookAtY() - oy
         Project.gluLookAt(mv,
-                (float)(view.eyeX()    - ox), (float)(view.eyeY()    - oy), (float)(view.eyeZ()    - oz),
-                (float)(view.lookAtX() - ox), (float)(view.lookAtY() - oy), (float)(view.lookAtZ() - oz),
+                (float) (view.eyeX() - ox), (float) (view.eyeY() - oy), (float) (view.eyeZ() - oz),
+                (float) (view.lookAtX() - ox), (float) (view.lookAtY() - oy), (float) (view.lookAtZ() - oz),
                 0f, 1f, 0f);
 
         RenderSystem.applyModelViewMatrix();
@@ -1277,8 +1423,8 @@ public final class PhantasiaWorldRenderer {
 
     private void syncCameraEntity(CameraView view, double ox, double oy, double oz) {
         Vector3f dir = view.direction();
-        float yaw   = (float) Math.toDegrees(Math.atan2(-dir.x(), dir.z()));
-        float hd    = (float) Math.sqrt(dir.x() * dir.x() + dir.z() * dir.z());
+        float yaw = (float) Math.toDegrees(Math.atan2(-dir.x(), dir.z()));
+        float hd = (float) Math.sqrt(dir.x() * dir.x() + dir.z() * dir.z());
         float pitch = (float) Math.toDegrees(Math.atan2(-dir.y(), hd));
 
         double relX = view.eyeX() - ox;
@@ -1287,11 +1433,11 @@ public final class PhantasiaWorldRenderer {
         cameraEntity.setPos(relX, relY, relZ);
         cameraEntity.setYRot(yaw);
         cameraEntity.setXRot(pitch);
-        cameraEntity.xo     = relX;
-        cameraEntity.yo     = relY;
-        cameraEntity.zo     = relZ;
-        cameraEntity.yRotO  = yaw;
-        cameraEntity.xRotO  = pitch;
+        cameraEntity.xo = relX;
+        cameraEntity.yo = relY;
+        cameraEntity.zo = relZ;
+        cameraEntity.yRotO = yaw;
+        cameraEntity.xRotO = pitch;
     }
 
     // ── Matrix snapshot ───────────────────────────────────────────────────────

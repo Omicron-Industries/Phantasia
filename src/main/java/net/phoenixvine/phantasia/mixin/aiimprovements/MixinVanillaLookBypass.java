@@ -1,7 +1,7 @@
 package net.phoenixvine.phantasia.mixin.aiimprovements;
 
 import net.minecraft.world.entity.ai.control.LookControl;
-import net.phoenixvine.phantasia.client.PhantasiaRenderBypass;
+import net.phoenixvine.phantasia.client.event.PhantasiaRenderBypass;
 
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;

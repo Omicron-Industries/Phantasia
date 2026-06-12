@@ -12,8 +12,8 @@ import net.phoenixvine.phantasia.client.camera.CameraView;
 import net.phoenixvine.phantasia.client.camera.PhantasiaCamera;
 import net.phoenixvine.phantasia.client.render.PhantasiaTrackedDummyWorld;
 import net.phoenixvine.phantasia.client.render.PhantasiaWorldRenderer;
-import net.phoenixvine.phantasia.common.PhantasiaSceneData;
-import net.phoenixvine.phantasia.common.PhantasiaScenePattern;
+import net.phoenixvine.phantasia.common.data.pattern.PhantasiaScenePattern;
+import net.phoenixvine.phantasia.common.data.scene.PhantasiaSceneData;
 
 import org.lwjgl.glfw.GLFW;
 

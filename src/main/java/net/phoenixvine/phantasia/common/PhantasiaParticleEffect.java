@@ -4,6 +4,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.particles.SimpleParticleType;
 import net.minecraftforge.registries.ForgeRegistries;
+import net.phoenixvine.phantasia.common.data.script.PhantasiaScript;
 
 import javax.annotation.Nullable;
 

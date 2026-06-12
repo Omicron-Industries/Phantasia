@@ -4,6 +4,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtIo;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.fml.loading.FMLPaths;
+import net.phoenixvine.phantasia.common.data.script.PhantasiaScriptData;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -120,7 +121,7 @@ public final class PhantasiaSlotVersions {
     }
 
     /** Script hash from the JSON string. Detects any script edit between sessions. */
-    public static int hashScript(net.phoenixvine.phantasia.common.PhantasiaScriptData scriptData) {
+    public static int hashScript(PhantasiaScriptData scriptData) {
         if (scriptData == null) return 0;
         return scriptData.toJson().hashCode();
     }

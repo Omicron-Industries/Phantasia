@@ -9,11 +9,12 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 import net.phoenixvine.phantasia.Phantasia;
+import net.phoenixvine.phantasia.client.event.PhantasiaClientEvents;
 import net.phoenixvine.phantasia.client.screens.*;
-import net.phoenixvine.phantasia.common.PhantasiaGuideLoader;
 import net.phoenixvine.phantasia.common.PhantasiaKeybind;
-import net.phoenixvine.phantasia.common.PhantasiaSceneLoader;
-import net.phoenixvine.phantasia.common.PhantasiaScriptLoader;
+import net.phoenixvine.phantasia.common.data.guides.PhantasiaGuideLoader;
+import net.phoenixvine.phantasia.common.data.scene.PhantasiaSceneLoader;
+import net.phoenixvine.phantasia.common.data.script.PhantasiaScriptLoader;
 
 @Mod.EventBusSubscriber(modid = Phantasia.MOD_ID, bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
 public class PhantasiaClient {
