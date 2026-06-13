@@ -233,6 +233,12 @@ public final class PhantasiaWorldRenderer {
     private final Map<BlockPos, List<RenderType>> blockLayers = new HashMap<>();
     private boolean hasTransitions = false;
 
+    /** Positions in the current front[] VBO that are no longer in targetVisible.
+     * Rendered at alpha=0 each frame to immediately hide them without waiting for
+     * the rebake to complete. Cleared on swapFullBuffers(). */
+    private final Set<BlockPos> suppressedPositions = new HashSet<>();
+    private final Map<BlockPos, List<RenderType>> suppressedLayers = new HashMap<>();
+
     // ── Animated / tile-entity tracking ──────────────────────────────────────
 
     private Set<BlockPos> animatedPositions = Collections.emptySet();
@@ -853,6 +859,7 @@ public final class PhantasiaWorldRenderer {
         }
         frontTileEntities = backTileEntities != null ? backTileEntities : Collections.emptySet();
         animatedPositions = backAnimatedPositions != null ? backAnimatedPositions : Collections.emptySet();
+        PhantasiaSpriteMarker.invalidateCache(); // new bake may have new animated sprites
         backReady = false;
         backTileEntities = null;
         backAnimatedPositions = null;
@@ -884,7 +891,6 @@ public final class PhantasiaWorldRenderer {
             return;
         }
 
-        pendingUploads.set(LAYER_COUNT);
         bakeFuture = BAKE_POOL.submit(() -> {
             fullBakeStartNs = System.nanoTime();
             lastBakeBlockCount = snapshot.size();
@@ -912,22 +918,29 @@ public final class PhantasiaWorldRenderer {
             try {
                 for (int i = 0; i < LAYER_COUNT; i++) {
                     if (Thread.interrupted()) return;
-                    baked[i] = bakeLayerToBuffer(brd, random, LAYERS.get(i),
-                            solidBuckets.getOrDefault(LAYERS.get(i), List.of()),
-                            fluidBuckets.getOrDefault(LAYERS.get(i), List.of()),
-                            animatedBack);
+                    RenderType layer = LAYERS.get(i);
+                    List<BlockPos> solid = solidBuckets.getOrDefault(layer, List.of());
+                    List<BlockPos> fluid = fluidBuckets.getOrDefault(layer, List.of());
+                    if (solid.isEmpty() && fluid.isEmpty()) { baked[i] = null; continue; }
+                    baked[i] = bakeLayerToBuffer(brd, random, layer, solid, fluid, animatedBack);
                 }
             } finally {
                 ModelBlockRenderer.clearCache();
                 restoreVariants(hiddenSaved);
                 restoreVariants(variantSaved);
             }
-            // Enqueue all uploads together -- render thread processes them next frame.
+            // Only upload non-empty layers; set counter to actual upload count.
+            // All LAYER_COUNT slots must be uploaded to clear any stale geometry
+            // from previous bakes. Empty layers get an empty buffer rather than
+            // being skipped entirely -- skipping leaves stale VBO content that
+            // gets swapped into front[] and renders phantom blocks.
+            pendingUploads.set(LAYER_COUNT);
             for (int i = 0; i < LAYER_COUNT; i++) {
                 final int fi = i;
-                final BakedLayer bl = baked[fi];
+                final BakedLayer bl = baked[fi]; // null = empty layer
                 RenderSystem.recordRenderCall(() -> {
-                    uploadToVBO(back[fi], bl);
+                    if (bl != null) uploadToVBO(back[fi], bl);
+                    else uploadEmptyVBO(back[fi], LAYERS.get(fi));
                     if (pendingUploads.decrementAndGet() == 0) backReady = true;
                 });
             }
@@ -956,7 +969,6 @@ public final class PhantasiaWorldRenderer {
         Set<BlockPos> fullVisibleSnapshot = new HashSet<>(patternVisible);
         fullVisibleSnapshot.addAll(baseplatePositions);
 
-        pendingUploads.set(LAYER_COUNT);
         bakeFuture = BAKE_POOL.submit(() -> {
             Minecraft mc = Minecraft.getInstance();
             BlockRenderDispatcher brd = mc.getBlockRenderer();
@@ -977,21 +989,24 @@ public final class PhantasiaWorldRenderer {
             try {
                 for (int i = 0; i < LAYER_COUNT; i++) {
                     if (Thread.interrupted()) return;
-                    baked[i] = bakeLayerToBuffer(brd, random, LAYERS.get(i),
-                            solidBuckets.getOrDefault(LAYERS.get(i), List.of()),
-                            fluidBuckets.getOrDefault(LAYERS.get(i), List.of()),
-                            animatedBack);
+                    RenderType layer = LAYERS.get(i);
+                    List<BlockPos> solid = solidBuckets.getOrDefault(layer, List.of());
+                    List<BlockPos> fluid = fluidBuckets.getOrDefault(layer, List.of());
+                    if (solid.isEmpty() && fluid.isEmpty()) { baked[i] = null; continue; }
+                    baked[i] = bakeLayerToBuffer(brd, random, layer, solid, fluid, animatedBack);
                 }
             } finally {
                 ModelBlockRenderer.clearCache();
                 restoreVariants(hiddenSaved);
                 restoreVariants(variantSaved);
             }
+            pendingUploads.set(LAYER_COUNT);
             for (int i = 0; i < LAYER_COUNT; i++) {
                 final int fi = i;
                 final BakedLayer bl = baked[fi];
                 RenderSystem.recordRenderCall(() -> {
-                    uploadToVBO(overlay[fi], bl);
+                    if (bl != null) uploadToVBO(overlay[fi], bl);
+                    else uploadEmptyVBO(overlay[fi], LAYERS.get(fi));
                     if (pendingUploads.decrementAndGet() == 0) overlayReady = true;
                 });
             }
@@ -1072,6 +1087,16 @@ public final class PhantasiaWorldRenderer {
         if (!vbo.isInvalid()) {
             vbo.bind();
             vbo.upload(bl.renderedBuffer());
+            VertexBuffer.unbind();
+        }
+    }
+
+    private void uploadEmptyVBO(VertexBuffer vbo, RenderType layer) {
+        if (!vbo.isInvalid()) {
+            BufferBuilder bb = new BufferBuilder(layer.bufferSize());
+            bb.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.BLOCK);
+            vbo.bind();
+            vbo.upload(bb.end());
             VertexBuffer.unbind();
         }
     }

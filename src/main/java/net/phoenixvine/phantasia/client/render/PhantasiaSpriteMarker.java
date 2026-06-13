@@ -11,7 +11,6 @@ import net.minecraftforge.fml.ModList;
 import net.phoenixvine.phantasia.client.compat.EmbeddiumCompat;
 
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.util.*;
 
 /**
@@ -21,15 +20,12 @@ import java.util.*;
  * frustum. Since the dummy world uses an isolated chunk source, none of its
  * sprites are ever auto-marked. This class marks them manually each frame.
  *
- * Strategy: mark ALL animated sprites in the blocks atlas and particles atlas,
- * rather than only sprites from baked quads. This covers:
- * - Block textures from baked quads (coils, hatches, etc.)
- * - BER overlay textures (controller active overlay, machine emissives)
- * which are looked up at render time and never appear in baked quads
- * - Particle sprites from PhantasiaParticleEngine's isolated particle list
+ * Strategy: scan the blocks and particles atlases ONCE to find all animated
+ * sprites, cache them, then mark only those cached sprites each frame.
+ * This reduces the per-frame cost from O(all atlas sprites) to O(animated sprites),
+ * which is typically a few hundred entries vs the full atlas of thousands.
  *
- * Marking all animated atlas sprites is cheap — hasAnimation() is a field read,
- * and only a small fraction of atlas sprites are animated.
+ * Call invalidateCache() after a bake swap or atlas reload to force a rescan.
  */
 @OnlyIn(Dist.CLIENT)
 public final class PhantasiaSpriteMarker {
@@ -37,8 +33,11 @@ public final class PhantasiaSpriteMarker {
     public static final boolean EMBEDDIUM_PRESENT = ModList.get().isLoaded("embeddium") ||
             ModList.get().isLoaded("rubidium");
 
-    // TextureAtlas.getSprites() or equivalent — resolved once
-    private static Method getSpritesMethod = null;
+    // Cached set of animated sprites found during the last atlas scan.
+    // Null means the cache needs building; empty set means no animated sprites found.
+    private static Set<TextureAtlasSprite> cachedAnimatedSprites = null;
+
+    // TextureAtlas sprites map field — resolved once
     private static Field spritesField = null;
     private static boolean atlasFieldResolved = false;
 
@@ -49,35 +48,65 @@ public final class PhantasiaSpriteMarker {
     private PhantasiaSpriteMarker() {}
 
     /**
+     * Invalidate the animated-sprite cache. Call this after a bake swap or
+     * whenever the atlas may have changed (resource reload, etc.).
+     * The next markAll() call will rebuild the cache with a full atlas scan.
+     */
+    public static void invalidateCache() {
+        cachedAnimatedSprites = null;
+    }
+
+    /**
      * Mark all animated sprites in the blocks and particles atlases active.
-     * Called once per render frame from PhantasiaWorldRenderer.
-     * The blockSprites set (from baked quads) is kept for compatibility but
-     * is now supplemented by a full atlas scan.
+     * On the first call (or after invalidateCache()), scans the atlas and
+     * builds a cache. Subsequent calls just iterate the cache — O(animated)
+     * instead of O(all sprites).
+     *
+     * The blockSprites parameter is kept for API compatibility but is unused;
+     * the full-atlas approach covers BER overlays and emissives that never
+     * appear in baked quads.
      */
     public static void markAll(Set<TextureAtlasSprite> blockSprites) {
         if (!EMBEDDIUM_PRESENT) return;
 
-        markAtlas(TextureAtlas.LOCATION_BLOCKS);
-        markAtlas(TextureAtlas.LOCATION_PARTICLES);
+        if (cachedAnimatedSprites == null) {
+            buildCache();
+        }
+
+        // Fast path: just mark each cached animated sprite active.
+        for (TextureAtlasSprite sprite : cachedAnimatedSprites) {
+            try {
+                EmbeddiumCompat.markSpriteActive(sprite);
+            } catch (Exception ignored) {}
+        }
+
+        // Particle sprites change each frame (particles are created/destroyed),
+        // so they can't be cached — still iterate live each frame, but this is
+        // a small list bounded by active particle count.
         markPhantasiaParticleSprites();
     }
 
-    /** For backwards compatibility — called from bakeLayer. No-op now since we mark whole atlas. */
+    /** For backwards compatibility — called from bakeLayer. No-op now. */
     public static void addIfAnimated(TextureAtlasSprite sprite, Set<TextureAtlasSprite> set) {
-        // Still add to set so the set isn't empty (used as a bake signal elsewhere)
         set.add(sprite);
     }
 
-    // ── Atlas marking ─────────────────────────────────────────────────────────
+    // ── Cache build ───────────────────────────────────────────────────────────
 
-    private static void markAtlas(net.minecraft.resources.ResourceLocation atlasLocation) {
+    private static void buildCache() {
+        Set<TextureAtlasSprite> found = new HashSet<>();
+        collectAnimatedFromAtlas(TextureAtlas.LOCATION_BLOCKS, found);
+        collectAnimatedFromAtlas(TextureAtlas.LOCATION_PARTICLES, found);
+        cachedAnimatedSprites = found;
+    }
+
+    private static void collectAnimatedFromAtlas(net.minecraft.resources.ResourceLocation atlasLocation,
+                                                 Set<TextureAtlasSprite> out) {
         Minecraft mc = Minecraft.getInstance();
-        var atlasManager = mc.getTextureManager();
         try {
-            var texture = atlasManager.getTexture(atlasLocation);
+            var texture = mc.getTextureManager().getTexture(atlasLocation);
             if (!(texture instanceof TextureAtlas atlas)) return;
 
-            // Reflect to get the sprites collection — field name varies by mapping
             if (!atlasFieldResolved) {
                 atlasFieldResolved = true;
                 for (Class<?> c = TextureAtlas.class; c != null; c = c.getSuperclass()) {
@@ -98,16 +127,16 @@ public final class PhantasiaSpriteMarker {
                 }
             }
 
-            if (spritesField != null) {
-                @SuppressWarnings("unchecked")
-                Map<?, TextureAtlasSprite> sprites = (Map<?, TextureAtlasSprite>) spritesField.get(atlas);
-                for (TextureAtlasSprite sprite : sprites.values()) {
-                    try {
-                        if (EmbeddiumCompat.hasAnimation(sprite)) {
-                            EmbeddiumCompat.markSpriteActive(sprite);
-                        }
-                    } catch (Exception ignored) {}
-                }
+            if (spritesField == null) return;
+
+            @SuppressWarnings("unchecked")
+            Map<?, TextureAtlasSprite> sprites = (Map<?, TextureAtlasSprite>) spritesField.get(atlas);
+            for (TextureAtlasSprite sprite : sprites.values()) {
+                try {
+                    if (EmbeddiumCompat.hasAnimation(sprite)) {
+                        out.add(sprite);
+                    }
+                } catch (Exception ignored) {}
             }
         } catch (Exception ignored) {}
     }
@@ -116,7 +145,7 @@ public final class PhantasiaSpriteMarker {
 
     /**
      * Marks sprites from PhantasiaParticleEngine's isolated particle list.
-     * mc.particleEngine is NOT used here — our particles are isolated.
+     * Not cached since particle lists are dynamic.
      */
     private static void markPhantasiaParticleSprites() {
         var engine = PhantasiaParticleEngine.get();
@@ -128,8 +157,7 @@ public final class PhantasiaSpriteMarker {
         if (!particleSpriteResolved) {
             particleSpriteResolved = true;
             try {
-                Class<?> tsp = TextureSheetParticle.class;
-                for (Class<?> c = tsp; c != null; c = c.getSuperclass()) {
+                for (Class<?> c = TextureSheetParticle.class; c != null; c = c.getSuperclass()) {
                     for (Field f : c.getDeclaredFields()) {
                         if (TextureAtlasSprite.class.isAssignableFrom(f.getType())) {
                             f.setAccessible(true);

@@ -1,7 +1,9 @@
 package net.phoenixvine.phantasia.client;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.commands.Commands;
 import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.client.event.RegisterClientCommandsEvent;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
@@ -11,10 +13,12 @@ import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 import net.phoenixvine.phantasia.Phantasia;
 import net.phoenixvine.phantasia.client.event.PhantasiaClientEvents;
 import net.phoenixvine.phantasia.client.screens.*;
+import net.phoenixvine.phantasia.client.screens.editors.PhantasiaThemeEditorScreen;
 import net.phoenixvine.phantasia.common.PhantasiaKeybind;
 import net.phoenixvine.phantasia.common.data.guides.PhantasiaGuideLoader;
 import net.phoenixvine.phantasia.common.data.scene.PhantasiaSceneLoader;
 import net.phoenixvine.phantasia.common.data.script.PhantasiaScriptLoader;
+import net.phoenixvine.phantasia.utils.PhantasiaTheme;
 
 @Mod.EventBusSubscriber(modid = Phantasia.MOD_ID, bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
 public class PhantasiaClient {
@@ -24,13 +28,30 @@ public class PhantasiaClient {
     public static void init(IEventBus modBus) {
         MinecraftForge.EVENT_BUS.register(PhantasiaKeybind.class);
         MinecraftForge.EVENT_BUS.register(PhantasiaClientEvents.class);
+        MinecraftForge.EVENT_BUS.register(PhantasiaClientCommands.class);
     }
 
     public static class VocalVibrancyClientTick {
-
         @SubscribeEvent
         public static void onClientTick(TickEvent.ClientTickEvent event) {
             if (event.phase != TickEvent.Phase.END) return;
+        }
+    }
+
+    public static class PhantasiaClientCommands {
+        @SubscribeEvent
+        public static void onRegisterClientCommands(RegisterClientCommandsEvent event) {
+            event.getDispatcher().register(
+                    Commands.literal("phantasia")
+                            .then(Commands.literal("theme")
+                                    .executes(context -> {
+                                        Minecraft.getInstance().tell(() -> {
+                                            Minecraft.getInstance().setScreen(new PhantasiaThemeEditorScreen(null));
+                                        });
+                                        return 1;
+                                    })
+                            )
+            );
         }
     }
 
@@ -39,12 +60,12 @@ public class PhantasiaClient {
         event.enqueueWork(() -> {
             PhantasiaScriptLoader.discoverAndLoad();
             PhantasiaSceneLoader.load();
-            PhantasiaGuideLoader.load(); // Added right after scene loader
+            PhantasiaGuideLoader.load();
 
-            // Fix: Initialize shader manually using the active stable resource manager
-            // This safely bypasses vanilla's early asset loop event that Oculus blocks.
+            // Initializing Custom Disk Themes
+            PhantasiaTheme.loadAllThemes();
+
             var resourceManager = Minecraft.getInstance().getResourceManager();
-
         });
     }
 
