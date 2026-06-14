@@ -73,7 +73,7 @@ public class PhantasiaFootprintScreen extends Screen {
     // ── Constructor ───────────────────────────────────────────────────────────
 
     public PhantasiaFootprintScreen(PhantasiaLoadedPattern pattern, Screen parent, PhantasiaScript script) {
-        super(Component.literal("Footprint"));
+        super(Component.translatable("screen.phantasia.footprint.title"));
         this.parent = parent;
         this.pattern = pattern;
         this.script = script;

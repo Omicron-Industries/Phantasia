@@ -71,7 +71,7 @@ public class PhantasiaKeybind {
                 tooltipTarget = multiDef;
 
                 String keyName = PhoenixKeybinds.OPEN_PHANTASIA_MENU.getTranslatedKeyMessage().getString();
-                event.getToolTip().add(Component.literal("§6§l» §b[" + keyName + "] §7Hold to Phantasize"));
+                event.getToolTip().add(Component.translatable("tooltip.phantasia.hold_to_phantasize", keyName));
 
                 if (holdTimer > 0) {
                     float progress = (float) holdTimer / PhantasiaConfigs.INSTANCE.phantasiaUI.activationTicks;

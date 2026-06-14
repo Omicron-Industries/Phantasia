@@ -32,6 +32,7 @@ public class PhantasiaClient {
     }
 
     public static class VocalVibrancyClientTick {
+
         @SubscribeEvent
         public static void onClientTick(TickEvent.ClientTickEvent event) {
             if (event.phase != TickEvent.Phase.END) return;
@@ -39,6 +40,7 @@ public class PhantasiaClient {
     }
 
     public static class PhantasiaClientCommands {
+
         @SubscribeEvent
         public static void onRegisterClientCommands(RegisterClientCommandsEvent event) {
             event.getDispatcher().register(
@@ -49,9 +51,7 @@ public class PhantasiaClient {
                                             Minecraft.getInstance().setScreen(new PhantasiaThemeEditorScreen(null));
                                         });
                                         return 1;
-                                    })
-                            )
-            );
+                                    })));
         }
     }
 

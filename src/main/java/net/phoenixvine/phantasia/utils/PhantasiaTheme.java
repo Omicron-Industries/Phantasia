@@ -1,6 +1,7 @@
 package net.phoenixvine.phantasia.utils;
 
 import net.minecraft.util.Mth;
+
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
@@ -12,12 +13,13 @@ import java.util.Map;
 public class PhantasiaTheme {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-    private static final File THEMES_DIR = new File("config/phantasia/themes");
+    private static final File THEMES_DIR = new File("phantasia/themes");
     public static final Map<String, PhantasiaTheme> REGISTRY = new LinkedHashMap<>();
     private static String activeThemeName = "COBALT";
 
     // ── Smart Dynamic Color Property Class ──
     public static class ThemeColor {
+
         public String hex;
         private transient Integer cachedStatic = null;
 
@@ -38,11 +40,16 @@ public class PhantasiaTheme {
                 case "NONE":
                 case "TRANSPARENT":
                     return 0x00000000;
-                case "RAINBOW": return calculateRainbow(offset);
-                case "PASTEL_RAINBOW": return calculatePastelRainbow(offset);
-                case "GALAXY": return calculateGalaxy(offset);
-                case "AURORA": return calculateAurora(offset);
-                case "MAGMA": return calculateMagma(offset);
+                case "RAINBOW":
+                    return calculateRainbow(offset);
+                case "PASTEL_RAINBOW":
+                    return calculatePastelRainbow(offset);
+                case "GALAXY":
+                    return calculateGalaxy(offset);
+                case "AURORA":
+                    return calculateAurora(offset);
+                case "MAGMA":
+                    return calculateMagma(offset);
             }
 
             if (cachedStatic == null) {
@@ -66,25 +73,68 @@ public class PhantasiaTheme {
 
     public PhantasiaTheme(String bg, String panel, String accent, String btn, String btnHov, String btnAct,
                           String text, String dim, String tlBg, String prog, String warn, String hilight) {
-        this.bg = new ThemeColor(bg); this.panel = new ThemeColor(panel); this.accent = new ThemeColor(accent);
-        this.btn = new ThemeColor(btn); this.btnHov = new ThemeColor(btnHov); this.btnAct = new ThemeColor(btnAct);
-        this.text = new ThemeColor(text); this.dim = new ThemeColor(dim); this.tlBg = new ThemeColor(tlBg);
-        this.prog = new ThemeColor(prog); this.warn = new ThemeColor(warn); this.hilight = new ThemeColor(hilight);
+        this.bg = new ThemeColor(bg);
+        this.panel = new ThemeColor(panel);
+        this.accent = new ThemeColor(accent);
+        this.btn = new ThemeColor(btn);
+        this.btnHov = new ThemeColor(btnHov);
+        this.btnAct = new ThemeColor(btnAct);
+        this.text = new ThemeColor(text);
+        this.dim = new ThemeColor(dim);
+        this.tlBg = new ThemeColor(tlBg);
+        this.prog = new ThemeColor(prog);
+        this.warn = new ThemeColor(warn);
+        this.hilight = new ThemeColor(hilight);
     }
 
     // ── Functional Getters ──
-    public int bg() { return bg.getColor(0); }
-    public int panel() { return panel.getColor(500); }
-    public int accent() { return accent.getColor(1000); }
-    public int btn() { return btn.getColor(1500); }
-    public int btnHov() { return btnHov.getColor(2000); }
-    public int btnAct() { return btnAct.getColor(2500); }
-    public int text() { return text.getColor(3000); }
-    public int dim() { return dim.getColor(3500); }
-    public int tlBg() { return tlBg.getColor(4000); }
-    public int prog() { return prog.getColor(4500); }
-    public int warn() { return warn.getColor(5000); }
-    public int hilight() { return hilight.getColor(5500); }
+    public int bg() {
+        return bg.getColor(0);
+    }
+
+    public int panel() {
+        return panel.getColor(500);
+    }
+
+    public int accent() {
+        return accent.getColor(1000);
+    }
+
+    public int btn() {
+        return btn.getColor(1500);
+    }
+
+    public int btnHov() {
+        return btnHov.getColor(2000);
+    }
+
+    public int btnAct() {
+        return btnAct.getColor(2500);
+    }
+
+    public int text() {
+        return text.getColor(3000);
+    }
+
+    public int dim() {
+        return dim.getColor(3500);
+    }
+
+    public int tlBg() {
+        return tlBg.getColor(4000);
+    }
+
+    public int prog() {
+        return prog.getColor(4500);
+    }
+
+    public int warn() {
+        return warn.getColor(5000);
+    }
+
+    public int hilight() {
+        return hilight.getColor(5500);
+    }
 
     public static PhantasiaTheme current() {
         return REGISTRY.getOrDefault(activeThemeName, REGISTRY.get("COBALT"));
@@ -96,7 +146,9 @@ public class PhantasiaTheme {
         }
     }
 
-    public static String getActiveName() { return activeThemeName; }
+    public static String getActiveName() {
+        return activeThemeName;
+    }
 
     // Safety filter to prevent modifying or dropping internal core profiles
     public static boolean isBuiltIn(String name) {
@@ -144,30 +196,66 @@ public class PhantasiaTheme {
         float t = v * (1f - s * (1f - f));
         float r, g, b;
         switch (i % 6) {
-            case 0 -> { r = v; g = t; b = p; }
-            case 1 -> { r = q; g = v; b = p; }
-            case 2 -> { r = p; g = v; b = t; }
-            case 3 -> { r = p; g = q; b = v; }
-            case 4 -> { r = t; g = p; b = v; }
-            default -> { r = v; g = p; b = q; }
+            case 0 -> {
+                r = v;
+                g = t;
+                b = p;
+            }
+            case 1 -> {
+                r = q;
+                g = v;
+                b = p;
+            }
+            case 2 -> {
+                r = p;
+                g = v;
+                b = t;
+            }
+            case 3 -> {
+                r = p;
+                g = q;
+                b = v;
+            }
+            case 4 -> {
+                r = t;
+                g = p;
+                b = v;
+            }
+            default -> {
+                r = v;
+                g = p;
+                b = q;
+            }
         }
-        return (0xFF << 24) | (Mth.clamp((int)(r*255),0,255) << 16) | (Mth.clamp((int)(g*255),0,255) << 8) | Mth.clamp((int)(b*255),0,255);
+        return (0xFF << 24) | (Mth.clamp((int) (r * 255), 0, 255) << 16) | (Mth.clamp((int) (g * 255), 0, 255) << 8) |
+                Mth.clamp((int) (b * 255), 0, 255);
     }
 
     // ── Hot Reloading IO Subsystem ──
     public static void loadAllThemes() {
         REGISTRY.clear();
 
-        REGISTRY.put("COBALT", new PhantasiaTheme("FF080810", "EE0C0C1A", "FF4FC3F7", "BB151528", "BB1A2840", "BB0D3050", "FFDDDDDD", "FF667788", "FF0F1820", "FF4FC3F7", "FFFFB74D", "FFFFEB3B"));
-        REGISTRY.put("RAINBOW", new PhantasiaTheme("FF090909", "EE111111", "RAINBOW", "BB1A1A1A", "BB2A2A2A", "BB202040", "FFEEEEEE", "FF666666", "FF101010", "RAINBOW", "FFFFB74D", "RAINBOW"));
-        REGISTRY.put("AMETHYST", new PhantasiaTheme("FF08060F", "EE100818", "FFB39DDB", "BB1A0A2E", "BB2A1048", "BB3D1A6E", "FFE8D5FF", "FF7755AA", "FF0C0514", "FFFFD700", "FFFF9800", "FFFFD700"));
-        REGISTRY.put("MINECRAFT", new PhantasiaTheme("FF373737", "FF2D2D2D", "FFFFAA00", "FF5A5A5A", "FF6E6E6E", "FF4A4A8A", "FFFFFF", "FFAAAAAA", "FF1E1E1E", "FF55FF55", "FFFF5555", "FFFFFF55"));
-        REGISTRY.put("CRIMSON", new PhantasiaTheme("FF120505", "EE1C0A0A", "FFFF5252", "BB2A1010", "BB421414", "BB5A1818", "FFFFEAEA", "FF996666", "FF180808", "FFFF5252", "FFFFB74D", "FFFFEB3B"));
-        REGISTRY.put("EMERALD", new PhantasiaTheme("FF040A06", "EE08140C", "FF69F0AE", "BB0D2415", "BB143A22", "BB1B5230", "FFE0F2F1", "FF669977", "FF060F09", "FF69F0AE", "FFFFB74D", "FFFFEB3B"));
-        REGISTRY.put("VOID", new PhantasiaTheme("FF020204", "EE050508", "FFE0E0FF", "BB101018", "BB181826", "BB252538", "FFF5F5F5", "FF555566", "FF08080C", "FF80DEEA", "FFFF8A80", "FFFFFF8D"));
-        REGISTRY.put("CYBERPUNK", new PhantasiaTheme("FF050308", "EE0A0512", "FFFF007F", "BB140520", "BB280A40", "BB00E5FF", "FF00E5FF", "FF7A20A0", "FF0A0015", "FFFF007F", "FFFFEA00", "FFFF007F"));
-        REGISTRY.put("QUARTZ", new PhantasiaTheme("FFEAEAEA", "EEF5F5F5", "FF1976D2", "FFDCDCDC", "FFCECECE", "FFB4B4B4", "FF212121", "FF666666", "FFE0E0E0", "FF4CAF50", "FFF57C00", "FFFBC02D"));
-        REGISTRY.put("LIGHT_RAINBOW", new PhantasiaTheme("FFEAEAEA", "EEF5F5F5", "PASTEL_RAINBOW", "FFDCDCDC", "FFCECECE", "FFB4B4B4", "FF212121", "FF666666", "FFE0E0E0", "PASTEL_RAINBOW", "FFF57C00", "PASTEL_RAINBOW"));
+        REGISTRY.put("COBALT", new PhantasiaTheme("FF080810", "EE0C0C1A", "FF4FC3F7", "BB151528", "BB1A2840",
+                "BB0D3050", "FFDDDDDD", "FF667788", "FF0F1820", "FF4FC3F7", "FFFFB74D", "FFFFEB3B"));
+        REGISTRY.put("RAINBOW", new PhantasiaTheme("FF090909", "EE111111", "RAINBOW", "BB1A1A1A", "BB2A2A2A",
+                "BB202040", "FFEEEEEE", "FF666666", "FF101010", "RAINBOW", "FFFFB74D", "RAINBOW"));
+        REGISTRY.put("AMETHYST", new PhantasiaTheme("FF08060F", "EE100818", "FFB39DDB", "BB1A0A2E", "BB2A1048",
+                "BB3D1A6E", "FFE8D5FF", "FF7755AA", "FF0C0514", "FFFFD700", "FFFF9800", "FFFFD700"));
+        REGISTRY.put("MINECRAFT", new PhantasiaTheme("FF373737", "FF2D2D2D", "FFFFAA00", "FF5A5A5A", "FF6E6E6E",
+                "FF4A4A8A", "FFFFFF", "FFAAAAAA", "FF1E1E1E", "FF55FF55", "FFFF5555", "FFFFFF55"));
+        REGISTRY.put("CRIMSON", new PhantasiaTheme("FF120505", "EE1C0A0A", "FFFF5252", "BB2A1010", "BB421414",
+                "BB5A1818", "FFFFEAEA", "FF996666", "FF180808", "FFFF5252", "FFFFB74D", "FFFFEB3B"));
+        REGISTRY.put("EMERALD", new PhantasiaTheme("FF040A06", "EE08140C", "FF69F0AE", "BB0D2415", "BB143A22",
+                "BB1B5230", "FFE0F2F1", "FF669977", "FF060F09", "FF69F0AE", "FFFFB74D", "FFFFEB3B"));
+        REGISTRY.put("VOID", new PhantasiaTheme("FF020204", "EE050508", "FFE0E0FF", "BB101018", "BB181826", "BB252538",
+                "FFF5F5F5", "FF555566", "FF08080C", "FF80DEEA", "FFFF8A80", "FFFFFF8D"));
+        REGISTRY.put("CYBERPUNK", new PhantasiaTheme("FF050308", "EE0A0512", "FFFF007F", "BB140520", "BB280A40",
+                "BB00E5FF", "FF00E5FF", "FF7A20A0", "FF0A0015", "FFFF007F", "FFFFEA00", "FFFF007F"));
+        REGISTRY.put("QUARTZ", new PhantasiaTheme("FFEAEAEA", "EEF5F5F5", "FF1976D2", "FFDCDCDC", "FFCECECE",
+                "FFB4B4B4", "FF212121", "FF666666", "FFE0E0E0", "FF4CAF50", "FFF57C00", "FFFBC02D"));
+        REGISTRY.put("LIGHT_RAINBOW",
+                new PhantasiaTheme("FFEAEAEA", "EEF5F5F5", "PASTEL_RAINBOW", "FFDCDCDC", "FFCECECE", "FFB4B4B4",
+                        "FF212121", "FF666666", "FFE0E0E0", "PASTEL_RAINBOW", "FFF57C00", "PASTEL_RAINBOW"));
 
         if (!THEMES_DIR.exists()) THEMES_DIR.mkdirs();
         File[] files = THEMES_DIR.listFiles((dir, name) -> name.toLowerCase().endsWith(".json"));

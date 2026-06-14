@@ -26,30 +26,19 @@ public class PhantasiaConfigs {
 
         @Configurable
         @Configurable.Comment({
-                "LOOK_AT: Bar appears when looking at a placed controller.",
-                "HELD_ITEM: Bar appears when holding a controller in your hand.",
-                "PERSISTENT: Bar stays on screen for the last accessed machine."
+                "TOOLTIP_ONLY: Displays the UI element purely as an item tooltip.",
+                "JADE_ONLY: Integrates the display exclusively into Jade/WTHIT overlays.",
+                "HOTBAR_ONLY: Shows the display only above the hotbar.",
+                "TOOLTIP_JADE: Enables both the item tooltip and Jade overlay displays.",
+                "TOOLTIP_HOTBAR: Enables both the item tooltip and hotbar displays."
         })
-        public DisplayMode displayMode = DisplayMode.TOOLTIP_HOTBAR;
+        public DisplayMode displayMode = DisplayMode.TOOLTIP_JADE;
 
         @Configurable
         @Configurable.Comment("Ticks required to hold the key to open the menu (20 ticks = 1 second).")
         public int activationTicks = 20;
 
-        @Configurable
-        @Configurable.Comment({
-                "Visual theme for the Phantasia scene viewer.",
-                "COBALT - Default. Deep navy with sky-blue accents.",
-                "RAINBOW - Hue-cycling accent on a neutral dark base.",
-                "AMETHYST - Soft purple with gold progress bars.",
-                "MINECRAFT - Classic vanilla inventory look (stone grey, gold accent).",
-                "CRIMSON - Dark netherite base with striking blood-red accents.",
-                "EMERALD - Terminal style deep dark paneling with vivid green lines.",
-                "VOID - Absolute pitch black layout with contrasting starlight text.",
-                "CYBERPUNK - Synthwave high-contrast neon-pink and cyan combo.",
-                "QUARTZ - Light Mode alternative. Clean grey-white panes with clear text."
-        })
-        public String theme = "COBALT";
+
 
         @Configurable
         @Configurable.Comment("The block ID used for the baseplate/floor in the scene preview.")

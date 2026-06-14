@@ -43,23 +43,8 @@ import java.util.*;
  * - World is rebuilt when placements change.
  */
 @OnlyIn(Dist.CLIENT)
-public class PhantasiaSceneEditorScreen extends Screen {
+public class PhantasiaSceneEditorScreen extends PhantasiaEditorScreen {
 
-    // ── Theme (matches PhantasiaScriptEditorScreen) ───────────────────────────
-    private static final int C_BG = 0xFF080810;
-    private static final int C_BAR = 0xEE0A0A14;
-    private static final int C_PANEL = 0xDD0C0C1A;
-    private static final int C_ACCENT = 0xFF4FC3F7;
-    private static final int C_BTN = 0xBB151528;
-    private static final int C_BTN_HOV = 0xBB1A2840;
-    private static final int C_BTN_ACT = 0xFF0D3050;
-    private static final int C_TEXT = 0xFFDDDDDD;
-    private static final int C_DIM = 0xFF667788;
-    private static final int C_WARN = 0xFFFFB74D;
-    private static final int C_GREEN = 0xFF66BB6A;
-    private static final int C_RED = 0xFFFF5252;
-
-    private static final int TOP_BAR_H = 22;
     private static final int STEP_ROW_H = 50;
     private static final int TIMELINE_H = 22;
     private static final int BOTTOM_H = STEP_ROW_H + TIMELINE_H;
@@ -138,19 +123,9 @@ public class PhantasiaSceneEditorScreen extends Screen {
     // Scene metadata
     private EditBox sceneNameBox;
 
-    // ── Button registry ───────────────────────────────────────────────────────
-    private record Btn(int x, int y, int w, int h, Runnable action) {
 
-        boolean hit(double mx, double my) {
-            return mx >= x && mx < x + w && my >= y && my < y + h;
-        }
-    }
-
-    private final List<Btn> btns = new ArrayList<>(64);
     private int lastMX, lastMY;
 
-    /** Pending tooltip text; set during render, drawn last as a floating overlay */
-    private String pendingTooltip = null;
 
     // ── Item panel hover state ─────────────────────────────────────────────────
     private int hoveredItemPlacement = -1;
@@ -383,9 +358,6 @@ public class PhantasiaSceneEditorScreen extends Screen {
         return b;
     }
 
-    private <T extends net.minecraft.client.gui.components.AbstractWidget> T addW(T w) {
-        return addRenderableWidget(w);
-    }
 
     // ─────────────────────────────────────────────────────────────────────────
     // Tick
@@ -462,17 +434,10 @@ public class PhantasiaSceneEditorScreen extends Screen {
 
         super.render(g, mx, my, partial);
 
-        if (showingCloseConfirm) renderCloseConfirmDialog(g, mx, my);
+        if (showingCloseConfirm) renderCloseConfirmDialog(g, mx, my, this::forceClose, () -> showingCloseConfirm = false);
 
         // Floating tooltip — drawn absolutely last so it is always on top
-        if (pendingTooltip != null) {
-            int tw = font.width(pendingTooltip) + 8;
-            int tx = Math.min(mx + 12, this.width - tw - 2);
-            int ty = Math.max(my - 18, TOP_BAR_H + 2);
-            g.fill(tx - 2, ty - 2, tx + tw + 2, ty + 12, 0xDD070712);
-            g.fill(tx - 2, ty - 2, tx + tw + 2, ty - 1, C_ACCENT);
-            g.drawString(font, pendingTooltip, tx + 4, ty + 2, C_TEXT, false);
-        }
+        renderPendingTooltip(g, mx, my);
     }
 
     // ── Top bar ───────────────────────────────────────────────────────────────
@@ -529,21 +494,7 @@ public class PhantasiaSceneEditorScreen extends Screen {
         }
     }
 
-    private int topBtn(GuiGraphics g, int mx, int my, int rx, String label, int color, String tooltip,
-                       Runnable action) {
-        int w = font.width(label) + 10;
-        int x = rx - w, y = 3, h = TOP_BAR_H - 6;
-        boolean hov = isOver(mx, my, x, y, w, h);
-        g.fill(x, y, x + w, y + h, hov ? C_BTN_HOV : color);
-        if (hov) {
-            g.fill(x, y, x + w, y + 1, C_ACCENT);
-            g.fill(x, y + h - 1, x + w, y + h, C_ACCENT);
-            pendingTooltip = tooltip;
-        }
-        g.drawString(font, label, x + 5, (TOP_BAR_H - 8) / 2, hov ? C_ACCENT : C_TEXT, false);
-        btns.add(new Btn(x, y, w, h, action));
-        return x - 4;
-    }
+
 
     // ── Camera panel (floating overlay above step row) ────────────────────────
 
@@ -940,14 +891,7 @@ public class PhantasiaSceneEditorScreen extends Screen {
         }
     }
 
-    private static String lerpTypeList() {
-        StringBuilder sb = new StringBuilder();
-        for (LerpType lt : LerpType.values()) {
-            if (sb.length() > 0) sb.append(", ");
-            sb.append(lt.name());
-        }
-        return sb.toString();
-    }
+
 
     private static String showModeTooltip(String mode) {
         return switch (mode) {
@@ -1348,22 +1292,6 @@ public class PhantasiaSceneEditorScreen extends Screen {
 
     // ── Confirm dialog ────────────────────────────────────────────────────────
 
-    private void renderCloseConfirmDialog(GuiGraphics g, int mx, int my) {
-        g.fill(0, 0, this.width, this.height, 0xBB000000);
-        int dw = 280, dh = 70;
-        int dx = (this.width - dw) / 2, dy = (this.height - dh) / 2;
-        g.fill(dx, dy, dx + dw, dy + dh, C_PANEL);
-        g.fill(dx, dy, dx + dw, dy + 1, C_WARN);
-        g.drawCenteredString(font, "Unsaved changes \u2014 discard and close?", dx + dw / 2, dy + 10, C_WARN);
-        g.drawCenteredString(font, "All edits since your last save will be lost.", dx + dw / 2, dy + 22, C_DIM);
-        int btnY = dy + dh - 20;
-        btn(g, mx, my, dx + dw / 2 - 118, btnY, 110, 14, "\u2715 Discard & Close", C_RED, this::forceClose);
-        btn(g, mx, my, dx + dw / 2 + 8, btnY, 110, 14, "\u21A9 Keep Editing", C_BTN, () -> showingCloseConfirm = false);
-    }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // Input
-    // ─────────────────────────────────────────────────────────────────────────
 
     @Override
     public boolean mouseClicked(double mx, double my, int btn) {
@@ -1736,7 +1664,8 @@ public class PhantasiaSceneEditorScreen extends Screen {
             camZoomBox.setValue(s.camera.zoom > 0 ? String.valueOf(s.camera.zoom) : "");
     }
 
-    private void hideAllInputs() {
+    @Override
+    protected void hideAllInputs() {
         for (var box : List.of(captionBox, descriptionBox, tickBox, lerpTicksBox, camZoomBox,
                 ovLayerBox, ovHidePosBox, ovFakeRecipeBox, ovParticleBox, newMachineIdBox,
                 newOffsetXBox, newOffsetYBox, newOffsetZBox, sceneNameBox, sceneIconBox)) {
@@ -1747,62 +1676,19 @@ public class PhantasiaSceneEditorScreen extends Screen {
         }
     }
 
-    private void placeBox(EditBox box, int x, int y, int w, int h) {
-        box.setX(x);
-        box.setY(y);
-        box.setWidth(w);
-        box.setHeight(h);
-        box.visible = true;
-        box.active = true;
-    }
 
-    /** Button with a tooltip that sets {@link #pendingTooltip} on hover. */
-    private void tipBtn(GuiGraphics g, int mx, int my, int x, int y, int w, int h,
-                        String label, int base, String tooltip, Runnable action) {
-        boolean hov = isOver(mx, my, x, y, w, h);
-        g.fill(x, y, x + w, y + h, hov ? C_BTN_HOV : base);
-        if (hov) {
-            g.fill(x, y, x + w, y + 1, C_ACCENT);
-            g.fill(x, y + h - 1, x + w, y + h, C_ACCENT);
-            pendingTooltip = tooltip;
-        }
-        g.drawString(font, label, x + (w - font.width(label)) / 2, y + (h - 8) / 2, hov ? C_ACCENT : C_TEXT, false);
-        btns.add(new Btn(x, y, w, h, action));
-    }
 
-    private void btn(GuiGraphics g, int mx, int my, int x, int y, int w, int h,
-                     String label, int base, Runnable action) {
-        boolean hov = isOver(mx, my, x, y, w, h);
-        g.fill(x, y, x + w, y + h, hov ? C_BTN_HOV : base);
-        if (hov) {
-            g.fill(x, y, x + w, y + 1, C_ACCENT);
-            g.fill(x, y + h - 1, x + w, y + h, C_ACCENT);
-        }
-        g.drawString(font, label, x + (w - font.width(label)) / 2, y + (h - 8) / 2, hov ? C_ACCENT : C_TEXT, false);
-        btns.add(new Btn(x, y, w, h, action));
-    }
 
-    private boolean isOver(int mx, int my, int x, int y, int w, int h) {
-        return mx >= x && mx < x + w && my >= y && my < y + h;
-    }
 
-    private boolean isOver(double mx, double my, int x, int y, int w, int h) {
-        return mx >= x && mx < x + w && my >= y && my < y + h;
-    }
 
-    private String trunc(String s, int maxPx) {
-        if (s == null) return "";
-        while (font.width(s) > maxPx && s.length() > 2) s = s.substring(0, s.length() - 2) + "\u2026";
-        return s;
-    }
 
-    private static int parseIntOrZero(String v) {
-        try {
-            return Integer.parseInt(v.trim());
-        } catch (NumberFormatException e) {
-            return 0;
-        }
-    }
+
+
+
+
+
+
+
 
     private static List<int[]> parsePosList(String raw) {
         List<int[]> r = new ArrayList<>();

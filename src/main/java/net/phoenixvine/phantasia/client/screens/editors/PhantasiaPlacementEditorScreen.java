@@ -31,23 +31,10 @@ import java.util.List;
  * so the undo stack stays consistent.
  */
 @OnlyIn(Dist.CLIENT)
-public class PhantasiaPlacementEditorScreen extends Screen {
+public class PhantasiaPlacementEditorScreen extends PhantasiaEditorScreen {
 
     // ── Theme ─────────────────────────────────────────────────────────────────
-    private static final int C_BG = 0xFF080810;
-    private static final int C_BAR = 0xEE0A0A14;
-    private static final int C_PANEL = 0xDD0C0C1A;
-    private static final int C_ACCENT = 0xFF4FC3F7;
-    private static final int C_BTN = 0xBB151528;
-    private static final int C_BTN_HOV = 0xBB1A2840;
-    private static final int C_BTN_ACT = 0xFF0D3050;
-    private static final int C_TEXT = 0xFFDDDDDD;
-    private static final int C_DIM = 0xFF667788;
-    private static final int C_WARN = 0xFFFFB74D;
-    private static final int C_GREEN = 0xFF66BB6A;
-    private static final int C_RED = 0xFFFF5252;
 
-    private static final int TOP_H = 22;
     private static final int PANEL_W = 420;
 
     private static final String[] TYPES = { "input", "output", "catalyst" };
@@ -72,7 +59,6 @@ public class PhantasiaPlacementEditorScreen extends Screen {
     private String newItemTrack = "none";
 
     // ── Pending tooltip ───────────────────────────────────────────────────────
-    private String pendingTooltip = null;
 
     // ── Widgets: machine / offset (always visible in the panel) ──────────────
     private EditBox machineIdBox;
@@ -95,14 +81,7 @@ public class PhantasiaPlacementEditorScreen extends Screen {
     private EditBox editItemMicrosceneBox;
 
     // ── Button list ───────────────────────────────────────────────────────────
-    private record Btn(int x, int y, int w, int h, Runnable action) {
 
-        boolean hit(double mx, double my) {
-            return mx >= x && mx < x + w && my >= y && my < y + h;
-        }
-    }
-
-    private final List<Btn> btns = new ArrayList<>();
     private int lastMX, lastMY;
 
     // ── Scroll ────────────────────────────────────────────────────────────────
@@ -121,6 +100,9 @@ public class PhantasiaPlacementEditorScreen extends Screen {
         this.sceneData = sceneData;
         this.placementIndex = placementIndex;
     }
+
+    @Override
+    protected void hideAllInputs() {}
 
     private PhantasiaSceneData.PlacementData pd() {
         return sceneData.placements.get(placementIndex);
@@ -214,9 +196,6 @@ public class PhantasiaPlacementEditorScreen extends Screen {
         return b;
     }
 
-    private <T extends net.minecraft.client.gui.components.AbstractWidget> T addW(T w) {
-        return addRenderableWidget(w);
-    }
 
     // ─────────────────────────────────────────────────────────────────────────
     // Render
@@ -239,7 +218,7 @@ public class PhantasiaPlacementEditorScreen extends Screen {
         if (pendingTooltip != null) {
             int tw = font.width(pendingTooltip) + 8;
             int tx = Math.min(mx + 12, width - tw - 2);
-            int ty = Math.max(my - 18, TOP_H + 2);
+            int ty = Math.max(my - 18, TOP_BAR_H + 2);
             g.fill(tx - 2, ty - 2, tx + tw + 2, ty + 12, 0xDD070712);
             g.fill(tx - 2, ty - 2, tx + tw + 2, ty - 1, C_ACCENT);
             g.drawString(font, pendingTooltip, tx + 4, ty + 2, 0xFFDDDDDD, false);
@@ -249,38 +228,24 @@ public class PhantasiaPlacementEditorScreen extends Screen {
     // ── Top bar ───────────────────────────────────────────────────────────────
 
     private void renderTopBar(GuiGraphics g, int mx, int my) {
-        g.fill(0, 0, width, TOP_H, C_BAR);
-        g.fill(0, TOP_H - 1, width, TOP_H, C_ACCENT);
+        g.fill(0, 0, width, TOP_BAR_H, C_BAR);
+        g.fill(0, TOP_BAR_H - 1, width, TOP_BAR_H, C_ACCENT);
 
         String title = "Edit Placement #" + placementIndex + "  \u2014  " +
                 (pd().machine.isEmpty() ? "unnamed" : pd().machine);
-        g.drawCenteredString(font, title, width / 2, (TOP_H - 8) / 2, C_DIM);
+        g.drawCenteredString(font, title, width / 2, (TOP_BAR_H - 8) / 2, C_DIM);
 
         int rx = width - 4;
         rx = topBtn(g, mx, my, rx, "\u2190 Back", C_BTN, "Return to the scene editor", this::goBack);
     }
 
-    private int topBtn(GuiGraphics g, int mx, int my, int rx, String label, int base, String tooltip, Runnable action) {
-        int w = font.width(label) + 10;
-        int x = rx - w, y = 3, h = TOP_H - 6;
-        boolean hov = over(mx, my, x, y, w, h);
-        g.fill(x, y, x + w, y + h, hov ? C_BTN_HOV : base);
-        if (hov) {
-            g.fill(x, y, x + w, y + 1, C_ACCENT);
-            g.fill(x, y + h - 1, x + w, y + h, C_ACCENT);
-            pendingTooltip = tooltip;
-        }
-        g.drawString(font, label, x + 5, (TOP_H - 8) / 2, hov ? C_ACCENT : C_TEXT, false);
-        btns.add(new Btn(x, y, w, h, action));
-        return x - 4;
-    }
 
     // ── Main panel ────────────────────────────────────────────────────────────
 
     private void renderPanel(GuiGraphics g, int mx, int my) {
         int pw = Math.min(PANEL_W, width - 20);
         int px = (width - pw) / 2;
-        int py = TOP_H + 8;
+        int py = TOP_BAR_H + 8;
 
         // Visible area for clipping (content scrolls within this)
         int clipTop = py;
@@ -305,7 +270,7 @@ public class PhantasiaPlacementEditorScreen extends Screen {
 
         if (inClip(cy, clipTop, clipBottom)) {
             place(machineIdBox, px + 8, cy, pw - 60, 12);
-            boolean applyHov = over(mx, my, px + pw - 48, cy, 40, 12);
+            boolean applyHov = isOver(mx, my, px + pw - 48, cy, 40, 12);
             g.fill(px + pw - 48, cy, px + pw - 8, cy + 12, applyHov ? C_BTN_HOV : C_BTN);
             if (applyHov) {
                 g.fill(px + pw - 48, cy, px + pw - 8, cy + 1, C_GREEN);
@@ -329,7 +294,7 @@ public class PhantasiaPlacementEditorScreen extends Screen {
             g.drawString(font, "Z", ox, cy + 2, C_DIM, false);
             place(offsetZBox, ox + 8, cy, 34, 12);
             ox += 46;
-            boolean offHov = over(mx, my, ox, cy, 50, 12);
+            boolean offHov = isOver(mx, my, ox, cy, 50, 12);
             g.fill(ox, cy, ox + 50, cy + 12, offHov ? C_BTN_HOV : C_BTN);
             g.drawString(font, "\u2713 Move", ox + 4, cy + 2, offHov ? C_ACCENT : C_DIM, false);
             if (offHov) pendingTooltip = "Apply new XYZ offset and rebuild the scene";
@@ -376,7 +341,7 @@ public class PhantasiaPlacementEditorScreen extends Screen {
                 int tw = font.width(tl) + 10;
                 boolean sel = t.equals(newItemType);
                 int ac = PhantasiaSceneData.ItemConditionData.staticAccentFor(t);
-                boolean hov = over(mx, my, bx, cy, tw, 14);
+                boolean hov = isOver(mx, my, bx, cy, tw, 14);
                 g.fill(bx, cy, bx + tw, cy + 14, sel ? C_BTN_ACT : (hov ? C_BTN_HOV : C_BTN));
                 if (sel) g.fill(bx, cy, bx + tw, cy + 1, ac);
                 g.drawString(font, tl, bx + 5, cy + 3, sel ? ac : C_TEXT, false);
@@ -391,7 +356,7 @@ public class PhantasiaPlacementEditorScreen extends Screen {
         if (inClip(cy, clipTop, clipBottom)) {
             g.drawString(font, "Item:", px + 8, cy + 2, C_DIM, false);
             place(addItemIdBox, px + 8 + font.width("Item:") + 4, cy, pw - 20 - font.width("Item:") - 4, 12);
-            if (over(mx, my, px + 8, cy, pw - 16, 12))
+            if (isOver(mx, my, px + 8, cy, pw - 16, 12))
                 pendingTooltip = "Namespaced item ID (e.g. minecraft:iron_ingot)";
         }
         cy += 16;
@@ -405,7 +370,7 @@ public class PhantasiaPlacementEditorScreen extends Screen {
             g.drawString(font, "Label:", lblX, cy + 2, C_DIM, false);
             place(addItemLabelBox, lblX + font.width("Label:") + 4, cy, pw - (lblX - px) - font.width("Label:") - 8,
                     12);
-            if (over(mx, my, px + 8, cy, pw - 16, 12))
+            if (isOver(mx, my, px + 8, cy, pw - 16, 12))
                 pendingTooltip = "Optional display label (leave blank to auto-generate from item name)";
         }
         cy += 16;
@@ -418,7 +383,7 @@ public class PhantasiaPlacementEditorScreen extends Screen {
                 String t = TRACKS[ti], tl = TRACK_LABELS[ti];
                 int tw = font.width(tl) + 8;
                 boolean sel = t.equals(newItemTrack);
-                boolean hov = over(mx, my, tbx, cy, tw, 12);
+                boolean hov = isOver(mx, my, tbx, cy, tw, 12);
                 g.fill(tbx, cy, tbx + tw, cy + 12, sel ? C_BTN_ACT : (hov ? C_BTN_HOV : C_BTN));
                 if (sel) g.fill(tbx, cy, tbx + tw, cy + 1, C_ACCENT);
                 g.drawString(font, tl, tbx + 4, cy + 2, sel ? C_ACCENT : C_TEXT, false);
@@ -446,7 +411,7 @@ public class PhantasiaPlacementEditorScreen extends Screen {
         if (inClip(cy, clipTop, clipBottom)) {
             g.drawString(font, "Scene:", px + 8, cy + 2, C_DIM, false);
             place(addItemMicrosceneBox, px + 8 + font.width("Scene:") + 4, cy, pw - 20 - font.width("Scene:") - 4, 12);
-            if (over(mx, my, px + 8, cy, pw - 16, 12))
+            if (isOver(mx, my, px + 8, cy, pw - 16, 12))
                 pendingTooltip = "Optional microscene ID to open when the player clicks this item";
         }
         cy += 16;
@@ -454,7 +419,7 @@ public class PhantasiaPlacementEditorScreen extends Screen {
         // Add button
         if (inClip(cy, clipTop, clipBottom)) {
             int addBtnW = pw - 16;
-            boolean addHov = over(mx, my, px + 8, cy, addBtnW, 14);
+            boolean addHov = isOver(mx, my, px + 8, cy, addBtnW, 14);
             g.fill(px + 8, cy, px + 8 + addBtnW, cy + 14, addHov ? C_BTN_HOV : C_BTN);
             if (addHov) {
                 g.fill(px + 8, cy, px + 8 + addBtnW, cy + 1, C_GREEN);
@@ -490,7 +455,7 @@ public class PhantasiaPlacementEditorScreen extends Screen {
         int ac = item.accentColor();
 
         if (inClip(cy, clipTop, clipBottom)) {
-            boolean rowHov = over(mx, my, px + 4, cy, pw - 30, 14);
+            boolean rowHov = isOver(mx, my, px + 4, cy, pw - 30, 14);
             g.fill(px + 4, cy, px + pw - 4, cy + 14,
                     editing ? C_BTN_ACT : (rowHov ? C_BTN_HOV : C_BTN));
             g.fill(px + 4, cy, px + 5, cy + 14, ac);
@@ -525,7 +490,7 @@ public class PhantasiaPlacementEditorScreen extends Screen {
             }
 
             int rmX = px + pw - 26, rmY = cy + 1;
-            boolean rmH = over(mx, my, rmX, rmY, 18, 12);
+            boolean rmH = isOver(mx, my, rmX, rmY, 18, 12);
             g.fill(rmX, rmY, rmX + 18, rmY + 12, rmH ? C_BTN_HOV : C_BTN);
             g.drawString(font, "\u2715", rmX + 5, rmY + 2, rmH ? C_RED : C_DIM, false);
             if (rmH) pendingTooltip = "Remove this item";
@@ -578,7 +543,7 @@ public class PhantasiaPlacementEditorScreen extends Screen {
                 int tw = font.width(tl) + 10;
                 boolean sel = t.equals(item.type);
                 int ac = PhantasiaSceneData.ItemConditionData.staticAccentFor(t);
-                boolean hov = over(mx, my, bx, cy, tw, 12);
+                boolean hov = isOver(mx, my, bx, cy, tw, 12);
                 g.fill(bx, cy, bx + tw, cy + 12, sel ? C_BTN_ACT : (hov ? C_BTN_HOV : C_BTN));
                 if (sel) g.fill(bx, cy, bx + tw, cy + 1, ac);
                 g.drawString(font, tl, bx + 5, cy + 2, sel ? ac : C_TEXT, false);
@@ -620,7 +585,7 @@ public class PhantasiaPlacementEditorScreen extends Screen {
                 String t = TRACKS[ti], tl = TRACK_LABELS[ti];
                 int tw = font.width(tl) + 8;
                 boolean sel = t.equals(item.track == null ? "none" : item.track);
-                boolean hov = over(mx, my, tbx, cy, tw, 12);
+                boolean hov = isOver(mx, my, tbx, cy, tw, 12);
                 g.fill(tbx, cy, tbx + tw, cy + 12, sel ? C_BTN_ACT : (hov ? C_BTN_HOV : C_BTN));
                 if (sel) g.fill(tbx, cy, tbx + tw, cy + 1, C_ACCENT);
                 g.drawString(font, tl, tbx + 4, cy + 2, sel ? C_ACCENT : C_TEXT, false);
@@ -659,7 +624,7 @@ public class PhantasiaPlacementEditorScreen extends Screen {
         // Apply button — checkpoint BEFORE mutating, then close
         if (inClip(cy, clipTop, clipBottom)) {
             int applyW = pw - 16;
-            boolean applyHov = over(mx, my, px + 8, cy, applyW, 12);
+            boolean applyHov = isOver(mx, my, px + 8, cy, applyW, 12);
             g.fill(px + 8, cy, px + 8 + applyW, cy + 12, applyHov ? C_BTN_HOV : C_BTN);
             if (applyHov) {
                 g.fill(px + 8, cy, px + 8 + applyW, cy + 1, C_ACCENT);
@@ -836,25 +801,7 @@ public class PhantasiaPlacementEditorScreen extends Screen {
             g.drawString(font, text, x, y, color, false);
     }
 
-    private boolean over(int mx, int my, int x, int y, int w, int h) {
-        return mx >= x && mx < x + w && my >= y && my < y + h;
-    }
 
-    private boolean over(double mx, double my, int x, int y, int w, int h) {
-        return mx >= x && mx < x + w && my >= y && my < y + h;
-    }
 
-    private String trunc(String s, int maxPx) {
-        if (s == null) return "";
-        while (font.width(s) > maxPx && s.length() > 2) s = s.substring(0, s.length() - 2) + "\u2026";
-        return s;
-    }
 
-    private static int parseIntOrZero(String v) {
-        try {
-            return Integer.parseInt(v.trim());
-        } catch (NumberFormatException e) {
-            return 0;
-        }
-    }
 }

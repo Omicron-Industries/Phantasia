@@ -68,7 +68,7 @@ public class PhantasiaVariantsScreen extends Screen {
     // ── Constructor ───────────────────────────────────────────────────────────
 
     public PhantasiaVariantsScreen(Screen parent, PhantasiaVariantState variantState) {
-        super(Component.literal("Variants"));
+        super(Component.translatable("screen.phantasia.variants.title"));
         this.parent = parent;
         this.variantState = variantState;
 

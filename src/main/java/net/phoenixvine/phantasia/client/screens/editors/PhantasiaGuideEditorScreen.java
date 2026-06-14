@@ -28,23 +28,10 @@ import java.util.*;
 import java.util.function.Consumer;
 
 @OnlyIn(Dist.CLIENT)
-public class PhantasiaGuideEditorScreen extends Screen {
+public class PhantasiaGuideEditorScreen extends PhantasiaEditorScreen {
 
     // ── Theme ─────────────────────────────────────────────────────────────────
-    private static final int C_BG = 0xFF080810;
-    private static final int C_BAR = 0xEE0A0A14;
-    private static final int C_PANEL = 0xDD0C0C1A;
-    private static final int C_ACCENT = 0xFF4FC3F7;
-    private static final int C_BTN = 0xBB151528;
-    private static final int C_BTN_HOV = 0xBB1A2840;
-    private static final int C_BTN_ACT = 0xBB0D2235;
-    private static final int C_TEXT = 0xFFDDDDDD;
-    private static final int C_DIM = 0xFF667788;
-    private static final int C_RED = 0xFFFF5252;
-    private static final int C_GREEN = 0xFF66BB6A;
-    private static final int C_SEL = 0xBB0D2235;
 
-    private static final int TOP_H = 22;
     private static final int ROW_H = 18;
 
     // ── State ─────────────────────────────────────────────────────────────────
@@ -87,16 +74,9 @@ public class PhantasiaGuideEditorScreen extends Screen {
     private EditBox itemCountBox;
     private String itemTypeSelected = "input";
 
-    private record Btn(int x, int y, int w, int h, Runnable action) {
-
-        boolean hit(double mx, double my) {
-            return mx >= x && mx < x + w && my >= y && my < y + h;
-        }
-    }
 
     private record WrappedLineMapping(String text, int originalLineIdx, int originalCharStart) {}
 
-    private final List<Btn> btns = new ArrayList<>();
 
     // ─────────────────────────────────────────────────────────────────────────
 
@@ -415,17 +395,17 @@ public class PhantasiaGuideEditorScreen extends Screen {
     }
 
     private void renderTopBar(GuiGraphics g, int mx, int my) {
-        g.fill(0, 0, width, TOP_H, C_BAR);
-        g.fill(0, TOP_H - 1, width, TOP_H, C_ACCENT);
+        g.fill(0, 0, width, TOP_BAR_H, C_BAR);
+        g.fill(0, TOP_BAR_H - 1, width, TOP_BAR_H, C_ACCENT);
 
         topBtn(g, mx, my, 4, "← Back", this::onClose);
 
-        g.drawString(font, "Title:", 4 + font.width("← Back") + 18, (TOP_H - 8) / 2, C_DIM, false);
+        g.drawString(font, "Title:", 4 + font.width("← Back") + 18, (TOP_BAR_H - 8) / 2, C_DIM, false);
         int titleX = 4 + font.width("← Back") + 18 + font.width("Title:") + 4;
         placeBox(titleBox, titleX, 4, 160, 13);
 
         int iconX = titleX + 164;
-        g.drawString(font, "Icon:", iconX, (TOP_H - 8) / 2, C_DIM, false);
+        g.drawString(font, "Icon:", iconX, (TOP_BAR_H - 8) / 2, C_DIM, false);
         placeBox(iconItemBox, iconX + font.width("Icon:") + 4, 4, 120, 13);
 
         int rx = width - 4;
@@ -436,8 +416,8 @@ public class PhantasiaGuideEditorScreen extends Screen {
 
     private void renderResizeDivider(GuiGraphics g, int mx, int my) {
         int dividerX = width - rightWidth;
-        boolean hover = mx >= dividerX - 2 && mx <= dividerX + 2 && my > TOP_H;
-        g.fill(dividerX - 1, TOP_H, dividerX + 1, height, (hover || isResizingSidebar) ? C_ACCENT : 0x44FFFFFF);
+        boolean hover = mx >= dividerX - 2 && mx <= dividerX + 2 && my > TOP_BAR_H;
+        g.fill(dividerX - 1, TOP_BAR_H, dividerX + 1, height, (hover || isResizingSidebar) ? C_ACCENT : 0x44FFFFFF);
     }
 
     // ── Left Custom Terminal-Style Interactive Input Engine ─────────────────────
@@ -447,8 +427,8 @@ public class PhantasiaGuideEditorScreen extends Screen {
         int colW = Math.min(500, previewW - 48);
         int colX = previewW / 2 - colW / 2;
 
-        g.fill(0, TOP_H, previewW, height, 0xFF070710);
-        g.fill(previewW - 1, TOP_H, previewW, height, C_ACCENT);
+        g.fill(0, TOP_BAR_H, previewW, height, 0xFF070710);
+        g.fill(previewW - 1, TOP_BAR_H, previewW, height, C_ACCENT);
 
         if (data.pages.isEmpty()) {
             g.drawCenteredString(font, "No pages yet — add one →", previewW / 2, height / 2, C_DIM);
@@ -456,7 +436,7 @@ public class PhantasiaGuideEditorScreen extends Screen {
         }
 
         PageData p = page();
-        int y = TOP_H + 12;
+        int y = TOP_BAR_H + 12;
         int currentFocusBeforeRender = activeTextFocus;
 
         // ── 1. INTERACTIVE HEADLINE ───────
@@ -495,7 +475,7 @@ public class PhantasiaGuideEditorScreen extends Screen {
         }
         g.disableScissor();
 
-        if (over(mx, my, colX - 4, y, colW + 8, hlBoxHeight)) {
+        if (isOver(mx, my, colX - 4, y, colW + 8, hlBoxHeight)) {
             final int boxYStart = y + 14;
             btns.add(new Btn(colX - 4, y, colW + 8, hlBoxHeight, () -> {
                 activeTextFocus = 0;
@@ -551,7 +531,7 @@ public class PhantasiaGuideEditorScreen extends Screen {
         }
         g.disableScissor();
 
-        if (over(mx, my, colX - 4, y, colW + 8, bodyAreaHeight)) {
+        if (isOver(mx, my, colX - 4, y, colW + 8, bodyAreaHeight)) {
             final int boxYStart = y + 15;
             btns.add(new Btn(colX - 4, y, colW + 8, bodyAreaHeight, () -> {
                 activeTextFocus = 1;
@@ -627,14 +607,14 @@ public class PhantasiaGuideEditorScreen extends Screen {
 
     private void renderRightPanel(GuiGraphics g, int mx, int my) {
         int px = width - rightWidth;
-        g.fill(px, TOP_H, width, height, C_PANEL);
+        g.fill(px, TOP_BAR_H, width, height, C_PANEL);
 
-        int y = TOP_H + 4;
+        int y = TOP_BAR_H + 4;
 
         g.fill(px, y, width, y + 14, C_BAR);
         g.drawString(font, "Pages", px + 6, y + 3, C_ACCENT, false);
         int addW = font.width("+ Add") + 8;
-        boolean addHov = over(mx, my, width - addW - 4, y + 2, addW, 12);
+        boolean addHov = isOver(mx, my, width - addW - 4, y + 2, addW, 12);
         g.fill(width - addW - 4, y + 2, width - 4, y + 14, addHov ? C_BTN_HOV : C_BTN);
         g.drawString(font, "+ Add", width - addW - 1, y + 4, addHov ? C_ACCENT : C_DIM, false);
         btns.add(new Btn(width - addW - 4, y + 2, addW, 12, this::addPage));
@@ -645,9 +625,9 @@ public class PhantasiaGuideEditorScreen extends Screen {
         for (int i = pageScrollOffset; i < data.pages.size() && y < listTop + listH + ROW_H; i++) {
             PageData p = data.pages.get(i);
             boolean sel = i == selectedPage;
-            boolean hov = over(mx, my, px, y, rightWidth - 20, ROW_H);
+            boolean hov = isOver(mx, my, px, y, rightWidth - 20, ROW_H);
 
-            g.fill(px, y, width, y + ROW_H - 1, sel ? C_SEL : (hov ? C_BTN_HOV : (i % 2 == 0 ? 0x11FFFFFF : 0)));
+            g.fill(px, y, width, y + ROW_H - 1, sel ? C_BTN_ACT : (hov ? C_BTN_HOV : (i % 2 == 0 ? 0x11FFFFFF : 0)));
             if (sel) g.fill(px, y, px + 2, y + ROW_H - 1, C_ACCENT);
 
             String lbl = (i + 1) + ". ";
@@ -658,7 +638,7 @@ public class PhantasiaGuideEditorScreen extends Screen {
 
             g.drawString(font, lbl, px + 6, y + (ROW_H - 8) / 2, sel ? C_ACCENT : C_TEXT, false);
 
-            boolean delHov = over(mx, my, width - 18, y + 2, 14, ROW_H - 4);
+            boolean delHov = isOver(mx, my, width - 18, y + 2, 14, ROW_H - 4);
             g.fill(width - 18, y + 2, width - 4, y + ROW_H - 2, delHov ? 0xBB3A0A0A : C_BTN);
             g.drawCenteredString(font, "✕", width - 11, y + (ROW_H - 8) / 2, delHov ? C_RED : C_DIM);
             final int fi = i;
@@ -677,7 +657,7 @@ public class PhantasiaGuideEditorScreen extends Screen {
         // ── ITEMS LIST ROW HEADER ──
         g.drawString(font, "Items Configuration (" + page().items.size() + "):", px + 4, y, C_DIM, false);
         int addItemW = font.width("+ Item") + 8;
-        boolean aiHov = over(mx, my, width - addItemW - 4, y - 1, addItemW, 12);
+        boolean aiHov = isOver(mx, my, width - addItemW - 4, y - 1, addItemW, 12);
         g.fill(width - addItemW - 4, y - 1, width - 4, y + 11, aiHov ? C_BTN_HOV : C_BTN);
         g.drawString(font, "+ Item", width - addItemW - 1, y + 1, aiHov ? C_ACCENT : C_DIM, false);
         btns.add(new Btn(width - addItemW - 4, y - 1, addItemW, 12, this::addItem));
@@ -697,11 +677,11 @@ public class PhantasiaGuideEditorScreen extends Screen {
         for (int i = 0; i < page().items.size(); i++) {
             PhantasiaSceneData.ItemConditionData it = page().items.get(i);
             boolean isel = i == selectedItem;
-            boolean ihov = over(mx, my, px + 4, renderY, rightWidth - 24, 14);
+            boolean ihov = isOver(mx, my, px + 4, renderY, rightWidth - 24, 14);
 
             // Only process click buttons and text if visually inside the panel viewport boundaries
             if (renderY + 14 >= y && renderY <= y + itemBoxAreaH) {
-                g.fill(px + 4, renderY, width - 20, renderY + 14, isel ? C_SEL : (ihov ? C_BTN_HOV : C_BTN));
+                g.fill(px + 4, renderY, width - 20, renderY + 14, isel ? C_BTN_ACT : (ihov ? C_BTN_HOV : C_BTN));
                 if (isel) g.fill(px + 4, renderY, px + 6, renderY + 14, it.accentColor());
 
                 String itLbl = it.displayLabel() + " — " + it.item;
@@ -709,7 +689,7 @@ public class PhantasiaGuideEditorScreen extends Screen {
 
                 g.drawString(font, itLbl, px + 8, renderY + 3, isel ? C_ACCENT : C_TEXT, false);
 
-                boolean diHov = over(mx, my, width - 18, renderY, 14, 14);
+                boolean diHov = isOver(mx, my, width - 18, renderY, 14, 14);
                 g.fill(width - 18, renderY, width - 4, renderY + 14, diHov ? 0xBB3A0A0A : C_BTN);
                 g.drawCenteredString(font, "✕", width - 11, renderY + 3, diHov ? C_RED : C_DIM);
 
@@ -741,7 +721,7 @@ public class PhantasiaGuideEditorScreen extends Screen {
         for (String t : new String[] { "input", "output", "catalyst" }) {
             int tw = font.width(t) + 8;
             boolean tsel = t.equals(itemTypeSelected);
-            boolean thov = over(mx, my, tx, y - 1, tw, 12);
+            boolean thov = isOver(mx, my, tx, y - 1, tw, 12);
             g.fill(tx, y - 1, tx + tw, y + 11, tsel ? C_BTN_ACT : (thov ? C_BTN_HOV : C_BTN));
             if (tsel) g.fill(tx, y - 1, tx + tw, y, PhantasiaSceneData.ItemConditionData.staticAccentFor(t));
             g.drawString(font, t, tx + 4, y + 1, tsel ? C_ACCENT : C_DIM, false);
@@ -752,7 +732,7 @@ public class PhantasiaGuideEditorScreen extends Screen {
         y += 16;
 
         int apW = font.width("✓ Apply Item") + 10;
-        boolean apHov = over(mx, my, px + 4, y, apW, 13);
+        boolean apHov = isOver(mx, my, px + 4, y, apW, 13);
         g.fill(px + 4, y, px + 4 + apW, y + 13, apHov ? C_BTN_HOV : C_BTN);
         g.drawString(font, "✓ Apply Item", px + 8, y + 3, apHov ? C_ACCENT : C_TEXT, false);
         btns.add(new Btn(px + 4, y, apW, 13, this::applyItemEdit));
@@ -764,7 +744,7 @@ public class PhantasiaGuideEditorScreen extends Screen {
         // ── LINKED REGISTRY ENTITY SELECTION BUTTONS ──
         String gl = page().guideId != null && !page().guideId.isBlank() &&
                 PhantasiaGuideRegistry.get(page().guideId) != null ? page().guideId : "None";
-        boolean glHov = over(mx, my, px + 4, y, rightWidth - 8, 14);
+        boolean glHov = isOver(mx, my, px + 4, y, rightWidth - 8, 14);
         g.fill(px + 4, y, width - 4, y + 14, glHov ? C_BTN_HOV : C_BTN);
         String guideBtnLabel = "Guide: " + gl;
         if (font.width(guideBtnLabel) > rightWidth - 12)
@@ -782,7 +762,7 @@ public class PhantasiaGuideEditorScreen extends Screen {
         String sl = page().sceneId != null && !page().sceneId.isBlank() &&
                 PhantasiaScenes.all().stream().anyMatch(scene -> scene.id.equals(page().sceneId)) ? page().sceneId :
                         "None";
-        boolean slHov = over(mx, my, px + 4, y, rightWidth - 8, 14);
+        boolean slHov = isOver(mx, my, px + 4, y, rightWidth - 8, 14);
         g.fill(px + 4, y, width - 4, y + 14, slHov ? C_BTN_HOV : C_BTN);
         String sceneBtnLabel = "Scene: " + sl;
         if (font.width(sceneBtnLabel) > rightWidth - 12)
@@ -802,7 +782,7 @@ public class PhantasiaGuideEditorScreen extends Screen {
                         def -> def instanceof com.gregtechceu.gtceu.api.machine.MultiblockMachineDefinition multi &&
                                 PhantasiaScripts.has(multi) && def.getId().toString().equals(page().scriptId)) ?
                                         page().scriptId : "None";
-        boolean slkHov = over(mx, my, px + 4, y, rightWidth - 8, 14);
+        boolean slkHov = isOver(mx, my, px + 4, y, rightWidth - 8, 14);
         g.fill(px + 4, y, width - 4, y + 14, slkHov ? C_BTN_HOV : C_BTN);
         String scriptBtnLabel = "Script: " + slk;
         if (font.width(scriptBtnLabel) > rightWidth - 12)
@@ -922,7 +902,7 @@ public class PhantasiaGuideEditorScreen extends Screen {
     @Override
     public boolean mouseClicked(double mx, double my, int btn) {
         int dividerX = width - rightWidth;
-        if (mx >= dividerX - 2 && mx <= dividerX + 2 && my > TOP_H) {
+        if (mx >= dividerX - 2 && mx <= dividerX + 2 && my > TOP_BAR_H) {
             isResizingSidebar = true;
             return true;
         }
@@ -981,7 +961,8 @@ public class PhantasiaGuideEditorScreen extends Screen {
         return data.pages.get(Math.min(selectedPage, data.pages.size() - 1));
     }
 
-    private void hideAllInputs() {
+    @Override
+    protected void hideAllInputs() {
         for (var b : List.of(titleBox, iconItemBox, itemIdBox, itemLabelBox, itemCountBox)) {
             if (b != null) {
                 b.visible = false;
@@ -990,30 +971,22 @@ public class PhantasiaGuideEditorScreen extends Screen {
         }
     }
 
-    private void placeBox(EditBox box, int x, int y, int w, int h) {
-        box.setX(x);
-        box.setY(y);
-        box.setWidth(w);
-        box.setHeight(h);
-        box.visible = true;
-        box.active = true;
-    }
 
     private void topBtn(GuiGraphics g, int mx, int my, int x, String lbl, Runnable act) {
-        int w = font.width(lbl) + 10, h = TOP_H - 6;
-        boolean hov = over(mx, my, x, 3, w, h);
+        int w = font.width(lbl) + 10, h = TOP_BAR_H - 6;
+        boolean hov = isOver(mx, my, x, 3, w, h);
         g.fill(x, 3, x + w, 3 + h, hov ? C_BTN_HOV : C_BTN);
         if (hov) g.fill(x, 3, x + w, 4, C_ACCENT);
-        g.drawString(font, lbl, x + 5, (TOP_H - 8) / 2, hov ? C_ACCENT : C_TEXT, false);
+        g.drawString(font, lbl, x + 5, (TOP_BAR_H - 8) / 2, hov ? C_ACCENT : C_TEXT, false);
         btns.add(new Btn(x, 3, w, h, act));
     }
 
     private int topBtnR(GuiGraphics g, int mx, int my, int rx, String lbl, Runnable act) {
-        int w = font.width(lbl) + 10, h = TOP_H - 6, x = rx - w;
-        boolean hov = over(mx, my, x, 3, w, h);
+        int w = font.width(lbl) + 10, h = TOP_BAR_H - 6, x = rx - w;
+        boolean hov = isOver(mx, my, x, 3, w, h);
         g.fill(x, 3, x + w, 3 + h, hov ? C_BTN_HOV : C_BTN);
         if (hov) g.fill(x, 3, x + w, 4, C_ACCENT);
-        g.drawString(font, lbl, x + 5, (TOP_H - 8) / 2, hov ? C_ACCENT : C_TEXT, false);
+        g.drawString(font, lbl, x + 5, (TOP_BAR_H - 8) / 2, hov ? C_ACCENT : C_TEXT, false);
         btns.add(new Btn(x, 3, w, h, act));
         return x - 4;
     }
@@ -1030,15 +1003,7 @@ public class PhantasiaGuideEditorScreen extends Screen {
         }
     }
 
-    private boolean over(double mx, double my, int x, int y, int w, int h) {
-        return mx >= x && mx < x + w && my >= y && my < y + h;
-    }
 
-    private <T extends net.minecraft.client.gui.components.AbstractWidget> T addW(T w) {
-        w.visible = false;
-        w.active = false;
-        return addRenderableWidget(w);
-    }
 
     // ── Registry Search Screen (Self-Contained Lookup Window) ──────────────────
 

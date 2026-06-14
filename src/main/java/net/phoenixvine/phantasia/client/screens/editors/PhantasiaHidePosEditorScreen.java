@@ -31,22 +31,10 @@ import java.util.List;
  * a manual x,y,z add field at the bottom.
  */
 @OnlyIn(Dist.CLIENT)
-public class PhantasiaHidePosEditorScreen extends Screen {
+public class PhantasiaHidePosEditorScreen extends PhantasiaEditorScreen {
 
     // ── Theme ─────────────────────────────────────────────────────────────────
-    private static final int C_BG = 0xFF080810;
-    private static final int C_BAR = 0xEE0A0A14;
-    private static final int C_PANEL = 0xDD0C0C1A;
-    private static final int C_ACCENT = 0xFF4FC3F7;
-    private static final int C_BTN = 0xBB151528;
-    private static final int C_BTN_HOV = 0xBB1A2840;
-    private static final int C_TEXT = 0xFFDDDDDD;
-    private static final int C_DIM = 0xFF667788;
-    private static final int C_RED = 0xFFFF5252;
-    private static final int C_GREEN = 0xFF66BB6A;
-    private static final int C_HILIT = 0xAAFF4444; // highlight overlay for hovered row
 
-    private static final int TOP_BAR_H = 22;
     private static final int BOTTOM_H = 36;
     private static final int ROW_H = 20;
     private static final int PANEL_W = 260; // right panel width
@@ -76,24 +64,20 @@ public class PhantasiaHidePosEditorScreen extends Screen {
     private String addError = null;
 
     // ── Button registry ───────────────────────────────────────────────────────
-    private record Btn(int x, int y, int w, int h, Runnable action) {
 
-        boolean hit(double mx, double my) {
-            return mx >= x && mx < x + w && my >= y && my < y + h;
-        }
-    }
-
-    private final List<Btn> btns = new ArrayList<>();
 
     // ─────────────────────────────────────────────────────────────────────────
     public PhantasiaHidePosEditorScreen(PhantasiaScriptEditorScreen parent,
                                         PhantasiaScriptData data,
                                         int stepIndex) {
-        super(Component.literal("Hide Positions"));
+        super(Component.translatable("screen.phantasia.hide_pos.title"));
         this.parent = parent;
         this.data = data;
         this.stepIndex = stepIndex;
     }
+
+    @Override
+    protected void hideAllInputs() {}
 
     private PhantasiaScriptData.StepData step() {
         List<PhantasiaScriptData.StepData> steps = data.getSteps();
@@ -124,7 +108,7 @@ public class PhantasiaHidePosEditorScreen extends Screen {
         addBox = addRenderableWidget(new EditBox(font,
                 listX, addY, PANEL_W - 60, 14, Component.empty()));
         addBox.setMaxLength(64);
-        addBox.setHint(Component.literal("x, y, z"));
+        addBox.setHint(Component.translatable("screen.phantasia.hide_pos.hint"));
         addBox.setFilter(s -> s.matches("[\\d\\s,\\-]*"));
     }
 
@@ -476,13 +460,7 @@ public class PhantasiaHidePosEditorScreen extends Screen {
         Minecraft.getInstance().setScreen(parent);
     }
 
-    private boolean isOver(int mx, int my, int x, int y, int w, int h) {
-        return mx >= x && mx < x + w && my >= y && my < y + h;
-    }
 
-    private boolean isOver(double mx, double my, int x, int y, int w, int h) {
-        return mx >= x && mx < x + w && my >= y && my < y + h;
-    }
 
     // ─────────────────────────────────────────────────────────────────────────
     // Input

@@ -121,7 +121,7 @@ public class PhantasiaTextInputScreen extends Screen {
             g.renderOutline(cx, pickerY, size, size, hov ? C_ACCENT : 0xFF444444);
 
             if (hov) {
-                g.renderTooltip(font, Component.literal("§" + COLOR_CODES[i] + " (§" + COLOR_CODES[i] + ")"), mx, my);
+                g.renderTooltip(font, Component.translatable("ui.phantasia.color_code_display", COLOR_CODES[i], COLOR_CODES[i]), mx, my);
             }
         }
     }

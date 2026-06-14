@@ -170,7 +170,7 @@ public class PhantasiaMaterialCostScreen extends Screen {
     // ── Constructor ───────────────────────────────────────────────────────────
 
     public PhantasiaMaterialCostScreen(PhantasiaLoadedPattern pattern, Screen parent) {
-        super(Component.literal("Material Cost"));
+        super(Component.translatable("screen.phantasia.material_cost.title"));
         this.parent = parent;
         this.pattern = pattern;
     }

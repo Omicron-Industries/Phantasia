@@ -42,23 +42,10 @@ import java.util.List;
  * List<Integer> placements (placement indices this mistake targets)
  */
 @OnlyIn(Dist.CLIENT)
-public class PhantasiaSceneMistakesEditorScreen extends Screen {
+public class PhantasiaSceneMistakesEditorScreen extends PhantasiaEditorScreen {
 
     // ── Theme ─────────────────────────────────────────────────────────────────
-    private static final int C_BG = 0xFF080810;
-    private static final int C_BAR = 0xEE0A0A14;
-    private static final int C_PANEL = 0xDD0C0C1A;
-    private static final int C_ACCENT = 0xFF4FC3F7;
-    private static final int C_BTN = 0xBB151528;
-    private static final int C_BTN_HOV = 0xBB1A2840;
-    private static final int C_BTN_ACT = 0xFF0D3050;
-    private static final int C_TEXT = 0xFFDDDDDD;
-    private static final int C_DIM = 0xFF667788;
-    private static final int C_WARN = 0xFFFFB74D;
-    private static final int C_GREEN = 0xFF66BB6A;
-    private static final int C_RED = 0xFFFF5252;
 
-    private static final int TOP_H = 22;
     private static final int ROW_H = 20;
     private static final int BOTTOM_H = 28;
     private static final int PANEL_W = 560;
@@ -86,14 +73,7 @@ public class PhantasiaSceneMistakesEditorScreen extends Screen {
     private String newSeverity = "WARNING";
 
     // ── Button list ───────────────────────────────────────────────────────────
-    private record Btn(int x, int y, int w, int h, Runnable action) {
 
-        boolean hit(double mx, double my) {
-            return mx >= x && mx < x + w && my >= y && my < y + h;
-        }
-    }
-
-    private final List<Btn> btns = new ArrayList<>();
 
     // ─────────────────────────────────────────────────────────────────────────
 
@@ -105,6 +85,9 @@ public class PhantasiaSceneMistakesEditorScreen extends Screen {
         // Ensure the list exists on the data object
         if (data.mistakes == null) data.mistakes = new ArrayList<>();
     }
+
+    @Override
+    protected void hideAllInputs() {}
 
     // ─────────────────────────────────────────────────────────────────────────
     // Init
@@ -131,9 +114,6 @@ public class PhantasiaSceneMistakesEditorScreen extends Screen {
         hideAll();
     }
 
-    private <T extends net.minecraft.client.gui.components.AbstractWidget> T addW(T w) {
-        return addRenderableWidget(w);
-    }
 
     // ─────────────────────────────────────────────────────────────────────────
     // Render
@@ -153,29 +133,29 @@ public class PhantasiaSceneMistakesEditorScreen extends Screen {
     }
 
     private void renderTopBar(GuiGraphics g, int mx, int my) {
-        g.fill(0, 0, width, TOP_H, C_BAR);
-        g.fill(0, TOP_H - 1, width, TOP_H, C_ACCENT);
+        g.fill(0, 0, width, TOP_BAR_H, C_BAR);
+        g.fill(0, TOP_BAR_H - 1, width, TOP_BAR_H, C_ACCENT);
 
         g.drawCenteredString(font,
                 "\u26A0 Layout Mistakes  \u2014  " + data.mistakes.size() + " defined",
-                width / 2, (TOP_H - 8) / 2, C_ACCENT);
+                width / 2, (TOP_BAR_H - 8) / 2, C_ACCENT);
 
         // Done
         int doneW = font.width("\u2713 Done") + 12;
         int doneX = width - 4 - doneW;
-        boolean doneHov = over(mx, my, doneX, 3, doneW, TOP_H - 6);
-        g.fill(doneX, 3, doneX + doneW, TOP_H - 3, doneHov ? C_BTN_HOV : C_BTN);
+        boolean doneHov = isOver(mx, my, doneX, 3, doneW, TOP_BAR_H - 6);
+        g.fill(doneX, 3, doneX + doneW, TOP_BAR_H - 3, doneHov ? C_BTN_HOV : C_BTN);
         if (doneHov) {
             g.fill(doneX, 3, doneX + doneW, 4, C_ACCENT);
         }
-        g.drawString(font, "\u2713 Done", doneX + 6, (TOP_H - 8) / 2, doneHov ? C_GREEN : C_TEXT, false);
-        btns.add(new Btn(doneX, 3, doneW, TOP_H - 6, this::goBack));
+        g.drawString(font, "\u2713 Done", doneX + 6, (TOP_BAR_H - 8) / 2, doneHov ? C_GREEN : C_TEXT, false);
+        btns.add(new Btn(doneX, 3, doneW, TOP_BAR_H - 6, this::goBack));
     }
 
     private void renderContent(GuiGraphics g, int mx, int my) {
         int pw = Math.min(PANEL_W, width - 20);
         int px = (width - pw) / 2;
-        int cy = TOP_H + 6;
+        int cy = TOP_BAR_H + 6;
 
         // ── Existing mistakes ─────────────────────────────────────────────────
         for (int i = 0; i < data.mistakes.size(); i++) {
@@ -206,7 +186,7 @@ public class PhantasiaSceneMistakesEditorScreen extends Screen {
             String svl = SEVERITY_LABELS[si];
             int svW = font.width(svl) + 10;
             boolean svSel = sv.equals(newSeverity);
-            boolean svHov = over(mx, my, sbx, cy, svW, 12);
+            boolean svHov = isOver(mx, my, sbx, cy, svW, 12);
             int svCol = SEVERITY_COLORS[si];
             g.fill(sbx, cy, sbx + svW, cy + 12, svSel ? C_BTN_ACT : (svHov ? C_BTN_HOV : C_BTN));
             if (svSel) g.fill(sbx, cy, sbx + svW, cy + 1, svCol);
@@ -250,7 +230,7 @@ public class PhantasiaSceneMistakesEditorScreen extends Screen {
 
         // Add button
         int addBtnW = pw - 8;
-        boolean addHov = over(mx, my, px + 4, cy, addBtnW, 14);
+        boolean addHov = isOver(mx, my, px + 4, cy, addBtnW, 14);
         g.fill(px + 4, cy, px + 4 + addBtnW, cy + 14, addHov ? C_BTN_HOV : C_BTN);
         if (addHov) g.fill(px + 4, cy, px + 4 + addBtnW, cy + 1, C_GREEN);
         g.drawCenteredString(font, "\u2713 Add Mistake", px + 4 + addBtnW / 2, cy + 3, addHov ? C_GREEN : C_TEXT);
@@ -268,7 +248,7 @@ public class PhantasiaSceneMistakesEditorScreen extends Screen {
         int sevCol = severityColor(m.severity);
 
         // Row background
-        boolean rowHov = over(mx, my, px + 2, cy, pw - 28, ROW_H);
+        boolean rowHov = isOver(mx, my, px + 2, cy, pw - 28, ROW_H);
         g.fill(px + 2, cy, px + pw - 2, cy + ROW_H,
                 expanded ? C_BTN_ACT : (rowHov ? C_BTN_HOV : C_BTN));
         g.fill(px + 2, cy, px + 3, cy + ROW_H, sevCol);
@@ -296,7 +276,7 @@ public class PhantasiaSceneMistakesEditorScreen extends Screen {
 
         // Remove button
         int rmX = px + pw - 24, rmY = cy + 4;
-        boolean rmHov = over(mx, my, rmX, rmY, 18, 12);
+        boolean rmHov = isOver(mx, my, rmX, rmY, 18, 12);
         g.fill(rmX, rmY, rmX + 18, rmY + 12, rmHov ? C_BTN_HOV : C_BTN);
         g.drawString(font, "\u2715", rmX + 5, rmY + 2, rmHov ? C_RED : C_DIM, false);
         final int fi = idx;
@@ -341,7 +321,7 @@ public class PhantasiaSceneMistakesEditorScreen extends Screen {
             String svl = SEVERITY_LABELS[si];
             int svW = font.width(svl) + 10;
             boolean svSel = sv.equals(m.severity);
-            boolean svHov = over(mx, my, sbx, cy, svW, 12);
+            boolean svHov = isOver(mx, my, sbx, cy, svW, 12);
             int svCol = SEVERITY_COLORS[si];
             g.fill(sbx, cy, sbx + svW, cy + 12, svSel ? C_BTN_ACT : (svHov ? C_BTN_HOV : C_BTN));
             if (svSel) g.fill(sbx, cy, sbx + svW, cy + 1, svCol);
@@ -373,7 +353,7 @@ public class PhantasiaSceneMistakesEditorScreen extends Screen {
 
         // Apply button
         int applyW = pw - 16;
-        boolean applyHov = over(mx, my, px + 8, cy, applyW, 12);
+        boolean applyHov = isOver(mx, my, px + 8, cy, applyW, 12);
         g.fill(px + 8, cy, px + 8 + applyW, cy + 12, applyHov ? C_BTN_HOV : C_BTN);
         if (applyHov) g.fill(px + 8, cy, px + 8 + applyW, cy + 1, C_ACCENT);
         g.drawCenteredString(font, "\u2713 Apply", px + 8 + applyW / 2, cy + 2, applyHov ? C_ACCENT : C_TEXT);
@@ -514,19 +494,8 @@ public class PhantasiaSceneMistakesEditorScreen extends Screen {
         box.active = true;
     }
 
-    private boolean over(int mx, int my, int x, int y, int w, int h) {
-        return mx >= x && mx < x + w && my >= y && my < y + h;
-    }
 
-    private boolean over(double mx, double my, int x, int y, int w, int h) {
-        return mx >= x && mx < x + w && my >= y && my < y + h;
-    }
 
-    private String trunc(String s, int maxPx) {
-        if (s == null) return "";
-        while (font.width(s) > maxPx && s.length() > 2) s = s.substring(0, s.length() - 2) + "\u2026";
-        return s;
-    }
 
     private static int severityColor(String severity) {
         if (severity == null) return SEVERITY_COLORS[1];

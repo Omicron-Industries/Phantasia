@@ -81,7 +81,7 @@ public class PhantasiaSceneSelectionScreen extends Screen {
     private int hoveredCard = -1;
 
     public PhantasiaSceneSelectionScreen(Screen parent) {
-        super(Component.literal("Phantasia"));
+        super(Component.translatable("screen.phantasia.scene_selection.title"));
         this.parent = parent;
     }
 
@@ -95,8 +95,8 @@ public class PhantasiaSceneSelectionScreen extends Screen {
         int searchY = HEADER_H + 4;
 
         // Initialize Minecraft's built-in text field widget
-        this.searchBox = new EditBox(this.font, searchX, searchY, totalGridW, 16, Component.literal("Search..."));
-        this.searchBox.setHint(Component.literal("Search machines...").withStyle(style -> style.withColor(0xFF888888)));
+        this.searchBox = new EditBox(this.font, searchX, searchY, totalGridW, 16, Component.translatable("screen.phantasia.scene_selection.search_box"));
+        this.searchBox.setHint(Component.translatable("screen.phantasia.scene_selection.search_hint").withStyle(style -> style.withColor(0xFF888888)));
         this.searchBox.setBordered(true);
         this.searchBox.setMaxLength(32);
 

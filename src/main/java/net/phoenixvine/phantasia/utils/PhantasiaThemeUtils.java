@@ -5,22 +5,60 @@ import net.minecraft.client.gui.GuiGraphics;
 
 public class PhantasiaThemeUtils {
 
-    public static int C_BG() { return PhantasiaTheme.current().bg(); }
-    public static int C_PANEL() { return PhantasiaTheme.current().panel(); }
-    public static int C_BTN() { return PhantasiaTheme.current().btn(); }
-    public static int C_BTN_HOV() { return PhantasiaTheme.current().btnHov(); }
-    public static int C_BTN_ACT() { return PhantasiaTheme.current().btnAct(); }
-    public static int C_TEXT() { return PhantasiaTheme.current().text(); }
-    public static int C_DIM() { return PhantasiaTheme.current().dim(); }
-    public static int C_TL_BG() { return PhantasiaTheme.current().tlBg(); }
-    public static int C_WARN() { return PhantasiaTheme.current().warn(); }
+    public static int C_BG() {
+        return PhantasiaTheme.current().bg();
+    }
 
-    public static int C_ACCENT() { return PhantasiaTheme.current().accent(); }
-    public static int C_PROG() { return PhantasiaTheme.current().prog(); }
-    public static int C_HILIGHT() { return PhantasiaTheme.current().hilight(); }
-    public static int C_BORDER() { return PhantasiaTheme.current().dim(); }
+    public static int C_PANEL() {
+        return PhantasiaTheme.current().panel();
+    }
 
-    public static void drawThemedBtn(GuiGraphics g, Font font, int x, int y, int w, int h, String label, boolean hov, int baseColor) {
+    public static int C_BTN() {
+        return PhantasiaTheme.current().btn();
+    }
+
+    public static int C_BTN_HOV() {
+        return PhantasiaTheme.current().btnHov();
+    }
+
+    public static int C_BTN_ACT() {
+        return PhantasiaTheme.current().btnAct();
+    }
+
+    public static int C_TEXT() {
+        return PhantasiaTheme.current().text();
+    }
+
+    public static int C_DIM() {
+        return PhantasiaTheme.current().dim();
+    }
+
+    public static int C_TL_BG() {
+        return PhantasiaTheme.current().tlBg();
+    }
+
+    public static int C_WARN() {
+        return PhantasiaTheme.current().warn();
+    }
+
+    public static int C_ACCENT() {
+        return PhantasiaTheme.current().accent();
+    }
+
+    public static int C_PROG() {
+        return PhantasiaTheme.current().prog();
+    }
+
+    public static int C_HILIGHT() {
+        return PhantasiaTheme.current().hilight();
+    }
+
+    public static int C_BORDER() {
+        return PhantasiaTheme.current().dim();
+    }
+
+    public static void drawThemedBtn(GuiGraphics g, Font font, int x, int y, int w, int h, String label, boolean hov,
+                                     int baseColor) {
         PhantasiaTheme t = PhantasiaTheme.current();
         if ("MINECRAFT".equalsIgnoreCase(PhantasiaTheme.getActiveName())) {
             drawMinecraftBtn(g, font, x, y, w, h, label, hov, baseColor);
@@ -29,14 +67,16 @@ public class PhantasiaThemeUtils {
         }
     }
 
-    public static void drawIconBtn(GuiGraphics g, Font font, int x, int y, int w, int h, String icon, String label, boolean hov, int baseColor) {
+    public static void drawIconBtn(GuiGraphics g, Font font, int x, int y, int w, int h, String icon, String label,
+                                   boolean hov, int baseColor) {
         drawThemedBtn(g, font, x, y, w, h, "", hov, baseColor);
         int midY = y + (h - 8) / 2;
         g.drawString(font, icon, x + 6, midY, C_ACCENT(), false);
         g.drawString(font, label, x + 20, midY, hov ? C_ACCENT() : C_TEXT(), false);
     }
 
-    private static void drawModernBtn(GuiGraphics g, Font font, int x, int y, int w, int h, String label, boolean hov, int baseColor, PhantasiaTheme t) {
+    private static void drawModernBtn(GuiGraphics g, Font font, int x, int y, int w, int h, String label, boolean hov,
+                                      int baseColor, PhantasiaTheme t) {
         g.fill(x, y, x + w, y + h, hov ? t.btnHov() : baseColor);
         if (hov) {
             int accent = t.accent();
@@ -52,7 +92,8 @@ public class PhantasiaThemeUtils {
     private static final int MC_HIGHLIGHT = 0xFFAAAAAA;
     private static final int MC_FILL = 0xFF8B8B8B;
 
-    private static void drawMinecraftBtn(GuiGraphics g, Font font, int x, int y, int w, int h, String label, boolean hov, int baseColor) {
+    private static void drawMinecraftBtn(GuiGraphics g, Font font, int x, int y, int w, int h, String label,
+                                         boolean hov, int baseColor) {
         g.fill(x, y, x + w, y + h, MC_BORDER);
         int fill = hov ? 0xFF9A9A9A : baseColor == PhantasiaTheme.current().btnAct() ? baseColor : MC_FILL;
         g.fill(x + 1, y + 1, x + w - 1, y + h - 1, fill);

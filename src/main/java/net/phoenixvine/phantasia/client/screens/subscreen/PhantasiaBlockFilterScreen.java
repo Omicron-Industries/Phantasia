@@ -75,7 +75,7 @@ public class PhantasiaBlockFilterScreen extends Screen {
                                       PhantasiaScript script,
                                       PhantasiaSceneScreen.ViewFilter currentFilter,
                                       Screen parent) {
-        super(Component.literal("Block Filter"));
+        super(Component.translatable("screen.phantasia.block_filter.title"));
         this.parent = parent;
         this.pattern = pattern;
         this.script = script;

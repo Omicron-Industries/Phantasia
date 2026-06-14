@@ -28,21 +28,10 @@ import java.util.List;
  * links — work identically in autogenned script views.
  */
 @OnlyIn(Dist.CLIENT)
-public class PhantasiaScriptStepItemEditorScreen extends Screen {
+public class PhantasiaScriptStepItemEditorScreen extends PhantasiaEditorScreen {
 
     // ── Theme ─────────────────────────────────────────────────────────────────
-    private static final int C_BG = 0xFF080810;
-    private static final int C_PANEL = 0xDD0C0C1A;
-    private static final int C_ACCENT = 0xFF4FC3F7;
-    private static final int C_BTN = 0xBB151528;
-    private static final int C_BTN_HOV = 0xBB1A2840;
-    private static final int C_BTN_ACT = 0xFF0D3050;
-    private static final int C_TEXT = 0xFFDDDDDD;
-    private static final int C_DIM = 0xFF667788;
-    private static final int C_GREEN = 0xFF66BB6A;
-    private static final int C_RED = 0xFFFF5252;
 
-    private static final int TOP_H = 22;
     private static final int PANEL_W = 440;
 
     private static final String[] TYPES = { "input", "output", "catalyst" };
@@ -69,14 +58,7 @@ public class PhantasiaScriptStepItemEditorScreen extends Screen {
     private EditBox itemMicrosceneBox;
 
     // ── Btn ───────────────────────────────────────────────────────────────────
-    private record Btn(int x, int y, int w, int h, Runnable action) {
 
-        boolean hit(double mx, double my) {
-            return mx >= x && mx < x + w && my >= y && my < y + h;
-        }
-    }
-
-    private final List<Btn> btns = new ArrayList<>();
 
     // ─────────────────────────────────────────────────────────────────────────
 
@@ -88,6 +70,9 @@ public class PhantasiaScriptStepItemEditorScreen extends Screen {
         this.scriptData = scriptData;
         this.stepIndex = stepIndex;
     }
+
+    @Override
+    protected void hideAllInputs() {}
 
     private PhantasiaScriptData.StepData step() {
         return scriptData.getSteps().get(stepIndex);
@@ -131,9 +116,6 @@ public class PhantasiaScriptStepItemEditorScreen extends Screen {
         hideAll();
     }
 
-    private <T extends net.minecraft.client.gui.components.AbstractWidget> T addW(T w) {
-        return addRenderableWidget(w);
-    }
 
     // ─────────────────────────────────────────────────────────────────────────
     // Render
@@ -151,11 +133,11 @@ public class PhantasiaScriptStepItemEditorScreen extends Screen {
     }
 
     private void renderTopBar(GuiGraphics g, int mx, int my) {
-        g.fill(0, 0, width, TOP_H, 0xEE0A0A14);
-        g.fill(0, TOP_H - 1, width, TOP_H, C_ACCENT);
+        g.fill(0, 0, width, TOP_BAR_H, 0xEE0A0A14);
+        g.fill(0, TOP_BAR_H - 1, width, TOP_BAR_H, C_ACCENT);
         g.drawCenteredString(font,
                 "Items — Step " + (stepIndex + 1) + " of " + scriptData.getSteps().size(),
-                width / 2, (TOP_H - 8) / 2, C_DIM);
+                width / 2, (TOP_BAR_H - 8) / 2, C_DIM);
 
         int rx = width - 4;
         rx = topBtn(g, mx, my, rx, "\u2190 Back", C_BTN, this::goBack);
@@ -164,12 +146,12 @@ public class PhantasiaScriptStepItemEditorScreen extends Screen {
         boolean si = step().showItems;
         int siW = font.width(si ? "Items: Visible" : "Items: Hidden") + 12;
         int siX = rx - siW;
-        boolean siHov = over(mx, my, siX, 3, siW, TOP_H - 6);
-        g.fill(siX, 3, siX + siW, TOP_H - 3, si ? C_BTN_ACT : (siHov ? C_BTN_HOV : C_BTN));
+        boolean siHov = isOver(mx, my, siX, 3, siW, TOP_BAR_H - 6);
+        g.fill(siX, 3, siX + siW, TOP_BAR_H - 3, si ? C_BTN_ACT : (siHov ? C_BTN_HOV : C_BTN));
         if (si) g.fill(siX, 3, siX + siW, 4, C_ACCENT);
         g.drawString(font, si ? "Items: Visible" : "Items: Hidden",
-                siX + 6, (TOP_H - 8) / 2, si ? C_ACCENT : C_DIM, false);
-        btns.add(new Btn(siX, 3, siW, TOP_H - 6, () -> {
+                siX + 6, (TOP_BAR_H - 8) / 2, si ? C_ACCENT : C_DIM, false);
+        btns.add(new Btn(siX, 3, siW, TOP_BAR_H - 6, () -> {
             parent.checkpoint();
             step().showItems = !step().showItems;
             parent.dirty = true;
@@ -178,11 +160,11 @@ public class PhantasiaScriptStepItemEditorScreen extends Screen {
 
     private int topBtn(GuiGraphics g, int mx, int my, int rx, String label, int base, Runnable action) {
         int w = font.width(label) + 10;
-        int x = rx - w, y = 3, h = TOP_H - 6;
-        boolean hov = over(mx, my, x, y, w, h);
+        int x = rx - w, y = 3, h = TOP_BAR_H - 6;
+        boolean hov = isOver(mx, my, x, y, w, h);
         g.fill(x, y, x + w, y + h, hov ? C_BTN_HOV : base);
         if (hov) g.fill(x, y, x + w, y + 1, C_ACCENT);
-        g.drawString(font, label, x + 5, (TOP_H - 8) / 2, hov ? C_ACCENT : C_TEXT, false);
+        g.drawString(font, label, x + 5, (TOP_BAR_H - 8) / 2, hov ? C_ACCENT : C_TEXT, false);
         btns.add(new Btn(x, y, w, h, action));
         return x - 4;
     }
@@ -190,7 +172,7 @@ public class PhantasiaScriptStepItemEditorScreen extends Screen {
     private void renderPanel(GuiGraphics g, int mx, int my) {
         int pw = Math.min(PANEL_W, width - 20);
         int px = (width - pw) / 2;
-        int py = TOP_H + 8;
+        int py = TOP_BAR_H + 8;
         int cy = py;
 
         g.fill(px, py, px + pw, height - 8, C_PANEL);
@@ -226,7 +208,7 @@ public class PhantasiaScriptStepItemEditorScreen extends Screen {
             int tw = font.width(tl) + 10;
             boolean sel = t.equals(newItemType);
             int ac = PhantasiaSceneData.ItemConditionData.staticAccentFor(t);
-            boolean hov = over(mx, my, bx, cy, tw, 14);
+            boolean hov = isOver(mx, my, bx, cy, tw, 14);
             g.fill(bx, cy, bx + tw, cy + 14, sel ? C_BTN_ACT : (hov ? C_BTN_HOV : C_BTN));
             if (sel) g.fill(bx, cy, bx + tw, cy + 1, ac);
             g.drawString(font, tl, bx + 5, cy + 3, sel ? ac : C_TEXT, false);
@@ -257,7 +239,7 @@ public class PhantasiaScriptStepItemEditorScreen extends Screen {
             String tl = TRACK_LABELS[ti];
             int tw = font.width(tl) + 8;
             boolean sel = t.equals(newItemTrack);
-            boolean hov = over(mx, my, tbx, cy, tw, 12);
+            boolean hov = isOver(mx, my, tbx, cy, tw, 12);
             g.fill(tbx, cy, tbx + tw, cy + 12, sel ? C_BTN_ACT : (hov ? C_BTN_HOV : C_BTN));
             if (sel) g.fill(tbx, cy, tbx + tw, cy + 1, C_ACCENT);
             g.drawString(font, tl, tbx + 4, cy + 2, sel ? C_ACCENT : C_TEXT, false);
@@ -281,7 +263,7 @@ public class PhantasiaScriptStepItemEditorScreen extends Screen {
 
         // Add button
         int addBtnW = pw - 16;
-        boolean addHov = over(mx, my, px + 8, cy, addBtnW, 14);
+        boolean addHov = isOver(mx, my, px + 8, cy, addBtnW, 14);
         g.fill(px + 8, cy, px + 8 + addBtnW, cy + 14, addHov ? C_BTN_HOV : C_BTN);
         if (addHov) g.fill(px + 8, cy, px + 8 + addBtnW, cy + 1, C_GREEN);
         g.drawCenteredString(font, "\u2713 Add Item", px + 8 + addBtnW / 2, cy + 3,
@@ -296,7 +278,7 @@ public class PhantasiaScriptStepItemEditorScreen extends Screen {
         boolean editing = (editingItem == ii);
         int ac = it.accentColor();
 
-        boolean rowHov = over(mx, my, px + 4, cy, pw - 30, 14);
+        boolean rowHov = isOver(mx, my, px + 4, cy, pw - 30, 14);
         g.fill(px + 4, cy, px + pw - 4, cy + 14,
                 editing ? C_BTN_ACT : (rowHov ? C_BTN_HOV : C_BTN));
         g.fill(px + 4, cy, px + 5, cy + 14, ac);
@@ -335,7 +317,7 @@ public class PhantasiaScriptStepItemEditorScreen extends Screen {
 
         // Remove
         int rmX = px + pw - 24;
-        boolean rmH = over(mx, my, rmX, cy + 1, 18, 12);
+        boolean rmH = isOver(mx, my, rmX, cy + 1, 18, 12);
         g.fill(rmX, cy + 1, rmX + 18, cy + 13, rmH ? C_BTN_HOV : C_BTN);
         g.drawString(font, "\u2715", rmX + 5, cy + 3, rmH ? C_RED : C_DIM, false);
         final int fii = ii;
@@ -367,7 +349,7 @@ public class PhantasiaScriptStepItemEditorScreen extends Screen {
                 int tw = font.width(tl) + 10;
                 boolean sel = t.equals(it.type);
                 int iac = PhantasiaSceneData.ItemConditionData.staticAccentFor(t);
-                boolean hov = over(mx, my, bx, cy, tw, 12);
+                boolean hov = isOver(mx, my, bx, cy, tw, 12);
                 g.fill(bx, cy, bx + tw, cy + 12, sel ? C_BTN_ACT : (hov ? C_BTN_HOV : C_BTN));
                 if (sel) g.fill(bx, cy, bx + tw, cy + 1, iac);
                 g.drawString(font, tl, bx + 5, cy + 2, sel ? iac : C_TEXT, false);
@@ -400,7 +382,7 @@ public class PhantasiaScriptStepItemEditorScreen extends Screen {
                 String tl = TRACK_LABELS[ti];
                 int tw = font.width(tl) + 8;
                 boolean sel = t.equals(it.track == null ? "none" : it.track);
-                boolean hov = over(mx, my, tbx, cy, tw, 12);
+                boolean hov = isOver(mx, my, tbx, cy, tw, 12);
                 g.fill(tbx, cy, tbx + tw, cy + 12, sel ? C_BTN_ACT : (hov ? C_BTN_HOV : C_BTN));
                 if (sel) g.fill(tbx, cy, tbx + tw, cy + 1, C_ACCENT);
                 g.drawString(font, tl, tbx + 4, cy + 2, sel ? C_ACCENT : C_TEXT, false);
@@ -426,7 +408,7 @@ public class PhantasiaScriptStepItemEditorScreen extends Screen {
 
             // Apply & close
             int applyW = pw - 16;
-            boolean applyHov = over(mx, my, px + 8, cy, applyW, 12);
+            boolean applyHov = isOver(mx, my, px + 8, cy, applyW, 12);
             g.fill(px + 8, cy, px + 8 + applyW, cy + 12, applyHov ? C_BTN_HOV : C_BTN);
             if (applyHov) g.fill(px + 8, cy, px + 8 + applyW, cy + 1, C_ACCENT);
             g.drawCenteredString(font, "\u2713 Apply & close", px + 8 + applyW / 2, cy + 2,
@@ -566,17 +548,6 @@ public class PhantasiaScriptStepItemEditorScreen extends Screen {
         box.active = true;
     }
 
-    private boolean over(int mx, int my, int x, int y, int w, int h) {
-        return mx >= x && mx < x + w && my >= y && my < y + h;
-    }
 
-    private boolean over(double mx, double my, int x, int y, int w, int h) {
-        return mx >= x && mx < x + w && my >= y && my < y + h;
-    }
 
-    private String trunc(String s, int maxPx) {
-        if (s == null) return "";
-        while (font.width(s) > maxPx && s.length() > 2) s = s.substring(0, s.length() - 2) + "\u2026";
-        return s;
-    }
 }
