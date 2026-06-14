@@ -2,6 +2,7 @@ package net.phoenixvine.phantasia.client;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.commands.Commands;
+import net.minecraft.network.chat.Component;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RegisterClientCommandsEvent;
 import net.minecraftforge.common.MinecraftForge;
@@ -10,10 +11,12 @@ import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
+import net.minecraftforge.fml.loading.FMLPaths;
 import net.phoenixvine.phantasia.Phantasia;
 import net.phoenixvine.phantasia.client.event.PhantasiaClientEvents;
 import net.phoenixvine.phantasia.client.screens.*;
 import net.phoenixvine.phantasia.client.screens.editors.PhantasiaThemeEditorScreen;
+import net.phoenixvine.phantasia.client.web.PhantasiaWebExport;
 import net.phoenixvine.phantasia.common.PhantasiaKeybind;
 import net.phoenixvine.phantasia.common.data.guides.PhantasiaGuideLoader;
 import net.phoenixvine.phantasia.common.data.scene.PhantasiaSceneLoader;
@@ -49,6 +52,27 @@ public class PhantasiaClient {
                                     .executes(context -> {
                                         Minecraft.getInstance().tell(() -> {
                                             Minecraft.getInstance().setScreen(new PhantasiaThemeEditorScreen(null));
+                                        });
+                                        return 1;
+                                    }))
+                            .then(Commands.literal("webexport")
+                                    .executes(context -> {
+                                        Minecraft.getInstance().tell(() -> {
+                                            var player = Minecraft.getInstance().player;
+                                            if (player == null) return;
+                                            player.sendSystemMessage(Component.literal("[Phantasia] Starting web export..."));
+                                            try {
+                                                var docsDir = FMLPaths.GAMEDIR.get().getParent().resolve("docs");
+                                                var result = PhantasiaWebExport.export(docsDir);
+                                                player.sendSystemMessage(Component.literal(
+                                                        "[Phantasia] Export complete: " + result.scenes() + " scenes, " +
+                                                        result.blocks() + " blocks → " + docsDir));
+                                                if (result.hasErrors())
+                                                    player.sendSystemMessage(Component.literal("[Phantasia] Warnings: " + result.errors()));
+                                            } catch (Exception e) {
+                                                player.sendSystemMessage(Component.literal("[Phantasia] Export failed: " + e.getMessage()));
+                                                Phantasia.LOGGER.error("[Phantasia] webexport failed", e);
+                                            }
                                         });
                                         return 1;
                                     })));

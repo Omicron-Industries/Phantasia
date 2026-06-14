@@ -1,0 +1,828 @@
+[
+  {
+    "x": 0,
+    "y": 0,
+    "z": 0,
+    "block": "gtceu:lv_input_bus",
+    "props": {
+      "facing": "north"
+    },
+    "p": 0
+  },
+  {
+    "x": 1,
+    "y": 0,
+    "z": 0,
+    "block": "gtceu:electric_blast_furnace",
+    "props": {
+      "facing": "north",
+      "upwards_facing": "north"
+    },
+    "p": 0
+  },
+  {
+    "x": 2,
+    "y": 2,
+    "z": 1,
+    "block": "gtceu:cupronickel_coil_block",
+    "props": {
+      "active": "false"
+    },
+    "p": 0
+  },
+  {
+    "x": 2,
+    "y": 0,
+    "z": 0,
+    "block": "gtceu:lv_output_bus",
+    "props": {
+      "facing": "north"
+    },
+    "p": 0
+  },
+  {
+    "x": 5,
+    "y": -1,
+    "z": 0,
+    "block": "minecraft:deepslate_bricks",
+    "p": 0,
+    "bp": true
+  },
+  {
+    "x": 4,
+    "y": -1,
+    "z": 0,
+    "block": "minecraft:deepslate_bricks",
+    "p": 0,
+    "bp": true
+  },
+  {
+    "x": 3,
+    "y": -1,
+    "z": 0,
+    "block": "minecraft:deepslate_bricks",
+    "p": 0,
+    "bp": true
+  },
+  {
+    "x": 2,
+    "y": -1,
+    "z": 0,
+    "block": "minecraft:deepslate_bricks",
+    "p": 0,
+    "bp": true
+  },
+  {
+    "x": 1,
+    "y": -1,
+    "z": 0,
+    "block": "minecraft:deepslate_bricks",
+    "p": 0,
+    "bp": true
+  },
+  {
+    "x": 0,
+    "y": -1,
+    "z": 0,
+    "block": "minecraft:deepslate_bricks",
+    "p": 0,
+    "bp": true
+  },
+  {
+    "x": 0,
+    "y": 3,
+    "z": 1,
+    "block": "gtceu:heatproof_machine_casing",
+    "p": 0
+  },
+  {
+    "x": -1,
+    "y": -1,
+    "z": 0,
+    "block": "minecraft:deepslate_bricks",
+    "p": 0,
+    "bp": true
+  },
+  {
+    "x": 0,
+    "y": 1,
+    "z": 0,
+    "block": "gtceu:cupronickel_coil_block",
+    "props": {
+      "active": "false"
+    },
+    "p": 0
+  },
+  {
+    "x": 1,
+    "y": 3,
+    "z": 1,
+    "block": "gtceu:lv_muffler_hatch",
+    "props": {
+      "facing": "up"
+    },
+    "p": 0
+  },
+  {
+    "x": -2,
+    "y": -1,
+    "z": 0,
+    "block": "minecraft:deepslate_bricks",
+    "p": 0,
+    "bp": true
+  },
+  {
+    "x": 1,
+    "y": 1,
+    "z": 0,
+    "block": "gtceu:cupronickel_coil_block",
+    "props": {
+      "active": "false"
+    },
+    "p": 0
+  },
+  {
+    "x": 2,
+    "y": 3,
+    "z": 1,
+    "block": "gtceu:heatproof_machine_casing",
+    "p": 0
+  },
+  {
+    "x": 2,
+    "y": 1,
+    "z": 0,
+    "block": "gtceu:cupronickel_coil_block",
+    "props": {
+      "active": "false"
+    },
+    "p": 0
+  },
+  {
+    "x": -2,
+    "y": -1,
+    "z": 3,
+    "block": "minecraft:deepslate_bricks",
+    "p": 0,
+    "bp": true
+  },
+  {
+    "x": -1,
+    "y": -1,
+    "z": 3,
+    "block": "minecraft:deepslate_bricks",
+    "p": 0,
+    "bp": true
+  },
+  {
+    "x": 0,
+    "y": -1,
+    "z": 3,
+    "block": "minecraft:deepslate_bricks",
+    "p": 0,
+    "bp": true
+  },
+  {
+    "x": 1,
+    "y": -1,
+    "z": 3,
+    "block": "minecraft:deepslate_bricks",
+    "p": 0,
+    "bp": true
+  },
+  {
+    "x": 2,
+    "y": -1,
+    "z": 3,
+    "block": "minecraft:deepslate_bricks",
+    "p": 0,
+    "bp": true
+  },
+  {
+    "x": 3,
+    "y": -1,
+    "z": 3,
+    "block": "minecraft:deepslate_bricks",
+    "p": 0,
+    "bp": true
+  },
+  {
+    "x": 4,
+    "y": -1,
+    "z": 3,
+    "block": "minecraft:deepslate_bricks",
+    "p": 0,
+    "bp": true
+  },
+  {
+    "x": 5,
+    "y": -1,
+    "z": 3,
+    "block": "minecraft:deepslate_bricks",
+    "p": 0,
+    "bp": true
+  },
+  {
+    "x": 0,
+    "y": 2,
+    "z": 0,
+    "block": "gtceu:cupronickel_coil_block",
+    "props": {
+      "active": "false"
+    },
+    "p": 0
+  },
+  {
+    "x": 1,
+    "y": 2,
+    "z": 0,
+    "block": "gtceu:cupronickel_coil_block",
+    "props": {
+      "active": "false"
+    },
+    "p": 0
+  },
+  {
+    "x": 2,
+    "y": 2,
+    "z": 0,
+    "block": "gtceu:cupronickel_coil_block",
+    "props": {
+      "active": "false"
+    },
+    "p": 0
+  },
+  {
+    "x": 0,
+    "y": 3,
+    "z": 0,
+    "block": "gtceu:heatproof_machine_casing",
+    "p": 0
+  },
+  {
+    "x": 1,
+    "y": 3,
+    "z": 0,
+    "block": "gtceu:maintenance_hatch",
+    "props": {
+      "facing": "north"
+    },
+    "p": 0
+  },
+  {
+    "x": 2,
+    "y": 3,
+    "z": 0,
+    "block": "gtceu:heatproof_machine_casing",
+    "p": 0
+  },
+  {
+    "x": -2,
+    "y": -1,
+    "z": 2,
+    "block": "minecraft:deepslate_bricks",
+    "p": 0,
+    "bp": true
+  },
+  {
+    "x": -1,
+    "y": -1,
+    "z": 2,
+    "block": "minecraft:deepslate_bricks",
+    "p": 0,
+    "bp": true
+  },
+  {
+    "x": 0,
+    "y": -1,
+    "z": 2,
+    "block": "minecraft:deepslate_bricks",
+    "p": 0,
+    "bp": true
+  },
+  {
+    "x": 1,
+    "y": -1,
+    "z": 2,
+    "block": "minecraft:deepslate_bricks",
+    "p": 0,
+    "bp": true
+  },
+  {
+    "x": 2,
+    "y": -1,
+    "z": 2,
+    "block": "minecraft:deepslate_bricks",
+    "p": 0,
+    "bp": true
+  },
+  {
+    "x": 3,
+    "y": -1,
+    "z": 2,
+    "block": "minecraft:deepslate_bricks",
+    "p": 0,
+    "bp": true
+  },
+  {
+    "x": 4,
+    "y": -1,
+    "z": 2,
+    "block": "minecraft:deepslate_bricks",
+    "p": 0,
+    "bp": true
+  },
+  {
+    "x": 5,
+    "y": -1,
+    "z": 2,
+    "block": "minecraft:deepslate_bricks",
+    "p": 0,
+    "bp": true
+  },
+  {
+    "x": 0,
+    "y": 0,
+    "z": 2,
+    "block": "gtceu:lv_energy_input_hatch",
+    "props": {
+      "facing": "south"
+    },
+    "p": 0
+  },
+  {
+    "x": 1,
+    "y": 0,
+    "z": 2,
+    "block": "gtceu:lv_energy_input_hatch",
+    "props": {
+      "facing": "south"
+    },
+    "p": 0
+  },
+  {
+    "x": 2,
+    "y": 0,
+    "z": 2,
+    "block": "gtceu:heatproof_machine_casing",
+    "p": 0
+  },
+  {
+    "x": 5,
+    "y": -1,
+    "z": -2,
+    "block": "minecraft:deepslate_bricks",
+    "p": 0,
+    "bp": true
+  },
+  {
+    "x": 4,
+    "y": -1,
+    "z": -2,
+    "block": "minecraft:deepslate_bricks",
+    "p": 0,
+    "bp": true
+  },
+  {
+    "x": 3,
+    "y": -1,
+    "z": -2,
+    "block": "minecraft:deepslate_bricks",
+    "p": 0,
+    "bp": true
+  },
+  {
+    "x": 2,
+    "y": -1,
+    "z": -2,
+    "block": "minecraft:deepslate_bricks",
+    "p": 0,
+    "bp": true
+  },
+  {
+    "x": 1,
+    "y": -1,
+    "z": -2,
+    "block": "minecraft:deepslate_bricks",
+    "p": 0,
+    "bp": true
+  },
+  {
+    "x": -2,
+    "y": -1,
+    "z": 1,
+    "block": "minecraft:deepslate_bricks",
+    "p": 0,
+    "bp": true
+  },
+  {
+    "x": 0,
+    "y": -1,
+    "z": -2,
+    "block": "minecraft:deepslate_bricks",
+    "p": 0,
+    "bp": true
+  },
+  {
+    "x": -1,
+    "y": -1,
+    "z": -2,
+    "block": "minecraft:deepslate_bricks",
+    "p": 0,
+    "bp": true
+  },
+  {
+    "x": -1,
+    "y": -1,
+    "z": 1,
+    "block": "minecraft:deepslate_bricks",
+    "p": 0,
+    "bp": true
+  },
+  {
+    "x": 0,
+    "y": 1,
+    "z": 2,
+    "block": "gtceu:cupronickel_coil_block",
+    "props": {
+      "active": "false"
+    },
+    "p": 0
+  },
+  {
+    "x": -2,
+    "y": -1,
+    "z": -2,
+    "block": "minecraft:deepslate_bricks",
+    "p": 0,
+    "bp": true
+  },
+  {
+    "x": 0,
+    "y": -1,
+    "z": 1,
+    "block": "minecraft:deepslate_bricks",
+    "p": 0,
+    "bp": true
+  },
+  {
+    "x": 1,
+    "y": 1,
+    "z": 2,
+    "block": "gtceu:cupronickel_coil_block",
+    "props": {
+      "active": "false"
+    },
+    "p": 0
+  },
+  {
+    "x": 1,
+    "y": -1,
+    "z": 1,
+    "block": "minecraft:deepslate_bricks",
+    "p": 0,
+    "bp": true
+  },
+  {
+    "x": 2,
+    "y": 1,
+    "z": 2,
+    "block": "gtceu:cupronickel_coil_block",
+    "props": {
+      "active": "false"
+    },
+    "p": 0
+  },
+  {
+    "x": -2,
+    "y": -1,
+    "z": 5,
+    "block": "minecraft:deepslate_bricks",
+    "p": 0,
+    "bp": true
+  },
+  {
+    "x": 2,
+    "y": -1,
+    "z": 1,
+    "block": "minecraft:deepslate_bricks",
+    "p": 0,
+    "bp": true
+  },
+  {
+    "x": -1,
+    "y": -1,
+    "z": 5,
+    "block": "minecraft:deepslate_bricks",
+    "p": 0,
+    "bp": true
+  },
+  {
+    "x": 3,
+    "y": -1,
+    "z": 1,
+    "block": "minecraft:deepslate_bricks",
+    "p": 0,
+    "bp": true
+  },
+  {
+    "x": 0,
+    "y": -1,
+    "z": 5,
+    "block": "minecraft:deepslate_bricks",
+    "p": 0,
+    "bp": true
+  },
+  {
+    "x": 4,
+    "y": -1,
+    "z": 1,
+    "block": "minecraft:deepslate_bricks",
+    "p": 0,
+    "bp": true
+  },
+  {
+    "x": 1,
+    "y": -1,
+    "z": 5,
+    "block": "minecraft:deepslate_bricks",
+    "p": 0,
+    "bp": true
+  },
+  {
+    "x": 5,
+    "y": -1,
+    "z": 1,
+    "block": "minecraft:deepslate_bricks",
+    "p": 0,
+    "bp": true
+  },
+  {
+    "x": 2,
+    "y": -1,
+    "z": 5,
+    "block": "minecraft:deepslate_bricks",
+    "p": 0,
+    "bp": true
+  },
+  {
+    "x": 3,
+    "y": -1,
+    "z": 5,
+    "block": "minecraft:deepslate_bricks",
+    "p": 0,
+    "bp": true
+  },
+  {
+    "x": 4,
+    "y": -1,
+    "z": 5,
+    "block": "minecraft:deepslate_bricks",
+    "p": 0,
+    "bp": true
+  },
+  {
+    "x": 5,
+    "y": -1,
+    "z": 5,
+    "block": "minecraft:deepslate_bricks",
+    "p": 0,
+    "bp": true
+  },
+  {
+    "x": 0,
+    "y": 2,
+    "z": 2,
+    "block": "gtceu:cupronickel_coil_block",
+    "props": {
+      "active": "false"
+    },
+    "p": 0
+  },
+  {
+    "x": 0,
+    "y": 0,
+    "z": 1,
+    "block": "gtceu:lv_input_hatch",
+    "props": {
+      "facing": "west"
+    },
+    "p": 0
+  },
+  {
+    "x": 1,
+    "y": 2,
+    "z": 2,
+    "block": "gtceu:cupronickel_coil_block",
+    "props": {
+      "active": "false"
+    },
+    "p": 0
+  },
+  {
+    "x": 1,
+    "y": 0,
+    "z": 1,
+    "block": "gtceu:heatproof_machine_casing",
+    "p": 0
+  },
+  {
+    "x": 2,
+    "y": 2,
+    "z": 2,
+    "block": "gtceu:cupronickel_coil_block",
+    "props": {
+      "active": "false"
+    },
+    "p": 0
+  },
+  {
+    "x": 2,
+    "y": 0,
+    "z": 1,
+    "block": "gtceu:lv_output_hatch",
+    "props": {
+      "facing": "east"
+    },
+    "p": 0
+  },
+  {
+    "x": 5,
+    "y": -1,
+    "z": -1,
+    "block": "minecraft:deepslate_bricks",
+    "p": 0,
+    "bp": true
+  },
+  {
+    "x": 4,
+    "y": -1,
+    "z": -1,
+    "block": "minecraft:deepslate_bricks",
+    "p": 0,
+    "bp": true
+  },
+  {
+    "x": 3,
+    "y": -1,
+    "z": -1,
+    "block": "minecraft:deepslate_bricks",
+    "p": 0,
+    "bp": true
+  },
+  {
+    "x": 2,
+    "y": -1,
+    "z": -1,
+    "block": "minecraft:deepslate_bricks",
+    "p": 0,
+    "bp": true
+  },
+  {
+    "x": 1,
+    "y": -1,
+    "z": -1,
+    "block": "minecraft:deepslate_bricks",
+    "p": 0,
+    "bp": true
+  },
+  {
+    "x": 0,
+    "y": -1,
+    "z": -1,
+    "block": "minecraft:deepslate_bricks",
+    "p": 0,
+    "bp": true
+  },
+  {
+    "x": 0,
+    "y": 3,
+    "z": 2,
+    "block": "gtceu:heatproof_machine_casing",
+    "p": 0
+  },
+  {
+    "x": -1,
+    "y": -1,
+    "z": -1,
+    "block": "minecraft:deepslate_bricks",
+    "p": 0,
+    "bp": true
+  },
+  {
+    "x": 0,
+    "y": 1,
+    "z": 1,
+    "block": "gtceu:cupronickel_coil_block",
+    "props": {
+      "active": "false"
+    },
+    "p": 0
+  },
+  {
+    "x": 1,
+    "y": 3,
+    "z": 2,
+    "block": "gtceu:heatproof_machine_casing",
+    "p": 0
+  },
+  {
+    "x": -2,
+    "y": -1,
+    "z": -1,
+    "block": "minecraft:deepslate_bricks",
+    "p": 0,
+    "bp": true
+  },
+  {
+    "x": 2,
+    "y": 3,
+    "z": 2,
+    "block": "gtceu:heatproof_machine_casing",
+    "p": 0
+  },
+  {
+    "x": 2,
+    "y": 1,
+    "z": 1,
+    "block": "gtceu:cupronickel_coil_block",
+    "props": {
+      "active": "false"
+    },
+    "p": 0
+  },
+  {
+    "x": -2,
+    "y": -1,
+    "z": 4,
+    "block": "minecraft:deepslate_bricks",
+    "p": 0,
+    "bp": true
+  },
+  {
+    "x": -1,
+    "y": -1,
+    "z": 4,
+    "block": "minecraft:deepslate_bricks",
+    "p": 0,
+    "bp": true
+  },
+  {
+    "x": 0,
+    "y": -1,
+    "z": 4,
+    "block": "minecraft:deepslate_bricks",
+    "p": 0,
+    "bp": true
+  },
+  {
+    "x": 1,
+    "y": -1,
+    "z": 4,
+    "block": "minecraft:deepslate_bricks",
+    "p": 0,
+    "bp": true
+  },
+  {
+    "x": 2,
+    "y": -1,
+    "z": 4,
+    "block": "minecraft:deepslate_bricks",
+    "p": 0,
+    "bp": true
+  },
+  {
+    "x": 3,
+    "y": -1,
+    "z": 4,
+    "block": "minecraft:deepslate_bricks",
+    "p": 0,
+    "bp": true
+  },
+  {
+    "x": 4,
+    "y": -1,
+    "z": 4,
+    "block": "minecraft:deepslate_bricks",
+    "p": 0,
+    "bp": true
+  },
+  {
+    "x": 5,
+    "y": -1,
+    "z": 4,
+    "block": "minecraft:deepslate_bricks",
+    "p": 0,
+    "bp": true
+  },
+  {
+    "x": 0,
+    "y": 2,
+    "z": 1,
+    "block": "gtceu:cupronickel_coil_block",
+    "props": {
+      "active": "false"
+    },
+    "p": 0
+  }
+]

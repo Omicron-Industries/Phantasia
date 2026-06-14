@@ -17,9 +17,6 @@ import net.phoenixvine.phantasia.common.data.scene.PhantasiaSceneData;
 
 import org.lwjgl.glfw.GLFW;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import javax.annotation.Nullable;
 
 /**
@@ -39,16 +36,10 @@ import javax.annotation.Nullable;
  * user can see the machine in context without interacting with the camera.
  */
 @OnlyIn(Dist.CLIENT)
-public class PhantasiaItemMicrosceneScreen extends Screen {
+public class PhantasiaItemMicrosceneScreen extends PhantasiaScreen {
 
     // ── Theme ─────────────────────────────────────────────────────────────────
-    private static final int C_BG = 0xCC050510;
     private static final int C_CARD = 0xEE0A0A18;
-    private static final int C_ACCENT = 0xFF4FC3F7;
-    private static final int C_TEXT = 0xFFDDDDDD;
-    private static final int C_DIM = 0xFF667788;
-    private static final int C_BTN = 0xBB101828;
-    private static final int C_BTN_HOV = 0xBB1A2840;
 
     // ── Layout ────────────────────────────────────────────────────────────────
     private static final int CARD_PAD = 24;
@@ -76,14 +67,7 @@ public class PhantasiaItemMicrosceneScreen extends Screen {
     private int stepIndex = 0;
 
     // ── Btn list ──────────────────────────────────────────────────────────────
-    private record Btn(int x, int y, int w, int h, Runnable action) {
 
-        boolean hit(double mx, double my) {
-            return mx >= x && mx < x + w && my >= y && my < y + h;
-        }
-    }
-
-    private final List<Btn> btns = new ArrayList<>();
 
     // ─────────────────────────────────────────────────────────────────────────
 
@@ -95,6 +79,9 @@ public class PhantasiaItemMicrosceneScreen extends Screen {
         this.item = item;
         this.microsceneData = microsceneData;
     }
+
+    @Override
+    public void hideAllInputs() {}
 
     // ─────────────────────────────────────────────────────────────────────────
     // Lifecycle
@@ -316,13 +303,13 @@ public class PhantasiaItemMicrosceneScreen extends Screen {
             }
         } else {
             g.fill(ix, descStartY - 4, ix + iw, descStartY - 3, 0x22FFFFFF);
-            g.drawString(font, "No description.", ix, descStartY, C_DIM, false);
+            g.drawString(font, Component.translatable("screen.phantasia.item_microscene.no_description").getString(), ix, descStartY, C_DIM, false);
         }
 
         // ── Close button ──────────────────────────────────────────────────────
         int closeX = cardX + cardW - 52;
         int closeY = cardY + cardH - 20;
-        boolean closeHov = over(mx, my, closeX, closeY, 44, 14);
+        boolean closeHov = isOver(mx, my, closeX, closeY, 44, 14);
         g.fill(closeX, closeY, closeX + 44, closeY + 14, closeHov ? C_BTN_HOV : C_BTN);
         if (closeHov) g.fill(closeX, closeY, closeX + 44, closeY + 1, C_ACCENT);
         g.drawCenteredString(font, "\u2190 Back", closeX + 22, closeY + 3, closeHov ? C_ACCENT : C_TEXT);
@@ -370,9 +357,6 @@ public class PhantasiaItemMicrosceneScreen extends Screen {
         Minecraft.getInstance().setScreen(parent);
     }
 
-    private boolean over(double mx, double my, int x, int y, int w, int h) {
-        return mx >= x && mx < x + w && my >= y && my < y + h;
-    }
 
     @Nullable
     private static net.minecraft.world.item.Item resolveItem(String id) {

@@ -1,0 +1,25 @@
+{
+  "id": "phantasia:about_muffler_hatch",
+  "iconItem": "gtceu:muffler_hatch",
+  "name": "About: Muffler Hatch",
+  "placements": [],
+  "mistakes": [],
+  "steps": [
+    {
+      "tick": 0,
+      "caption": null,
+      "description": null,
+      "show": "all",
+      "layer": 0,
+      "layerMin": 0,
+      "layerMax": 0,
+      "positions": [],
+      "hideLayer": -1,
+      "hidePositions": [],
+      "working": false,
+      "showItems": false,
+      "camera": null,
+      "machineOverrides": {}
+    }
+  ]
+}

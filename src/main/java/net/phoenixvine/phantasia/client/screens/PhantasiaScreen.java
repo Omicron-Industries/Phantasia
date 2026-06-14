@@ -1,4 +1,4 @@
-package net.phoenixvine.phantasia.client.screens.editors;
+package net.phoenixvine.phantasia.client.screens;
 
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
@@ -12,7 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * PhantasiaEditorScreen
+ * PhantasiaScreen
  *
  * Base class for all Phantasia editor screens. Centralises:
  * - Theme constants
@@ -27,24 +27,24 @@ import java.util.List;
  * and their own {@code hideAllInputs()} implementations.
  */
 @OnlyIn(Dist.CLIENT)
-public abstract class PhantasiaEditorScreen extends Screen {
+public abstract class PhantasiaScreen extends Screen {
 
     // ── Theme ─────────────────────────────────────────────────────────────────
-    protected static final int C_BG = 0xFF080810;
-    protected static final int C_BAR = 0xEE0A0A14;
-    protected static final int C_PANEL = 0xDD0C0C1A;
-    protected static final int C_ACCENT = 0xFF4FC3F7;
-    protected static final int C_BTN = 0xBB151528;
-    protected static final int C_BTN_HOV = 0xBB1A2840;
-    protected static final int C_BTN_ACT = 0xFF0D3050;
-    protected static final int C_TEXT = 0xFFDDDDDD;
-    protected static final int C_DIM = 0xFF667788;
-    protected static final int C_WARN = 0xFFFFB74D;
-    protected static final int C_GREEN = 0xFF66BB6A;
-    protected static final int C_RED = 0xFFFF5252;
+    public static final int C_BG = 0xFF080810;
+    public static final int C_BAR = 0xEE0A0A14;
+    public static final int C_PANEL = 0xDD0C0C1A;
+    public static final int C_ACCENT = 0xFF4FC3F7;
+    public static final int C_BTN = 0xBB151528;
+    public static final int C_BTN_HOV = 0xBB1A2840;
+    public static final int C_BTN_ACT = 0xFF0D3050;
+    public static final int C_TEXT = 0xFFDDDDDD;
+    public static final int C_DIM = 0xFF667788;
+    public static final int C_WARN = 0xFFFFB74D;
+    public static final int C_GREEN = 0xFF66BB6A;
+    public static final int C_RED = 0xFFFF5252;
 
     /** Top bar height — consistent across all editors. */
-    protected static final int TOP_BAR_H = 22;
+    public static final int TOP_BAR_H = 22;
 
     // ── Button list ───────────────────────────────────────────────────────────
 
@@ -52,14 +52,14 @@ public abstract class PhantasiaEditorScreen extends Screen {
      * A registered click target. Built fresh each frame in {@code render()} so
      * hit-testing always reflects the current layout.
      */
-    protected record Btn(int x, int y, int w, int h, Runnable action) {
+    public record Btn(int x, int y, int w, int h, Runnable action) {
 
-        boolean hit(double mx, double my) {
+       public boolean hit(double mx, double my) {
             return mx >= x && mx < x + w && my >= y && my < y + h;
         }
     }
 
-    protected final List<Btn> btns = new ArrayList<>(64);
+    public final List<Btn> btns = new ArrayList<>(64);
 
     // ── Pending tooltip ───────────────────────────────────────────────────────
 
@@ -68,11 +68,11 @@ public abstract class PhantasiaEditorScreen extends Screen {
      * Drawn as a floating overlay at the very end of {@code render()} by
      * {@link #renderPendingTooltip}.
      */
-    protected String pendingTooltip = null;
+    public String pendingTooltip = null;
 
     // ─────────────────────────────────────────────────────────────────────────
 
-    protected PhantasiaEditorScreen(Component title) {
+    public PhantasiaScreen(Component title) {
         super(title);
     }
 
@@ -85,7 +85,7 @@ public abstract class PhantasiaEditorScreen extends Screen {
      * {@code render()}, after {@code super.render()}, so it always renders on
      * top of widgets.
      */
-    protected void renderPendingTooltip(GuiGraphics g, int mx, int my) {
+    public void renderPendingTooltip(GuiGraphics g, int mx, int my) {
         if (pendingTooltip == null) return;
         int tw = font.width(pendingTooltip) + 8;
         int tx = Math.min(mx + 12, this.width - tw - 2);
@@ -103,7 +103,7 @@ public abstract class PhantasiaEditorScreen extends Screen {
      * Plain button. Registers the action in {@link #btns} and draws the button.
      * No tooltip. Use {@link #tipBtn} if you need hover text.
      */
-    protected void btn(GuiGraphics g, int mx, int my,
+    public void btn(GuiGraphics g, int mx, int my,
                        int x, int y, int w, int h,
                        String label, int base, Runnable action) {
         boolean hov = isOver(mx, my, x, y, w, h);
@@ -123,7 +123,7 @@ public abstract class PhantasiaEditorScreen extends Screen {
      * Button with a tooltip. Sets {@link #pendingTooltip} on hover so the
      * floating overlay picks it up at the end of the frame.
      */
-    protected void tipBtn(GuiGraphics g, int mx, int my,
+    public void tipBtn(GuiGraphics g, int mx, int my,
                           int x, int y, int w, int h,
                           String label, int base, String tooltip, Runnable action) {
         boolean hov = isOver(mx, my, x, y, w, h);
@@ -147,7 +147,7 @@ public abstract class PhantasiaEditorScreen extends Screen {
      *
      * @param rx right edge to pack against
      */
-    protected int topBtn(GuiGraphics g, int mx, int my,
+    public int topBtn(GuiGraphics g, int mx, int my,
                          int rx, String label, int color, String tooltip,
                          Runnable action) {
         int w = font.width(label) + 10;
@@ -168,7 +168,7 @@ public abstract class PhantasiaEditorScreen extends Screen {
      * Left-aligned top-bar button. Draws at {@code x} and returns the right
      * edge plus a 4 px gap for chaining left-to-right.
      */
-    protected int topBtnL(GuiGraphics g, int mx, int my,
+    public int topBtnL(GuiGraphics g, int mx, int my,
                           int x, String label, int color, String tooltip,
                           Runnable action) {
         int w = font.width(label) + 10, h = TOP_BAR_H - 6, y = 3;
@@ -188,11 +188,11 @@ public abstract class PhantasiaEditorScreen extends Screen {
     // ─────────────────────────────────────────────────────────────────────────
 
     /**
-     * Renders a centred "Unsaved changes — discard and close?" modal.
+     * Renders a centred Component.translatable("screen.phantasia.editor.close_confirm_title").getString() modal.
      * {@code onDiscard} should call {@code forceClose()} or equivalent;
      * {@code onKeep} should dismiss the dialog (e.g. set a flag to false).
      */
-    protected void renderCloseConfirmDialog(GuiGraphics g, int mx, int my,
+    public void renderCloseConfirmDialog(GuiGraphics g, int mx, int my,
                                             Runnable onDiscard, Runnable onKeep) {
         g.fill(0, 0, this.width, this.height, 0xBB000000);
         int dw = 280, dh = 70;
@@ -200,7 +200,7 @@ public abstract class PhantasiaEditorScreen extends Screen {
         g.fill(dx, dy, dx + dw, dy + dh, C_PANEL);
         g.fill(dx, dy, dx + dw, dy + 1, C_WARN);
         g.drawCenteredString(font, "Unsaved changes \u2014 discard and close?", dx + dw / 2, dy + 10, C_WARN);
-        g.drawCenteredString(font, "All edits since your last save will be lost.", dx + dw / 2, dy + 22, C_DIM);
+        g.drawCenteredString(font, Component.translatable("screen.phantasia.editor.close_confirm_body").getString(), dx + dw / 2, dy + 22, C_DIM);
         int btnY = dy + dh - 20;
         btn(g, mx, my, dx + dw / 2 - 118, btnY, 110, 14, "\u2715 Discard & Close", C_RED, onDiscard);
         btn(g, mx, my, dx + dw / 2 + 8, btnY, 110, 14, "\u21A9 Keep Editing", C_BTN, onKeep);
@@ -213,7 +213,7 @@ public abstract class PhantasiaEditorScreen extends Screen {
     /**
      * Centred one-line banner pill — used for mode hints and preview overlays.
      */
-    protected void drawBanner(GuiGraphics g, String text, int y, int accentColor) {
+    public void drawBanner(GuiGraphics g, String text, int y, int accentColor) {
         int tw = font.width(text) + 20;
         int tx = (this.width - tw) / 2;
         g.fill(tx, y, tx + tw, y + 16, 0xBB0C0C1A);
@@ -230,7 +230,7 @@ public abstract class PhantasiaEditorScreen extends Screen {
      * method after {@link #hideAllInputs()} to lay out only the boxes that
      * are currently relevant.
      */
-    protected void placeBox(EditBox box, int x, int y, int w, int h) {
+    public void placeBox(EditBox box, int x, int y, int w, int h) {
         box.setX(x);
         box.setY(y);
         box.setWidth(w);
@@ -243,7 +243,7 @@ public abstract class PhantasiaEditorScreen extends Screen {
      * Register a widget as a renderable+interactive child and return it.
      * Widgets start hidden; use {@link #placeBox} to show them each frame.
      */
-    protected <T extends net.minecraft.client.gui.components.AbstractWidget> T addW(T w) {
+    public <T extends net.minecraft.client.gui.components.AbstractWidget> T addW(T w) {
         w.visible = false;
         w.active = false;
         return addRenderableWidget(w);
@@ -253,17 +253,17 @@ public abstract class PhantasiaEditorScreen extends Screen {
      * Hide all edit boxes for this editor. Subclasses implement this to reset
      * every box to invisible at the start of each frame.
      */
-    protected abstract void hideAllInputs();
+    public abstract void hideAllInputs();
 
     // ─────────────────────────────────────────────────────────────────────────
     // Hit-testing
     // ─────────────────────────────────────────────────────────────────────────
 
-    protected boolean isOver(int mx, int my, int x, int y, int w, int h) {
+    public boolean isOver(int mx, int my, int x, int y, int w, int h) {
         return mx >= x && mx < x + w && my >= y && my < y + h;
     }
 
-    protected boolean isOver(double mx, double my, int x, int y, int w, int h) {
+    public boolean isOver(double mx, double my, int x, int y, int w, int h) {
         return mx >= x && mx < x + w && my >= y && my < y + h;
     }
 
@@ -275,7 +275,7 @@ public abstract class PhantasiaEditorScreen extends Screen {
      * Truncate {@code s} to fit within {@code maxPx} pixels of font width,
      * appending an ellipsis if it was cut.
      */
-    protected String trunc(String s, int maxPx) {
+    public String trunc(String s, int maxPx) {
         if (s == null) return "";
         while (font.width(s) > maxPx && s.length() > 2)
             s = s.substring(0, s.length() - 2) + "\u2026";
@@ -283,7 +283,7 @@ public abstract class PhantasiaEditorScreen extends Screen {
     }
 
     /** Parse an integer from a string, returning 0 on failure. */
-    protected static int parseIntOrZero(String v) {
+    public static int parseIntOrZero(String v) {
         try {
             return Integer.parseInt(v.trim());
         } catch (NumberFormatException e) {
@@ -295,7 +295,7 @@ public abstract class PhantasiaEditorScreen extends Screen {
      * Comma-separated list of all {@link LerpType} names, derived directly
      * from the enum so it never drifts out of sync.
      */
-    protected static String lerpTypeList() {
+    public static String lerpTypeList() {
         StringBuilder sb = new StringBuilder();
         for (LerpType lt : LerpType.values()) {
             if (sb.length() > 0) sb.append(", ");

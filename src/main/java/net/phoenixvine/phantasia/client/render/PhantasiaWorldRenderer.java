@@ -176,6 +176,44 @@ public final class PhantasiaWorldRenderer {
     private static final float ALPHA_STEP = 0.2f;
     private static final int TRANSITION_THRESHOLD = 32;
 
+    // ── Streaming bake ────────────────────────────────────────────────────────
+    // For patterns exceeding STREAMING_THRESHOLD blocks, the bake is split into
+    // STREAMING_CHUNK_SIZE-block chunks. Each completed chunk is uploaded into its
+    // own VertexBuffer[] set and drawn immediately, so the scene populates in real
+    // time rather than blocking until the entire multi is baked.
+
+    /** Block count above which streaming bake is used instead of a monolithic bake. */
+    private static final int STREAMING_THRESHOLD = 4_000;
+
+    /** Blocks processed per streaming chunk. */
+    private static final int STREAMING_CHUNK_SIZE = 4_000;
+
+    /** True while a streaming bake is actively in progress. */
+    public volatile boolean isStreaming = false;
+
+    /** Number of blocks that have been baked so far in the current streaming bake. */
+    public volatile int streamingProgress = 0;
+
+    /** Total blocks to bake in the current streaming bake. */
+    public volatile int streamingTotal = 0;
+
+    /**
+     * Completed chunk VBO sets. Each entry is one STREAMING_CHUNK_SIZE-block bake.
+     * The render thread draws front[] first, then all entries in this list.
+     * Only appended to from recordRenderCall; reads happen on the render thread.
+     */
+    private final List<VertexBuffer[]> streamChunks = new ArrayList<>();
+
+    /**
+     * Number of chunk entries in streamChunks that are fully uploaded and ready.
+     * Incremented on the render thread inside recordRenderCall after each chunk upload.
+     */
+    public volatile int streamChunksReady = 0;
+
+    /** Pending chunk VBO arrays waiting to be added to streamChunks. */
+    private final java.util.concurrent.ConcurrentLinkedQueue<VertexBuffer[]> pendingChunkUploads =
+            new java.util.concurrent.ConcurrentLinkedQueue<>();
+
     // ── Layers ────────────────────────────────────────────────────────────────
 
     private final List<RenderType> LAYERS = RenderType.chunkBufferLayers();
@@ -391,6 +429,11 @@ public final class PhantasiaWorldRenderer {
         partialBakePending = false;
         partialBakePositions = Collections.emptySet();
         fullBakeNeeded = true;
+        isStreaming = false;
+        streamingProgress = 0;
+        streamingTotal = 0;
+        // Chunk VBOs must be closed on the render thread.
+        RenderSystem.recordRenderCall(this::closeAndClearStreamChunks);
     }
 
     public void setMousePos(int mx, int my) {
@@ -864,6 +907,23 @@ public final class PhantasiaWorldRenderer {
         backTileEntities = null;
         backAnimatedPositions = null;
         overlayReady = false;
+
+        // When a full bake completes after streaming, the consolidated geometry is
+        // now in front[]. Release all streaming chunk VBOs — they're redundant.
+        closeAndClearStreamChunks();
+        isStreaming = false;
+    }
+
+    /** Closes all stream chunk VBOs and resets streaming state. Called on render thread. */
+    private void closeAndClearStreamChunks() {
+        for (VertexBuffer[] chunk : streamChunks) {
+            for (VertexBuffer vb : chunk) {
+                if (vb != null && !vb.isInvalid()) vb.close();
+            }
+        }
+        streamChunks.clear();
+        streamChunksReady = 0;
+        pendingChunkUploads.clear();
     }
 
     private void swapOverlayBuffers() {
@@ -888,6 +948,13 @@ public final class PhantasiaWorldRenderer {
 
         if (snapshot.isEmpty()) {
             uploadEmptyBuffers(false);
+            return;
+        }
+
+        // Large patterns stream block-by-block in 4k chunks so the scene is
+        // immediately visible and populates in real time.
+        if (snapshot.size() > STREAMING_THRESHOLD) {
+            scheduleStreamingBake(snapshot);
             return;
         }
 
@@ -953,6 +1020,160 @@ public final class PhantasiaWorldRenderer {
                     tes.add(pos);
             }
             backTileEntities = tes;
+        });
+    }
+
+    /**
+     * Streaming bake for patterns larger than {@link #STREAMING_THRESHOLD} blocks.
+     *
+     * <p>Splits {@code snapshot} into {@link #STREAMING_CHUNK_SIZE}-block batches.
+     * Each completed batch is uploaded into a fresh {@code VertexBuffer[]} set and
+     * added to {@link #streamChunks}, which {@link #drawVBOs()} draws every frame.
+     * The scene is immediately visible and the multiblock materializes in real time.
+     *
+     * <p>After all chunks finish, a normal consolidating full bake is dispatched so
+     * that the final state lives in {@code front[]} and all chunk VBOs are released.
+     */
+    private void scheduleStreamingBake(Set<BlockPos> snapshot) {
+        // Put empty geometry in front[] immediately so the viewport opens at once.
+        uploadEmptyBuffers(false);
+
+        // Reset streaming counters (render thread — safe to write here).
+        isStreaming = true;
+        streamingProgress = 0;
+        streamingTotal = snapshot.size();
+
+        // Drain any leftover chunks from a previous streaming bake.
+        // closeAndClearStreamChunks() touches VBO objects, so defer to render thread.
+        RenderSystem.recordRenderCall(this::closeAndClearStreamChunks);
+
+        List<BlockPos> ordered = new ArrayList<>(snapshot);
+
+        bakeFuture = BAKE_POOL.submit(() -> {
+            fullBakeStartNs = System.nanoTime();
+            lastBakeBlockCount = snapshot.size();
+
+            Minecraft mc = Minecraft.getInstance();
+            BlockRenderDispatcher brd = mc.getBlockRenderer();
+            RandomSource random = RandomSource.createNewThreadLocalInstance();
+
+            PhantasiaVariantState vs = PhantasiaVariantState.get();
+            Map<BlockPos, BlockInfo> variantSaved = applyVariants(vs, snapshot);
+            Map<BlockPos, BlockInfo> hiddenSaved = maskHiddenBlocks(snapshot);
+
+            Set<BlockPos> animatedBack = new HashSet<>();
+            Set<BlockPos> tesBack = new HashSet<>();
+
+            try {
+                int total = ordered.size();
+                int chunkStart = 0;
+
+                while (chunkStart < total) {
+                    if (Thread.interrupted()) return;
+
+                    int chunkEnd = Math.min(chunkStart + STREAMING_CHUNK_SIZE, total);
+                    List<BlockPos> chunk = ordered.subList(chunkStart, chunkEnd);
+
+                    ModelBlockRenderer.enableCaching();
+                    Map<RenderType, List<BlockPos>> solidBuckets = new HashMap<>(LAYER_COUNT);
+                    Map<RenderType, List<BlockPos>> fluidBuckets = new HashMap<>(LAYER_COUNT);
+                    bucket(brd, random, new HashSet<>(chunk), solidBuckets, fluidBuckets);
+
+                    BakedLayer[] baked = new BakedLayer[LAYER_COUNT];
+                    try {
+                        for (int i = 0; i < LAYER_COUNT; i++) {
+                            if (Thread.interrupted()) return;
+                            RenderType layer = LAYERS.get(i);
+                            List<BlockPos> solid = solidBuckets.getOrDefault(layer, List.of());
+                            List<BlockPos> fluid = fluidBuckets.getOrDefault(layer, List.of());
+                            if (solid.isEmpty() && fluid.isEmpty()) { baked[i] = null; continue; }
+                            baked[i] = bakeLayerToBuffer(brd, random, layer, solid, fluid, animatedBack);
+                        }
+                    } finally {
+                        ModelBlockRenderer.clearCache();
+                    }
+
+                    // Collect BEs for this chunk.
+                    for (BlockPos pos : chunk) {
+                        BlockEntity be = world.getBlockEntity(pos);
+                        if (be != null && mc.getBlockEntityRenderDispatcher().getRenderer(be) != null)
+                            tesBack.add(pos);
+                    }
+
+                    final BakedLayer[] bakedFinal = baked;
+                    final int chunkEndFinal = chunkEnd;
+
+                    // Upload this chunk's geometry to a fresh VBO set on the render thread.
+                    RenderSystem.recordRenderCall(() -> {
+                        VertexBuffer[] chunkVBOs = new VertexBuffer[LAYER_COUNT];
+                        for (int i = 0; i < LAYER_COUNT; i++) {
+                            chunkVBOs[i] = new VertexBuffer(VertexBuffer.Usage.STATIC);
+                            if (bakedFinal[i] != null) {
+                                uploadToVBO(chunkVBOs[i], bakedFinal[i]);
+                            } else {
+                                uploadEmptyVBO(chunkVBOs[i], LAYERS.get(i));
+                            }
+                        }
+                        streamChunks.add(chunkVBOs);
+                        streamChunksReady = streamChunks.size();
+                        streamingProgress = chunkEndFinal;
+                    });
+
+                    chunkStart = chunkEnd;
+                }
+
+                // All chunks uploaded. Kick off a consolidating full bake that will
+                // fold everything into back[] → front[] so chunk VBOs can be freed.
+                backAnimatedPositions = animatedBack;
+                backTileEntities = tesBack;
+
+            } finally {
+                restoreVariants(hiddenSaved);
+                restoreVariants(variantSaved);
+            }
+
+            // Consolidating bake: re-bake the entire snapshot into back[] normally.
+            // When swapFullBuffers() fires, it closes all stream chunks automatically.
+            ModelBlockRenderer.enableCaching();
+            PhantasiaVariantState vs2 = PhantasiaVariantState.get();
+            Map<BlockPos, BlockInfo> vs2saved = applyVariants(vs2, snapshot);
+            Map<BlockPos, BlockInfo> hidSaved2 = maskHiddenBlocks(snapshot);
+
+            Map<RenderType, List<BlockPos>> solidB = new HashMap<>(LAYER_COUNT);
+            Map<RenderType, List<BlockPos>> fluidB = new HashMap<>(LAYER_COUNT);
+            bucket(brd, random, snapshot, solidB, fluidB);
+
+            Set<BlockPos> animatedBack2 = new HashSet<>();
+            BakedLayer[] finalBaked = new BakedLayer[LAYER_COUNT];
+            try {
+                for (int i = 0; i < LAYER_COUNT; i++) {
+                    if (Thread.interrupted()) return;
+                    RenderType layer = LAYERS.get(i);
+                    List<BlockPos> solid = solidB.getOrDefault(layer, List.of());
+                    List<BlockPos> fluid = fluidB.getOrDefault(layer, List.of());
+                    if (solid.isEmpty() && fluid.isEmpty()) { finalBaked[i] = null; continue; }
+                    finalBaked[i] = bakeLayerToBuffer(brd, random, layer, solid, fluid, animatedBack2);
+                }
+            } finally {
+                ModelBlockRenderer.clearCache();
+                restoreVariants(hidSaved2);
+                restoreVariants(vs2saved);
+            }
+
+            pendingUploads.set(LAYER_COUNT);
+            for (int i = 0; i < LAYER_COUNT; i++) {
+                final int fi = i;
+                final BakedLayer bl = finalBaked[fi];
+                RenderSystem.recordRenderCall(() -> {
+                    if (bl != null) uploadToVBO(back[fi], bl);
+                    else uploadEmptyVBO(back[fi], LAYERS.get(fi));
+                    if (pendingUploads.decrementAndGet() == 0) {
+                        streamingProgress = streamingTotal;
+                        backReady = true;
+                    }
+                });
+            }
+            backAnimatedPositions = animatedBack2;
         });
     }
 
@@ -1195,6 +1416,19 @@ public final class PhantasiaWorldRenderer {
 
             vbo.bind();
             vbo.draw();
+
+            // Draw any completed streaming chunks on top of front[].
+            // streamChunksReady is written on the render thread inside recordRenderCall
+            // so reading it here (also render thread) is safe without volatile guards.
+            int readyChunks = streamChunksReady;
+            for (int c = 0; c < readyChunks && c < streamChunks.size(); c++) {
+                VertexBuffer[] chunkVBOs = streamChunks.get(c);
+                if (chunkVBOs != null && chunkVBOs[i] != null
+                        && !chunkVBOs[i].isInvalid() && chunkVBOs[i].getFormat() != null) {
+                    chunkVBOs[i].bind();
+                    chunkVBOs[i].draw();
+                }
+            }
 
             if ((overlayReady || hasLiveOverlay()) && isOverlayLayerReady(i)) {
                 overlay[i].bind();
@@ -1609,5 +1843,13 @@ public final class PhantasiaWorldRenderer {
             if (back[i] != null && !back[i].isInvalid()) back[i].close();
             if (overlay[i] != null && !overlay[i].isInvalid()) overlay[i].close();
         }
+        // Close any streaming chunk VBOs that are still alive.
+        for (VertexBuffer[] chunk : streamChunks) {
+            for (VertexBuffer vb : chunk) {
+                if (vb != null && !vb.isInvalid()) vb.close();
+            }
+        }
+        streamChunks.clear();
+        streamChunksReady = 0;
     }
 }

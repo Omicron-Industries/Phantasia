@@ -1,0 +1,78 @@
+[
+  {
+    "id": "phantasia:about_energy_hatch",
+    "name": "About: Energy Hatches",
+    "iconItem": "gtceu:mv_energy_hatch",
+    "hasPattern": false
+  },
+  {
+    "id": "phantasia:about_muffler_hatch",
+    "name": "About: Muffler Hatch",
+    "iconItem": "gtceu:muffler_hatch",
+    "hasPattern": false
+  },
+  {
+    "id": "phoenixcore:d",
+    "name": "d",
+    "iconItem": "minecraft:amethyst_shard",
+    "hasPattern": true,
+    "machines": [
+      "gtceu:mega_blast_furnace"
+    ]
+  },
+  {
+    "id": "phoenixcore:dan",
+    "name": "fdf",
+    "iconItem": "minecraft:chest",
+    "hasPattern": false
+  },
+  {
+    "id": "phantasia:ebf_coil_tiers",
+    "name": "EBF Coil Tiers",
+    "iconItem": "gtceu:cupronickel_coil_block",
+    "hasPattern": true,
+    "machines": [
+      "gtceu:electric_blast_furnace"
+    ]
+  },
+  {
+    "id": "phantasia:ebf_showcase",
+    "name": "Electric Blast Furnace",
+    "iconItem": "gtceu:electric_blast_furnace",
+    "hasPattern": true,
+    "machines": [
+      "gtceu:electric_blast_furnace"
+    ]
+  },
+  {
+    "id": "phantasia:ebf_tesla_showcase",
+    "name": "EBF + Tesla Tower: Full Showcase",
+    "iconItem": "gtceu:electric_blast_furnace",
+    "hasPattern": true,
+    "machines": [
+      "gtceu:electric_blast_furnace",
+      "gtceu:tesla_tower"
+    ]
+  },
+  {
+    "id": "phoenixcore:scene_tes",
+    "name": "fdsfdsf",
+    "iconItem": "minecraft:diamond",
+    "hasPattern": false
+  },
+  {
+    "id": "phoenixcore:test",
+    "name": "test",
+    "iconItem": "minecraft:chest",
+    "hasPattern": false
+  },
+  {
+    "id": "phantasia:wafer_chain",
+    "name": "Wafer Processing Chain",
+    "iconItem": "gtceu:silicon_wafer",
+    "hasPattern": true,
+    "machines": [
+      "gtceu:electric_blast_furnace"
+    ]
+  }
+]

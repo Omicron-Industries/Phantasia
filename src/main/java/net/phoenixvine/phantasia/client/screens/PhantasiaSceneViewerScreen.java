@@ -40,21 +40,12 @@ import java.util.*;
  * - Block name tooltip on hover (right-click opens block inspector).
  */
 @OnlyIn(Dist.CLIENT)
-public class PhantasiaSceneViewerScreen extends Screen {
+public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
 
     // ── Theme (mirrors SceneScreen) ───────────────────────────────────────────
-    private static final int C_BG = 0xFF080810;
-    private static final int C_BAR = 0xEE0A0A14;
-    private static final int C_ACCENT = 0xFF4FC3F7;
-    private static final int C_BTN = 0xBB151528;
-    private static final int C_BTN_HOV = 0xBB1A2840;
-    private static final int C_TEXT = 0xFFDDDDDD;
-    private static final int C_DIM = 0xFF667788;
     private static final int C_TL_BG = 0xDD0A0A14;
     private static final int C_PROG = 0xFF4FC3F7;
-    private static final int C_GREEN = 0xFF66BB6A;
 
-    private static final int TOP_BAR_H = 22;
     private static final int TIMELINE_H = 24;
 
     private static final float CAM_ORBIT = 0.45f;
@@ -86,14 +77,7 @@ public class PhantasiaSceneViewerScreen extends Screen {
     private BlockPos hoveredPos = null;
 
     // ── Button registry ───────────────────────────────────────────────────────
-    private record Btn(int x, int y, int w, int h, Runnable action) {
 
-        boolean hit(double mx, double my) {
-            return mx >= x && mx < x + w && my >= y && my < y + h;
-        }
-    }
-
-    private final List<Btn> btns = new ArrayList<>();
 
     // ─────────────────────────────────────────────────────────────────────────
     public PhantasiaSceneViewerScreen(Screen parent, PhantasiaSceneData data) {
@@ -101,6 +85,9 @@ public class PhantasiaSceneViewerScreen extends Screen {
         this.parent = parent;
         this.data = data;
     }
+
+    @Override
+    public void hideAllInputs() {}
 
     // ─────────────────────────────────────────────────────────────────────────
     // Init
@@ -552,9 +539,6 @@ public class PhantasiaSceneViewerScreen extends Screen {
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    private boolean isOver(int mx, int my, int x, int y, int w, int h) {
-        return mx >= x && mx < x + w && my >= y && my < y + h;
-    }
 
     private static String formatTicks(int t) {
         return String.format("%d.%02ds", t / 20, (t % 20) * 5);

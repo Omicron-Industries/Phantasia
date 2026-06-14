@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Phantasia Online — Viewer</title>
+  <link rel="stylesheet" href="css/style.css">
+
+  <!-- Three.js via importmap so ES modules work without a bundler -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.163.0/build/three.module.js"
+    }
+  }
+  </script>
+</head>
+<body>
+<div id="app">
+
+  <!-- ── Header ──────────────────────────────────────────────────────────── -->
+  <header id="viewer-header">
+    <a href="index.html" class="btn back-btn">← Back</a>
+    <span id="viewer-title">Loading…</span>
+    <span id="viewer-subtitle"></span>
+    <div class="header-spacer"></div>
+    <div class="header-btns">
+      <button id="btn-wireframe" title="Toggle wireframe">⬜</button>
+      <button id="btn-reset-cam" title="Reset camera">⌖</button>
+    </div>
+  </header>
+
+  <!-- ── Main body ───────────────────────────────────────────────────────── -->
+  <div id="viewer-body">
+
+    <!-- ── 3D Canvas area ─────────────────────────────────────────────── -->
+    <div id="canvas-area">
+      <canvas id="three-canvas"></canvas>
+
+      <!-- Caption -->
+      <div id="caption-strip" style="display:none">
+        <div style="width:100%">
+          <div id="caption-text"></div>
+          <div id="caption-description"></div>
+        </div>
+      </div>
+
+      <!-- Timeline -->
+      <div id="timeline">
+        <button id="tl-play" title="Play/Pause">⏸</button>
+        <div id="tl-track">
+          <div id="tl-rail">
+            <div id="tl-fill"></div>
+            <div id="tl-thumb"></div>
+          </div>
+        </div>
+        <span id="tl-time">0:00</span>
+        <button id="tl-speed" title="Playback speed">1×</button>
+      </div>
+
+      <!-- Loading overlay -->
+      <div id="loading-overlay">
+        <div class="spinner"></div>
+        <div id="loading-text">Loading…</div>
+        <div id="loading-sub"></div>
+      </div>
+
+      <!-- Block hover tooltip -->
+      <div id="block-tooltip" style="display:none"></div>
+
+      <!-- Error banner -->
+      <div id="error-banner" style="display:none"></div>
+    </div>
+
+    <!-- ── Side panel ─────────────────────────────────────────────────── -->
+    <aside id="side-panel">
+
+      <!-- Step info -->
+      <div class="panel-section">
+        <div class="panel-section-header">
+          Current Step
+          <span class="panel-section-toggle">▼</span>
+        </div>
+        <div class="panel-section-body">
+          <div id="step-caption"></div>
+          <div id="step-description" style="margin-top:4px"></div>
+          <div id="step-info" style="margin-top:6px"></div>
+        </div>
+      </div>
+
+      <!-- Shopping list -->
+      <div class="panel-section">
+        <div class="panel-section-header">
+          Materials
+          <span class="panel-section-toggle">▼</span>
+        </div>
+        <div class="panel-section-body" style="padding:0">
+          <div id="shopping-list" style="padding:8px 12px"></div>
+        </div>
+      </div>
+
+      <!-- Help -->
+      <div class="panel-section">
+        <div class="panel-section-header">
+          Controls
+          <span class="panel-section-toggle">▼</span>
+        </div>
+        <div class="panel-section-body" style="color:var(--dim);font-size:11px;line-height:1.8">
+          <div><b style="color:var(--text)">Left drag</b> — Orbit</div>
+          <div><b style="color:var(--text)">Right drag</b> — Pan</div>
+          <div><b style="color:var(--text)">Scroll</b> — Zoom</div>
+          <div><b style="color:var(--text)">▶ / ⏸</b> — Play / pause</div>
+          <div><b style="color:var(--text)">Click timeline</b> — Scrub</div>
+          <div style="margin-top:8px;color:var(--dim);font-size:10px">
+            Hover a block to see its ID.<br>
+            Missing textures? Run<br>
+            <code style="font-size:10px;color:var(--accent)">./gradlew extractWebTextures</code>
+          </div>
+        </div>
+      </div>
+
+    </aside>
+  </div>
+
+</div>
+
+<!-- Wireframe + camera reset wired up after viewer.js loads -->
+<script type="module">
+  import './js/viewer.js';
+
+  // These buttons need access to internals exposed on window by viewer.js
+  // viewer.js sets window.__phantasiaViewer for this purpose
+</script>
+</body>
+</html>

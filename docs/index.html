@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Phantasia Online</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    body { overflow: auto; }
+    #app { height: auto; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <header class="gallery-header">
+    <div class="gallery-logo">Phantasia <span>Online</span></div>
+    <input id="search" class="gallery-search" type="text" placeholder="Search scenes…" autocomplete="off">
+    <span id="scene-count" class="gallery-count"></span>
+  </header>
+
+  <main>
+    <div id="gallery" class="gallery-grid"></div>
+    <div id="no-data" class="no-data hidden" style="height:60vh">
+      <h2>No scenes found</h2>
+      <p>
+        Launch Minecraft with Phantasia, load a world, and run
+        <code>/phantasia webexport</code> in chat.
+        Then run <code>./gradlew extractWebTextures</code> to pull
+        block textures from the mod jars.
+      </p>
+    </div>
+  </main>
+</div>
+
+<script>
+(async () => {
+  const gallery = document.getElementById('gallery');
+  const search  = document.getElementById('search');
+  const noData  = document.getElementById('no-data');
+  const count   = document.getElementById('scene-count');
+
+  let scenes = [];
+
+  try {
+    const res = await fetch('data/manifest.json');
+    if (!res.ok) throw new Error('manifest not found');
+    scenes = await res.json();
+  } catch {
+    noData.classList.remove('hidden');
+    return;
+  }
+
+  if (!scenes.length) { noData.classList.remove('hidden'); return; }
+
+  function render(list) {
+    count.textContent = list.length + ' scene' + (list.length !== 1 ? 's' : '');
+    gallery.innerHTML = '';
+    list.forEach(s => {
+      const card = document.createElement('a');
+      card.className = 'scene-card';
+      card.href = `viewer.html?scene=${encodeURIComponent(s.id)}`;
+
+      const iconEl = buildIcon(s.iconItem);
+      const machines = (s.machines || []).slice(0, 3).map(m => {
+        const name = m.includes(':') ? m.split(':')[1] : m;
+        const el = document.createElement('span');
+        el.className = 'machine-tag truncate';
+        el.title = m;
+        el.textContent = name;
+        return el;
+      });
+
+      card.innerHTML = `
+        <div class="scene-card-icon">${iconEl}</div>
+        <div class="scene-card-body">
+          <div class="scene-card-name truncate">${esc(s.name)}</div>
+          <div class="scene-card-id truncate">${esc(s.id)}</div>
+          <div class="scene-card-machines"></div>
+        </div>`;
+
+      machines.forEach(m => card.querySelector('.scene-card-machines').appendChild(m));
+      gallery.appendChild(card);
+    });
+  }
+
+  function buildIcon(itemId) {
+    if (!itemId) return '📦';
+    const ns  = itemId.includes(':') ? itemId.split(':')[0] : 'minecraft';
+    const id  = itemId.includes(':') ? itemId.split(':')[1] : itemId;
+    const src = `assets/mc/assets/${ns}/textures/item/${id}.png`;
+    return `<img src="${src}" alt="${id}" onerror="this.style.display='none';this.nextSibling.style.display=''"><span style="display:none">📦</span>`;
+  }
+
+  function esc(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  search.addEventListener('input', () => {
+    const q = search.value.toLowerCase();
+    render(q ? scenes.filter(s =>
+      s.name.toLowerCase().includes(q) ||
+      s.id.toLowerCase().includes(q) ||
+      (s.machines || []).some(m => m.toLowerCase().includes(q))
+    ) : scenes);
+  });
+
+  render(scenes);
+})();
+</script>
+</body>
+</html>

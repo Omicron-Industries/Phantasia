@@ -36,7 +36,7 @@ import java.util.Locale;
  * - Script step count (green dot = has custom script / elements)
  */
 @OnlyIn(Dist.CLIENT)
-public class PhantasiaSceneSelectionScreen extends Screen {
+public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
 
     public static final List<MultiblockMachineDefinition> PHANTASIA_SCENES = new ArrayList<>();
 
@@ -54,16 +54,10 @@ public class PhantasiaSceneSelectionScreen extends Screen {
     private Tab activeTab = Tab.MULTIBLOCKS;
 
     // ── Colors ────────────────────────────────────────────────────────────────
-    private static final int C_BG = 0xFF080810;
     private static final int C_BG_BOT = 0xFF0B0B18;
-    private static final int C_ACCENT = 0xFF4FC3F7;
     private static final int C_CARD = 0xBB111128;
     private static final int C_CARD_HOV = 0xBB182040;
-    private static final int C_TEXT = 0xFFDDDDDD;
-    private static final int C_DIM = 0xFF667788;
     private static final int C_SCRIPT = 0xFF66BB6A;
-    private static final int C_BTN = 0xBB151530;
-    private static final int C_BTN_HOV = 0xBB1A2840;
 
     // ── Layout ────────────────────────────────────────────────────────────────
     private static final int CARD_W = 104;
@@ -84,6 +78,9 @@ public class PhantasiaSceneSelectionScreen extends Screen {
         super(Component.translatable("screen.phantasia.scene_selection.title"));
         this.parent = parent;
     }
+
+    @Override
+    public void hideAllInputs() {}
 
     @Override
     protected void init() {
@@ -187,7 +184,7 @@ public class PhantasiaSceneSelectionScreen extends Screen {
         g.fill(0, 0, this.width, HEADER_H, 0xCC0A0A14);
         g.fill(0, HEADER_H - 2, this.width, HEADER_H, C_ACCENT);
         g.drawCenteredString(font, "\u2736 Phantasia", this.width / 2, 8, C_ACCENT);
-        g.drawCenteredString(font, "Select a Multiblock or Scene to Explore", this.width / 2, 20, C_DIM);
+        g.drawCenteredString(font, Component.translatable("screen.phantasia.scene_selection.subtitle").getString(), this.width / 2, 20, C_DIM);
 
         // Tab row
         int tabY = 32;
@@ -217,7 +214,7 @@ public class PhantasiaSceneSelectionScreen extends Screen {
         hoveredCard = -1;
 
         if (filteredScenes.isEmpty()) {
-            g.drawCenteredString(font, "No matching machines found", this.width / 2, startY + 20, C_DIM);
+            g.drawCenteredString(font, Component.translatable("screen.phantasia.scene_selection.no_results").getString(), this.width / 2, startY + 20, C_DIM);
             return;
         }
 
@@ -288,7 +285,7 @@ public class PhantasiaSceneSelectionScreen extends Screen {
             String steps = script.getSteps().size() + " steps";
             g.drawString(font, steps, cx + 4, cy + CARD_H - 10, C_DIM, false);
         } else {
-            g.drawString(font, "No script", cx + 4, cy + CARD_H - 10, C_DIM, false);
+            g.drawString(font, Component.translatable("screen.phantasia.scene_selection.no_script").getString(), cx + 4, cy + CARD_H - 10, C_DIM, false);
         }
     }
 
@@ -336,7 +333,7 @@ public class PhantasiaSceneSelectionScreen extends Screen {
             g.fill(cx, cy + CARD_H - 1, cx + CARD_W, cy + CARD_H, C_ACCENT);
         }
         g.drawCenteredString(font, "+", cx + CARD_W / 2, cy + 28, hov ? C_ACCENT : C_DIM);
-        g.drawCenteredString(font, "New Scene", cx + CARD_W / 2, cy + CARD_H - 20, hov ? C_ACCENT : C_DIM);
+        g.drawCenteredString(font, Component.translatable("screen.phantasia.scene_selection.btn_new_scene").getString(), cx + CARD_W / 2, cy + CARD_H - 20, hov ? C_ACCENT : C_DIM);
     }
 
     private void renderSceneCard(GuiGraphics g, int mx, int my,
@@ -395,32 +392,29 @@ public class PhantasiaSceneSelectionScreen extends Screen {
         int btnY = cy + CARD_H - 12;
         int btnH = 11;
 
-        // "▶ View" button — always shown
-        int viewW = font.width("▶ View") + 6;
+        // Component.translatable("screen.phantasia.scene_selection.btn_view").getString() button — always shown
+        int viewW = font.width(Component.translatable("screen.phantasia.scene_selection.btn_view").getString()) + 6;
         int viewX = cx + 3;
         boolean viewHov = isOver(mx, my, viewX, btnY, viewW, btnH);
         g.fill(viewX, btnY, viewX + viewW, btnY + btnH,
                 viewHov ? C_BTN_HOV : (hov ? 0xBB111128 : 0x44111128));
         if (viewHov) g.fill(viewX, btnY, viewX + viewW, btnY + 1, C_ACCENT);
-        g.drawString(font, "▶ View", viewX + 3, btnY + 2,
+        g.drawString(font, Component.translatable("screen.phantasia.scene_selection.btn_view").getString(), viewX + 3, btnY + 2,
                 viewHov ? C_ACCENT : (hov ? C_TEXT : C_DIM), false);
 
         // "📖 Guide" button — only shown if there's guide content
         if (hasGuide) {
-            int guideW = font.width("Guide") + 6;
+            int guideW = font.width(Component.translatable("screen.phantasia.scene_selection.btn_read").getString()) + 6;
             int guideX = cx + CARD_W - 3 - guideW;
             boolean guideHov = isOver(mx, my, guideX, btnY, guideW, btnH);
             g.fill(guideX, btnY, guideX + guideW, btnY + btnH,
                     guideHov ? C_BTN_HOV : (hov ? 0xBB111128 : 0x44111128));
             if (guideHov) g.fill(guideX, btnY, guideX + guideW, btnY + 1, C_ACCENT);
-            g.drawString(font, "Guide", guideX + 3, btnY + 2,
+            g.drawString(font, Component.translatable("screen.phantasia.scene_selection.btn_read").getString(), guideX + 3, btnY + 2,
                     guideHov ? C_ACCENT : (hov ? C_TEXT : C_DIM), false);
         }
     }
 
-    private boolean isOver(int mx, int my, int x, int y, int w, int h) {
-        return mx >= x && mx < x + w && my >= y && my < y + h;
-    }
 
     // ── Guide cards (Guides tab) ───────────────────────────────────────────────
 
@@ -432,7 +426,7 @@ public class PhantasiaSceneSelectionScreen extends Screen {
 
         hoveredCard = -1;
 
-        // "New Guide" card always at index 0 in grid (maps to hoveredCard == -2)
+        // Component.translatable("screen.phantasia.scene_selection.btn_new_guide").getString() card always at index 0 in grid (maps to hoveredCard == -2)
         int newRow = 0 - scrollOffset;
         if (newRow >= 0 && newRow < maxRows) {
             int cx = startX;
@@ -442,13 +436,13 @@ public class PhantasiaSceneSelectionScreen extends Screen {
             g.fill(cx, cy, cx + CARD_W, cy + CARD_H, hov ? C_CARD_HOV : C_CARD);
             g.fill(cx, cy, cx + CARD_W, cy + 2, hov ? C_ACCENT : 0x334FC3F7);
             g.drawCenteredString(font, "+", cx + CARD_W / 2, cy + 24, hov ? C_ACCENT : C_DIM);
-            g.drawCenteredString(font, "New Guide", cx + CARD_W / 2, cy + CARD_H - 22,
+            g.drawCenteredString(font, Component.translatable("screen.phantasia.scene_selection.btn_new_guide").getString(), cx + CARD_W / 2, cy + CARD_H - 22,
                     hov ? C_ACCENT : C_DIM);
         }
 
         if (filteredGuides.isEmpty()) {
-            g.drawCenteredString(font, "No guides yet.", this.width / 2, startY + 30, C_DIM);
-            g.drawCenteredString(font, "Click \"+ New Guide\" to create one.",
+            g.drawCenteredString(font, Component.translatable("screen.phantasia.scene_selection.no_guides").getString(), this.width / 2, startY + 30, C_DIM);
+            g.drawCenteredString(font, Component.translatable("screen.phantasia.scene_selection.no_guides_hint").getString(),
                     this.width / 2, startY + 44, C_DIM);
         }
 
@@ -612,7 +606,7 @@ public class PhantasiaSceneSelectionScreen extends Screen {
             if (hoveredCard == -2) {
                 // New Guide — open editor with a blank guide
                 PhantasiaGuideData blank = PhantasiaGuideData.blank(
-                        "phantasia:new_guide_" + System.currentTimeMillis(), "New Guide", "minecraft:book");
+                        "phantasia:new_guide_" + System.currentTimeMillis(), Component.translatable("screen.phantasia.scene_selection.btn_new_guide").getString(), "minecraft:book");
                 Minecraft.getInstance().setScreen(new PhantasiaGuideEditorScreen(this, blank));
                 return true;
             }
@@ -663,14 +657,14 @@ public class PhantasiaSceneSelectionScreen extends Screen {
                 int btnY = cy + CARD_H - 12;
                 int btnH = 11;
 
-                // "Guide" button check
+                // Component.translatable("screen.phantasia.scene_selection.btn_read").getString() button check
                 boolean hasGuide = scene.steps != null && scene.steps.stream()
                         .anyMatch(s -> (s.caption != null && !s.caption.isBlank()) ||
                                 (s.description != null && !s.description.isBlank()) ||
                                 (s.showItems && scene.placements.stream()
                                         .anyMatch(p -> !p.items.isEmpty())));
                 if (hasGuide) {
-                    int guideW = font.width("Guide") + 6;
+                    int guideW = font.width(Component.translatable("screen.phantasia.scene_selection.btn_read").getString()) + 6;
                     int guideX = cx + CARD_W - 3 - guideW;
                     if (isOver((int) mx, (int) my, guideX, btnY, guideW, btnH)) {
                         Minecraft.getInstance().setScreen(new PhantasiaGuideScreen(this, scene));

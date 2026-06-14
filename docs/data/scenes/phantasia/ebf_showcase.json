@@ -1,0 +1,146 @@
+{
+  "id": "phantasia:ebf_showcase",
+  "iconItem": "gtceu:electric_blast_furnace",
+  "name": "Electric Blast Furnace",
+  "placements": [
+    {
+      "machine": "gtceu:electric_blast_furnace",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "items": [
+        {
+          "item": "gtceu:cupronickel_coil_block",
+          "count": 1,
+          "label": "Cupronickel Coils",
+          "description": "The minimum coil tier. Unlocks smelting up to 1800K. Required to form the EBF at all — click to see how coil tiers affect temperature.",
+          "microsceneId": "phantasia:ebf_coil_tiers",
+          "type": "catalyst",
+          "track": "pulse",
+          "trackDuration": 40
+        },
+        {
+          "item": "gtceu:silicon_wafer",
+          "count": 4,
+          "label": "Silicon Wafer",
+          "description": "Raw material fed into the EBF's input hatch. Slides in from the left to show item flow direction. Click to see the full wafer processing chain.",
+          "microsceneId": "phantasia:wafer_chain",
+          "type": "input",
+          "track": "left",
+          "trackDuration": 28
+        },
+        {
+          "item": "gtceu:wafer",
+          "count": 4,
+          "label": "Wafer",
+          "description": "Processed output collected from the output hatch. Used in processor circuits — the foundation of all LV through ZPM logic.",
+          "microsceneId": null,
+          "type": "output",
+          "track": "right",
+          "trackDuration": 28
+        },
+        {
+          "item": "gtceu:energy_hatch",
+          "count": 1,
+          "label": "Energy Hatch",
+          "description": "Accepts EU from your power network. At least one is required. Higher voltage hatches allow recipes to overclock — each voltage tier doubles recipe speed.",
+          "microsceneId": null,
+          "type": "input",
+          "track": "none",
+          "trackDuration": 20
+        }
+      ]
+    }
+  ],
+  "mistakes": [],
+  "steps": [
+    {
+      "tick": 0,
+      "caption": "The Electric Blast Furnace — your gateway to advanced materials.",
+      "description": null,
+      "show": "all",
+      "layer": 0,
+      "layerMin": 0,
+      "layerMax": 0,
+      "positions": [],
+      "hideLayer": -1,
+      "hidePositions": [],
+      "working": false,
+      "showItems": false,
+      "camera": {
+        "yaw": 30.0,
+        "pitch": -22.0,
+        "zoom": 5.0,
+        "lerpType": "SNAP",
+        "lerpTicks": 0
+      },
+      "machineOverrides": {}
+    },
+    {
+      "tick": 80,
+      "caption": "Build it layer by layer, starting with the base ring.",
+      "description": null,
+      "show": "layer",
+      "layer": 0,
+      "layerMin": 0,
+      "layerMax": 0,
+      "positions": [],
+      "hideLayer": -1,
+      "hidePositions": [],
+      "working": false,
+      "showItems": false,
+      "camera": {
+        "yaw": 30.0,
+        "pitch": -8.0,
+        "zoom": 3.8,
+        "lerpType": "EASE_OUT",
+        "lerpTicks": 20
+      },
+      "machineOverrides": {}
+    },
+    {
+      "tick": 160,
+      "caption": "The coil rings determine the maximum smelting temperature. Click the coil item to compare tiers.",
+      "description": null,
+      "show": "layer",
+      "layer": 0,
+      "layerMin": 0,
+      "layerMax": 2,
+      "positions": [],
+      "hideLayer": -1,
+      "hidePositions": [],
+      "working": false,
+      "showItems": true,
+      "camera": {
+        "yaw": 30.0,
+        "pitch": -22.0,
+        "zoom": 4.2,
+        "lerpType": "EASE_OUT",
+        "lerpTicks": 18
+      },
+      "machineOverrides": {}
+    },
+    {
+      "tick": 260,
+      "caption": "Structure complete. Now watch it process silicon wafers — items animate to show input and output flow.",
+      "description": null,
+      "show": "all",
+      "layer": 0,
+      "layerMin": 0,
+      "layerMax": 0,
+      "positions": [],
+      "hideLayer": -1,
+      "hidePositions": [],
+      "working": true,
+      "showItems": true,
+      "camera": {
+        "yaw": 55.0,
+        "pitch": -18.0,
+        "zoom": 4.0,
+        "lerpType": "EASE_IN_OUT",
+        "lerpTicks": 25
+      },
+      "machineOverrides": {}
+    }
+  ]
+}

@@ -3,10 +3,10 @@ package net.phoenixvine.phantasia.client.screens.editors;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
-import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
+import net.phoenixvine.phantasia.client.screens.PhantasiaScreen;
 import net.phoenixvine.phantasia.common.data.scene.PhantasiaSceneData;
 
 import org.lwjgl.glfw.GLFW;
@@ -42,7 +42,7 @@ import java.util.List;
  * List<Integer> placements (placement indices this mistake targets)
  */
 @OnlyIn(Dist.CLIENT)
-public class PhantasiaSceneMistakesEditorScreen extends PhantasiaEditorScreen {
+public class PhantasiaSceneMistakesEditorScreen extends PhantasiaScreen {
 
     // ── Theme ─────────────────────────────────────────────────────────────────
 
@@ -79,7 +79,7 @@ public class PhantasiaSceneMistakesEditorScreen extends PhantasiaEditorScreen {
 
     public PhantasiaSceneMistakesEditorScreen(PhantasiaSceneEditorScreen parent,
                                               PhantasiaSceneData data) {
-        super(Component.literal("Layout Mistakes"));
+        super(Component.translatable("screen.phantasia.scene_mistakes_editor.title"));
         this.parent = parent;
         this.data = data;
         // Ensure the list exists on the data object
@@ -87,7 +87,7 @@ public class PhantasiaSceneMistakesEditorScreen extends PhantasiaEditorScreen {
     }
 
     @Override
-    protected void hideAllInputs() {}
+    public void hideAllInputs() {}
 
     // ─────────────────────────────────────────────────────────────────────────
     // Init
@@ -99,16 +99,16 @@ public class PhantasiaSceneMistakesEditorScreen extends PhantasiaEditorScreen {
 
         editIdBox = addW(new EditBox(font, 0, 0, 160, 12, Component.empty()));
         editIdBox.setMaxLength(64);
-        editIdBox.setHint(Component.literal("mistake_id"));
+        editIdBox.setHint(Component.translatable("screen.phantasia.scene_mistakes_editor.hint_id"));
         editIdBox.setFilter(s -> s.matches("[\\w_]*"));
 
         editDescBox = addW(new EditBox(font, 0, 0, 260, 12, Component.empty()));
         editDescBox.setMaxLength(256);
-        editDescBox.setHint(Component.literal("Describe the mistake..."));
+        editDescBox.setHint(Component.translatable("screen.phantasia.scene_mistakes_editor.hint_desc"));
 
         editPlacementsBox = addW(new EditBox(font, 0, 0, 120, 12, Component.empty()));
         editPlacementsBox.setMaxLength(64);
-        editPlacementsBox.setHint(Component.literal("0, 1, 2..."));
+        editPlacementsBox.setHint(Component.translatable("screen.phantasia.scene_mistakes_editor.hint_placements"));
         editPlacementsBox.setFilter(s -> s.matches("[\\d,\\s]*"));
 
         hideAll();
@@ -165,7 +165,7 @@ public class PhantasiaSceneMistakesEditorScreen extends PhantasiaEditorScreen {
         }
 
         if (data.mistakes.isEmpty()) {
-            g.drawCenteredString(font, "No layout mistakes defined yet.", width / 2, cy + 8, C_DIM);
+            g.drawCenteredString(font, Component.translatable("screen.phantasia.scene_mistakes_editor.empty").getString(), width / 2, cy + 8, C_DIM);
             cy += 22;
         }
 
@@ -175,12 +175,12 @@ public class PhantasiaSceneMistakesEditorScreen extends PhantasiaEditorScreen {
         cy += 8;
 
         // ── Add-new form ──────────────────────────────────────────────────────
-        g.drawString(font, "+ New Mistake", px + 4, cy, C_ACCENT, false);
+        g.drawString(font, Component.translatable("screen.phantasia.scene_mistakes_editor.btn_new").getString(), px + 4, cy, C_ACCENT, false);
         cy += 12;
 
         // Severity selector
-        g.drawString(font, "Severity:", px + 4, cy + 2, C_DIM, false);
-        int sbx = px + 4 + font.width("Severity:") + 4;
+        g.drawString(font, Component.translatable("screen.phantasia.scene_mistakes_editor.label_severity").getString(), px + 4, cy + 2, C_DIM, false);
+        int sbx = px + 4 + font.width(Component.translatable("screen.phantasia.scene_mistakes_editor.label_severity").getString()) + 4;
         for (int si = 0; si < SEVERITIES.length; si++) {
             String sv = SEVERITIES[si];
             String svl = SEVERITY_LABELS[si];
@@ -198,18 +198,18 @@ public class PhantasiaSceneMistakesEditorScreen extends PhantasiaEditorScreen {
         cy += 16;
 
         // ID field
-        g.drawString(font, "ID:", px + 4, cy + 2, C_DIM, false);
-        place(editIdBox, px + 4 + font.width("ID:") + 4, cy, 160, 12);
+        g.drawString(font, Component.translatable("screen.phantasia.scene_mistakes_editor.label_id").getString(), px + 4, cy + 2, C_DIM, false);
+        place(editIdBox, px + 4 + font.width(Component.translatable("screen.phantasia.scene_mistakes_editor.label_id").getString()) + 4, cy, 160, 12);
         cy += 16;
 
         // Description field
-        g.drawString(font, "Desc:", px + 4, cy + 2, C_DIM, false);
-        place(editDescBox, px + 4 + font.width("Desc:") + 4, cy, pw - 12 - font.width("Desc:"), 12);
+        g.drawString(font, Component.translatable("screen.phantasia.scene_mistakes_editor.label_desc").getString(), px + 4, cy + 2, C_DIM, false);
+        place(editDescBox, px + 4 + font.width(Component.translatable("screen.phantasia.scene_mistakes_editor.label_desc").getString()) + 4, cy, pw - 12 - font.width(Component.translatable("screen.phantasia.scene_mistakes_editor.label_desc").getString()), 12);
         cy += 16;
 
         // Placements field
-        g.drawString(font, "Placements:", px + 4, cy + 2, C_DIM, false);
-        int plLblW = font.width("Placements:") + 4;
+        g.drawString(font, Component.translatable("screen.phantasia.scene_mistakes_editor.label_placements").getString(), px + 4, cy + 2, C_DIM, false);
+        int plLblW = font.width(Component.translatable("screen.phantasia.scene_mistakes_editor.label_placements").getString()) + 4;
         place(editPlacementsBox, px + 4 + plLblW, cy, 120, 12);
 
         // Placement index reference
@@ -337,18 +337,18 @@ public class PhantasiaSceneMistakesEditorScreen extends PhantasiaEditorScreen {
         cy += 16;
 
         // ID field
-        g.drawString(font, "ID:", px + 8, cy + 2, C_DIM, false);
-        place(editIdBox, px + 8 + font.width("ID:") + 4, cy, 160, 12);
+        g.drawString(font, Component.translatable("screen.phantasia.scene_mistakes_editor.label_id").getString(), px + 8, cy + 2, C_DIM, false);
+        place(editIdBox, px + 8 + font.width(Component.translatable("screen.phantasia.scene_mistakes_editor.label_id").getString()) + 4, cy, 160, 12);
         cy += 16;
 
         // Description field
-        g.drawString(font, "Desc:", px + 8, cy + 2, C_DIM, false);
-        place(editDescBox, px + 8 + font.width("Desc:") + 4, cy, pw - 20 - font.width("Desc:"), 12);
+        g.drawString(font, Component.translatable("screen.phantasia.scene_mistakes_editor.label_desc").getString(), px + 8, cy + 2, C_DIM, false);
+        place(editDescBox, px + 8 + font.width(Component.translatable("screen.phantasia.scene_mistakes_editor.label_desc").getString()) + 4, cy, pw - 20 - font.width(Component.translatable("screen.phantasia.scene_mistakes_editor.label_desc").getString()), 12);
         cy += 16;
 
         // Placements
-        g.drawString(font, "Placements:", px + 8, cy + 2, C_DIM, false);
-        place(editPlacementsBox, px + 8 + font.width("Placements:") + 4, cy, 120, 12);
+        g.drawString(font, Component.translatable("screen.phantasia.scene_mistakes_editor.label_placements").getString(), px + 8, cy + 2, C_DIM, false);
+        place(editPlacementsBox, px + 8 + font.width(Component.translatable("screen.phantasia.scene_mistakes_editor.label_placements").getString()) + 4, cy, 120, 12);
         cy += 16;
 
         // Apply button
@@ -384,12 +384,12 @@ public class PhantasiaSceneMistakesEditorScreen extends PhantasiaEditorScreen {
         String pls = editPlacementsBox.getValue().trim();
 
         if (id.isEmpty()) {
-            addError = "ID cannot be blank.";
+            addError = Component.translatable("screen.phantasia.scene_mistakes_editor.err_blank_id").getString();
             return;
         }
         for (PhantasiaSceneData.SceneMistakeData m : data.mistakes) {
             if (id.equals(m.id)) {
-                addError = "ID already used: " + id;
+                addError = Component.translatable("screen.phantasia.scene_mistakes_editor.err_duplicate_id").getString() + ": " + id;
                 return;
             }
         }

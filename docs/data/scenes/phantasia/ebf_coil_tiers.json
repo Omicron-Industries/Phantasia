@@ -1,0 +1,102 @@
+{
+  "id": "phantasia:ebf_coil_tiers",
+  "iconItem": "gtceu:cupronickel_coil_block",
+  "name": "EBF Coil Tiers",
+  "placements": [
+    {
+      "machine": "gtceu:electric_blast_furnace",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "items": [
+        {
+          "item": "gtceu:cupronickel_coil_block",
+          "count": 1,
+          "label": "Cupronickel — 1800K",
+          "description": "Tier 1. Minimum required to form. Covers steel, aluminium, and silicon processing.",
+          "microsceneId": null,
+          "type": "catalyst",
+          "track": "none",
+          "trackDuration": 20
+        },
+        {
+          "item": "gtceu:kanthal_coil_block",
+          "count": 1,
+          "label": "Kanthal — 2700K",
+          "description": "Tier 2. Unlocks titanium, chrome, and HSS alloys. A major upgrade milestone.",
+          "microsceneId": null,
+          "type": "catalyst",
+          "track": "pulse",
+          "trackDuration": 32
+        },
+        {
+          "item": "gtceu:nichrome_coil_block",
+          "count": 1,
+          "label": "Nichrome — 3600K",
+          "description": "Tier 3. Required for tungstensteel and iridium. Needed to progress into HV machines.",
+          "microsceneId": null,
+          "type": "catalyst",
+          "track": "none",
+          "trackDuration": 20
+        },
+        {
+          "item": "gtceu:tungstensteel_coil_block",
+          "count": 1,
+          "label": "Tungstensteel — 4500K",
+          "description": "Tier 4. Naquadah and most exotic late-game materials require this or higher.",
+          "microsceneId": null,
+          "type": "catalyst",
+          "track": "none",
+          "trackDuration": 20
+        }
+      ]
+    }
+  ],
+  "mistakes": [],
+  "steps": [
+    {
+      "tick": 0,
+      "caption": "Coil tier sets the maximum recipe temperature. Higher tier = more recipes unlocked.",
+      "description": null,
+      "show": "all",
+      "layer": 0,
+      "layerMin": 0,
+      "layerMax": 0,
+      "positions": [],
+      "hideLayer": -1,
+      "hidePositions": [],
+      "working": false,
+      "showItems": true,
+      "camera": {
+        "yaw": 25.0,
+        "pitch": -22.0,
+        "zoom": 4.8,
+        "lerpType": "SNAP",
+        "lerpTicks": 0
+      },
+      "machineOverrides": {}
+    },
+    {
+      "tick": 100,
+      "caption": "Coils occupy layers 1 and 2 only. Swap them out any time — no rebuild needed.",
+      "description": null,
+      "show": "layer",
+      "layer": 0,
+      "layerMin": 1,
+      "layerMax": 2,
+      "positions": [],
+      "hideLayer": -1,
+      "hidePositions": [],
+      "working": false,
+      "showItems": true,
+      "camera": {
+        "yaw": 25.0,
+        "pitch": -10.0,
+        "zoom": 3.4,
+        "lerpType": "EASE_OUT",
+        "lerpTicks": 20
+      },
+      "machineOverrides": {}
+    }
+  ]
+}

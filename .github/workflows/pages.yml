@@ -1,0 +1,59 @@
+name: Deploy Phantasia Online (GitHub Pages)
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "docs/**"
+      - "build.gradle"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages:    write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      # Pull block textures + models from the mod jars.
+      # This does NOT run the game — it only unpacks jar assets.
+      - name: Extract web textures
+        run: ./gradlew extractWebTextures
+        env:
+          # Skip Forge's minecraft download in CI (we only need mod jars for assets)
+          JAVA_TOOL_OPTIONS: "-Xmx2g"
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

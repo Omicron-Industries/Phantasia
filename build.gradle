@@ -196,3 +196,56 @@ tasks.withType(JavaCompile).configureEach {
     options.release.set(17)
     options.compilerArgs << "-Aquiet=true"
 }
+
+// ── Phantasia Web Export ──────────────────────────────────────────────────────
+// Extracts block textures, models, and blockstate JSONs from GTCEu + vanilla MC
+// jars into docs/assets/mc/ so the GitHub Pages viewer can resolve block models.
+//
+// Run with:  ./gradlew extractWebTextures
+// Output:    docs/assets/mc/assets/<namespace>/{blockstates,models,textures}/...
+// ─────────────────────────────────────────────────────────────────────────────
+tasks.register('extractWebTextures') {
+    group = 'phantasia web'
+    description = 'Extracts block textures/models/blockstates from mod jars to docs/assets/mc/'
+
+    dependsOn configurations.runtimeClasspath
+
+    doLast {
+        def outputDir = file("docs/assets/mc")
+        outputDir.mkdirs()
+
+        def namespaces = ['gtceu', 'ldlib', 'minecraft', 'forge']
+
+        def includes = namespaces.collectMany { ns -> [
+            "assets/${ns}/blockstates/**",
+            "assets/${ns}/models/block/**",
+            "assets/${ns}/models/item/**",
+            "assets/${ns}/textures/block/**",
+            "assets/${ns}/textures/item/**",
+            "assets/${ns}/textures/gui/darkened/**",
+        ]}
+
+        int jarCount = 0
+        configurations.runtimeClasspath.resolvedConfiguration.resolvedArtifacts.each { artifact ->
+            def file = artifact.file
+            if (!file.name.endsWith('.jar')) return
+
+            try {
+                def tree = zipTree(file)
+                def matchedFiles = tree.matching { include includes }
+                if (!matchedFiles.empty) {
+                    copy {
+                        from matchedFiles
+                        into outputDir
+                    }
+                    jarCount++
+                    logger.lifecycle("[extractWebTextures] Extracted assets from: ${file.name}")
+                }
+            } catch (Exception e) {
+                logger.warn("[extractWebTextures] Skipped ${file.name}: ${e.message}")
+            }
+        }
+
+        logger.lifecycle("[extractWebTextures] Done! Processed ${jarCount} jars → ${outputDir}")
+    }
+}

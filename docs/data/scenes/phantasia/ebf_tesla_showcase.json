@@ -1,0 +1,243 @@
+{
+  "id": "phantasia:ebf_tesla_showcase",
+  "iconItem": "gtceu:electric_blast_furnace",
+  "name": "EBF + Tesla Tower: Full Showcase",
+  "placements": [
+    {
+      "machine": "gtceu:electric_blast_furnace",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "items": [
+        {
+          "item": "gtceu:cupronickel_coil_block",
+          "count": 1,
+          "label": "Coils",
+          "description": null,
+          "microsceneId": null,
+          "type": "input",
+          "track": "none",
+          "trackDuration": 20
+        },
+        {
+          "item": "gtceu:kanthal_coil_block",
+          "count": 1,
+          "label": "Better Coils",
+          "description": null,
+          "microsceneId": null,
+          "type": "catalyst",
+          "track": "pulse",
+          "trackDuration": 30
+        },
+        {
+          "item": "gtceu:silicon_wafer",
+          "count": 4,
+          "label": "Input",
+          "description": null,
+          "microsceneId": null,
+          "type": "input",
+          "track": "left",
+          "trackDuration": 25
+        },
+        {
+          "item": "gtceu:wafer",
+          "count": 4,
+          "label": "Output",
+          "description": null,
+          "microsceneId": null,
+          "type": "output",
+          "track": "right",
+          "trackDuration": 25
+        }
+      ]
+    },
+    {
+      "machine": "gtceu:tesla_tower",
+      "x": 6,
+      "y": 0,
+      "z": 2,
+      "items": [
+        {
+          "item": "gtceu:lapotronic_energy_orb",
+          "count": 1,
+          "label": "Charge",
+          "description": null,
+          "microsceneId": null,
+          "type": "input",
+          "track": "up",
+          "trackDuration": 40
+        }
+      ]
+    }
+  ],
+  "mistakes": [],
+  "steps": [
+    {
+      "tick": 0,
+      "caption": "This is the Electric Blast Furnace (EBF). It smelts metals at extreme temperatures.",
+      "description": null,
+      "show": "all",
+      "layer": 0,
+      "layerMin": 0,
+      "layerMax": 0,
+      "positions": [],
+      "hideLayer": -1,
+      "hidePositions": [],
+      "working": false,
+      "showItems": false,
+      "camera": {
+        "yaw": 35.0,
+        "pitch": -20.0,
+        "zoom": 4.5,
+        "lerpType": "SNAP",
+        "lerpTicks": 0
+      },
+      "machineOverrides": {}
+    },
+    {
+      "tick": 60,
+      "caption": "The EBF is built layer by layer. Start with the base ring.",
+      "description": null,
+      "show": "layer",
+      "layer": 0,
+      "layerMin": 0,
+      "layerMax": 0,
+      "positions": [],
+      "hideLayer": -1,
+      "hidePositions": [],
+      "working": false,
+      "showItems": false,
+      "camera": {
+        "yaw": 35.0,
+        "pitch": -5.0,
+        "zoom": 3.5,
+        "lerpType": "EASE_OUT",
+        "lerpTicks": 20
+      },
+      "machineOverrides": {}
+    },
+    {
+      "tick": 120,
+      "caption": "Add the coil rings in layers 1 and 2. Higher-tier coils unlock higher smelting temperatures.",
+      "description": null,
+      "show": "layer",
+      "layer": 0,
+      "layerMin": 0,
+      "layerMax": 2,
+      "positions": [],
+      "hideLayer": -1,
+      "hidePositions": [],
+      "working": false,
+      "showItems": true,
+      "camera": {
+        "yaw": 35.0,
+        "pitch": -20.0,
+        "zoom": 3.8,
+        "lerpType": "EASE_OUT",
+        "lerpTicks": 20
+      },
+      "machineOverrides": {}
+    },
+    {
+      "tick": 200,
+      "caption": "Cap it off with the top ring and the muffler hatch. The full structure is now complete.",
+      "description": null,
+      "show": "all",
+      "layer": 0,
+      "layerMin": 0,
+      "layerMax": 0,
+      "positions": [],
+      "hideLayer": -1,
+      "hidePositions": [],
+      "working": false,
+      "showItems": false,
+      "camera": {
+        "yaw": 35.0,
+        "pitch": -25.0,
+        "zoom": 4.5,
+        "lerpType": "EASE_OUT",
+        "lerpTicks": 15
+      },
+      "machineOverrides": {}
+    },
+    {
+      "tick": 280,
+      "caption": "Now power it up! Feed silicon wafers into the input hatch — they travel in from the left.",
+      "description": null,
+      "show": "all",
+      "layer": 0,
+      "layerMin": 0,
+      "layerMax": 0,
+      "positions": [],
+      "hideLayer": -1,
+      "hidePositions": [],
+      "working": true,
+      "showItems": true,
+      "camera": {
+        "yaw": 55.0,
+        "pitch": -15.0,
+        "zoom": 3.5,
+        "lerpType": "EASE_IN_OUT",
+        "lerpTicks": 25
+      },
+      "machineOverrides": {}
+    },
+    {
+      "tick": 360,
+      "caption": "The Tesla Tower nearby wirelessly charges the EBF. It needs a Lapotronic Orb to operate.",
+      "description": null,
+      "show": "all",
+      "layer": 0,
+      "layerMin": 0,
+      "layerMax": 0,
+      "positions": [],
+      "hideLayer": -1,
+      "hidePositions": [],
+      "working": true,
+      "showItems": true,
+      "camera": {
+        "yaw": -15.0,
+        "pitch": -20.0,
+        "zoom": 5.0,
+        "lerpType": "EASE_IN_OUT",
+        "lerpTicks": 30
+      },
+      "machineOverrides": {
+        "1": {
+          "show": "all",
+          "layer": 0,
+          "layerMin": 0,
+          "layerMax": 0,
+          "positions": [],
+          "hideLayer": -1,
+          "hidePositions": [],
+          "fakeRecipeId": null,
+          "particleEffects": [],
+          "machineWorking": null
+        }
+      }
+    },
+    {
+      "tick": 460,
+      "caption": "Processed wafers emerge from the output hatch. Upgrade your coils for faster, hotter recipes.",
+      "description": null,
+      "show": "all",
+      "layer": 0,
+      "layerMin": 0,
+      "layerMax": 0,
+      "positions": [],
+      "hideLayer": -1,
+      "hidePositions": [],
+      "working": true,
+      "showItems": true,
+      "camera": {
+        "yaw": 35.0,
+        "pitch": -20.0,
+        "zoom": 4.0,
+        "lerpType": "EASE_OUT",
+        "lerpTicks": 20
+      },
+      "machineOverrides": {}
+    }
+  ]
+}

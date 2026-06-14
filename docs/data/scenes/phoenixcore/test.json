@@ -1,0 +1,25 @@
+{
+  "id": "phoenixcore:test",
+  "iconItem": "minecraft:chest",
+  "name": "test",
+  "placements": [],
+  "mistakes": [],
+  "steps": [
+    {
+      "tick": 0,
+      "caption": null,
+      "description": null,
+      "show": "all",
+      "layer": 0,
+      "layerMin": 0,
+      "layerMax": 0,
+      "positions": [],
+      "hideLayer": -1,
+      "hidePositions": [],
+      "working": false,
+      "showItems": true,
+      "camera": null,
+      "machineOverrides": {}
+    }
+  ]
+}

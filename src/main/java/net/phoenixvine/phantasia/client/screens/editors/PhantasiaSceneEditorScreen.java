@@ -15,6 +15,7 @@ import net.phoenixvine.phantasia.client.camera.PhantasiaCamera;
 import net.phoenixvine.phantasia.client.render.PhantasiaTrackedDummyWorld;
 import net.phoenixvine.phantasia.client.render.PhantasiaWorldRenderer;
 import net.phoenixvine.phantasia.client.screens.PhantasiaItemMicrosceneScreen;
+import net.phoenixvine.phantasia.client.screens.PhantasiaScreen;
 import net.phoenixvine.phantasia.common.data.pattern.PhantasiaScenePattern;
 import net.phoenixvine.phantasia.common.data.scene.PhantasiaSceneData;
 import net.phoenixvine.phantasia.common.data.scene.PhantasiaSceneLoader;
@@ -34,7 +35,7 @@ import java.util.*;
  * operates on {@link PhantasiaSceneData} instead of per-machine script data.
  *
  * Key differences from the machine editor:
- * - A "Placements" side panel (toggle with ⊞ button in top bar) for adding,
+ * - A Component.translatable("screen.phantasia.scene_editor.section_placements").getString() side panel (toggle with ⊞ button in top bar) for adding,
  * removing, and repositioning machine placements.
  * - Per-placement visibility overrides in the step row, shown when a placement
  * is selected in the placements panel.
@@ -43,7 +44,7 @@ import java.util.*;
  * - World is rebuilt when placements change.
  */
 @OnlyIn(Dist.CLIENT)
-public class PhantasiaSceneEditorScreen extends PhantasiaEditorScreen {
+public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
 
     private static final int STEP_ROW_H = 50;
     private static final int TIMELINE_H = 22;
@@ -134,7 +135,7 @@ public class PhantasiaSceneEditorScreen extends PhantasiaEditorScreen {
     // ─────────────────────────────────────────────────────────────────────────
 
     public PhantasiaSceneEditorScreen(Screen parent, PhantasiaSceneData original) {
-        super(Component.literal("Scene Editor"));
+        super(Component.translatable("screen.phantasia.scene_editor.title"));
         this.parent = parent;
         this.data = original.copy();
         ensureOneStep();
@@ -220,7 +221,7 @@ public class PhantasiaSceneEditorScreen extends PhantasiaEditorScreen {
 
         captionBox = addW(new EditBox(font, 0, 0, 200, 12, Component.empty()));
         captionBox.setMaxLength(256);
-        captionBox.setHint(Component.literal("Caption for this step..."));
+        captionBox.setHint(Component.translatable("screen.phantasia.scene_editor.hint_caption"));
         captionBox.setResponder(v -> {
             step().caption = v.isBlank() ? null : v;
             dirty = true;
@@ -228,7 +229,7 @@ public class PhantasiaSceneEditorScreen extends PhantasiaEditorScreen {
 
         descriptionBox = addW(new EditBox(font, 0, 0, 200, 12, Component.empty()));
         descriptionBox.setMaxLength(2048);
-        descriptionBox.setHint(Component.literal("Guide description (shown in Guide view)..."));
+        descriptionBox.setHint(Component.translatable("screen.phantasia.scene_editor.hint_desc"));
         descriptionBox.setResponder(v -> {
             step().description = v.isBlank() ? null : v;
             dirty = true;
@@ -247,7 +248,7 @@ public class PhantasiaSceneEditorScreen extends PhantasiaEditorScreen {
         lerpTicksBox = addW(new EditBox(font, 0, 0, 34, 12, Component.empty()));
         lerpTicksBox.setMaxLength(4);
         lerpTicksBox.setFilter(s -> s.matches("\\d*"));
-        lerpTicksBox.setHint(Component.literal("20"));
+        lerpTicksBox.setHint(Component.translatable("screen.phantasia.scene_editor.hint_lerp_ticks"));
         lerpTicksBox.setResponder(v -> {
             PhantasiaSceneData.StepData s = step();
             if (s.camera == null) return;
@@ -262,7 +263,7 @@ public class PhantasiaSceneEditorScreen extends PhantasiaEditorScreen {
         camZoomBox = addW(new EditBox(font, 0, 0, 40, 12, Component.empty()));
         camZoomBox.setMaxLength(7);
         camZoomBox.setFilter(s -> s.matches("-?\\d*\\.?\\d*"));
-        camZoomBox.setHint(Component.literal("auto"));
+        camZoomBox.setHint(Component.translatable("screen.phantasia.scene_editor.hint_zoom"));
         camZoomBox.setResponder(v -> {
             PhantasiaSceneData.StepData s = step();
             if (s.camera == null) return;
@@ -278,7 +279,7 @@ public class PhantasiaSceneEditorScreen extends PhantasiaEditorScreen {
         ovLayerBox = addW(new EditBox(font, 0, 0, 28, 12, Component.empty()));
         ovLayerBox.setMaxLength(4);
         ovLayerBox.setFilter(s -> s.matches("-?\\d*"));
-        ovLayerBox.setHint(Component.literal("0"));
+        ovLayerBox.setHint(Component.translatable("ui.phantasia.raw_value", 0));
         ovLayerBox.setResponder(v -> {
             PhantasiaSceneData.MachineOverride ov = ensureOverride();
             if (ov == null) return;
@@ -290,7 +291,7 @@ public class PhantasiaSceneEditorScreen extends PhantasiaEditorScreen {
 
         ovHidePosBox = addW(new EditBox(font, 0, 0, 120, 12, Component.empty()));
         ovHidePosBox.setMaxLength(512);
-        ovHidePosBox.setHint(Component.literal("x,y,z; ..."));
+        ovHidePosBox.setHint(Component.translatable("screen.phantasia.scene_editor.hint_hidepos"));
         ovHidePosBox.setResponder(v -> {
             PhantasiaSceneData.MachineOverride ov = ensureOverride();
             if (ov == null) return;
@@ -300,7 +301,7 @@ public class PhantasiaSceneEditorScreen extends PhantasiaEditorScreen {
 
         ovFakeRecipeBox = addW(new EditBox(font, 0, 0, 140, 12, Component.empty()));
         ovFakeRecipeBox.setMaxLength(128);
-        ovFakeRecipeBox.setHint(Component.literal("namespace:recipe_id"));
+        ovFakeRecipeBox.setHint(Component.translatable("screen.phantasia.scene_editor.hint_recipe"));
         ovFakeRecipeBox.setResponder(v -> {
             PhantasiaSceneData.MachineOverride ov = ensureOverride();
             if (ov == null) return;
@@ -310,7 +311,7 @@ public class PhantasiaSceneEditorScreen extends PhantasiaEditorScreen {
 
         ovParticleBox = addW(new EditBox(font, 0, 0, 140, 12, Component.empty()));
         ovParticleBox.setMaxLength(512);
-        ovParticleBox.setHint(Component.literal("minecraft:flame; ..."));
+        ovParticleBox.setHint(Component.translatable("screen.phantasia.scene_editor.hint_particles"));
         ovParticleBox.setResponder(v -> {
             PhantasiaSceneData.MachineOverride ov = ensureOverride();
             if (ov == null) return;
@@ -325,7 +326,7 @@ public class PhantasiaSceneEditorScreen extends PhantasiaEditorScreen {
         // Add-placement inputs
         newMachineIdBox = addW(new EditBox(font, 0, 0, 160, 12, Component.empty()));
         newMachineIdBox.setMaxLength(128);
-        newMachineIdBox.setHint(Component.literal("gtceu:electric_blast_furnace"));
+        newMachineIdBox.setHint(Component.translatable("screen.phantasia.scene_editor.hint_machine_id"));
 
         newOffsetXBox = makeSmallIntBox("0");
         newOffsetYBox = makeSmallIntBox("0");
@@ -554,7 +555,7 @@ public class PhantasiaSceneEditorScreen extends PhantasiaEditorScreen {
                 g.drawString(font, info, x, r1Y + 3, C_DIM, false);
             }
         } else {
-            g.drawString(font, "No camera override on this step \u2014 click Capture Cam to add one.",
+            g.drawString(font, Component.translatable("screen.phantasia.scene_editor.no_cam_override").getString(),
                     x, r1Y + 3, C_DIM, false);
         }
 
@@ -563,8 +564,8 @@ public class PhantasiaSceneEditorScreen extends PhantasiaEditorScreen {
         x = panelX + 4;
 
         if (hasCam) {
-            g.drawString(font, "Zoom:", x, r2Y + 2, C_DIM, false);
-            x += font.width("Zoom:") + 3;
+            g.drawString(font, Component.translatable("screen.phantasia.scene_editor.label_zoom").getString(), x, r2Y + 2, C_DIM, false);
+            x += font.width(Component.translatable("screen.phantasia.scene_editor.label_zoom").getString()) + 3;
             placeBox(camZoomBox, x, r2Y, 40, 12);
             if (isOver(mx, my, x, r2Y, 40, 12))
                 pendingTooltip = "Camera distance from the look-at target in world units (\u22121 = auto)";
@@ -587,13 +588,13 @@ public class PhantasiaSceneEditorScreen extends PhantasiaEditorScreen {
             x += ltW + 6;
 
             if (lt != LerpType.SNAP) {
-                g.drawString(font, "over", x, r2Y + 2, C_DIM, false);
-                x += font.width("over") + 3;
+                g.drawString(font, Component.translatable("screen.phantasia.scene_editor.val_over").getString(), x, r2Y + 2, C_DIM, false);
+                x += font.width(Component.translatable("screen.phantasia.scene_editor.val_over").getString()) + 3;
                 placeBox(lerpTicksBox, x, r2Y, 34, 12);
                 if (isOver(mx, my, x, r2Y, 34, 12))
                     pendingTooltip = "Camera transition duration in ticks (20 ticks = 1 second)";
                 x += 38;
-                g.drawString(font, "ticks", x, r2Y + 2, C_DIM, false);
+                g.drawString(font, Component.translatable("screen.phantasia.scene_editor.val_ticks").getString(), x, r2Y + 2, C_DIM, false);
             }
         }
     }
@@ -610,17 +611,17 @@ public class PhantasiaSceneEditorScreen extends PhantasiaEditorScreen {
 
         // Header
         g.fill(px, py, px + pw, py + 14, C_BAR);
-        g.drawString(font, "Placements", px + 6, py + 3, C_ACCENT, false);
+        g.drawString(font, Component.translatable("screen.phantasia.scene_editor.section_placements").getString(), px + 6, py + 3, C_ACCENT, false);
 
         // Scene name field
-        g.drawString(font, "Name:", px + 6, py + 18, C_DIM, false);
-        placeBox(sceneNameBox, px + 6 + font.width("Name:") + 3, py + 16, pw - 20 - font.width("Name:"), 12);
+        g.drawString(font, Component.translatable("screen.phantasia.scene_editor.label_name").getString(), px + 6, py + 18, C_DIM, false);
+        placeBox(sceneNameBox, px + 6 + font.width(Component.translatable("screen.phantasia.scene_editor.label_name").getString()) + 3, py + 16, pw - 20 - font.width(Component.translatable("screen.phantasia.scene_editor.label_name").getString()), 12);
         sceneNameBox.visible = true;
         sceneNameBox.active = true;
 
         // Icon field
-        g.drawString(font, "Icon:", px + 6, py + 34, C_DIM, false);
-        placeBox(sceneIconBox, px + 6 + font.width("Icon:") + 3, py + 32, pw - 20 - font.width("Icon:"), 12);
+        g.drawString(font, Component.translatable("screen.phantasia.scene_editor.label_icon").getString(), px + 6, py + 34, C_DIM, false);
+        placeBox(sceneIconBox, px + 6 + font.width(Component.translatable("screen.phantasia.scene_editor.label_icon").getString()) + 3, py + 32, pw - 20 - font.width(Component.translatable("screen.phantasia.scene_editor.label_icon").getString()), 12);
         sceneIconBox.visible = true;
         sceneIconBox.active = true;
 
@@ -677,7 +678,7 @@ public class PhantasiaSceneEditorScreen extends PhantasiaEditorScreen {
         int formY = listY + 4;
         if (formY + 54 <= clipMaxY) {
             g.fill(px + 2, formY - 2, px + pw - 2, Math.min(formY + 54, clipMaxY), 0x220A0A20);
-            g.drawString(font, "+ Add machine:", px + 6, formY, C_DIM, false);
+            g.drawString(font, Component.translatable("screen.phantasia.scene_editor.label_add_machine").getString(), px + 6, formY, C_DIM, false);
             formY += 10;
 
             if (formY + 12 <= clipMaxY) {
@@ -723,14 +724,14 @@ public class PhantasiaSceneEditorScreen extends PhantasiaEditorScreen {
             // Show mode buttons
             String curShow = ov != null && ov.show != null ? ov.show : "(global)";
             if (ovY + 12 <= clipMaxY) {
-                g.drawString(font, "Show:", px + 6, ovY + 2, C_DIM, false);
-                int bx = px + 6 + font.width("Show:") + 3;
+                g.drawString(font, Component.translatable("screen.phantasia.scene_editor.label_show").getString(), px + 6, ovY + 2, C_DIM, false);
+                int bx = px + 6 + font.width(Component.translatable("screen.phantasia.scene_editor.label_show").getString()) + 3;
 
                 boolean gHov = isOver(mx, my, bx, ovY, 40, 12);
                 boolean gSel = (ov == null || ov.show == null);
                 g.fill(bx, ovY, bx + 40, ovY + 12, gSel ? C_BTN_ACT : (gHov ? C_BTN_HOV : C_BTN));
                 if (gSel) g.fill(bx, ovY, bx + 40, ovY + 1, C_DIM);
-                g.drawString(font, "Global", bx + 4, ovY + 2, gSel ? C_DIM : C_TEXT, false);
+                g.drawString(font, Component.translatable("screen.phantasia.scene_editor.val_global").getString(), bx + 4, ovY + 2, gSel ? C_DIM : C_TEXT, false);
                 if (gHov) pendingTooltip = "Use the global step show mode for this placement";
                 btns.add(new Btn(bx, ovY, 40, 12, () -> {
                     checkpoint();
@@ -764,8 +765,8 @@ public class PhantasiaSceneEditorScreen extends PhantasiaEditorScreen {
 
             // Layer field
             if (ov != null && ("layer".equals(ov.show) || "layers".equals(ov.show)) && ovY + 12 <= clipMaxY) {
-                g.drawString(font, "Layer:", px + 6, ovY + 2, C_DIM, false);
-                placeBox(ovLayerBox, px + 6 + font.width("Layer:") + 3, ovY, 28, 12);
+                g.drawString(font, Component.translatable("screen.phantasia.scene_editor.label_layer").getString(), px + 6, ovY + 2, C_DIM, false);
+                placeBox(ovLayerBox, px + 6 + font.width(Component.translatable("screen.phantasia.scene_editor.label_layer").getString()) + 3, ovY, 28, 12);
                 ovLayerBox.visible = true;
                 ovLayerBox.active = true;
                 ovY += 16;
@@ -773,8 +774,8 @@ public class PhantasiaSceneEditorScreen extends PhantasiaEditorScreen {
 
             // HidePos
             if (ovY + 12 <= clipMaxY) {
-                g.drawString(font, "HidePos:", px + 6, ovY + 2, C_DIM, false);
-                placeBox(ovHidePosBox, px + 6 + font.width("HidePos:") + 3, ovY, pw - 14 - font.width("HidePos:"), 12);
+                g.drawString(font, Component.translatable("screen.phantasia.scene_editor.label_hidepos").getString(), px + 6, ovY + 2, C_DIM, false);
+                placeBox(ovHidePosBox, px + 6 + font.width(Component.translatable("screen.phantasia.scene_editor.label_hidepos").getString()) + 3, ovY, pw - 14 - font.width(Component.translatable("screen.phantasia.scene_editor.label_hidepos").getString()), 12);
                 ovHidePosBox.visible = true;
                 ovHidePosBox.active = true;
                 if (isOver(mx, my, px + 6, ovY, pw - 12, 12))
@@ -784,10 +785,10 @@ public class PhantasiaSceneEditorScreen extends PhantasiaEditorScreen {
 
             // Working state
             if (ovY + 12 <= clipMaxY) {
-                g.drawString(font, "Working:", px + 6, ovY + 2, C_DIM, false);
-                int wbx = px + 6 + font.width("Working:") + 4;
+                g.drawString(font, Component.translatable("screen.phantasia.scene_editor.label_working").getString(), px + 6, ovY + 2, C_DIM, false);
+                int wbx = px + 6 + font.width(Component.translatable("screen.phantasia.scene_editor.label_working").getString()) + 4;
                 Boolean curWorking = ov != null ? ov.machineWorking : null;
-                String[] wLabels = { "Global", "Idle", "Working" };
+                String[] wLabels = { Component.translatable("screen.phantasia.scene_editor.val_global").getString(), "Idle", "Working" };
                 Boolean[] wVals = { null, false, true };
                 int[] wCols = { 0xFF334455, 0xFF445566, 0xFF1A7040 };
                 for (int wi = 0; wi < wLabels.length; wi++) {
@@ -819,8 +820,8 @@ public class PhantasiaSceneEditorScreen extends PhantasiaEditorScreen {
 
             // Fake recipe ID
             if (ovY + 12 <= clipMaxY) {
-                g.drawString(font, "Recipe:", px + 6, ovY + 2, C_DIM, false);
-                placeBox(ovFakeRecipeBox, px + 6 + font.width("Recipe:") + 3, ovY, pw - 14 - font.width("Recipe:"), 12);
+                g.drawString(font, Component.translatable("screen.phantasia.scene_editor.label_recipe").getString(), px + 6, ovY + 2, C_DIM, false);
+                placeBox(ovFakeRecipeBox, px + 6 + font.width(Component.translatable("screen.phantasia.scene_editor.label_recipe").getString()) + 3, ovY, pw - 14 - font.width(Component.translatable("screen.phantasia.scene_editor.label_recipe").getString()), 12);
                 ovFakeRecipeBox.visible = true;
                 ovFakeRecipeBox.active = true;
                 if (isOver(mx, my, px + 6, ovY, pw - 12, 12))
@@ -830,8 +831,8 @@ public class PhantasiaSceneEditorScreen extends PhantasiaEditorScreen {
 
             // Particle effects
             if (ovY + 12 <= clipMaxY) {
-                g.drawString(font, "Particles:", px + 6, ovY + 2, C_DIM, false);
-                placeBox(ovParticleBox, px + 6 + font.width("Particles:") + 3, ovY, pw - 14 - font.width("Particles:"),
+                g.drawString(font, Component.translatable("screen.phantasia.scene_editor.label_particles").getString(), px + 6, ovY + 2, C_DIM, false);
+                placeBox(ovParticleBox, px + 6 + font.width(Component.translatable("screen.phantasia.scene_editor.label_particles").getString()) + 3, ovY, pw - 14 - font.width(Component.translatable("screen.phantasia.scene_editor.label_particles").getString()),
                         12);
                 ovParticleBox.visible = true;
                 ovParticleBox.active = true;
@@ -915,7 +916,7 @@ public class PhantasiaSceneEditorScreen extends PhantasiaEditorScreen {
         int x = 8;
 
         // Step nav
-        g.drawString(font, "STEP", x, y1 - 2, 0xFF334455, false);
+        g.drawString(font, Component.translatable("screen.phantasia.scene_editor.label_step").getString(), x, y1 - 2, 0xFF334455, false);
         String stepLbl = (selectedStep + 1) + "/" + data.steps.size();
         g.drawString(font, stepLbl, x, y1 + 6, C_ACCENT, false);
         x += font.width(stepLbl) + 8;
@@ -939,8 +940,8 @@ public class PhantasiaSceneEditorScreen extends PhantasiaEditorScreen {
         x += 8;
 
         // Tick
-        g.drawString(font, "Tick:", x, y1 + 3, C_DIM, false);
-        x += font.width("Tick:") + 3;
+        g.drawString(font, Component.translatable("screen.phantasia.scene_editor.label_tick").getString(), x, y1 + 3, C_DIM, false);
+        x += font.width(Component.translatable("screen.phantasia.scene_editor.label_tick").getString()) + 3;
         placeBox(tickBox, x, y1, 38, 13);
         if (isOver(mx, my, x, y1, 38, 13)) pendingTooltip = "Tick this step activates at (20 ticks = 1 second)";
         x += 44;
@@ -985,8 +986,8 @@ public class PhantasiaSceneEditorScreen extends PhantasiaEditorScreen {
         int y2 = rowY + 27;
         x = 8;
 
-        g.drawString(font, "Global:", x, y2 + 2, C_DIM, false);
-        x += font.width("Global:") + 4;
+        g.drawString(font, Component.translatable("screen.phantasia.scene_editor.label_global").getString(), x, y2 + 2, C_DIM, false);
+        x += font.width(Component.translatable("screen.phantasia.scene_editor.label_global").getString()) + 4;
 
         for (int i = 0; i < SHOW_MODES.length; i++) {
             String sm = SHOW_MODES[i];
@@ -1017,9 +1018,9 @@ public class PhantasiaSceneEditorScreen extends PhantasiaEditorScreen {
         // Description box — right portion of row 2
         int descX = this.width / 2;
         int descW = this.width - descX - 12;
-        g.drawString(font, "Desc:", descX, y2 + 2, C_DIM, false);
-        int dboxX = descX + font.width("Desc:") + 4;
-        placeBox(descriptionBox, dboxX, y2, descW - font.width("Desc:") - 4, 12);
+        g.drawString(font, Component.translatable("screen.phantasia.scene_editor.label_desc").getString(), descX, y2 + 2, C_DIM, false);
+        int dboxX = descX + font.width(Component.translatable("screen.phantasia.scene_editor.label_desc").getString()) + 4;
+        placeBox(descriptionBox, dboxX, y2, descW - font.width(Component.translatable("screen.phantasia.scene_editor.label_desc").getString()) - 4, 12);
         if (isOver(mx, my, dboxX, y2, descW, 12))
             pendingTooltip = "Guide description body text shown to the viewer during this step";
     }
@@ -1130,9 +1131,9 @@ public class PhantasiaSceneEditorScreen extends PhantasiaEditorScreen {
 
         // Duration readout — plain label, computed automatically from last step
         int total2 = computeTotalTicks();
-        int durLabelW = font.width("Total:") + 4;
+        int durLabelW = font.width(Component.translatable("screen.phantasia.scene_editor.label_total").getString()) + 4;
         int durX = this.width - 4 - font.width(String.valueOf(total2)) - 10 - durLabelW;
-        g.drawString(font, "Total:", durX, midY - 4, C_DIM, false);
+        g.drawString(font, Component.translatable("screen.phantasia.scene_editor.label_total").getString(), durX, midY - 4, C_DIM, false);
         g.drawString(font, String.valueOf(total2) + "t", durX + durLabelW, midY - 4, C_ACCENT, false);
         if (isOver(mx, my, durX, tlY, durLabelW + 50, TIMELINE_H))
             pendingTooltip = "Total scene length = last step tick + 60 ticks";
@@ -1665,7 +1666,7 @@ public class PhantasiaSceneEditorScreen extends PhantasiaEditorScreen {
     }
 
     @Override
-    protected void hideAllInputs() {
+    public void hideAllInputs() {
         for (var box : List.of(captionBox, descriptionBox, tickBox, lerpTicksBox, camZoomBox,
                 ovLayerBox, ovHidePosBox, ovFakeRecipeBox, ovParticleBox, newMachineIdBox,
                 newOffsetXBox, newOffsetYBox, newOffsetZBox, sceneNameBox, sceneIconBox)) {

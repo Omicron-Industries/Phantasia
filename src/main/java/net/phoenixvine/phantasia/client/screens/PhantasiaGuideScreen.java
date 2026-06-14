@@ -28,25 +28,17 @@ import java.util.*;
  * Updated to support standalone links directly into 3D automated GregTech machine scripts!
  */
 @OnlyIn(Dist.CLIENT)
-public class PhantasiaGuideScreen extends Screen {
+public class PhantasiaGuideScreen extends PhantasiaScreen {
 
     // ── Theme ─────────────────────────────────────────────────────────────────
-    private static final int C_BG = 0xFF07070E;
-    private static final int C_BAR = 0xEE0A0A14;
     private static final int C_CARD = 0xCC101022;
     private static final int C_CARD_HOV = 0xCC182042;
-    private static final int C_ACCENT = 0xFF4FC3F7;
-    private static final int C_BTN = 0xBB151528;
-    private static final int C_BTN_HOV = 0xBB1A2840;
-    private static final int C_TEXT = 0xFFDDDDDD;
-    private static final int C_DIM = 0xFF667788;
     private static final int C_HEAD = 0xFFEEEEFF;
     private static final int C_NAV = 0xDD0A0A14;
     private static final int C_RULE = 0x334FC3F7;
     private static final int C_SCROLL = 0x44FFFFFF;
     private static final int C_SCROLL_TH = 0xAA4FC3F7;
 
-    private static final int TOP_H = 22;
     private static final int NAV_H = 30;
     private static final int COL_W = 360;
     private static final int CARD_W = 94;
@@ -87,14 +79,7 @@ public class PhantasiaGuideScreen extends Screen {
     private int scrollY = 0;
     private int lastContentH = 0;
 
-    private record Btn(int x, int y, int w, int h, Runnable action) {
 
-        boolean hit(double mx, double my) {
-            return mx >= x && mx < x + w && my >= y && my < y + h;
-        }
-    }
-
-    private final List<Btn> btns = new ArrayList<>();
 
     public PhantasiaGuideScreen(Screen parent, PhantasiaGuideData guide) {
         super(Component.literal(guide.title));
@@ -102,6 +87,9 @@ public class PhantasiaGuideScreen extends Screen {
         this.guideTitle = guide.title;
         this.source = guide;
     }
+
+    @Override
+    public void hideAllInputs() {}
 
     public PhantasiaGuideScreen(Screen parent, PhantasiaSceneData scene) {
         super(Component.literal(scene.name != null ? scene.name : scene.id));
@@ -199,9 +187,9 @@ public class PhantasiaGuideScreen extends Screen {
     }
 
     private void renderTopBar(GuiGraphics g, int mx, int my) {
-        g.fill(0, 0, width, TOP_H, C_BAR);
-        g.fill(0, TOP_H - 1, width, TOP_H, C_ACCENT);
-        g.drawCenteredString(font, guideTitle, width / 2, (TOP_H - 8) / 2, C_ACCENT);
+        g.fill(0, 0, width, TOP_BAR_H, C_BAR);
+        g.fill(0, TOP_BAR_H - 1, width, TOP_BAR_H, C_ACCENT);
+        g.drawCenteredString(font, guideTitle, width / 2, (TOP_BAR_H - 8) / 2, C_ACCENT);
 
         topBtnLeft(g, mx, my, 4, "← Back", this::onClose);
 
@@ -221,7 +209,7 @@ public class PhantasiaGuideScreen extends Screen {
         if (pages.isEmpty()) return;
         GuidePage page = pages.get(pageIndex);
 
-        int areaTop = TOP_H;
+        int areaTop = TOP_BAR_H;
         int areaBottom = height - NAV_H;
 
         int colW = Math.min(COL_W, width - 48);
@@ -284,7 +272,7 @@ public class PhantasiaGuideScreen extends Screen {
         if (!page.cards().isEmpty()) {
             g.fill(colX, y, colX + colW, y + 1, C_RULE);
             y += 6;
-            g.drawString(font, "Items", colX, y, C_DIM, false);
+            g.drawString(font, Component.translatable("screen.phantasia.guide.label_items").getString(), colX, y, C_DIM, false);
             y += font.lineHeight + 6;
 
             int perRow = Math.max(1, (colW + CARD_GAP) / (CARD_W + CARD_GAP));
@@ -297,7 +285,7 @@ public class PhantasiaGuideScreen extends Screen {
                 int cyScreen = cy + scrollY;
 
                 boolean visible = (cyScreen >= areaTop && cyScreen + CARD_H <= areaBottom);
-                boolean hov = over(mx, my, cx, cyScreen, CARD_W, CARD_H) && visible;
+                boolean hov = isOver(mx, my, cx, cyScreen, CARD_W, CARD_H) && visible;
 
                 renderCard(g, ce, cx, cy, hov);
 
@@ -445,7 +433,7 @@ public class PhantasiaGuideScreen extends Screen {
     private int renderLinkBtn(GuiGraphics g, int mx, int my, int colX, int y, int colW, String label, Runnable action) {
         int bw = font.width(label) + 16;
         int bh = 14;
-        boolean hov = over(mx, my, colX, y, bw, bh);
+        boolean hov = isOver(mx, my, colX, y, bw, bh);
         g.fill(colX, y, colX + bw, y + bh, hov ? C_BTN_HOV : C_BTN);
         if (hov) g.fill(colX, y, colX + bw, y + 1, C_ACCENT);
         g.drawString(font, label, colX + 8, y + 3, hov ? C_ACCENT : C_TEXT, false);
@@ -472,7 +460,7 @@ public class PhantasiaGuideScreen extends Screen {
 
     private void navBtn(GuiGraphics g, int mx, int my, int x, int y, int w, int h, String label, boolean enabled,
                         Runnable action) {
-        boolean hov = enabled && over(mx, my, x, y, w, h);
+        boolean hov = enabled && isOver(mx, my, x, y, w, h);
         g.fill(x, y, x + w, y + h, hov ? C_BTN_HOV : (enabled ? C_BTN : 0x33111128));
         if (hov) g.fill(x, y, x + w, y + 1, C_ACCENT);
         g.drawCenteredString(font, label, x + w / 2, y + (h - 8) / 2, hov ? C_ACCENT : (enabled ? C_TEXT : C_DIM));
@@ -541,7 +529,7 @@ public class PhantasiaGuideScreen extends Screen {
 
         g.fill(bx, by, bx + btnW, by + btnH, hov ? 0xBB1A2840 : 0xBB151528);
         g.renderOutline(bx, by, btnW, btnH, 0xFF4FC3F7);
-        g.drawCenteredString(font, "Close", bx + (btnW / 2), by + 3, hov ? 0xFF4FC3F7 : 0xFFDDDDDD);
+        g.drawCenteredString(font, Component.translatable("screen.phantasia.guide.btn_close").getString(), bx + (btnW / 2), by + 3, hov ? 0xFF4FC3F7 : 0xFFDDDDDD);
 
         btns.add(new Btn(bx, by, btnW, btnH, () -> preview3DCard = null));
 
@@ -572,7 +560,7 @@ public class PhantasiaGuideScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mx, double my, double delta) {
-        int areaH = height - NAV_H - TOP_H;
+        int areaH = height - NAV_H - TOP_BAR_H;
         int maxScroll = Math.max(0, lastContentH - areaH);
         scrollY = Mth.clamp(scrollY - (int) (delta * 14), 0, maxScroll);
         return true;
@@ -661,19 +649,13 @@ public class PhantasiaGuideScreen extends Screen {
         return ce == null ? ItemStack.EMPTY : resolveStack(ce.item());
     }
 
-    private boolean over(int mx, int my, int x, int y, int w, int h) {
-        return mx >= x && mx < x + w && my >= y && my < y + h;
-    }
 
-    private boolean over(double mx, double my, int x, int y, int w, int h) {
-        return mx >= x && mx < x + w && my >= y && my < y + h;
-    }
 
     private void topBtnLeft(GuiGraphics g, int mx, int my, int x, String label, Runnable action) {
         int bw = font.width(label) + 12;
-        int bh = TOP_H - 6;
-        int by = (TOP_H - bh) / 2;
-        boolean hov = over(mx, my, x, by, bw, bh);
+        int bh = TOP_BAR_H - 6;
+        int by = (TOP_BAR_H - bh) / 2;
+        boolean hov = isOver(mx, my, x, by, bw, bh);
 
         g.fill(x, by, x + bw, by + bh, hov ? C_BTN_HOV : C_BTN);
         if (hov) g.fill(x, by, x + bw, by + 1, C_ACCENT);
@@ -684,10 +666,10 @@ public class PhantasiaGuideScreen extends Screen {
 
     private void topBtnRight(GuiGraphics g, int mx, int my, int rightX, String label, Runnable action) {
         int bw = font.width(label) + 12;
-        int bh = TOP_H - 6;
+        int bh = TOP_BAR_H - 6;
         int bx = rightX - bw;
-        int by = (TOP_H - bh) / 2;
-        boolean hov = over(mx, my, bx, by, bw, bh);
+        int by = (TOP_BAR_H - bh) / 2;
+        boolean hov = isOver(mx, my, bx, by, bw, bh);
 
         g.fill(bx, by, bx + bw, by + bh, hov ? C_BTN_HOV : C_BTN);
         if (hov) g.fill(bx, by, bx + bw, by + 1, C_ACCENT);

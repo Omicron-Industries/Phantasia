@@ -3,16 +3,15 @@ package net.phoenixvine.phantasia.client.screens.editors;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
-import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
+import net.phoenixvine.phantasia.client.screens.PhantasiaScreen;
 import net.phoenixvine.phantasia.common.data.scene.PhantasiaSceneData;
 import net.phoenixvine.phantasia.common.data.script.PhantasiaScriptData;
 
 import org.lwjgl.glfw.GLFW;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -28,7 +27,7 @@ import java.util.List;
  * links — work identically in autogenned script views.
  */
 @OnlyIn(Dist.CLIENT)
-public class PhantasiaScriptStepItemEditorScreen extends PhantasiaEditorScreen {
+public class PhantasiaScriptStepItemEditorScreen extends PhantasiaScreen {
 
     // ── Theme ─────────────────────────────────────────────────────────────────
 
@@ -65,14 +64,14 @@ public class PhantasiaScriptStepItemEditorScreen extends PhantasiaEditorScreen {
     public PhantasiaScriptStepItemEditorScreen(PhantasiaScriptEditorScreen parent,
                                                PhantasiaScriptData scriptData,
                                                int stepIndex) {
-        super(Component.literal("Step Items — Step " + (stepIndex + 1)));
+        super(Component.translatable("screen.phantasia.script_step_item.title", stepIndex + 1));
         this.parent = parent;
         this.scriptData = scriptData;
         this.stepIndex = stepIndex;
     }
 
     @Override
-    protected void hideAllInputs() {}
+    public void hideAllInputs() {}
 
     private PhantasiaScriptData.StepData step() {
         return scriptData.getSteps().get(stepIndex);
@@ -89,29 +88,29 @@ public class PhantasiaScriptStepItemEditorScreen extends PhantasiaEditorScreen {
 
         itemIdBox = addW(new EditBox(font, 0, 0, 200, 12, Component.empty()));
         itemIdBox.setMaxLength(128);
-        itemIdBox.setHint(Component.literal("namespace:item_id"));
+        itemIdBox.setHint(Component.translatable("screen.phantasia.script_step_item_editor.hint_item_id"));
 
         itemCountBox = addW(new EditBox(font, 0, 0, 34, 12, Component.empty()));
         itemCountBox.setMaxLength(4);
         itemCountBox.setFilter(s -> s.matches("\\d*"));
-        itemCountBox.setHint(Component.literal("1"));
+        itemCountBox.setHint(Component.translatable("ui.phantasia.raw_value", 1));
 
         itemLabelBox = addW(new EditBox(font, 0, 0, 100, 12, Component.empty()));
         itemLabelBox.setMaxLength(48);
-        itemLabelBox.setHint(Component.literal("auto"));
+        itemLabelBox.setHint(Component.translatable("screen.phantasia.script_step_item_editor.hint_label_auto"));
 
         itemDurationBox = addW(new EditBox(font, 0, 0, 34, 12, Component.empty()));
         itemDurationBox.setMaxLength(4);
         itemDurationBox.setFilter(s -> s.matches("\\d*"));
-        itemDurationBox.setHint(Component.literal("20"));
+        itemDurationBox.setHint(Component.translatable("screen.phantasia.script_step_item_editor.hint_ticks"));
 
         itemDescBox = addW(new EditBox(font, 0, 0, 300, 12, Component.empty()));
         itemDescBox.setMaxLength(256);
-        itemDescBox.setHint(Component.literal("Description shown in item popup..."));
+        itemDescBox.setHint(Component.translatable("screen.phantasia.script_step_item_editor.hint_desc"));
 
         itemMicrosceneBox = addW(new EditBox(font, 0, 0, 200, 12, Component.empty()));
         itemMicrosceneBox.setMaxLength(128);
-        itemMicrosceneBox.setHint(Component.literal("phantasia:scene_id (optional)"));
+        itemMicrosceneBox.setHint(Component.translatable("screen.phantasia.script_step_item_editor.hint_scene"));
 
         hideAll();
     }
@@ -183,7 +182,7 @@ public class PhantasiaScriptStepItemEditorScreen extends PhantasiaEditorScreen {
 
         // ── Existing items ────────────────────────────────────────────────────
         if (s.items.isEmpty()) {
-            g.drawString(font, "No items on this step yet.", px + 10, cy + 2, C_DIM, false);
+            g.drawString(font, Component.translatable("screen.phantasia.script_step_item_editor.empty").getString(), px + 10, cy + 2, C_DIM, false);
             cy += 14;
         }
 
@@ -197,7 +196,7 @@ public class PhantasiaScriptStepItemEditorScreen extends PhantasiaEditorScreen {
         cy += 8;
 
         // ── Add item form ─────────────────────────────────────────────────────
-        g.drawString(font, "+ Add Item", px + 8, cy, C_ACCENT, false);
+        g.drawString(font, Component.translatable("screen.phantasia.script_step_item_editor.btn_add_section").getString(), px + 8, cy, C_ACCENT, false);
         cy += 12;
 
         // Type selector
@@ -222,18 +221,18 @@ public class PhantasiaScriptStepItemEditorScreen extends PhantasiaEditorScreen {
         cy = labeledBox(g, "Item:", px, cy, pw, itemIdBox);
 
         // Count + Label
-        g.drawString(font, "Count:", px + 8, cy + 2, C_DIM, false);
-        int cntX = px + 8 + font.width("Count:") + 4;
+        g.drawString(font, Component.translatable("screen.phantasia.script_step_item_editor.label_count").getString(), px + 8, cy + 2, C_DIM, false);
+        int cntX = px + 8 + font.width(Component.translatable("screen.phantasia.script_step_item_editor.label_count").getString()) + 4;
         place(itemCountBox, cntX, cy, 34, 12);
         int lblX = cntX + 38;
-        g.drawString(font, "Label:", lblX, cy + 2, C_DIM, false);
-        place(itemLabelBox, lblX + font.width("Label:") + 4, cy,
-                pw - (lblX - px) - font.width("Label:") - 8, 12);
+        g.drawString(font, Component.translatable("screen.phantasia.script_step_item_editor.label_label").getString(), lblX, cy + 2, C_DIM, false);
+        place(itemLabelBox, lblX + font.width(Component.translatable("screen.phantasia.script_step_item_editor.label_label").getString()) + 4, cy,
+                pw - (lblX - px) - font.width(Component.translatable("screen.phantasia.script_step_item_editor.label_label").getString()) - 8, 12);
         cy += 16;
 
         // Track
-        g.drawString(font, "Track:", px + 8, cy + 2, C_DIM, false);
-        int tbx = px + 8 + font.width("Track:") + 4;
+        g.drawString(font, Component.translatable("screen.phantasia.script_step_item_editor.label_track").getString(), px + 8, cy + 2, C_DIM, false);
+        int tbx = px + 8 + font.width(Component.translatable("screen.phantasia.script_step_item_editor.label_track").getString()) + 4;
         for (int ti = 0; ti < TRACKS.length; ti++) {
             String t = TRACKS[ti];
             String tl = TRACK_LABELS[ti];
@@ -248,8 +247,8 @@ public class PhantasiaScriptStepItemEditorScreen extends PhantasiaEditorScreen {
             tbx += tw + 2;
         }
         if (!"none".equals(newItemTrack)) {
-            g.drawString(font, "ticks:", tbx + 2, cy + 2, C_DIM, false);
-            place(itemDurationBox, tbx + font.width("ticks:") + 6, cy, 34, 12);
+            g.drawString(font, Component.translatable("screen.phantasia.script_step_item_editor.label_ticks").getString(), tbx + 2, cy + 2, C_DIM, false);
+            place(itemDurationBox, tbx + font.width(Component.translatable("screen.phantasia.script_step_item_editor.label_ticks").getString()) + 6, cy, 34, 12);
         } else {
             itemDurationBox.visible = false;
         }
@@ -365,18 +364,18 @@ public class PhantasiaScriptStepItemEditorScreen extends PhantasiaEditorScreen {
 
             cy = labeledBox(g, "Item:", px, cy, pw, itemIdBox);
 
-            g.drawString(font, "Count:", px + 8, cy + 2, C_DIM, false);
-            int cntX = px + 8 + font.width("Count:") + 4;
+            g.drawString(font, Component.translatable("screen.phantasia.script_step_item_editor.label_count").getString(), px + 8, cy + 2, C_DIM, false);
+            int cntX = px + 8 + font.width(Component.translatable("screen.phantasia.script_step_item_editor.label_count").getString()) + 4;
             place(itemCountBox, cntX, cy, 34, 12);
             int lbx = cntX + 38;
-            g.drawString(font, "Label:", lbx, cy + 2, C_DIM, false);
-            place(itemLabelBox, lbx + font.width("Label:") + 4, cy,
-                    pw - (lbx - px) - font.width("Label:") - 8, 12);
+            g.drawString(font, Component.translatable("screen.phantasia.script_step_item_editor.label_label").getString(), lbx, cy + 2, C_DIM, false);
+            place(itemLabelBox, lbx + font.width(Component.translatable("screen.phantasia.script_step_item_editor.label_label").getString()) + 4, cy,
+                    pw - (lbx - px) - font.width(Component.translatable("screen.phantasia.script_step_item_editor.label_label").getString()) - 8, 12);
             cy += 16;
 
             // Track row
-            g.drawString(font, "Track:", px + 8, cy + 2, C_DIM, false);
-            int tbx = px + 8 + font.width("Track:") + 4;
+            g.drawString(font, Component.translatable("screen.phantasia.script_step_item_editor.label_track").getString(), px + 8, cy + 2, C_DIM, false);
+            int tbx = px + 8 + font.width(Component.translatable("screen.phantasia.script_step_item_editor.label_track").getString()) + 4;
             for (int ti = 0; ti < TRACKS.length; ti++) {
                 String t = TRACKS[ti];
                 String tl = TRACK_LABELS[ti];
@@ -396,8 +395,8 @@ public class PhantasiaScriptStepItemEditorScreen extends PhantasiaEditorScreen {
             }
             boolean hasTrack = it.track != null && !"none".equals(it.track);
             if (hasTrack) {
-                g.drawString(font, "ticks:", tbx + 2, cy + 2, C_DIM, false);
-                place(itemDurationBox, tbx + font.width("ticks:") + 6, cy, 34, 12);
+                g.drawString(font, Component.translatable("screen.phantasia.script_step_item_editor.label_ticks").getString(), tbx + 2, cy + 2, C_DIM, false);
+                place(itemDurationBox, tbx + font.width(Component.translatable("screen.phantasia.script_step_item_editor.label_ticks").getString()) + 6, cy, 34, 12);
             } else {
                 itemDurationBox.visible = false;
             }

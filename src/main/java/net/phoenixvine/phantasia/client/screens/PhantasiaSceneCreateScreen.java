@@ -42,7 +42,7 @@ public class PhantasiaSceneCreateScreen extends Screen {
     private String errorMsg = null;
 
     public PhantasiaSceneCreateScreen(Screen parent) {
-        super(Component.literal("New Scene"));
+        super(Component.translatable("screen.phantasia.scene_create.title"));
         this.parent = parent;
     }
 
@@ -56,17 +56,17 @@ public class PhantasiaSceneCreateScreen extends Screen {
 
         idBox = addRenderableWidget(new EditBox(font, px + 80, py + 16, pw - 88, 14, Component.empty()));
         idBox.setMaxLength(64);
-        idBox.setHint(Component.literal("namespace:scene_name"));
+        idBox.setHint(Component.translatable("screen.phantasia.scene_create.hint_id"));
         idBox.setResponder(v -> errorMsg = null);
 
         nameBox = addRenderableWidget(new EditBox(font, px + 80, py + 36, pw - 88, 14, Component.empty()));
         nameBox.setMaxLength(64);
-        nameBox.setHint(Component.literal("Display Name"));
+        nameBox.setHint(Component.translatable("screen.phantasia.scene_create.hint_name"));
 
         iconBox = addRenderableWidget(new EditBox(font, px + 80, py + 56, pw - 88, 14, Component.empty()));
         iconBox.setMaxLength(128);
         iconBox.setValue("minecraft:chest");
-        iconBox.setHint(Component.literal("minecraft:chest"));
+        iconBox.setHint(Component.translatable("screen.phantasia.scene_create.hint_icon"));
 
         setInitialFocus(idBox);
     }
@@ -82,11 +82,11 @@ public class PhantasiaSceneCreateScreen extends Screen {
         g.fill(px, py, px + pw, py + ph, C_PANEL);
         g.fill(px, py, px + pw, py + 1, C_ACCENT);
 
-        g.drawCenteredString(font, "New Scene", px + pw / 2, py + 4, C_ACCENT);
+        g.drawCenteredString(font, Component.translatable("screen.phantasia.scene_create.title").getString(), px + pw / 2, py + 4, C_ACCENT);
 
-        g.drawString(font, "Scene ID:", px + 6, py + 19, C_DIM, false);
-        g.drawString(font, "Name:", px + 6, py + 39, C_DIM, false);
-        g.drawString(font, "Icon Item:", px + 6, py + 59, C_DIM, false);
+        g.drawString(font, Component.translatable("screen.phantasia.scene_create.label_id").getString(), px + 6, py + 19, C_DIM, false);
+        g.drawString(font, Component.translatable("screen.phantasia.scene_create.label_name").getString(), px + 6, py + 39, C_DIM, false);
+        g.drawString(font, Component.translatable("screen.phantasia.scene_create.label_icon").getString(), px + 6, py + 59, C_DIM, false);
 
         super.render(g, mx, my, partial);
 
@@ -94,8 +94,8 @@ public class PhantasiaSceneCreateScreen extends Screen {
             g.drawCenteredString(font, errorMsg, px + pw / 2, py + 76, C_WARN);
 
         int btnY = py + ph - 22;
-        drawBtn(g, mx, my, px + pw / 2 - 118, btnY, 110, 14, "✓ Create", C_GREEN);
-        drawBtn(g, mx, my, px + pw / 2 + 8, btnY, 110, 14, "✕ Cancel", C_BTN);
+        drawBtn(g, mx, my, px + pw / 2 - 118, btnY, 110, 14, Component.translatable("screen.phantasia.scene_create.btn_create").getString(), C_GREEN);
+        drawBtn(g, mx, my, px + pw / 2 + 8, btnY, 110, 14, Component.translatable("screen.phantasia.scene_create.btn_cancel").getString(), C_BTN);
     }
 
     private void drawBtn(GuiGraphics g, int mx, int my, int x, int y, int w, int h, String label, int col) {
@@ -149,15 +149,15 @@ public class PhantasiaSceneCreateScreen extends Screen {
         String iconItem = iconBox.getValue().trim();
 
         if (id.isEmpty()) {
-            errorMsg = "Scene ID cannot be blank.";
+            errorMsg = Component.translatable("screen.phantasia.scene_create.err_blank_id").getString();
             return;
         }
         if (!id.contains(":")) {
-            errorMsg = "ID must be namespace:name (e.g. mod:my_line)";
+            errorMsg = Component.translatable("screen.phantasia.scene_create.err_no_namespace").getString();
             return;
         }
         if (PhantasiaScenes.has(id)) {
-            errorMsg = "A scene with that ID already exists.";
+            errorMsg = Component.translatable("screen.phantasia.scene_create.err_duplicate").getString();
             return;
         }
         if (name.isEmpty()) name = id.replace('_', ' ').replace(':', ' ').trim();

@@ -1,0 +1,60 @@
+{
+  "id": "phantasia:wafer_chain",
+  "iconItem": "gtceu:silicon_wafer",
+  "name": "Wafer Processing Chain",
+  "placements": [
+    {
+      "machine": "gtceu:electric_blast_furnace",
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "items": [
+        {
+          "item": "gtceu:silicon_wafer",
+          "count": 4,
+          "label": "In",
+          "description": null,
+          "microsceneId": null,
+          "type": "input",
+          "track": "left",
+          "trackDuration": 24
+        },
+        {
+          "item": "gtceu:wafer",
+          "count": 4,
+          "label": "Out",
+          "description": null,
+          "microsceneId": null,
+          "type": "output",
+          "track": "right",
+          "trackDuration": 24
+        }
+      ]
+    }
+  ],
+  "mistakes": [],
+  "steps": [
+    {
+      "tick": 0,
+      "caption": "EBF at 1460K converts silicon wafers into processed wafers. Cupronickel coils are sufficient.",
+      "description": null,
+      "show": "all",
+      "layer": 0,
+      "layerMin": 0,
+      "layerMax": 0,
+      "positions": [],
+      "hideLayer": -1,
+      "hidePositions": [],
+      "working": true,
+      "showItems": true,
+      "camera": {
+        "yaw": 40.0,
+        "pitch": -20.0,
+        "zoom": 4.5,
+        "lerpType": "SNAP",
+        "lerpTicks": 0
+      },
+      "machineOverrides": {}
+    }
+  ]
+}
