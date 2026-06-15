@@ -1,0 +1,20 @@
+[
+  {
+    "type": "guide",
+    "id": "phantasia:alloy_foundry",
+    "title": "Industrial Alloy Blending",
+    "iconItem": "minecraft:blast_furnace"
+  },
+  {
+    "type": "guide",
+    "id": "phantasia:iron_production",
+    "title": "Iron Age Processing",
+    "iconItem": "minecraft:iron_ingot"
+  },
+  {
+    "type": "guide",
+    "id": "phantasia:lore_one",
+    "title": "Chapter I: The Awoken Spires",
+    "iconItem": "minecraft:echo_shard"
+  }
+]

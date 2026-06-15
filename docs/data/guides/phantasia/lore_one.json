@@ -1,0 +1,36 @@
+{
+  "id": "phantasia:lore_one",
+  "title": "Chapter I: The Awoken Spires",
+  "iconItem": "minecraft:echo_shard",
+  "subtitle": null,
+  "tag": null,
+  "pages": [
+    {
+      "headline": "&3An Unfamiliar Horizon",
+      "scriptId": null,
+      "text": "The hum of active leyline monoliths echoes across the valley floor. Your compass spins aimlessly, throwing old coordinates into chaos.\n\nLook for stone formations emitting high-frequency &9Soul Particles&r.",
+      "items": [],
+      "guideId": null,
+      "sceneId": null
+    },
+    {
+      "headline": "&bInterfacing the Terminal",
+      "scriptId": null,
+      "text": "Insert the ancient memory core directly into the primary monolith pedestal receptacle to bypass security protocols.\n\nDoing this will prompt a defensive system countermeasure sequence.",
+      "items": [
+        {
+          "item": "minecraft:heart_of_the_sea",
+          "count": 1,
+          "label": "Relic Fragment Core",
+          "description": null,
+          "microsceneId": null,
+          "type": "input",
+          "track": "none",
+          "trackDuration": 20
+        }
+      ],
+      "guideId": null,
+      "sceneId": "scenes:spire_activation_cinematic"
+    }
+  ]
+}

@@ -1,0 +1,771 @@
+[
+  {
+    "x": 0,
+    "y": 0,
+    "z": 0,
+    "block": "gtceu:hv_energy_input_hatch",
+    "props": {
+      "facing": "north"
+    }
+  },
+  {
+    "x": 0,
+    "y": 0,
+    "z": 1,
+    "block": "gtceu:palladium_substation"
+  },
+  {
+    "x": 0,
+    "y": 0,
+    "z": 2,
+    "block": "gtceu:palladium_substation"
+  },
+  {
+    "x": 0,
+    "y": 0,
+    "z": 3,
+    "block": "gtceu:palladium_substation"
+  },
+  {
+    "x": 0,
+    "y": 0,
+    "z": 4,
+    "block": "gtceu:palladium_substation"
+  },
+  {
+    "x": 0,
+    "y": 1,
+    "z": 0,
+    "block": "gtceu:ev_substation_input_hatch_64a",
+    "props": {
+      "facing": "north"
+    }
+  },
+  {
+    "x": 0,
+    "y": 1,
+    "z": 1,
+    "block": "gtceu:palladium_substation"
+  },
+  {
+    "x": 0,
+    "y": 1,
+    "z": 2,
+    "block": "gtceu:palladium_substation"
+  },
+  {
+    "x": 0,
+    "y": 1,
+    "z": 3,
+    "block": "gtceu:palladium_substation"
+  },
+  {
+    "x": 0,
+    "y": 1,
+    "z": 4,
+    "block": "gtceu:palladium_substation"
+  },
+  {
+    "x": 0,
+    "y": 2,
+    "z": 0,
+    "block": "gtceu:laminated_glass"
+  },
+  {
+    "x": 0,
+    "y": 2,
+    "z": 1,
+    "block": "gtceu:laminated_glass"
+  },
+  {
+    "x": 0,
+    "y": 2,
+    "z": 2,
+    "block": "gtceu:laminated_glass"
+  },
+  {
+    "x": 0,
+    "y": 2,
+    "z": 3,
+    "block": "gtceu:laminated_glass"
+  },
+  {
+    "x": 0,
+    "y": 2,
+    "z": 4,
+    "block": "gtceu:laminated_glass"
+  },
+  {
+    "x": 0,
+    "y": 3,
+    "z": 0,
+    "block": "gtceu:laminated_glass"
+  },
+  {
+    "x": 0,
+    "y": 3,
+    "z": 1,
+    "block": "gtceu:laminated_glass"
+  },
+  {
+    "x": 0,
+    "y": 3,
+    "z": 2,
+    "block": "gtceu:laminated_glass"
+  },
+  {
+    "x": 0,
+    "y": 3,
+    "z": 3,
+    "block": "gtceu:laminated_glass"
+  },
+  {
+    "x": 0,
+    "y": 3,
+    "z": 4,
+    "block": "gtceu:laminated_glass"
+  },
+  {
+    "x": 0,
+    "y": 4,
+    "z": 0,
+    "block": "gtceu:laminated_glass"
+  },
+  {
+    "x": 0,
+    "y": 4,
+    "z": 1,
+    "block": "gtceu:laminated_glass"
+  },
+  {
+    "x": 0,
+    "y": 4,
+    "z": 2,
+    "block": "gtceu:laminated_glass"
+  },
+  {
+    "x": 0,
+    "y": 4,
+    "z": 3,
+    "block": "gtceu:laminated_glass"
+  },
+  {
+    "x": 0,
+    "y": 4,
+    "z": 4,
+    "block": "gtceu:laminated_glass"
+  },
+  {
+    "x": 1,
+    "y": 0,
+    "z": 0,
+    "block": "gtceu:palladium_substation"
+  },
+  {
+    "x": 1,
+    "y": 0,
+    "z": 1,
+    "block": "gtceu:palladium_substation"
+  },
+  {
+    "x": 1,
+    "y": 0,
+    "z": 2,
+    "block": "gtceu:palladium_substation"
+  },
+  {
+    "x": 1,
+    "y": 0,
+    "z": 3,
+    "block": "gtceu:palladium_substation"
+  },
+  {
+    "x": 1,
+    "y": 0,
+    "z": 4,
+    "block": "gtceu:palladium_substation"
+  },
+  {
+    "x": 1,
+    "y": 1,
+    "z": 0,
+    "block": "gtceu:palladium_substation"
+  },
+  {
+    "x": 1,
+    "y": 1,
+    "z": 1,
+    "block": "gtceu:palladium_substation"
+  },
+  {
+    "x": 1,
+    "y": 1,
+    "z": 2,
+    "block": "gtceu:palladium_substation"
+  },
+  {
+    "x": 1,
+    "y": 1,
+    "z": 3,
+    "block": "gtceu:palladium_substation"
+  },
+  {
+    "x": 1,
+    "y": 1,
+    "z": 4,
+    "block": "gtceu:palladium_substation"
+  },
+  {
+    "x": 1,
+    "y": 2,
+    "z": 0,
+    "block": "gtceu:laminated_glass"
+  },
+  {
+    "x": 1,
+    "y": 2,
+    "z": 1,
+    "block": "gtceu:ev_lapotronic_battery"
+  },
+  {
+    "x": 1,
+    "y": 2,
+    "z": 2,
+    "block": "gtceu:ev_lapotronic_battery"
+  },
+  {
+    "x": 1,
+    "y": 2,
+    "z": 3,
+    "block": "gtceu:ev_lapotronic_battery"
+  },
+  {
+    "x": 1,
+    "y": 2,
+    "z": 4,
+    "block": "gtceu:laminated_glass"
+  },
+  {
+    "x": 1,
+    "y": 3,
+    "z": 0,
+    "block": "gtceu:laminated_glass"
+  },
+  {
+    "x": 1,
+    "y": 3,
+    "z": 1,
+    "block": "gtceu:ev_lapotronic_battery"
+  },
+  {
+    "x": 1,
+    "y": 3,
+    "z": 2,
+    "block": "gtceu:ev_lapotronic_battery"
+  },
+  {
+    "x": 1,
+    "y": 3,
+    "z": 3,
+    "block": "gtceu:ev_lapotronic_battery"
+  },
+  {
+    "x": 1,
+    "y": 3,
+    "z": 4,
+    "block": "gtceu:laminated_glass"
+  },
+  {
+    "x": 1,
+    "y": 4,
+    "z": 0,
+    "block": "gtceu:laminated_glass"
+  },
+  {
+    "x": 1,
+    "y": 4,
+    "z": 1,
+    "block": "gtceu:laminated_glass"
+  },
+  {
+    "x": 1,
+    "y": 4,
+    "z": 2,
+    "block": "gtceu:laminated_glass"
+  },
+  {
+    "x": 1,
+    "y": 4,
+    "z": 3,
+    "block": "gtceu:laminated_glass"
+  },
+  {
+    "x": 1,
+    "y": 4,
+    "z": 4,
+    "block": "gtceu:laminated_glass"
+  },
+  {
+    "x": 2,
+    "y": 0,
+    "z": 0,
+    "block": "gtceu:power_substation",
+    "props": {
+      "facing": "north",
+      "upwards_facing": "north"
+    }
+  },
+  {
+    "x": 2,
+    "y": 0,
+    "z": 1,
+    "block": "gtceu:palladium_substation"
+  },
+  {
+    "x": 2,
+    "y": 0,
+    "z": 2,
+    "block": "gtceu:palladium_substation"
+  },
+  {
+    "x": 2,
+    "y": 0,
+    "z": 3,
+    "block": "gtceu:palladium_substation"
+  },
+  {
+    "x": 2,
+    "y": 0,
+    "z": 4,
+    "block": "gtceu:palladium_substation"
+  },
+  {
+    "x": 2,
+    "y": 1,
+    "z": 0,
+    "block": "gtceu:maintenance_hatch",
+    "props": {
+      "facing": "north"
+    }
+  },
+  {
+    "x": 2,
+    "y": 1,
+    "z": 1,
+    "block": "gtceu:palladium_substation"
+  },
+  {
+    "x": 2,
+    "y": 1,
+    "z": 2,
+    "block": "gtceu:palladium_substation"
+  },
+  {
+    "x": 2,
+    "y": 1,
+    "z": 3,
+    "block": "gtceu:palladium_substation"
+  },
+  {
+    "x": 2,
+    "y": 1,
+    "z": 4,
+    "block": "gtceu:palladium_substation"
+  },
+  {
+    "x": 2,
+    "y": 2,
+    "z": 0,
+    "block": "gtceu:laminated_glass"
+  },
+  {
+    "x": 2,
+    "y": 2,
+    "z": 1,
+    "block": "gtceu:ev_lapotronic_battery"
+  },
+  {
+    "x": 2,
+    "y": 2,
+    "z": 2,
+    "block": "gtceu:ev_lapotronic_battery"
+  },
+  {
+    "x": 2,
+    "y": 2,
+    "z": 3,
+    "block": "gtceu:ev_lapotronic_battery"
+  },
+  {
+    "x": 2,
+    "y": 2,
+    "z": 4,
+    "block": "gtceu:laminated_glass"
+  },
+  {
+    "x": 2,
+    "y": 3,
+    "z": 0,
+    "block": "gtceu:laminated_glass"
+  },
+  {
+    "x": 2,
+    "y": 3,
+    "z": 1,
+    "block": "gtceu:ev_lapotronic_battery"
+  },
+  {
+    "x": 2,
+    "y": 3,
+    "z": 2,
+    "block": "gtceu:ev_lapotronic_battery"
+  },
+  {
+    "x": 2,
+    "y": 3,
+    "z": 3,
+    "block": "gtceu:ev_lapotronic_battery"
+  },
+  {
+    "x": 2,
+    "y": 3,
+    "z": 4,
+    "block": "gtceu:laminated_glass"
+  },
+  {
+    "x": 2,
+    "y": 4,
+    "z": 0,
+    "block": "gtceu:laminated_glass"
+  },
+  {
+    "x": 2,
+    "y": 4,
+    "z": 1,
+    "block": "gtceu:laminated_glass"
+  },
+  {
+    "x": 2,
+    "y": 4,
+    "z": 2,
+    "block": "gtceu:laminated_glass"
+  },
+  {
+    "x": 2,
+    "y": 4,
+    "z": 3,
+    "block": "gtceu:laminated_glass"
+  },
+  {
+    "x": 2,
+    "y": 4,
+    "z": 4,
+    "block": "gtceu:laminated_glass"
+  },
+  {
+    "x": 3,
+    "y": 0,
+    "z": 0,
+    "block": "gtceu:palladium_substation"
+  },
+  {
+    "x": 3,
+    "y": 0,
+    "z": 1,
+    "block": "gtceu:palladium_substation"
+  },
+  {
+    "x": 3,
+    "y": 0,
+    "z": 2,
+    "block": "gtceu:palladium_substation"
+  },
+  {
+    "x": 3,
+    "y": 0,
+    "z": 3,
+    "block": "gtceu:palladium_substation"
+  },
+  {
+    "x": 3,
+    "y": 0,
+    "z": 4,
+    "block": "gtceu:palladium_substation"
+  },
+  {
+    "x": 3,
+    "y": 1,
+    "z": 0,
+    "block": "gtceu:palladium_substation"
+  },
+  {
+    "x": 3,
+    "y": 1,
+    "z": 1,
+    "block": "gtceu:palladium_substation"
+  },
+  {
+    "x": 3,
+    "y": 1,
+    "z": 2,
+    "block": "gtceu:palladium_substation"
+  },
+  {
+    "x": 3,
+    "y": 1,
+    "z": 3,
+    "block": "gtceu:palladium_substation"
+  },
+  {
+    "x": 3,
+    "y": 1,
+    "z": 4,
+    "block": "gtceu:palladium_substation"
+  },
+  {
+    "x": 3,
+    "y": 2,
+    "z": 0,
+    "block": "gtceu:laminated_glass"
+  },
+  {
+    "x": 3,
+    "y": 2,
+    "z": 1,
+    "block": "gtceu:ev_lapotronic_battery"
+  },
+  {
+    "x": 3,
+    "y": 2,
+    "z": 2,
+    "block": "gtceu:ev_lapotronic_battery"
+  },
+  {
+    "x": 3,
+    "y": 2,
+    "z": 3,
+    "block": "gtceu:ev_lapotronic_battery"
+  },
+  {
+    "x": 3,
+    "y": 2,
+    "z": 4,
+    "block": "gtceu:laminated_glass"
+  },
+  {
+    "x": 3,
+    "y": 3,
+    "z": 0,
+    "block": "gtceu:laminated_glass"
+  },
+  {
+    "x": 3,
+    "y": 3,
+    "z": 1,
+    "block": "gtceu:ev_lapotronic_battery"
+  },
+  {
+    "x": 3,
+    "y": 3,
+    "z": 2,
+    "block": "gtceu:ev_lapotronic_battery"
+  },
+  {
+    "x": 3,
+    "y": 3,
+    "z": 3,
+    "block": "gtceu:ev_lapotronic_battery"
+  },
+  {
+    "x": 3,
+    "y": 3,
+    "z": 4,
+    "block": "gtceu:laminated_glass"
+  },
+  {
+    "x": 3,
+    "y": 4,
+    "z": 0,
+    "block": "gtceu:laminated_glass"
+  },
+  {
+    "x": 3,
+    "y": 4,
+    "z": 1,
+    "block": "gtceu:laminated_glass"
+  },
+  {
+    "x": 3,
+    "y": 4,
+    "z": 2,
+    "block": "gtceu:laminated_glass"
+  },
+  {
+    "x": 3,
+    "y": 4,
+    "z": 3,
+    "block": "gtceu:laminated_glass"
+  },
+  {
+    "x": 3,
+    "y": 4,
+    "z": 4,
+    "block": "gtceu:laminated_glass"
+  },
+  {
+    "x": 4,
+    "y": 0,
+    "z": 0,
+    "block": "gtceu:hv_energy_output_hatch",
+    "props": {
+      "facing": "north"
+    }
+  },
+  {
+    "x": 4,
+    "y": 0,
+    "z": 1,
+    "block": "gtceu:palladium_substation"
+  },
+  {
+    "x": 4,
+    "y": 0,
+    "z": 2,
+    "block": "gtceu:palladium_substation"
+  },
+  {
+    "x": 4,
+    "y": 0,
+    "z": 3,
+    "block": "gtceu:palladium_substation"
+  },
+  {
+    "x": 4,
+    "y": 0,
+    "z": 4,
+    "block": "gtceu:palladium_substation"
+  },
+  {
+    "x": 4,
+    "y": 1,
+    "z": 0,
+    "block": "gtceu:ev_substation_output_hatch_64a",
+    "props": {
+      "facing": "north"
+    }
+  },
+  {
+    "x": 4,
+    "y": 1,
+    "z": 1,
+    "block": "gtceu:palladium_substation"
+  },
+  {
+    "x": 4,
+    "y": 1,
+    "z": 2,
+    "block": "gtceu:palladium_substation"
+  },
+  {
+    "x": 4,
+    "y": 1,
+    "z": 3,
+    "block": "gtceu:palladium_substation"
+  },
+  {
+    "x": 4,
+    "y": 1,
+    "z": 4,
+    "block": "gtceu:palladium_substation"
+  },
+  {
+    "x": 4,
+    "y": 2,
+    "z": 0,
+    "block": "gtceu:laminated_glass"
+  },
+  {
+    "x": 4,
+    "y": 2,
+    "z": 1,
+    "block": "gtceu:laminated_glass"
+  },
+  {
+    "x": 4,
+    "y": 2,
+    "z": 2,
+    "block": "gtceu:laminated_glass"
+  },
+  {
+    "x": 4,
+    "y": 2,
+    "z": 3,
+    "block": "gtceu:laminated_glass"
+  },
+  {
+    "x": 4,
+    "y": 2,
+    "z": 4,
+    "block": "gtceu:laminated_glass"
+  },
+  {
+    "x": 4,
+    "y": 3,
+    "z": 0,
+    "block": "gtceu:laminated_glass"
+  },
+  {
+    "x": 4,
+    "y": 3,
+    "z": 1,
+    "block": "gtceu:laminated_glass"
+  },
+  {
+    "x": 4,
+    "y": 3,
+    "z": 2,
+    "block": "gtceu:laminated_glass"
+  },
+  {
+    "x": 4,
+    "y": 3,
+    "z": 3,
+    "block": "gtceu:laminated_glass"
+  },
+  {
+    "x": 4,
+    "y": 3,
+    "z": 4,
+    "block": "gtceu:laminated_glass"
+  },
+  {
+    "x": 4,
+    "y": 4,
+    "z": 0,
+    "block": "gtceu:laminated_glass"
+  },
+  {
+    "x": 4,
+    "y": 4,
+    "z": 1,
+    "block": "gtceu:laminated_glass"
+  },
+  {
+    "x": 4,
+    "y": 4,
+    "z": 2,
+    "block": "gtceu:laminated_glass"
+  },
+  {
+    "x": 4,
+    "y": 4,
+    "z": 3,
+    "block": "gtceu:laminated_glass"
+  },
+  {
+    "x": 4,
+    "y": 4,
+    "z": 4,
+    "block": "gtceu:laminated_glass"
+  }
+]

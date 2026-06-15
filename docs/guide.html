@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Phantasia Online — Guide</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    #guide-body { max-width: 740px; margin: 0 auto; padding: 24px 16px 48px; }
+
+    .guide-icon { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+    .guide-icon img { width: 40px; height: 40px; image-rendering: pixelated; }
+    .guide-icon-fallback { font-size: 36px; }
+    .guide-title { font-size: 24px; font-weight: 700; color: var(--text); }
+    .guide-subtitle { color: var(--dim); font-size: 13px; margin-bottom: 20px; }
+    .guide-tag { display: inline-block; background: var(--surface); border: 1px solid var(--border);
+                 border-radius: 4px; padding: 2px 8px; font-size: 11px; color: var(--dim);
+                 margin-bottom: 16px; }
+
+    .guide-page { border: 1px solid var(--border); border-radius: 8px; background: var(--surface);
+                  padding: 20px 24px; margin-bottom: 16px; }
+    .guide-page-headline { font-size: 16px; font-weight: 600; color: var(--accent);
+                           margin-bottom: 10px; }
+    .guide-page-text { color: var(--text); font-size: 13px; line-height: 1.7;
+                       white-space: pre-wrap; }
+
+    .guide-items { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    .guide-item { display: flex; align-items: center; gap: 6px;
+                  background: var(--bg); border: 1px solid var(--border);
+                  border-radius: 6px; padding: 6px 10px; font-size: 12px; }
+    .guide-item img { width: 24px; height: 24px; image-rendering: pixelated; }
+    .guide-item-type { font-size: 10px; padding: 2px 5px; border-radius: 3px; }
+    .guide-item-type.input  { background: rgba(76,175,80,.2); color: #81c784; }
+    .guide-item-type.output { background: rgba(33,150,243,.2); color: #64b5f6; }
+
+    .guide-link { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px;
+                  color: var(--accent); font-size: 13px; text-decoration: none; }
+    .guide-link:hover { text-decoration: underline; }
+
+    .no-data { text-align: center; padding: 80px 24px; color: var(--dim); }
+  </style>
+</head>
+<body>
+<div id="app" style="height:auto;overflow:auto">
+
+  <header class="gallery-header">
+    <a href="index.html#guides" class="btn back-btn" style="margin-right:8px">← Back</a>
+    <div id="guide-header-title" style="font-size:16px;font-weight:600">Loading…</div>
+    <div class="header-spacer"></div>
+  </header>
+
+  <div id="guide-body">
+    <div id="guide-content"></div>
+    <div id="no-data" class="no-data hidden">
+      <h2>Guide not found</h2>
+      <p>Run <code>/phantasia webexport</code> in-game to export guides.</p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(async () => {
+  const params  = new URLSearchParams(location.search);
+  const guideId = params.get('id');
+  const content = document.getElementById('guide-content');
+  const noData  = document.getElementById('no-data');
+
+  if (!guideId) { noData.classList.remove('hidden'); return; }
+
+  const safePath = guideId.replace(':', '/');
+  let guide;
+  try {
+    const res = await fetch(`data/guides/${safePath}.json`);
+    if (!res.ok) throw new Error();
+    guide = await res.json();
+  } catch {
+    noData.classList.remove('hidden');
+    return;
+  }
+
+  document.title = 'Phantasia — ' + (guide.title || guideId);
+  document.getElementById('guide-header-title').textContent = guide.title || guideId;
+
+  // ── Icon + title ──────────────────────────────────────────────────────────
+  const iconId  = guide.iconItem || '';
+  const [ins, iid] = iconId.includes(':') ? iconId.split(':') : ['minecraft', iconId];
+  const iconHtml = iconId
+    ? `<img src="assets/mc/assets/${ins}/textures/item/${iid}.png" alt="${iid}" onerror="this.style.display='none';this.nextSibling.style.display=''"><span class="guide-icon-fallback" style="display:none">📖</span>`
+    : `<span class="guide-icon-fallback">📖</span>`;
+
+  let html = `<div class="guide-icon">${iconHtml}</div>`;
+  html += `<div class="guide-title">${esc(guide.title || guideId)}</div>`;
+  if (guide.subtitle) html += `<div class="guide-subtitle">${esc(guide.subtitle)}</div>`;
+  if (guide.tag)      html += `<div class="guide-tag">${esc(guide.tag)}</div>`;
+
+  // ── Pages ──────────────────────────────────────────────────────────────────
+  for (const page of (guide.pages || [])) {
+    if (!page.headline && !page.text && !(page.items && page.items.length) && !page.guideId && !page.sceneId && !page.scriptId) continue;
+
+    html += `<div class="guide-page">`;
+
+    if (page.headline) html += `<div class="guide-page-headline">${esc(page.headline)}</div>`;
+    if (page.text)     html += `<div class="guide-page-text">${esc(page.text)}</div>`;
+
+    if (page.items && page.items.length) {
+      html += `<div class="guide-items">`;
+      for (const item of page.items) {
+        const [ns2, id2] = (item.item || 'minecraft:stone').split(':');
+        const label = item.label || id2.replace(/_/g, ' ');
+        const type  = item.type  || '';
+        html += `<div class="guide-item">
+          <img src="assets/mc/assets/${esc(ns2)}/textures/item/${esc(id2)}.png" alt="${esc(id2)}" onerror="this.style.display='none'">
+          <span>${esc(label)}</span>
+          ${type ? `<span class="guide-item-type ${esc(type)}">${esc(type)}</span>` : ''}
+        </div>`;
+      }
+      html += `</div>`;
+    }
+
+    if (page.sceneId)  html += `<a class="guide-link" href="viewer.html?scene=${encodeURIComponent(page.sceneId)}">📺 View scene: ${esc(page.sceneId)}</a>`;
+    if (page.scriptId) html += `<a class="guide-link" href="script-viewer.html?id=${encodeURIComponent(page.scriptId)}">⚙️ View machine: ${esc(page.scriptId)}</a>`;
+    if (page.guideId)  html += `<a class="guide-link" href="guide.html?id=${encodeURIComponent(page.guideId)}">📖 Continue reading → ${esc(page.guideId)}</a>`;
+
+    html += `</div>`;
+  }
+
+  content.innerHTML = html;
+
+  function esc(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+})();
+</script>
+</body>
+</html>

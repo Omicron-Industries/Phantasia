@@ -1,0 +1,1191 @@
+[
+  {
+    "x": 0,
+    "y": 1,
+    "z": 6,
+    "block": "gtceu:uv_output_hatch",
+    "props": {
+      "facing": "west"
+    }
+  },
+  {
+    "x": 0,
+    "y": 1,
+    "z": 7,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 0,
+    "y": 1,
+    "z": 8,
+    "block": "gtceu:uv_output_hatch",
+    "props": {
+      "facing": "west"
+    }
+  },
+  {
+    "x": 1,
+    "y": 0,
+    "z": 6,
+    "block": "gtceu:uv_input_hatch",
+    "props": {
+      "facing": "down"
+    }
+  },
+  {
+    "x": 1,
+    "y": 0,
+    "z": 7,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 1,
+    "y": 0,
+    "z": 8,
+    "block": "gtceu:uv_input_hatch",
+    "props": {
+      "facing": "down"
+    }
+  },
+  {
+    "x": 1,
+    "y": 1,
+    "z": 4,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 1,
+    "y": 1,
+    "z": 5,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 1,
+    "y": 1,
+    "z": 9,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 1,
+    "y": 1,
+    "z": 10,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 1,
+    "y": 2,
+    "z": 6,
+    "block": "gtceu:uv_input_hatch",
+    "props": {
+      "facing": "up"
+    }
+  },
+  {
+    "x": 1,
+    "y": 2,
+    "z": 7,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 1,
+    "y": 2,
+    "z": 8,
+    "block": "gtceu:uv_input_hatch",
+    "props": {
+      "facing": "up"
+    }
+  },
+  {
+    "x": 2,
+    "y": 0,
+    "z": 4,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 2,
+    "y": 0,
+    "z": 5,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 2,
+    "y": 0,
+    "z": 9,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 2,
+    "y": 0,
+    "z": 10,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 2,
+    "y": 1,
+    "z": 3,
+    "block": "gtceu:uv_energy_input_hatch",
+    "props": {
+      "facing": "north"
+    }
+  },
+  {
+    "x": 2,
+    "y": 1,
+    "z": 6,
+    "block": "gtceu:uv_output_hatch",
+    "props": {
+      "facing": "east"
+    }
+  },
+  {
+    "x": 2,
+    "y": 1,
+    "z": 7,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 2,
+    "y": 1,
+    "z": 8,
+    "block": "gtceu:uv_output_hatch",
+    "props": {
+      "facing": "east"
+    }
+  },
+  {
+    "x": 2,
+    "y": 1,
+    "z": 11,
+    "block": "gtceu:uv_energy_input_hatch",
+    "props": {
+      "facing": "south"
+    }
+  },
+  {
+    "x": 2,
+    "y": 2,
+    "z": 4,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 2,
+    "y": 2,
+    "z": 5,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 2,
+    "y": 2,
+    "z": 9,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 2,
+    "y": 2,
+    "z": 10,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 3,
+    "y": 0,
+    "z": 3,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 3,
+    "y": 0,
+    "z": 11,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 3,
+    "y": 1,
+    "z": 2,
+    "block": "gtceu:uv_energy_input_hatch",
+    "props": {
+      "facing": "west"
+    }
+  },
+  {
+    "x": 3,
+    "y": 1,
+    "z": 3,
+    "block": "gtceu:fusion_coil",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 3,
+    "y": 1,
+    "z": 4,
+    "block": "gtceu:uv_energy_input_hatch",
+    "props": {
+      "facing": "east"
+    }
+  },
+  {
+    "x": 3,
+    "y": 1,
+    "z": 5,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 3,
+    "y": 1,
+    "z": 9,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 3,
+    "y": 1,
+    "z": 10,
+    "block": "gtceu:uv_energy_input_hatch",
+    "props": {
+      "facing": "east"
+    }
+  },
+  {
+    "x": 3,
+    "y": 1,
+    "z": 11,
+    "block": "gtceu:fusion_coil",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 3,
+    "y": 1,
+    "z": 12,
+    "block": "gtceu:uv_energy_input_hatch",
+    "props": {
+      "facing": "west"
+    }
+  },
+  {
+    "x": 3,
+    "y": 2,
+    "z": 3,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 3,
+    "y": 2,
+    "z": 11,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 4,
+    "y": 0,
+    "z": 2,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 4,
+    "y": 0,
+    "z": 12,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 4,
+    "y": 1,
+    "z": 1,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 4,
+    "y": 1,
+    "z": 3,
+    "block": "gtceu:uv_energy_input_hatch",
+    "props": {
+      "facing": "south"
+    }
+  },
+  {
+    "x": 4,
+    "y": 1,
+    "z": 11,
+    "block": "gtceu:uv_energy_input_hatch",
+    "props": {
+      "facing": "north"
+    }
+  },
+  {
+    "x": 4,
+    "y": 1,
+    "z": 13,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 4,
+    "y": 2,
+    "z": 2,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 4,
+    "y": 2,
+    "z": 12,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 5,
+    "y": 0,
+    "z": 2,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 5,
+    "y": 0,
+    "z": 12,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 5,
+    "y": 1,
+    "z": 1,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 5,
+    "y": 1,
+    "z": 3,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 5,
+    "y": 1,
+    "z": 11,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 5,
+    "y": 1,
+    "z": 13,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 5,
+    "y": 2,
+    "z": 2,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 5,
+    "y": 2,
+    "z": 12,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 6,
+    "y": 0,
+    "z": 1,
+    "block": "gtceu:uv_input_hatch",
+    "props": {
+      "facing": "down"
+    }
+  },
+  {
+    "x": 6,
+    "y": 0,
+    "z": 13,
+    "block": "gtceu:uv_input_hatch",
+    "props": {
+      "facing": "down"
+    }
+  },
+  {
+    "x": 6,
+    "y": 1,
+    "z": 0,
+    "block": "gtceu:uv_output_hatch",
+    "props": {
+      "facing": "north"
+    }
+  },
+  {
+    "x": 6,
+    "y": 1,
+    "z": 2,
+    "block": "gtceu:uv_output_hatch",
+    "props": {
+      "facing": "south"
+    }
+  },
+  {
+    "x": 6,
+    "y": 1,
+    "z": 12,
+    "block": "gtceu:uv_output_hatch",
+    "props": {
+      "facing": "north"
+    }
+  },
+  {
+    "x": 6,
+    "y": 1,
+    "z": 14,
+    "block": "gtceu:uv_output_hatch",
+    "props": {
+      "facing": "south"
+    }
+  },
+  {
+    "x": 6,
+    "y": 2,
+    "z": 1,
+    "block": "gtceu:uv_input_hatch",
+    "props": {
+      "facing": "up"
+    }
+  },
+  {
+    "x": 6,
+    "y": 2,
+    "z": 13,
+    "block": "gtceu:uv_input_hatch",
+    "props": {
+      "facing": "up"
+    }
+  },
+  {
+    "x": 7,
+    "y": 0,
+    "z": 1,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 7,
+    "y": 0,
+    "z": 13,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 7,
+    "y": 1,
+    "z": 0,
+    "block": "gtceu:uv_fusion_reactor",
+    "props": {
+      "facing": "north",
+      "upwards_facing": "north"
+    }
+  },
+  {
+    "x": 7,
+    "y": 1,
+    "z": 2,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 7,
+    "y": 1,
+    "z": 12,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 7,
+    "y": 1,
+    "z": 14,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 7,
+    "y": 2,
+    "z": 1,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 7,
+    "y": 2,
+    "z": 13,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 8,
+    "y": 0,
+    "z": 1,
+    "block": "gtceu:uv_input_hatch",
+    "props": {
+      "facing": "down"
+    }
+  },
+  {
+    "x": 8,
+    "y": 0,
+    "z": 13,
+    "block": "gtceu:uv_input_hatch",
+    "props": {
+      "facing": "down"
+    }
+  },
+  {
+    "x": 8,
+    "y": 1,
+    "z": 0,
+    "block": "gtceu:uv_output_hatch",
+    "props": {
+      "facing": "north"
+    }
+  },
+  {
+    "x": 8,
+    "y": 1,
+    "z": 2,
+    "block": "gtceu:uv_output_hatch",
+    "props": {
+      "facing": "south"
+    }
+  },
+  {
+    "x": 8,
+    "y": 1,
+    "z": 12,
+    "block": "gtceu:uv_output_hatch",
+    "props": {
+      "facing": "north"
+    }
+  },
+  {
+    "x": 8,
+    "y": 1,
+    "z": 14,
+    "block": "gtceu:uv_output_hatch",
+    "props": {
+      "facing": "south"
+    }
+  },
+  {
+    "x": 8,
+    "y": 2,
+    "z": 1,
+    "block": "gtceu:uv_input_hatch",
+    "props": {
+      "facing": "up"
+    }
+  },
+  {
+    "x": 8,
+    "y": 2,
+    "z": 13,
+    "block": "gtceu:uv_input_hatch",
+    "props": {
+      "facing": "up"
+    }
+  },
+  {
+    "x": 9,
+    "y": 0,
+    "z": 2,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 9,
+    "y": 0,
+    "z": 12,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 9,
+    "y": 1,
+    "z": 1,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 9,
+    "y": 1,
+    "z": 3,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 9,
+    "y": 1,
+    "z": 11,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 9,
+    "y": 1,
+    "z": 13,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 9,
+    "y": 2,
+    "z": 2,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 9,
+    "y": 2,
+    "z": 12,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 10,
+    "y": 0,
+    "z": 2,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 10,
+    "y": 0,
+    "z": 12,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 10,
+    "y": 1,
+    "z": 1,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 10,
+    "y": 1,
+    "z": 3,
+    "block": "gtceu:uv_energy_input_hatch",
+    "props": {
+      "facing": "south"
+    }
+  },
+  {
+    "x": 10,
+    "y": 1,
+    "z": 11,
+    "block": "gtceu:uv_energy_input_hatch",
+    "props": {
+      "facing": "north"
+    }
+  },
+  {
+    "x": 10,
+    "y": 1,
+    "z": 13,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 10,
+    "y": 2,
+    "z": 2,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 10,
+    "y": 2,
+    "z": 12,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 11,
+    "y": 0,
+    "z": 3,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 11,
+    "y": 0,
+    "z": 11,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 11,
+    "y": 1,
+    "z": 2,
+    "block": "gtceu:uv_energy_input_hatch",
+    "props": {
+      "facing": "east"
+    }
+  },
+  {
+    "x": 11,
+    "y": 1,
+    "z": 3,
+    "block": "gtceu:fusion_coil",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 11,
+    "y": 1,
+    "z": 4,
+    "block": "gtceu:uv_energy_input_hatch",
+    "props": {
+      "facing": "west"
+    }
+  },
+  {
+    "x": 11,
+    "y": 1,
+    "z": 5,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 11,
+    "y": 1,
+    "z": 9,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 11,
+    "y": 1,
+    "z": 10,
+    "block": "gtceu:uv_energy_input_hatch",
+    "props": {
+      "facing": "west"
+    }
+  },
+  {
+    "x": 11,
+    "y": 1,
+    "z": 11,
+    "block": "gtceu:fusion_coil",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 11,
+    "y": 1,
+    "z": 12,
+    "block": "gtceu:uv_energy_input_hatch",
+    "props": {
+      "facing": "east"
+    }
+  },
+  {
+    "x": 11,
+    "y": 2,
+    "z": 3,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 11,
+    "y": 2,
+    "z": 11,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 12,
+    "y": 0,
+    "z": 4,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 12,
+    "y": 0,
+    "z": 5,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 12,
+    "y": 0,
+    "z": 9,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 12,
+    "y": 0,
+    "z": 10,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 12,
+    "y": 1,
+    "z": 3,
+    "block": "gtceu:uv_energy_input_hatch",
+    "props": {
+      "facing": "north"
+    }
+  },
+  {
+    "x": 12,
+    "y": 1,
+    "z": 6,
+    "block": "gtceu:uv_output_hatch",
+    "props": {
+      "facing": "west"
+    }
+  },
+  {
+    "x": 12,
+    "y": 1,
+    "z": 7,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 12,
+    "y": 1,
+    "z": 8,
+    "block": "gtceu:uv_output_hatch",
+    "props": {
+      "facing": "west"
+    }
+  },
+  {
+    "x": 12,
+    "y": 1,
+    "z": 11,
+    "block": "gtceu:uv_energy_input_hatch",
+    "props": {
+      "facing": "south"
+    }
+  },
+  {
+    "x": 12,
+    "y": 2,
+    "z": 4,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 12,
+    "y": 2,
+    "z": 5,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 12,
+    "y": 2,
+    "z": 9,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 12,
+    "y": 2,
+    "z": 10,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 13,
+    "y": 0,
+    "z": 6,
+    "block": "gtceu:uv_input_hatch",
+    "props": {
+      "facing": "down"
+    }
+  },
+  {
+    "x": 13,
+    "y": 0,
+    "z": 7,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 13,
+    "y": 0,
+    "z": 8,
+    "block": "gtceu:uv_input_hatch",
+    "props": {
+      "facing": "down"
+    }
+  },
+  {
+    "x": 13,
+    "y": 1,
+    "z": 4,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 13,
+    "y": 1,
+    "z": 5,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 13,
+    "y": 1,
+    "z": 9,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 13,
+    "y": 1,
+    "z": 10,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 13,
+    "y": 2,
+    "z": 6,
+    "block": "gtceu:uv_input_hatch",
+    "props": {
+      "facing": "up"
+    }
+  },
+  {
+    "x": 13,
+    "y": 2,
+    "z": 7,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 13,
+    "y": 2,
+    "z": 8,
+    "block": "gtceu:uv_input_hatch",
+    "props": {
+      "facing": "up"
+    }
+  },
+  {
+    "x": 14,
+    "y": 1,
+    "z": 6,
+    "block": "gtceu:uv_output_hatch",
+    "props": {
+      "facing": "east"
+    }
+  },
+  {
+    "x": 14,
+    "y": 1,
+    "z": 7,
+    "block": "gtceu:fusion_casing_mk3",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 14,
+    "y": 1,
+    "z": 8,
+    "block": "gtceu:uv_output_hatch",
+    "props": {
+      "facing": "east"
+    }
+  }
+]

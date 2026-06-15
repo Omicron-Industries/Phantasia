@@ -1,0 +1,165 @@
+[
+  {
+    "x": 0,
+    "y": 0,
+    "z": 0,
+    "block": "gtceu:wood_wall"
+  },
+  {
+    "x": 0,
+    "y": 0,
+    "z": 1,
+    "block": "gtceu:wood_wall"
+  },
+  {
+    "x": 0,
+    "y": 0,
+    "z": 2,
+    "block": "gtceu:wood_wall"
+  },
+  {
+    "x": 0,
+    "y": 1,
+    "z": 0,
+    "block": "gtceu:wood_wall"
+  },
+  {
+    "x": 0,
+    "y": 1,
+    "z": 1,
+    "block": "gtceu:wood_wall"
+  },
+  {
+    "x": 0,
+    "y": 1,
+    "z": 2,
+    "block": "gtceu:wood_wall"
+  },
+  {
+    "x": 0,
+    "y": 2,
+    "z": 0,
+    "block": "gtceu:wood_wall"
+  },
+  {
+    "x": 0,
+    "y": 2,
+    "z": 1,
+    "block": "gtceu:wood_wall"
+  },
+  {
+    "x": 0,
+    "y": 2,
+    "z": 2,
+    "block": "gtceu:wood_wall"
+  },
+  {
+    "x": 1,
+    "y": 0,
+    "z": 0,
+    "block": "gtceu:wood_wall"
+  },
+  {
+    "x": 1,
+    "y": 0,
+    "z": 1,
+    "block": "gtceu:wood_wall"
+  },
+  {
+    "x": 1,
+    "y": 0,
+    "z": 2,
+    "block": "gtceu:wood_wall"
+  },
+  {
+    "x": 1,
+    "y": 1,
+    "z": 0,
+    "block": "gtceu:wooden_multiblock_tank",
+    "props": {
+      "facing": "north",
+      "upwards_facing": "north"
+    }
+  },
+  {
+    "x": 1,
+    "y": 1,
+    "z": 2,
+    "block": "gtceu:wood_wall"
+  },
+  {
+    "x": 1,
+    "y": 2,
+    "z": 0,
+    "block": "gtceu:wood_wall"
+  },
+  {
+    "x": 1,
+    "y": 2,
+    "z": 1,
+    "block": "gtceu:wooden_tank_valve",
+    "props": {
+      "facing": "up"
+    }
+  },
+  {
+    "x": 1,
+    "y": 2,
+    "z": 2,
+    "block": "gtceu:wood_wall"
+  },
+  {
+    "x": 2,
+    "y": 0,
+    "z": 0,
+    "block": "gtceu:wood_wall"
+  },
+  {
+    "x": 2,
+    "y": 0,
+    "z": 1,
+    "block": "gtceu:wood_wall"
+  },
+  {
+    "x": 2,
+    "y": 0,
+    "z": 2,
+    "block": "gtceu:wood_wall"
+  },
+  {
+    "x": 2,
+    "y": 1,
+    "z": 0,
+    "block": "gtceu:wood_wall"
+  },
+  {
+    "x": 2,
+    "y": 1,
+    "z": 1,
+    "block": "gtceu:wood_wall"
+  },
+  {
+    "x": 2,
+    "y": 1,
+    "z": 2,
+    "block": "gtceu:wood_wall"
+  },
+  {
+    "x": 2,
+    "y": 2,
+    "z": 0,
+    "block": "gtceu:wood_wall"
+  },
+  {
+    "x": 2,
+    "y": 2,
+    "z": 1,
+    "block": "gtceu:wood_wall"
+  },
+  {
+    "x": 2,
+    "y": 2,
+    "z": 2,
+    "block": "gtceu:wood_wall"
+  }
+]

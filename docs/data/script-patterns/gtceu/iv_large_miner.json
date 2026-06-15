@@ -1,0 +1,177 @@
+[
+  {
+    "x": 0,
+    "y": 0,
+    "z": 0,
+    "block": "gtceu:stable_machine_casing"
+  },
+  {
+    "x": 0,
+    "y": 0,
+    "z": 1,
+    "block": "gtceu:stable_machine_casing"
+  },
+  {
+    "x": 0,
+    "y": 0,
+    "z": 2,
+    "block": "gtceu:ulv_energy_input_hatch",
+    "props": {
+      "facing": "south"
+    }
+  },
+  {
+    "x": 0,
+    "y": 1,
+    "z": 1,
+    "block": "gtceu:titanium_frame"
+  },
+  {
+    "x": 0,
+    "y": 2,
+    "z": 1,
+    "block": "gtceu:titanium_frame"
+  },
+  {
+    "x": 0,
+    "y": 3,
+    "z": 1,
+    "block": "gtceu:titanium_frame"
+  },
+  {
+    "x": 1,
+    "y": 0,
+    "z": 0,
+    "block": "gtceu:iv_large_miner",
+    "props": {
+      "facing": "north",
+      "upwards_facing": "north"
+    }
+  },
+  {
+    "x": 1,
+    "y": 0,
+    "z": 1,
+    "block": "gtceu:stable_machine_casing"
+  },
+  {
+    "x": 1,
+    "y": 0,
+    "z": 2,
+    "block": "gtceu:ulv_input_hatch",
+    "props": {
+      "facing": "south"
+    }
+  },
+  {
+    "x": 1,
+    "y": 1,
+    "z": 0,
+    "block": "gtceu:titanium_frame"
+  },
+  {
+    "x": 1,
+    "y": 1,
+    "z": 1,
+    "block": "gtceu:stable_machine_casing"
+  },
+  {
+    "x": 1,
+    "y": 1,
+    "z": 2,
+    "block": "gtceu:titanium_frame"
+  },
+  {
+    "x": 1,
+    "y": 2,
+    "z": 0,
+    "block": "gtceu:titanium_frame"
+  },
+  {
+    "x": 1,
+    "y": 2,
+    "z": 1,
+    "block": "gtceu:stable_machine_casing"
+  },
+  {
+    "x": 1,
+    "y": 2,
+    "z": 2,
+    "block": "gtceu:titanium_frame"
+  },
+  {
+    "x": 1,
+    "y": 3,
+    "z": 0,
+    "block": "gtceu:titanium_frame"
+  },
+  {
+    "x": 1,
+    "y": 3,
+    "z": 1,
+    "block": "gtceu:stable_machine_casing"
+  },
+  {
+    "x": 1,
+    "y": 3,
+    "z": 2,
+    "block": "gtceu:titanium_frame"
+  },
+  {
+    "x": 1,
+    "y": 4,
+    "z": 1,
+    "block": "gtceu:titanium_frame"
+  },
+  {
+    "x": 1,
+    "y": 5,
+    "z": 1,
+    "block": "gtceu:titanium_frame"
+  },
+  {
+    "x": 1,
+    "y": 6,
+    "z": 1,
+    "block": "gtceu:titanium_frame"
+  },
+  {
+    "x": 2,
+    "y": 0,
+    "z": 0,
+    "block": "gtceu:stable_machine_casing"
+  },
+  {
+    "x": 2,
+    "y": 0,
+    "z": 1,
+    "block": "gtceu:stable_machine_casing"
+  },
+  {
+    "x": 2,
+    "y": 0,
+    "z": 2,
+    "block": "gtceu:ulv_output_bus",
+    "props": {
+      "facing": "south"
+    }
+  },
+  {
+    "x": 2,
+    "y": 1,
+    "z": 1,
+    "block": "gtceu:titanium_frame"
+  },
+  {
+    "x": 2,
+    "y": 2,
+    "z": 1,
+    "block": "gtceu:titanium_frame"
+  },
+  {
+    "x": 2,
+    "y": 3,
+    "z": 1,
+    "block": "gtceu:titanium_frame"
+  }
+]

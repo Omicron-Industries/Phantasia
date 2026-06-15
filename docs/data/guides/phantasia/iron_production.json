@@ -1,0 +1,67 @@
+{
+  "id": "phantasia:iron_production",
+  "title": "Iron Age Processing",
+  "iconItem": "minecraft:iron_ingot",
+  "subtitle": null,
+  "tag": null,
+  "pages": [
+    {
+      "headline": "&6Step 1: Smelting Fundamentals",
+      "scriptId": null,
+      "text": "To step &cout of the stone age, locate &l&7Iron Ore&r blocks in underground caverns.\n\nCombine raw iron chunks with fuel sources inside a normal furnace to produce standard iron ingots.",
+      "items": [
+        {
+          "item": "minecraft:raw_iron",
+          "count": 3,
+          "label": "Raw Iron Chunks",
+          "description": null,
+          "microsceneId": null,
+          "type": "input",
+          "track": "none",
+          "trackDuration": 20
+        },
+        {
+          "item": "minecraft:coal",
+          "count": 1,
+          "label": "Furnace Fuel",
+          "description": null,
+          "microsceneId": null,
+          "type": "catalyst",
+          "track": "none",
+          "trackDuration": 20
+        },
+        {
+          "item": "minecraft:iron_ingot",
+          "count": 3,
+          "label": "Refined Ingot",
+          "description": null,
+          "microsceneId": null,
+          "type": "output",
+          "track": "none",
+          "trackDuration": 20
+        }
+      ],
+      "guideId": null,
+      "sceneId": null
+    },
+    {
+      "headline": "&dStep 2: Upgrading Toolsets",
+      "scriptId": "gtceu:large_extruder",
+      "text": "Once your ingots are cool enough to handle, use them along with standard wooden sticks at a crafting bench to forge your first &bIron Pickaxe&r.\n\nThis tier will let you harvest advanced metals like gold, diamond, and redstone dust.",
+      "items": [
+        {
+          "item": "minecraft:iron_pickaxe",
+          "count": 1,
+          "label": "Tier II Harvesting Pick",
+          "description": null,
+          "microsceneId": null,
+          "type": "output",
+          "track": "none",
+          "trackDuration": 20
+        }
+      ],
+      "guideId": "phantasia:alloy_foundry",
+      "sceneId": "phantasia:about_energy_hatch"
+    }
+  ]
+}

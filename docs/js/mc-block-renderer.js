@@ -201,18 +201,21 @@ export class McBlockRenderer {
   // ── Material helpers ───────────────────────────────────────────────────────
 
   _getMat(namespace, texPath) {
+    // gtceu:block/void is a fully transparent placeholder — render as invisible
+    if (texPath === 'gtceu:block/void' || texPath.endsWith('/void')) {
+      return this._transparentMat();
+    }
+
     const cacheKey = texPath.includes(':') ? texPath : `${namespace}:${texPath}`;
     if (this._matCache.has(cacheKey)) return this._matCache.get(cacheKey);
 
     const [ns, path] = texPath.includes(':') ? texPath.split(':') : [namespace, texPath];
     const tex = this.assets.texture(ns, path);
-    tex.wrapS = tex.wrapT = 1000; // ClampToEdgeWrapping
-    tex.generateMipmaps = false;
 
     const mat = new this.THREE.MeshLambertMaterial({
       map: tex,
       transparent: true,
-      alphaTest: 0.1,
+      alphaTest: 0.05,
     });
     this._matCache.set(cacheKey, mat);
     return mat;

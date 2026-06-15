@@ -1,0 +1,204 @@
+[
+  {
+    "x": 0,
+    "y": 0,
+    "z": 0,
+    "block": "gtceu:lv_input_bus",
+    "props": {
+      "facing": "north"
+    }
+  },
+  {
+    "x": 0,
+    "y": 0,
+    "z": 1,
+    "block": "gtceu:heatproof_machine_casing"
+  },
+  {
+    "x": 0,
+    "y": 0,
+    "z": 2,
+    "block": "gtceu:lv_energy_input_hatch",
+    "props": {
+      "facing": "south"
+    }
+  },
+  {
+    "x": 0,
+    "y": 1,
+    "z": 0,
+    "block": "gtceu:cupronickel_coil_block",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 0,
+    "y": 1,
+    "z": 1,
+    "block": "gtceu:cupronickel_coil_block",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 0,
+    "y": 1,
+    "z": 2,
+    "block": "gtceu:cupronickel_coil_block",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 0,
+    "y": 2,
+    "z": 0,
+    "block": "gtceu:heatproof_machine_casing"
+  },
+  {
+    "x": 0,
+    "y": 2,
+    "z": 1,
+    "block": "gtceu:heatproof_machine_casing"
+  },
+  {
+    "x": 0,
+    "y": 2,
+    "z": 2,
+    "block": "gtceu:heatproof_machine_casing"
+  },
+  {
+    "x": 1,
+    "y": 0,
+    "z": 0,
+    "block": "gtceu:multi_smelter",
+    "props": {
+      "facing": "north",
+      "upwards_facing": "north"
+    }
+  },
+  {
+    "x": 1,
+    "y": 0,
+    "z": 1,
+    "block": "gtceu:heatproof_machine_casing"
+  },
+  {
+    "x": 1,
+    "y": 0,
+    "z": 2,
+    "block": "gtceu:lv_energy_input_hatch",
+    "props": {
+      "facing": "south"
+    }
+  },
+  {
+    "x": 1,
+    "y": 1,
+    "z": 0,
+    "block": "gtceu:cupronickel_coil_block",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 1,
+    "y": 1,
+    "z": 2,
+    "block": "gtceu:cupronickel_coil_block",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 1,
+    "y": 2,
+    "z": 0,
+    "block": "gtceu:maintenance_hatch",
+    "props": {
+      "facing": "north"
+    }
+  },
+  {
+    "x": 1,
+    "y": 2,
+    "z": 1,
+    "block": "gtceu:lv_muffler_hatch",
+    "props": {
+      "facing": "south"
+    }
+  },
+  {
+    "x": 1,
+    "y": 2,
+    "z": 2,
+    "block": "gtceu:heatproof_machine_casing"
+  },
+  {
+    "x": 2,
+    "y": 0,
+    "z": 0,
+    "block": "gtceu:lv_output_bus",
+    "props": {
+      "facing": "north"
+    }
+  },
+  {
+    "x": 2,
+    "y": 0,
+    "z": 1,
+    "block": "gtceu:heatproof_machine_casing"
+  },
+  {
+    "x": 2,
+    "y": 0,
+    "z": 2,
+    "block": "gtceu:heatproof_machine_casing"
+  },
+  {
+    "x": 2,
+    "y": 1,
+    "z": 0,
+    "block": "gtceu:cupronickel_coil_block",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 2,
+    "y": 1,
+    "z": 1,
+    "block": "gtceu:cupronickel_coil_block",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 2,
+    "y": 1,
+    "z": 2,
+    "block": "gtceu:cupronickel_coil_block",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 2,
+    "y": 2,
+    "z": 0,
+    "block": "gtceu:heatproof_machine_casing"
+  },
+  {
+    "x": 2,
+    "y": 2,
+    "z": 1,
+    "block": "gtceu:heatproof_machine_casing"
+  },
+  {
+    "x": 2,
+    "y": 2,
+    "z": 2,
+    "block": "gtceu:heatproof_machine_casing"
+  }
+]

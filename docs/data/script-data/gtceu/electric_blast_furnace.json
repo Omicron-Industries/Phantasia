@@ -1,0 +1,174 @@
+{
+  "machine": "gtceu:electric_blast_furnace",
+  "startCamera": null,
+  "steps": [
+    {
+      "tick": 0,
+      "caption": "The Electric Blast Furnace smelts metals at extreme temperatures. Build it from the bottom up.",
+      "show": "all",
+      "layer": 0,
+      "layerMin": 0,
+      "layerMax": 0,
+      "positions": [],
+      "hideLayer": -1,
+      "hidePositions": [],
+      "working": false,
+      "fakeRecipeId": null,
+      "showItems": false,
+      "items": [],
+      "camera": {
+        "yaw": 30.0,
+        "pitch": -25.0,
+        "zoom": 5.5,
+        "lerpType": "SNAP",
+        "lerpTicks": 0
+      }
+    },
+    {
+      "tick": 80,
+      "caption": "Start with the base ring — a hollow 3x3 of EBF casings at the bottom.",
+      "show": "layer",
+      "layer": 0,
+      "layerMin": 0,
+      "layerMax": 0,
+      "positions": [],
+      "hideLayer": -1,
+      "hidePositions": [],
+      "working": false,
+      "fakeRecipeId": null,
+      "showItems": false,
+      "items": [],
+      "camera": {
+        "yaw": 30.0,
+        "pitch": -8.0,
+        "zoom": 3.6,
+        "lerpType": "EASE_OUT",
+        "lerpTicks": 20
+      }
+    },
+    {
+      "tick": 160,
+      "caption": "The coil rings sit in layers 1 and 2. Coil tier sets the maximum recipe temperature — click to compare.",
+      "show": "layer",
+      "layer": 0,
+      "layerMin": 1,
+      "layerMax": 2,
+      "positions": [],
+      "hideLayer": -1,
+      "hidePositions": [],
+      "working": false,
+      "fakeRecipeId": null,
+      "showItems": true,
+      "items": [
+        {
+          "item": "gtceu:cupronickel_coil_block",
+          "count": 1,
+          "label": "Coil Rings",
+          "description": "Minimum tier is Cupronickel (1800K). Swap to higher tiers for hotter recipes without rebuilding. Click to see all tiers.",
+          "microsceneId": "phantasia:ebf_coil_tiers",
+          "type": "catalyst",
+          "track": "pulse",
+          "trackDuration": 40
+        }
+      ],
+      "camera": {
+        "yaw": 30.0,
+        "pitch": -18.0,
+        "zoom": 4.0,
+        "lerpType": "EASE_OUT",
+        "lerpTicks": 18
+      }
+    },
+    {
+      "tick": 260,
+      "caption": "Cap it off with the top ring — includes the muffler hatch. Structure complete.",
+      "show": "all",
+      "layer": 0,
+      "layerMin": 0,
+      "layerMax": 0,
+      "positions": [],
+      "hideLayer": -1,
+      "hidePositions": [],
+      "working": false,
+      "fakeRecipeId": null,
+      "showItems": true,
+      "items": [
+        {
+          "item": "gtceu:muffler_hatch",
+          "count": 1,
+          "label": "Muffler Hatch",
+          "description": "Required to form. Goes on the top ring. Outputs pollution byproducts — keep it unobstructed.",
+          "microsceneId": "phantasia:about_muffler_hatch",
+          "type": "catalyst",
+          "track": "none",
+          "trackDuration": 20
+        },
+        {
+          "item": "gtceu:mv_energy_hatch",
+          "count": 1,
+          "label": "Energy Hatch",
+          "description": "Minimum MV. Higher voltage = faster overclocking. Place on any casing face.",
+          "microsceneId": "phantasia:about_energy_hatch",
+          "type": "input",
+          "track": "none",
+          "trackDuration": 20
+        }
+      ],
+      "camera": {
+        "yaw": 30.0,
+        "pitch": -25.0,
+        "zoom": 5.0,
+        "lerpType": "EASE_OUT",
+        "lerpTicks": 15
+      }
+    },
+    {
+      "tick": 360,
+      "caption": "Running! Silicon wafers flow in from the left, processed wafers come out the right. Click either to learn more.",
+      "show": "all",
+      "layer": 0,
+      "layerMin": 0,
+      "layerMax": 0,
+      "positions": [],
+      "hideLayer": -1,
+      "hidePositions": [],
+      "working": true,
+      "fakeRecipeId": null,
+      "showItems": true,
+      "items": [
+        {
+          "item": "gtceu:silicon_wafer",
+          "count": 4,
+          "label": "Silicon Wafer",
+          "description": "Smelted at 1460K — any Cupronickel EBF can do this. Feed into the input hatch.",
+          "microsceneId": "phantasia:wafer_chain",
+          "type": "input",
+          "track": "left",
+          "trackDuration": 26
+        },
+        {
+          "item": "gtceu:wafer",
+          "count": 4,
+          "label": "Wafer",
+          "description": "Collect from the output hatch. Used as the base for all circuit wafer types.",
+          "microsceneId": "phantasia:wafer_chain",
+          "type": "output",
+          "track": "right",
+          "trackDuration": 26
+        }
+      ],
+      "camera": {
+        "yaw": 55.0,
+        "pitch": -18.0,
+        "zoom": 4.2,
+        "lerpType": "EASE_IN_OUT",
+        "lerpTicks": 24
+      }
+    }
+  ],
+  "scriptDuration": -1,
+  "items": [],
+  "mistakes": [],
+  "globalMistakes": [],
+  "optionalGroups": []
+}

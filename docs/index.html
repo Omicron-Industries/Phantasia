@@ -8,20 +8,47 @@
   <style>
     body { overflow: auto; }
     #app { height: auto; }
+
+    .tab-bar {
+      display: flex;
+      gap: 4px;
+      padding: 0 16px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .tab-btn {
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--dim);
+      font: inherit;
+      font-size: 13px;
+      padding: 8px 14px;
+      cursor: pointer;
+      transition: color .15s, border-color .15s;
+    }
+    .tab-btn:hover { color: var(--text); }
+    .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
   </style>
 </head>
 <body>
 <div id="app">
   <header class="gallery-header">
     <div class="gallery-logo">Phantasia <span>Online</span></div>
-    <input id="search" class="gallery-search" type="text" placeholder="Search scenes…" autocomplete="off">
-    <span id="scene-count" class="gallery-count"></span>
+    <input id="search" class="gallery-search" type="text" placeholder="Search…" autocomplete="off">
+    <span id="item-count" class="gallery-count"></span>
   </header>
+
+  <nav class="tab-bar">
+    <button class="tab-btn active" data-tab="scenes">Scenes</button>
+    <button class="tab-btn"        data-tab="scripts">Scripts</button>
+    <button class="tab-btn"        data-tab="guides">Guides</button>
+  </nav>
 
   <main>
     <div id="gallery" class="gallery-grid"></div>
     <div id="no-data" class="no-data hidden" style="height:60vh">
-      <h2>No scenes found</h2>
+      <h2>Nothing here yet</h2>
       <p>
         Launch Minecraft with Phantasia, load a world, and run
         <code>/phantasia webexport</code> in chat.
@@ -34,53 +61,100 @@
 
 <script>
 (async () => {
-  const gallery = document.getElementById('gallery');
-  const search  = document.getElementById('search');
-  const noData  = document.getElementById('no-data');
-  const count   = document.getElementById('scene-count');
+  const gallery   = document.getElementById('gallery');
+  const searchEl  = document.getElementById('search');
+  const noData    = document.getElementById('no-data');
+  const countEl   = document.getElementById('item-count');
+  const tabBtns   = document.querySelectorAll('.tab-btn');
 
-  let scenes = [];
+  let currentTab = 'scenes';
+  let allData = { scenes: [], scripts: [], guides: [] };
 
-  try {
-    const res = await fetch('data/manifest.json');
-    if (!res.ok) throw new Error('manifest not found');
-    scenes = await res.json();
-  } catch {
+  // ── Load all manifests ─────────────────────────────────────────────────────
+
+  async function tryFetch(url) {
+    try { const r = await fetch(url); return r.ok ? r.json() : []; }
+    catch { return []; }
+  }
+
+  const [scenes, scripts, guides] = await Promise.all([
+    tryFetch('data/manifest.json'),
+    tryFetch('data/scripts-manifest.json'),
+    tryFetch('data/guides-manifest.json'),
+  ]);
+  allData.scenes  = scenes;
+  allData.scripts = scripts;
+  allData.guides  = guides;
+
+  if (!scenes.length && !scripts.length && !guides.length) {
     noData.classList.remove('hidden');
     return;
   }
 
-  if (!scenes.length) { noData.classList.remove('hidden'); return; }
+  // ── Tab switching ──────────────────────────────────────────────────────────
+
+  tabBtns.forEach(btn => btn.addEventListener('click', () => {
+    tabBtns.forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentTab = btn.dataset.tab;
+    searchEl.value = '';
+    render(allData[currentTab]);
+  }));
+
+  // ── Rendering ─────────────────────────────────────────────────────────────
 
   function render(list) {
-    count.textContent = list.length + ' scene' + (list.length !== 1 ? 's' : '');
+    const q = searchEl.value.toLowerCase();
+    const filtered = q ? list.filter(s => matchesQuery(s, q)) : list;
+    countEl.textContent = filtered.length + ' ' + currentTab.slice(0, -1) + (filtered.length !== 1 ? 's' : '');
     gallery.innerHTML = '';
-    list.forEach(s => {
-      const card = document.createElement('a');
-      card.className = 'scene-card';
-      card.href = `viewer.html?scene=${encodeURIComponent(s.id)}`;
+    noData.classList.toggle('hidden', filtered.length > 0);
+    filtered.forEach(item => gallery.appendChild(buildCard(item)));
+  }
 
-      const iconEl = buildIcon(s.iconItem);
-      const machines = (s.machines || []).slice(0, 3).map(m => {
-        const name = m.includes(':') ? m.split(':')[1] : m;
-        const el = document.createElement('span');
-        el.className = 'machine-tag truncate';
-        el.title = m;
-        el.textContent = name;
-        return el;
-      });
+  function matchesQuery(s, q) {
+    return (s.name  || s.title || s.id || '').toLowerCase().includes(q) ||
+           (s.id || '').toLowerCase().includes(q) ||
+           (s.tag  || '').toLowerCase().includes(q) ||
+           (s.machines || []).some(m => m.toLowerCase().includes(q));
+  }
 
-      card.innerHTML = `
-        <div class="scene-card-icon">${iconEl}</div>
-        <div class="scene-card-body">
-          <div class="scene-card-name truncate">${esc(s.name)}</div>
-          <div class="scene-card-id truncate">${esc(s.id)}</div>
-          <div class="scene-card-machines"></div>
-        </div>`;
+  function buildCard(s) {
+    const type    = s.type || 'scene';
+    const name    = s.name || s.title || s.id;
+    const iconId  = s.iconItem;
+    const link    = type === 'script' ? `script-viewer.html?id=${encodeURIComponent(s.id)}`
+                  : type === 'guide'  ? `guide.html?id=${encodeURIComponent(s.id)}`
+                  :                     `viewer.html?scene=${encodeURIComponent(s.id)}`;
 
-      machines.forEach(m => card.querySelector('.scene-card-machines').appendChild(m));
-      gallery.appendChild(card);
+    const card = document.createElement('a');
+    card.className = 'scene-card';
+    card.href = link;
+
+    const tags = (s.machines || []).slice(0, 3).map(m => {
+      const el = document.createElement('span');
+      el.className = 'machine-tag truncate';
+      el.title = m;
+      el.textContent = m.includes(':') ? m.split(':')[1] : m;
+      return el;
     });
+    if (s.tag) {
+      const el = document.createElement('span');
+      el.className = 'machine-tag truncate';
+      el.textContent = s.tag;
+      tags.push(el);
+    }
+
+    card.innerHTML = `
+      <div class="scene-card-icon">${buildIcon(iconId)}</div>
+      <div class="scene-card-body">
+        <div class="scene-card-name truncate">${esc(name)}</div>
+        <div class="scene-card-id truncate">${esc(s.id)}</div>
+        <div class="scene-card-machines"></div>
+      </div>`;
+
+    tags.forEach(t => card.querySelector('.scene-card-machines').appendChild(t));
+    return card;
   }
 
   function buildIcon(itemId) {
@@ -95,16 +169,9 @@
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
 
-  search.addEventListener('input', () => {
-    const q = search.value.toLowerCase();
-    render(q ? scenes.filter(s =>
-      s.name.toLowerCase().includes(q) ||
-      s.id.toLowerCase().includes(q) ||
-      (s.machines || []).some(m => m.toLowerCase().includes(q))
-    ) : scenes);
-  });
+  searchEl.addEventListener('input', () => render(allData[currentTab]));
 
-  render(scenes);
+  render(allData.scenes);
 })();
 </script>
 </body>

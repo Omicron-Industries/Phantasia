@@ -1,0 +1,122 @@
+{
+  "machine": "gtceu:mega_blast_furnace",
+  "startCamera": {
+    "yaw": -177.46661,
+    "pitch": -9.116662,
+    "zoom": 28.5,
+    "targetOffsetX": 0.0,
+    "targetOffsetY": 2.0,
+    "targetOffsetZ": 0.0
+  },
+  "steps": [
+    {
+      "tick": 64,
+      "caption": null,
+      "show": "parts",
+      "layer": 0,
+      "layerMin": 0,
+      "layerMax": 0,
+      "positions": [],
+      "hideLayer": -1,
+      "hidePositions": [],
+      "working": false,
+      "fakeRecipeId": null,
+      "showItems": true,
+      "items": [],
+      "camera": null
+    },
+    {
+      "tick": 140,
+      "caption": "High-tier Energy, Input, and Output Hatches must be integrated securely along the base and frame boundaries.",
+      "show": "parts:@block(high) | & @ability(input)",
+      "layer": 0,
+      "layerMin": 0,
+      "layerMax": 0,
+      "positions": [],
+      "hideLayer": -1,
+      "hidePositions": [],
+      "working": false,
+      "fakeRecipeId": null,
+      "showItems": true,
+      "items": [],
+      "camera": {
+        "yaw": 35.0,
+        "pitch": -15.0,
+        "zoom": 8.0,
+        "lerpType": "EASE_IN_OUT",
+        "lerpTicks": 40
+      }
+    },
+    {
+      "tick": 240,
+      "caption": "Heavy, heat-resistant Blast Walls and structural casings form the massive external shell to contain the internal pressures.",
+      "show": "layers",
+      "layer": 0,
+      "layerMin": 1,
+      "layerMax": 4,
+      "positions": [],
+      "hideLayer": -1,
+      "hidePositions": [],
+      "working": false,
+      "fakeRecipeId": null,
+      "showItems": true,
+      "items": [],
+      "camera": {
+        "yaw": 120.0,
+        "pitch": -30.0,
+        "zoom": 12.0,
+        "lerpType": "EASE_IN_OUT",
+        "lerpTicks": 45
+      }
+    },
+    {
+      "tick": 340,
+      "caption": "The core interior houses rows of ultra-high temperature heating coils alongside critical thermodynamic element blocks.",
+      "show": "functional",
+      "layer": 0,
+      "layerMin": 0,
+      "layerMax": 0,
+      "positions": [],
+      "hideLayer": -1,
+      "hidePositions": [],
+      "working": false,
+      "fakeRecipeId": null,
+      "showItems": true,
+      "items": [],
+      "camera": {
+        "yaw": -120.0,
+        "pitch": -25.0,
+        "zoom": 10.0,
+        "lerpType": "LINEAR",
+        "lerpTicks": 40
+      }
+    },
+    {
+      "tick": 440,
+      "caption": "With extreme power supplied and internal temperatures stabilized, the Mega Blast Furnace activates to refine high-tier alloys!",
+      "show": "all",
+      "layer": 0,
+      "layerMin": 0,
+      "layerMax": 0,
+      "positions": [],
+      "hideLayer": -1,
+      "hidePositions": [],
+      "working": true,
+      "fakeRecipeId": "gtceu:mega_blast_furnace/smelt_high_tier_alloy",
+      "showItems": true,
+      "items": [],
+      "camera": {
+        "yaw": -45.0,
+        "pitch": -20.0,
+        "zoom": 18.0,
+        "lerpType": "EASE_IN_OUT",
+        "lerpTicks": 50
+      }
+    }
+  ],
+  "scriptDuration": 540,
+  "items": [],
+  "mistakes": [],
+  "globalMistakes": [],
+  "optionalGroups": []
+}

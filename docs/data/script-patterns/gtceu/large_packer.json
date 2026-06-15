@@ -1,0 +1,321 @@
+[
+  {
+    "x": 0,
+    "y": 0,
+    "z": 0,
+    "block": "gtceu:robust_machine_casing"
+  },
+  {
+    "x": 0,
+    "y": 0,
+    "z": 1,
+    "block": "gtceu:robust_machine_casing"
+  },
+  {
+    "x": 0,
+    "y": 0,
+    "z": 2,
+    "block": "gtceu:robust_machine_casing"
+  },
+  {
+    "x": 0,
+    "y": 0,
+    "z": 3,
+    "block": "gtceu:robust_machine_casing"
+  },
+  {
+    "x": 0,
+    "y": 0,
+    "z": 4,
+    "block": "gtceu:robust_machine_casing"
+  },
+  {
+    "x": 0,
+    "y": 0,
+    "z": 5,
+    "block": "gtceu:cleaning_maintenance_hatch",
+    "props": {
+      "facing": "south"
+    }
+  },
+  {
+    "x": 0,
+    "y": 1,
+    "z": 0,
+    "block": "gtceu:robust_machine_casing"
+  },
+  {
+    "x": 0,
+    "y": 1,
+    "z": 1,
+    "block": "gtceu:robust_machine_casing"
+  },
+  {
+    "x": 0,
+    "y": 1,
+    "z": 2,
+    "block": "gtceu:robust_machine_casing"
+  },
+  {
+    "x": 0,
+    "y": 1,
+    "z": 3,
+    "block": "gtceu:robust_machine_casing"
+  },
+  {
+    "x": 0,
+    "y": 1,
+    "z": 4,
+    "block": "gtceu:robust_machine_casing"
+  },
+  {
+    "x": 0,
+    "y": 1,
+    "z": 5,
+    "block": "gtceu:robust_machine_casing"
+  },
+  {
+    "x": 0,
+    "y": 2,
+    "z": 0,
+    "block": "gtceu:robust_machine_casing"
+  },
+  {
+    "x": 0,
+    "y": 2,
+    "z": 1,
+    "block": "gtceu:robust_machine_casing"
+  },
+  {
+    "x": 0,
+    "y": 2,
+    "z": 2,
+    "block": "gtceu:robust_machine_casing"
+  },
+  {
+    "x": 0,
+    "y": 2,
+    "z": 3,
+    "block": "gtceu:robust_machine_casing"
+  },
+  {
+    "x": 0,
+    "y": 2,
+    "z": 4,
+    "block": "gtceu:robust_machine_casing"
+  },
+  {
+    "x": 0,
+    "y": 2,
+    "z": 5,
+    "block": "gtceu:robust_machine_casing"
+  },
+  {
+    "x": 1,
+    "y": 0,
+    "z": 0,
+    "block": "gtceu:robust_machine_casing"
+  },
+  {
+    "x": 1,
+    "y": 0,
+    "z": 1,
+    "block": "gtceu:ulv_output_bus",
+    "props": {
+      "facing": "up"
+    }
+  },
+  {
+    "x": 1,
+    "y": 0,
+    "z": 2,
+    "block": "gtceu:robust_machine_casing"
+  },
+  {
+    "x": 1,
+    "y": 0,
+    "z": 3,
+    "block": "gtceu:robust_machine_casing"
+  },
+  {
+    "x": 1,
+    "y": 0,
+    "z": 4,
+    "block": "gtceu:robust_machine_casing"
+  },
+  {
+    "x": 1,
+    "y": 0,
+    "z": 5,
+    "block": "gtceu:ulv_energy_input_hatch",
+    "props": {
+      "facing": "south"
+    }
+  },
+  {
+    "x": 1,
+    "y": 1,
+    "z": 0,
+    "block": "gtceu:large_packer",
+    "props": {
+      "facing": "north",
+      "upwards_facing": "north"
+    }
+  },
+  {
+    "x": 1,
+    "y": 1,
+    "z": 5,
+    "block": "gtceu:robust_machine_casing"
+  },
+  {
+    "x": 1,
+    "y": 2,
+    "z": 0,
+    "block": "gtceu:robust_machine_casing"
+  },
+  {
+    "x": 1,
+    "y": 2,
+    "z": 1,
+    "block": "gtceu:robust_machine_casing"
+  },
+  {
+    "x": 1,
+    "y": 2,
+    "z": 2,
+    "block": "gtceu:robust_machine_casing"
+  },
+  {
+    "x": 1,
+    "y": 2,
+    "z": 3,
+    "block": "gtceu:robust_machine_casing"
+  },
+  {
+    "x": 1,
+    "y": 2,
+    "z": 4,
+    "block": "gtceu:robust_machine_casing"
+  },
+  {
+    "x": 1,
+    "y": 2,
+    "z": 5,
+    "block": "gtceu:robust_machine_casing"
+  },
+  {
+    "x": 2,
+    "y": 0,
+    "z": 0,
+    "block": "gtceu:robust_machine_casing"
+  },
+  {
+    "x": 2,
+    "y": 0,
+    "z": 1,
+    "block": "gtceu:ulv_input_bus",
+    "props": {
+      "facing": "east"
+    }
+  },
+  {
+    "x": 2,
+    "y": 0,
+    "z": 2,
+    "block": "gtceu:robust_machine_casing"
+  },
+  {
+    "x": 2,
+    "y": 0,
+    "z": 3,
+    "block": "gtceu:robust_machine_casing"
+  },
+  {
+    "x": 2,
+    "y": 0,
+    "z": 4,
+    "block": "gtceu:robust_machine_casing"
+  },
+  {
+    "x": 2,
+    "y": 0,
+    "z": 5,
+    "block": "gtceu:iv_parallel_hatch",
+    "props": {
+      "facing": "south"
+    }
+  },
+  {
+    "x": 2,
+    "y": 1,
+    "z": 0,
+    "block": "gtceu:robust_machine_casing"
+  },
+  {
+    "x": 2,
+    "y": 1,
+    "z": 1,
+    "block": "gtceu:robust_machine_casing"
+  },
+  {
+    "x": 2,
+    "y": 1,
+    "z": 2,
+    "block": "gtceu:robust_machine_casing"
+  },
+  {
+    "x": 2,
+    "y": 1,
+    "z": 3,
+    "block": "gtceu:robust_machine_casing"
+  },
+  {
+    "x": 2,
+    "y": 1,
+    "z": 4,
+    "block": "gtceu:robust_machine_casing"
+  },
+  {
+    "x": 2,
+    "y": 1,
+    "z": 5,
+    "block": "gtceu:robust_machine_casing"
+  },
+  {
+    "x": 2,
+    "y": 2,
+    "z": 0,
+    "block": "gtceu:robust_machine_casing"
+  },
+  {
+    "x": 2,
+    "y": 2,
+    "z": 1,
+    "block": "gtceu:robust_machine_casing"
+  },
+  {
+    "x": 2,
+    "y": 2,
+    "z": 2,
+    "block": "gtceu:robust_machine_casing"
+  },
+  {
+    "x": 2,
+    "y": 2,
+    "z": 3,
+    "block": "gtceu:robust_machine_casing"
+  },
+  {
+    "x": 2,
+    "y": 2,
+    "z": 4,
+    "block": "gtceu:robust_machine_casing"
+  },
+  {
+    "x": 2,
+    "y": 2,
+    "z": 5,
+    "block": "gtceu:robust_machine_casing"
+  }
+]

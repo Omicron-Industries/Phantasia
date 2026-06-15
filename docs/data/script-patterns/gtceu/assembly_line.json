@@ -1,0 +1,342 @@
+[
+  {
+    "x": 0,
+    "y": 0,
+    "z": 0,
+    "block": "gtceu:solid_machine_casing"
+  },
+  {
+    "x": 0,
+    "y": 0,
+    "z": 1,
+    "block": "gtceu:ulv_input_bus",
+    "props": {
+      "facing": "west"
+    }
+  },
+  {
+    "x": 0,
+    "y": 0,
+    "z": 2,
+    "block": "gtceu:solid_machine_casing"
+  },
+  {
+    "x": 0,
+    "y": 1,
+    "z": 0,
+    "block": "gtceu:laminated_glass"
+  },
+  {
+    "x": 0,
+    "y": 1,
+    "z": 1,
+    "block": "gtceu:assembly_line_unit",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 0,
+    "y": 1,
+    "z": 2,
+    "block": "gtceu:laminated_glass"
+  },
+  {
+    "x": 0,
+    "y": 2,
+    "z": 0,
+    "block": "gtceu:assembly_line",
+    "props": {
+      "facing": "north",
+      "upwards_facing": "north"
+    }
+  },
+  {
+    "x": 0,
+    "y": 2,
+    "z": 1,
+    "block": "gtceu:assembly_line_casing"
+  },
+  {
+    "x": 0,
+    "y": 2,
+    "z": 2,
+    "block": "gtceu:assembly_line_grating"
+  },
+  {
+    "x": 0,
+    "y": 3,
+    "z": 1,
+    "block": "gtceu:ulv_energy_input_hatch",
+    "props": {
+      "facing": "south"
+    }
+  },
+  {
+    "x": 1,
+    "y": 0,
+    "z": 0,
+    "block": "gtceu:solid_machine_casing"
+  },
+  {
+    "x": 1,
+    "y": 0,
+    "z": 1,
+    "block": "gtceu:ulv_input_bus",
+    "props": {
+      "facing": "down"
+    }
+  },
+  {
+    "x": 1,
+    "y": 0,
+    "z": 2,
+    "block": "gtceu:solid_machine_casing"
+  },
+  {
+    "x": 1,
+    "y": 1,
+    "z": 0,
+    "block": "gtceu:laminated_glass"
+  },
+  {
+    "x": 1,
+    "y": 1,
+    "z": 1,
+    "block": "gtceu:assembly_line_unit",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 1,
+    "y": 1,
+    "z": 2,
+    "block": "gtceu:laminated_glass"
+  },
+  {
+    "x": 1,
+    "y": 2,
+    "z": 0,
+    "block": "gtceu:basic_data_access_hatch",
+    "props": {
+      "facing": "up"
+    }
+  },
+  {
+    "x": 1,
+    "y": 2,
+    "z": 1,
+    "block": "gtceu:assembly_line_casing"
+  },
+  {
+    "x": 1,
+    "y": 2,
+    "z": 2,
+    "block": "gtceu:assembly_line_grating"
+  },
+  {
+    "x": 1,
+    "y": 3,
+    "z": 1,
+    "block": "gtceu:solid_machine_casing"
+  },
+  {
+    "x": 2,
+    "y": 0,
+    "z": 0,
+    "block": "gtceu:solid_machine_casing"
+  },
+  {
+    "x": 2,
+    "y": 0,
+    "z": 1,
+    "block": "gtceu:ulv_input_bus",
+    "props": {
+      "facing": "down"
+    }
+  },
+  {
+    "x": 2,
+    "y": 0,
+    "z": 2,
+    "block": "gtceu:solid_machine_casing"
+  },
+  {
+    "x": 2,
+    "y": 1,
+    "z": 0,
+    "block": "gtceu:laminated_glass"
+  },
+  {
+    "x": 2,
+    "y": 1,
+    "z": 1,
+    "block": "gtceu:assembly_line_unit",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 2,
+    "y": 1,
+    "z": 2,
+    "block": "gtceu:laminated_glass"
+  },
+  {
+    "x": 2,
+    "y": 2,
+    "z": 0,
+    "block": "gtceu:assembly_line_grating"
+  },
+  {
+    "x": 2,
+    "y": 2,
+    "z": 1,
+    "block": "gtceu:assembly_line_casing"
+  },
+  {
+    "x": 2,
+    "y": 2,
+    "z": 2,
+    "block": "gtceu:assembly_line_grating"
+  },
+  {
+    "x": 2,
+    "y": 3,
+    "z": 1,
+    "block": "gtceu:solid_machine_casing"
+  },
+  {
+    "x": 3,
+    "y": 0,
+    "z": 0,
+    "block": "gtceu:solid_machine_casing"
+  },
+  {
+    "x": 3,
+    "y": 0,
+    "z": 1,
+    "block": "gtceu:ulv_input_bus",
+    "props": {
+      "facing": "down"
+    }
+  },
+  {
+    "x": 3,
+    "y": 0,
+    "z": 2,
+    "block": "gtceu:solid_machine_casing"
+  },
+  {
+    "x": 3,
+    "y": 1,
+    "z": 0,
+    "block": "gtceu:laminated_glass"
+  },
+  {
+    "x": 3,
+    "y": 1,
+    "z": 1,
+    "block": "gtceu:assembly_line_unit",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 3,
+    "y": 1,
+    "z": 2,
+    "block": "gtceu:laminated_glass"
+  },
+  {
+    "x": 3,
+    "y": 2,
+    "z": 0,
+    "block": "gtceu:assembly_line_grating"
+  },
+  {
+    "x": 3,
+    "y": 2,
+    "z": 1,
+    "block": "gtceu:assembly_line_casing"
+  },
+  {
+    "x": 3,
+    "y": 2,
+    "z": 2,
+    "block": "gtceu:assembly_line_grating"
+  },
+  {
+    "x": 3,
+    "y": 3,
+    "z": 1,
+    "block": "gtceu:solid_machine_casing"
+  },
+  {
+    "x": 4,
+    "y": 0,
+    "z": 0,
+    "block": "gtceu:solid_machine_casing"
+  },
+  {
+    "x": 4,
+    "y": 0,
+    "z": 1,
+    "block": "gtceu:ulv_output_bus",
+    "props": {
+      "facing": "east"
+    }
+  },
+  {
+    "x": 4,
+    "y": 0,
+    "z": 2,
+    "block": "gtceu:solid_machine_casing"
+  },
+  {
+    "x": 4,
+    "y": 1,
+    "z": 0,
+    "block": "gtceu:laminated_glass"
+  },
+  {
+    "x": 4,
+    "y": 1,
+    "z": 1,
+    "block": "gtceu:assembly_line_unit",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 4,
+    "y": 1,
+    "z": 2,
+    "block": "gtceu:laminated_glass"
+  },
+  {
+    "x": 4,
+    "y": 2,
+    "z": 0,
+    "block": "gtceu:assembly_line_grating"
+  },
+  {
+    "x": 4,
+    "y": 2,
+    "z": 1,
+    "block": "gtceu:assembly_line_casing"
+  },
+  {
+    "x": 4,
+    "y": 2,
+    "z": 2,
+    "block": "gtceu:assembly_line_grating"
+  },
+  {
+    "x": 4,
+    "y": 3,
+    "z": 1,
+    "block": "gtceu:solid_machine_casing"
+  }
+]

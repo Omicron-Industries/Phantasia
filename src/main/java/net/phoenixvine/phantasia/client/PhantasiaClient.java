@@ -66,6 +66,7 @@ public class PhantasiaClient {
                                                 var result = PhantasiaWebExport.export(docsDir);
                                                 player.sendSystemMessage(Component.literal(
                                                         "[Phantasia] Export complete: " + result.scenes() + " scenes, " +
+                                                        result.scripts() + " scripts, " + result.guides() + " guides, " +
                                                         result.blocks() + " blocks → " + docsDir));
                                                 if (result.hasErrors())
                                                     player.sendSystemMessage(Component.literal("[Phantasia] Warnings: " + result.errors()));

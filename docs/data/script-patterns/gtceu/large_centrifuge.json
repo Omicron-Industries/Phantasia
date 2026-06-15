@@ -1,0 +1,399 @@
+[
+  {
+    "x": 0,
+    "y": 0,
+    "z": 1,
+    "block": "gtceu:vibration_safe_casing"
+  },
+  {
+    "x": 0,
+    "y": 0,
+    "z": 2,
+    "block": "gtceu:vibration_safe_casing"
+  },
+  {
+    "x": 0,
+    "y": 0,
+    "z": 3,
+    "block": "gtceu:vibration_safe_casing"
+  },
+  {
+    "x": 0,
+    "y": 1,
+    "z": 0,
+    "block": "gtceu:vibration_safe_casing"
+  },
+  {
+    "x": 0,
+    "y": 1,
+    "z": 1,
+    "block": "gtceu:vibration_safe_casing"
+  },
+  {
+    "x": 0,
+    "y": 1,
+    "z": 2,
+    "block": "gtceu:vibration_safe_casing"
+  },
+  {
+    "x": 0,
+    "y": 1,
+    "z": 3,
+    "block": "gtceu:vibration_safe_casing"
+  },
+  {
+    "x": 0,
+    "y": 1,
+    "z": 4,
+    "block": "gtceu:vibration_safe_casing"
+  },
+  {
+    "x": 0,
+    "y": 2,
+    "z": 1,
+    "block": "gtceu:ulv_output_hatch",
+    "props": {
+      "facing": "west"
+    }
+  },
+  {
+    "x": 0,
+    "y": 2,
+    "z": 2,
+    "block": "gtceu:vibration_safe_casing"
+  },
+  {
+    "x": 0,
+    "y": 2,
+    "z": 3,
+    "block": "gtceu:vibration_safe_casing"
+  },
+  {
+    "x": 1,
+    "y": 0,
+    "z": 0,
+    "block": "gtceu:vibration_safe_casing"
+  },
+  {
+    "x": 1,
+    "y": 0,
+    "z": 1,
+    "block": "gtceu:vibration_safe_casing"
+  },
+  {
+    "x": 1,
+    "y": 0,
+    "z": 2,
+    "block": "gtceu:vibration_safe_casing"
+  },
+  {
+    "x": 1,
+    "y": 0,
+    "z": 3,
+    "block": "gtceu:vibration_safe_casing"
+  },
+  {
+    "x": 1,
+    "y": 0,
+    "z": 4,
+    "block": "gtceu:cleaning_maintenance_hatch",
+    "props": {
+      "facing": "south"
+    }
+  },
+  {
+    "x": 1,
+    "y": 1,
+    "z": 0,
+    "block": "gtceu:vibration_safe_casing"
+  },
+  {
+    "x": 1,
+    "y": 1,
+    "z": 2,
+    "block": "gtceu:steel_pipe_casing"
+  },
+  {
+    "x": 1,
+    "y": 1,
+    "z": 4,
+    "block": "gtceu:vibration_safe_casing"
+  },
+  {
+    "x": 1,
+    "y": 2,
+    "z": 0,
+    "block": "gtceu:vibration_safe_casing"
+  },
+  {
+    "x": 1,
+    "y": 2,
+    "z": 1,
+    "block": "gtceu:ulv_input_hatch",
+    "props": {
+      "facing": "up"
+    }
+  },
+  {
+    "x": 1,
+    "y": 2,
+    "z": 2,
+    "block": "gtceu:vibration_safe_casing"
+  },
+  {
+    "x": 1,
+    "y": 2,
+    "z": 3,
+    "block": "gtceu:vibration_safe_casing"
+  },
+  {
+    "x": 1,
+    "y": 2,
+    "z": 4,
+    "block": "gtceu:vibration_safe_casing"
+  },
+  {
+    "x": 2,
+    "y": 0,
+    "z": 0,
+    "block": "gtceu:vibration_safe_casing"
+  },
+  {
+    "x": 2,
+    "y": 0,
+    "z": 1,
+    "block": "gtceu:vibration_safe_casing"
+  },
+  {
+    "x": 2,
+    "y": 0,
+    "z": 2,
+    "block": "gtceu:vibration_safe_casing"
+  },
+  {
+    "x": 2,
+    "y": 0,
+    "z": 3,
+    "block": "gtceu:vibration_safe_casing"
+  },
+  {
+    "x": 2,
+    "y": 0,
+    "z": 4,
+    "block": "gtceu:ulv_energy_input_hatch",
+    "props": {
+      "facing": "south"
+    }
+  },
+  {
+    "x": 2,
+    "y": 1,
+    "z": 0,
+    "block": "gtceu:large_centrifuge",
+    "props": {
+      "facing": "north",
+      "upwards_facing": "north"
+    }
+  },
+  {
+    "x": 2,
+    "y": 1,
+    "z": 1,
+    "block": "gtceu:steel_pipe_casing"
+  },
+  {
+    "x": 2,
+    "y": 1,
+    "z": 3,
+    "block": "gtceu:steel_pipe_casing"
+  },
+  {
+    "x": 2,
+    "y": 1,
+    "z": 4,
+    "block": "gtceu:vibration_safe_casing"
+  },
+  {
+    "x": 2,
+    "y": 2,
+    "z": 0,
+    "block": "gtceu:vibration_safe_casing"
+  },
+  {
+    "x": 2,
+    "y": 2,
+    "z": 1,
+    "block": "gtceu:ulv_output_bus",
+    "props": {
+      "facing": "up"
+    }
+  },
+  {
+    "x": 2,
+    "y": 2,
+    "z": 2,
+    "block": "gtceu:vibration_safe_casing"
+  },
+  {
+    "x": 2,
+    "y": 2,
+    "z": 3,
+    "block": "gtceu:vibration_safe_casing"
+  },
+  {
+    "x": 2,
+    "y": 2,
+    "z": 4,
+    "block": "gtceu:vibration_safe_casing"
+  },
+  {
+    "x": 3,
+    "y": 0,
+    "z": 0,
+    "block": "gtceu:vibration_safe_casing"
+  },
+  {
+    "x": 3,
+    "y": 0,
+    "z": 1,
+    "block": "gtceu:vibration_safe_casing"
+  },
+  {
+    "x": 3,
+    "y": 0,
+    "z": 2,
+    "block": "gtceu:vibration_safe_casing"
+  },
+  {
+    "x": 3,
+    "y": 0,
+    "z": 3,
+    "block": "gtceu:vibration_safe_casing"
+  },
+  {
+    "x": 3,
+    "y": 0,
+    "z": 4,
+    "block": "gtceu:iv_parallel_hatch",
+    "props": {
+      "facing": "south"
+    }
+  },
+  {
+    "x": 3,
+    "y": 1,
+    "z": 0,
+    "block": "gtceu:vibration_safe_casing"
+  },
+  {
+    "x": 3,
+    "y": 1,
+    "z": 2,
+    "block": "gtceu:steel_pipe_casing"
+  },
+  {
+    "x": 3,
+    "y": 1,
+    "z": 4,
+    "block": "gtceu:vibration_safe_casing"
+  },
+  {
+    "x": 3,
+    "y": 2,
+    "z": 0,
+    "block": "gtceu:vibration_safe_casing"
+  },
+  {
+    "x": 3,
+    "y": 2,
+    "z": 1,
+    "block": "gtceu:ulv_input_bus",
+    "props": {
+      "facing": "up"
+    }
+  },
+  {
+    "x": 3,
+    "y": 2,
+    "z": 2,
+    "block": "gtceu:vibration_safe_casing"
+  },
+  {
+    "x": 3,
+    "y": 2,
+    "z": 3,
+    "block": "gtceu:vibration_safe_casing"
+  },
+  {
+    "x": 3,
+    "y": 2,
+    "z": 4,
+    "block": "gtceu:vibration_safe_casing"
+  },
+  {
+    "x": 4,
+    "y": 0,
+    "z": 1,
+    "block": "gtceu:vibration_safe_casing"
+  },
+  {
+    "x": 4,
+    "y": 0,
+    "z": 2,
+    "block": "gtceu:vibration_safe_casing"
+  },
+  {
+    "x": 4,
+    "y": 0,
+    "z": 3,
+    "block": "gtceu:vibration_safe_casing"
+  },
+  {
+    "x": 4,
+    "y": 1,
+    "z": 0,
+    "block": "gtceu:vibration_safe_casing"
+  },
+  {
+    "x": 4,
+    "y": 1,
+    "z": 1,
+    "block": "gtceu:vibration_safe_casing"
+  },
+  {
+    "x": 4,
+    "y": 1,
+    "z": 2,
+    "block": "gtceu:vibration_safe_casing"
+  },
+  {
+    "x": 4,
+    "y": 1,
+    "z": 3,
+    "block": "gtceu:vibration_safe_casing"
+  },
+  {
+    "x": 4,
+    "y": 1,
+    "z": 4,
+    "block": "gtceu:vibration_safe_casing"
+  },
+  {
+    "x": 4,
+    "y": 2,
+    "z": 1,
+    "block": "gtceu:vibration_safe_casing"
+  },
+  {
+    "x": 4,
+    "y": 2,
+    "z": 2,
+    "block": "gtceu:vibration_safe_casing"
+  },
+  {
+    "x": 4,
+    "y": 2,
+    "z": 3,
+    "block": "gtceu:vibration_safe_casing"
+  }
+]

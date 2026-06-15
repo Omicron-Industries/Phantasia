@@ -1,0 +1,140 @@
+[
+  {
+    "x": 0,
+    "y": 0,
+    "z": 0,
+    "block": "gtceu:pump_deck"
+  },
+  {
+    "x": 0,
+    "y": 0,
+    "z": 1,
+    "block": "gtceu:pump_deck"
+  },
+  {
+    "x": 0,
+    "y": 0,
+    "z": 2,
+    "block": "gtceu:pump_deck"
+  },
+  {
+    "x": 0,
+    "y": 1,
+    "z": 1,
+    "block": "gtceu:treated_wood_frame"
+  },
+  {
+    "x": 0,
+    "y": 2,
+    "z": 1,
+    "block": "gtceu:treated_wood_frame"
+  },
+  {
+    "x": 1,
+    "y": 0,
+    "z": 0,
+    "block": "gtceu:pump_deck"
+  },
+  {
+    "x": 1,
+    "y": 0,
+    "z": 1,
+    "block": "gtceu:pump_hatch",
+    "props": {
+      "facing": "up"
+    }
+  },
+  {
+    "x": 1,
+    "y": 0,
+    "z": 2,
+    "block": "gtceu:pump_deck"
+  },
+  {
+    "x": 1,
+    "y": 1,
+    "z": 0,
+    "block": "gtceu:treated_wood_frame"
+  },
+  {
+    "x": 1,
+    "y": 1,
+    "z": 2,
+    "block": "gtceu:treated_wood_frame"
+  },
+  {
+    "x": 1,
+    "y": 2,
+    "z": 0,
+    "block": "gtceu:treated_wood_frame"
+  },
+  {
+    "x": 1,
+    "y": 2,
+    "z": 1,
+    "block": "gtceu:treated_wood_frame"
+  },
+  {
+    "x": 1,
+    "y": 2,
+    "z": 2,
+    "block": "gtceu:treated_wood_frame"
+  },
+  {
+    "x": 2,
+    "y": 0,
+    "z": 0,
+    "block": "gtceu:pump_deck"
+  },
+  {
+    "x": 2,
+    "y": 0,
+    "z": 1,
+    "block": "gtceu:pump_deck"
+  },
+  {
+    "x": 2,
+    "y": 0,
+    "z": 2,
+    "block": "gtceu:pump_deck"
+  },
+  {
+    "x": 2,
+    "y": 2,
+    "z": 1,
+    "block": "gtceu:treated_wood_frame"
+  },
+  {
+    "x": 3,
+    "y": 0,
+    "z": 0,
+    "block": "gtceu:primitive_pump",
+    "props": {
+      "facing": "north"
+    }
+  },
+  {
+    "x": 3,
+    "y": 0,
+    "z": 1,
+    "block": "gtceu:pump_deck"
+  },
+  {
+    "x": 3,
+    "y": 0,
+    "z": 2,
+    "block": "gtceu:pump_deck"
+  },
+  {
+    "x": 3,
+    "y": 1,
+    "z": 1,
+    "block": "gtceu:treated_wood_frame"
+  },
+  {
+    "x": 3,
+    "y": 2,
+    "z": 1,
+    "block": "gtceu:treated_wood_frame"
+  }
+]

@@ -1,0 +1,393 @@
+[
+  {
+    "x": 0,
+    "y": 0,
+    "z": 0,
+    "block": "gtceu:ulv_output_bus",
+    "props": {
+      "facing": "west"
+    }
+  },
+  {
+    "x": 0,
+    "y": 0,
+    "z": 1,
+    "block": "gtceu:stress_proof_casing"
+  },
+  {
+    "x": 0,
+    "y": 0,
+    "z": 2,
+    "block": "gtceu:stress_proof_casing"
+  },
+  {
+    "x": 0,
+    "y": 1,
+    "z": 0,
+    "block": "gtceu:stress_proof_casing"
+  },
+  {
+    "x": 0,
+    "y": 1,
+    "z": 1,
+    "block": "gtceu:stress_proof_casing"
+  },
+  {
+    "x": 0,
+    "y": 1,
+    "z": 2,
+    "block": "gtceu:stress_proof_casing"
+  },
+  {
+    "x": 0,
+    "y": 2,
+    "z": 0,
+    "block": "gtceu:stress_proof_casing"
+  },
+  {
+    "x": 0,
+    "y": 2,
+    "z": 1,
+    "block": "gtceu:stress_proof_casing"
+  },
+  {
+    "x": 0,
+    "y": 2,
+    "z": 2,
+    "block": "gtceu:stress_proof_casing"
+  },
+  {
+    "x": 1,
+    "y": 0,
+    "z": 0,
+    "block": "gtceu:ulv_input_bus",
+    "props": {
+      "facing": "down"
+    }
+  },
+  {
+    "x": 1,
+    "y": 0,
+    "z": 1,
+    "block": "gtceu:stress_proof_casing"
+  },
+  {
+    "x": 1,
+    "y": 0,
+    "z": 2,
+    "block": "gtceu:stress_proof_casing"
+  },
+  {
+    "x": 1,
+    "y": 1,
+    "z": 0,
+    "block": "gtceu:tempered_glass"
+  },
+  {
+    "x": 1,
+    "y": 1,
+    "z": 1,
+    "block": "gtceu:steel_gearbox"
+  },
+  {
+    "x": 1,
+    "y": 1,
+    "z": 2,
+    "block": "gtceu:stress_proof_casing"
+  },
+  {
+    "x": 1,
+    "y": 2,
+    "z": 0,
+    "block": "gtceu:stress_proof_casing"
+  },
+  {
+    "x": 1,
+    "y": 2,
+    "z": 1,
+    "block": "gtceu:stress_proof_casing"
+  },
+  {
+    "x": 1,
+    "y": 2,
+    "z": 2,
+    "block": "gtceu:stress_proof_casing"
+  },
+  {
+    "x": 2,
+    "y": 0,
+    "z": 0,
+    "block": "gtceu:stress_proof_casing"
+  },
+  {
+    "x": 2,
+    "y": 0,
+    "z": 1,
+    "block": "gtceu:stress_proof_casing"
+  },
+  {
+    "x": 2,
+    "y": 0,
+    "z": 2,
+    "block": "gtceu:stress_proof_casing"
+  },
+  {
+    "x": 2,
+    "y": 1,
+    "z": 0,
+    "block": "gtceu:tempered_glass"
+  },
+  {
+    "x": 2,
+    "y": 1,
+    "z": 1,
+    "block": "gtceu:steel_gearbox"
+  },
+  {
+    "x": 2,
+    "y": 1,
+    "z": 2,
+    "block": "gtceu:stress_proof_casing"
+  },
+  {
+    "x": 2,
+    "y": 2,
+    "z": 0,
+    "block": "gtceu:stress_proof_casing"
+  },
+  {
+    "x": 2,
+    "y": 2,
+    "z": 1,
+    "block": "gtceu:stress_proof_casing"
+  },
+  {
+    "x": 2,
+    "y": 2,
+    "z": 2,
+    "block": "gtceu:stress_proof_casing"
+  },
+  {
+    "x": 3,
+    "y": 0,
+    "z": 0,
+    "block": "gtceu:stress_proof_casing"
+  },
+  {
+    "x": 3,
+    "y": 0,
+    "z": 1,
+    "block": "gtceu:stress_proof_casing"
+  },
+  {
+    "x": 3,
+    "y": 0,
+    "z": 2,
+    "block": "gtceu:stress_proof_casing"
+  },
+  {
+    "x": 3,
+    "y": 1,
+    "z": 0,
+    "block": "gtceu:tempered_glass"
+  },
+  {
+    "x": 3,
+    "y": 1,
+    "z": 1,
+    "block": "gtceu:steel_gearbox"
+  },
+  {
+    "x": 3,
+    "y": 1,
+    "z": 2,
+    "block": "gtceu:stress_proof_casing"
+  },
+  {
+    "x": 3,
+    "y": 2,
+    "z": 0,
+    "block": "gtceu:stress_proof_casing"
+  },
+  {
+    "x": 3,
+    "y": 2,
+    "z": 1,
+    "block": "gtceu:stress_proof_casing"
+  },
+  {
+    "x": 3,
+    "y": 2,
+    "z": 2,
+    "block": "gtceu:stress_proof_casing"
+  },
+  {
+    "x": 4,
+    "y": 0,
+    "z": 0,
+    "block": "gtceu:stress_proof_casing"
+  },
+  {
+    "x": 4,
+    "y": 0,
+    "z": 1,
+    "block": "gtceu:stress_proof_casing"
+  },
+  {
+    "x": 4,
+    "y": 0,
+    "z": 2,
+    "block": "gtceu:cleaning_maintenance_hatch",
+    "props": {
+      "facing": "south"
+    }
+  },
+  {
+    "x": 4,
+    "y": 1,
+    "z": 0,
+    "block": "gtceu:stress_proof_casing"
+  },
+  {
+    "x": 4,
+    "y": 1,
+    "z": 1,
+    "block": "gtceu:stress_proof_casing"
+  },
+  {
+    "x": 4,
+    "y": 1,
+    "z": 2,
+    "block": "gtceu:stress_proof_casing"
+  },
+  {
+    "x": 4,
+    "y": 2,
+    "z": 0,
+    "block": "gtceu:stress_proof_casing"
+  },
+  {
+    "x": 4,
+    "y": 2,
+    "z": 1,
+    "block": "gtceu:stress_proof_casing"
+  },
+  {
+    "x": 4,
+    "y": 2,
+    "z": 2,
+    "block": "gtceu:stress_proof_casing"
+  },
+  {
+    "x": 5,
+    "y": 0,
+    "z": 0,
+    "block": "gtceu:stress_proof_casing"
+  },
+  {
+    "x": 5,
+    "y": 0,
+    "z": 1,
+    "block": "gtceu:stress_proof_casing"
+  },
+  {
+    "x": 5,
+    "y": 0,
+    "z": 2,
+    "block": "gtceu:ulv_energy_input_hatch",
+    "props": {
+      "facing": "south"
+    }
+  },
+  {
+    "x": 5,
+    "y": 1,
+    "z": 0,
+    "block": "gtceu:large_material_press",
+    "props": {
+      "facing": "north",
+      "upwards_facing": "north"
+    }
+  },
+  {
+    "x": 5,
+    "y": 1,
+    "z": 2,
+    "block": "gtceu:stress_proof_casing"
+  },
+  {
+    "x": 5,
+    "y": 2,
+    "z": 0,
+    "block": "gtceu:stress_proof_casing"
+  },
+  {
+    "x": 5,
+    "y": 2,
+    "z": 1,
+    "block": "gtceu:stress_proof_casing"
+  },
+  {
+    "x": 5,
+    "y": 2,
+    "z": 2,
+    "block": "gtceu:stress_proof_casing"
+  },
+  {
+    "x": 6,
+    "y": 0,
+    "z": 0,
+    "block": "gtceu:stress_proof_casing"
+  },
+  {
+    "x": 6,
+    "y": 0,
+    "z": 1,
+    "block": "gtceu:stress_proof_casing"
+  },
+  {
+    "x": 6,
+    "y": 0,
+    "z": 2,
+    "block": "gtceu:iv_parallel_hatch",
+    "props": {
+      "facing": "south"
+    }
+  },
+  {
+    "x": 6,
+    "y": 1,
+    "z": 0,
+    "block": "gtceu:stress_proof_casing"
+  },
+  {
+    "x": 6,
+    "y": 1,
+    "z": 1,
+    "block": "gtceu:stress_proof_casing"
+  },
+  {
+    "x": 6,
+    "y": 1,
+    "z": 2,
+    "block": "gtceu:stress_proof_casing"
+  },
+  {
+    "x": 6,
+    "y": 2,
+    "z": 0,
+    "block": "gtceu:stress_proof_casing"
+  },
+  {
+    "x": 6,
+    "y": 2,
+    "z": 1,
+    "block": "gtceu:stress_proof_casing"
+  },
+  {
+    "x": 6,
+    "y": 2,
+    "z": 2,
+    "block": "gtceu:stress_proof_casing"
+  }
+]

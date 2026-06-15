@@ -1,0 +1,77 @@
+{
+  "id": "phantasia:alloy_foundry",
+  "title": "Industrial Alloy Blending",
+  "iconItem": "minecraft:blast_furnace",
+  "subtitle": null,
+  "tag": null,
+  "pages": [
+    {
+      "headline": "&eThe Electric Blast Furnace",
+      "scriptId": null,
+      "text": "High-temperature components require an isolated thermal chamber.\n\nAssemble your &bEBF multi-block multi-structure&r utilizing standard cupronickel coils and LV/MV electronic energy hatches before introducing input dusts.",
+      "items": [
+        {
+          "item": "gtceu:cupronickel_coil_block",
+          "count": 16,
+          "label": "Heating Coils",
+          "description": null,
+          "microsceneId": null,
+          "type": "input",
+          "track": "none",
+          "trackDuration": 20
+        },
+        {
+          "item": "gtceu:lv_energy_input_hatch",
+          "count": 1,
+          "label": "LV Power Source",
+          "description": null,
+          "microsceneId": null,
+          "type": "catalyst",
+          "track": "none",
+          "trackDuration": 20
+        }
+      ],
+      "guideId": null,
+      "sceneId": "scenes:ebf_assembly_validation"
+    },
+    {
+      "headline": "&cSmelting Steel Alloys",
+      "scriptId": null,
+      "text": "True structural progression requires steel.\n\nMix iron ingots or iron dust together with compressed oxygen or carbon coke inside your energized multi-block furnace.\n\n&4Warning:&r Processing takes roughly 24 seconds per batch!",
+      "items": [
+        {
+          "item": "gtceu:iron_dust",
+          "count": 1,
+          "label": "Base Element",
+          "description": null,
+          "microsceneId": null,
+          "type": "input",
+          "track": "none",
+          "trackDuration": 20
+        },
+        {
+          "item": "gtceu:coke_gem",
+          "count": 1,
+          "label": "Carbon Reducing Agent",
+          "description": null,
+          "microsceneId": null,
+          "type": "input",
+          "track": "none",
+          "trackDuration": 20
+        },
+        {
+          "item": "gtceu:steel_ingot",
+          "count": 1,
+          "label": "Finished Alloy",
+          "description": null,
+          "microsceneId": null,
+          "type": "output",
+          "track": "none",
+          "trackDuration": 20
+        }
+      ],
+      "guideId": "guides:industrial_automation_lv",
+      "sceneId": null
+    }
+  ]
+}

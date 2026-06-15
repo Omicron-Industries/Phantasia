@@ -1,0 +1,258 @@
+[
+  {
+    "x": 0,
+    "y": 0,
+    "z": 0,
+    "block": "gtceu:engine_intake_casing",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 0,
+    "y": 0,
+    "z": 1,
+    "block": "gtceu:stable_machine_casing"
+  },
+  {
+    "x": 0,
+    "y": 0,
+    "z": 2,
+    "block": "gtceu:stable_machine_casing"
+  },
+  {
+    "x": 0,
+    "y": 0,
+    "z": 3,
+    "block": "gtceu:stable_machine_casing"
+  },
+  {
+    "x": 0,
+    "y": 1,
+    "z": 0,
+    "block": "gtceu:engine_intake_casing",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 0,
+    "y": 1,
+    "z": 1,
+    "block": "gtceu:stable_machine_casing"
+  },
+  {
+    "x": 0,
+    "y": 1,
+    "z": 2,
+    "block": "gtceu:stable_machine_casing"
+  },
+  {
+    "x": 0,
+    "y": 1,
+    "z": 3,
+    "block": "gtceu:stable_machine_casing"
+  },
+  {
+    "x": 0,
+    "y": 2,
+    "z": 0,
+    "block": "gtceu:engine_intake_casing",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 0,
+    "y": 2,
+    "z": 1,
+    "block": "gtceu:stable_machine_casing"
+  },
+  {
+    "x": 0,
+    "y": 2,
+    "z": 2,
+    "block": "gtceu:stable_machine_casing"
+  },
+  {
+    "x": 0,
+    "y": 2,
+    "z": 3,
+    "block": "gtceu:stable_machine_casing"
+  },
+  {
+    "x": 1,
+    "y": 0,
+    "z": 0,
+    "block": "gtceu:engine_intake_casing",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 1,
+    "y": 0,
+    "z": 1,
+    "block": "gtceu:stable_machine_casing"
+  },
+  {
+    "x": 1,
+    "y": 0,
+    "z": 2,
+    "block": "gtceu:cleaning_maintenance_hatch",
+    "props": {
+      "facing": "down"
+    }
+  },
+  {
+    "x": 1,
+    "y": 0,
+    "z": 3,
+    "block": "gtceu:stable_machine_casing"
+  },
+  {
+    "x": 1,
+    "y": 1,
+    "z": 0,
+    "block": "gtceu:large_combustion_engine",
+    "props": {
+      "facing": "north",
+      "upwards_facing": "north"
+    }
+  },
+  {
+    "x": 1,
+    "y": 1,
+    "z": 1,
+    "block": "gtceu:titanium_gearbox"
+  },
+  {
+    "x": 1,
+    "y": 1,
+    "z": 2,
+    "block": "gtceu:titanium_gearbox"
+  },
+  {
+    "x": 1,
+    "y": 1,
+    "z": 3,
+    "block": "gtceu:iv_energy_output_hatch",
+    "props": {
+      "facing": "south"
+    }
+  },
+  {
+    "x": 1,
+    "y": 2,
+    "z": 0,
+    "block": "gtceu:engine_intake_casing",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 1,
+    "y": 2,
+    "z": 1,
+    "block": "gtceu:stable_machine_casing"
+  },
+  {
+    "x": 1,
+    "y": 2,
+    "z": 2,
+    "block": "gtceu:stable_machine_casing"
+  },
+  {
+    "x": 1,
+    "y": 2,
+    "z": 3,
+    "block": "gtceu:stable_machine_casing"
+  },
+  {
+    "x": 2,
+    "y": 0,
+    "z": 0,
+    "block": "gtceu:engine_intake_casing",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 2,
+    "y": 0,
+    "z": 1,
+    "block": "gtceu:stable_machine_casing"
+  },
+  {
+    "x": 2,
+    "y": 0,
+    "z": 2,
+    "block": "gtceu:stable_machine_casing"
+  },
+  {
+    "x": 2,
+    "y": 0,
+    "z": 3,
+    "block": "gtceu:stable_machine_casing"
+  },
+  {
+    "x": 2,
+    "y": 1,
+    "z": 0,
+    "block": "gtceu:engine_intake_casing",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 2,
+    "y": 1,
+    "z": 1,
+    "block": "gtceu:ulv_input_hatch",
+    "props": {
+      "facing": "east"
+    }
+  },
+  {
+    "x": 2,
+    "y": 1,
+    "z": 2,
+    "block": "gtceu:iv_muffler_hatch",
+    "props": {
+      "facing": "east"
+    }
+  },
+  {
+    "x": 2,
+    "y": 1,
+    "z": 3,
+    "block": "gtceu:stable_machine_casing"
+  },
+  {
+    "x": 2,
+    "y": 2,
+    "z": 0,
+    "block": "gtceu:engine_intake_casing",
+    "props": {
+      "active": "false"
+    }
+  },
+  {
+    "x": 2,
+    "y": 2,
+    "z": 1,
+    "block": "gtceu:stable_machine_casing"
+  },
+  {
+    "x": 2,
+    "y": 2,
+    "z": 2,
+    "block": "gtceu:stable_machine_casing"
+  },
+  {
+    "x": 2,
+    "y": 2,
+    "z": 3,
+    "block": "gtceu:stable_machine_casing"
+  }
+]

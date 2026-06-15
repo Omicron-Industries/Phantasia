@@ -1,0 +1,27 @@
+{
+  "machine": "gtceu:cleanroom",
+  "startCamera": null,
+  "steps": [
+    {
+      "tick": 0,
+      "caption": null,
+      "show": "all",
+      "layer": 0,
+      "layerMin": 0,
+      "layerMax": 0,
+      "positions": [],
+      "hideLayer": -1,
+      "hidePositions": [],
+      "working": false,
+      "fakeRecipeId": null,
+      "showItems": true,
+      "items": [],
+      "camera": null
+    }
+  ],
+  "scriptDuration": -1,
+  "items": [],
+  "mistakes": [],
+  "globalMistakes": [],
+  "optionalGroups": []
+}

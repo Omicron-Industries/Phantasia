@@ -1,0 +1,622 @@
+[
+  {
+    "x": 0,
+    "y": 0,
+    "z": 0,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 0,
+    "y": 0,
+    "z": 1,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 0,
+    "y": 0,
+    "z": 2,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 0,
+    "y": 0,
+    "z": 3,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 0,
+    "y": 0,
+    "z": 4,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 0,
+    "y": 1,
+    "z": 0,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 0,
+    "y": 1,
+    "z": 1,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 0,
+    "y": 1,
+    "z": 2,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 0,
+    "y": 1,
+    "z": 3,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 0,
+    "y": 1,
+    "z": 4,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 0,
+    "y": 2,
+    "z": 0,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 0,
+    "y": 2,
+    "z": 1,
+    "block": "gtceu:cleanroom_glass"
+  },
+  {
+    "x": 0,
+    "y": 2,
+    "z": 2,
+    "block": "gtceu:cleanroom_glass"
+  },
+  {
+    "x": 0,
+    "y": 2,
+    "z": 3,
+    "block": "gtceu:cleanroom_glass"
+  },
+  {
+    "x": 0,
+    "y": 2,
+    "z": 4,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 0,
+    "y": 3,
+    "z": 0,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 0,
+    "y": 3,
+    "z": 1,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 0,
+    "y": 3,
+    "z": 2,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 0,
+    "y": 3,
+    "z": 3,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 0,
+    "y": 3,
+    "z": 4,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 0,
+    "y": 4,
+    "z": 0,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 0,
+    "y": 4,
+    "z": 1,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 0,
+    "y": 4,
+    "z": 2,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 0,
+    "y": 4,
+    "z": 3,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 0,
+    "y": 4,
+    "z": 4,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 1,
+    "y": 0,
+    "z": 0,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 1,
+    "y": 0,
+    "z": 1,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 1,
+    "y": 0,
+    "z": 2,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 1,
+    "y": 0,
+    "z": 3,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 1,
+    "y": 0,
+    "z": 4,
+    "block": "gtceu:maintenance_hatch",
+    "props": {
+      "facing": "south"
+    }
+  },
+  {
+    "x": 1,
+    "y": 1,
+    "z": 0,
+    "block": "gtceu:lv_item_passthrough_hatch",
+    "props": {
+      "facing": "north"
+    }
+  },
+  {
+    "x": 1,
+    "y": 1,
+    "z": 4,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 1,
+    "y": 2,
+    "z": 0,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 1,
+    "y": 2,
+    "z": 4,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 1,
+    "y": 3,
+    "z": 0,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 1,
+    "y": 3,
+    "z": 4,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 1,
+    "y": 4,
+    "z": 0,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 1,
+    "y": 4,
+    "z": 1,
+    "block": "gtceu:filter_casing"
+  },
+  {
+    "x": 1,
+    "y": 4,
+    "z": 2,
+    "block": "gtceu:filter_casing"
+  },
+  {
+    "x": 1,
+    "y": 4,
+    "z": 3,
+    "block": "gtceu:filter_casing"
+  },
+  {
+    "x": 1,
+    "y": 4,
+    "z": 4,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 2,
+    "y": 0,
+    "z": 0,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 2,
+    "y": 0,
+    "z": 1,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 2,
+    "y": 0,
+    "z": 2,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 2,
+    "y": 0,
+    "z": 3,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 2,
+    "y": 0,
+    "z": 4,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 2,
+    "y": 1,
+    "z": 0,
+    "block": "gtceu:hv_machine_hull",
+    "props": {
+      "facing": "north"
+    }
+  },
+  {
+    "x": 2,
+    "y": 1,
+    "z": 4,
+    "block": "minecraft:iron_door",
+    "props": {
+      "facing": "north",
+      "half": "lower",
+      "hinge": "left",
+      "open": "false",
+      "powered": "false"
+    }
+  },
+  {
+    "x": 2,
+    "y": 2,
+    "z": 0,
+    "block": "gtceu:hv_diode",
+    "props": {
+      "facing": "north"
+    }
+  },
+  {
+    "x": 2,
+    "y": 2,
+    "z": 4,
+    "block": "minecraft:iron_door",
+    "props": {
+      "facing": "north",
+      "half": "upper",
+      "hinge": "left",
+      "open": "false",
+      "powered": "false"
+    }
+  },
+  {
+    "x": 2,
+    "y": 3,
+    "z": 0,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 2,
+    "y": 3,
+    "z": 4,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 2,
+    "y": 4,
+    "z": 0,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 2,
+    "y": 4,
+    "z": 1,
+    "block": "gtceu:filter_casing"
+  },
+  {
+    "x": 2,
+    "y": 4,
+    "z": 2,
+    "block": "gtceu:cleanroom"
+  },
+  {
+    "x": 2,
+    "y": 4,
+    "z": 3,
+    "block": "gtceu:filter_casing"
+  },
+  {
+    "x": 2,
+    "y": 4,
+    "z": 4,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 3,
+    "y": 0,
+    "z": 0,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 3,
+    "y": 0,
+    "z": 1,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 3,
+    "y": 0,
+    "z": 2,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 3,
+    "y": 0,
+    "z": 3,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 3,
+    "y": 0,
+    "z": 4,
+    "block": "gtceu:lv_energy_input_hatch",
+    "props": {
+      "facing": "south"
+    }
+  },
+  {
+    "x": 3,
+    "y": 1,
+    "z": 0,
+    "block": "gtceu:lv_fluid_passthrough_hatch",
+    "props": {
+      "facing": "north"
+    }
+  },
+  {
+    "x": 3,
+    "y": 1,
+    "z": 4,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 3,
+    "y": 2,
+    "z": 0,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 3,
+    "y": 2,
+    "z": 4,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 3,
+    "y": 3,
+    "z": 0,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 3,
+    "y": 3,
+    "z": 4,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 3,
+    "y": 4,
+    "z": 0,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 3,
+    "y": 4,
+    "z": 1,
+    "block": "gtceu:filter_casing"
+  },
+  {
+    "x": 3,
+    "y": 4,
+    "z": 2,
+    "block": "gtceu:filter_casing"
+  },
+  {
+    "x": 3,
+    "y": 4,
+    "z": 3,
+    "block": "gtceu:filter_casing"
+  },
+  {
+    "x": 3,
+    "y": 4,
+    "z": 4,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 4,
+    "y": 0,
+    "z": 0,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 4,
+    "y": 0,
+    "z": 1,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 4,
+    "y": 0,
+    "z": 2,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 4,
+    "y": 0,
+    "z": 3,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 4,
+    "y": 0,
+    "z": 4,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 4,
+    "y": 1,
+    "z": 0,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 4,
+    "y": 1,
+    "z": 1,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 4,
+    "y": 1,
+    "z": 2,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 4,
+    "y": 1,
+    "z": 3,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 4,
+    "y": 1,
+    "z": 4,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 4,
+    "y": 2,
+    "z": 0,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 4,
+    "y": 2,
+    "z": 1,
+    "block": "gtceu:cleanroom_glass"
+  },
+  {
+    "x": 4,
+    "y": 2,
+    "z": 2,
+    "block": "gtceu:cleanroom_glass"
+  },
+  {
+    "x": 4,
+    "y": 2,
+    "z": 3,
+    "block": "gtceu:cleanroom_glass"
+  },
+  {
+    "x": 4,
+    "y": 2,
+    "z": 4,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 4,
+    "y": 3,
+    "z": 0,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 4,
+    "y": 3,
+    "z": 1,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 4,
+    "y": 3,
+    "z": 2,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 4,
+    "y": 3,
+    "z": 3,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 4,
+    "y": 3,
+    "z": 4,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 4,
+    "y": 4,
+    "z": 0,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 4,
+    "y": 4,
+    "z": 1,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 4,
+    "y": 4,
+    "z": 2,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 4,
+    "y": 4,
+    "z": 3,
+    "block": "gtceu:plascrete"
+  },
+  {
+    "x": 4,
+    "y": 4,
+    "z": 4,
+    "block": "gtceu:plascrete"
+  }
+]

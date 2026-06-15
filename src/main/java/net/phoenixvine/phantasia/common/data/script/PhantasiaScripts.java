@@ -4,6 +4,8 @@ import com.gregtechceu.gtceu.api.machine.MultiblockMachineDefinition;
 
 import net.phoenixvine.phantasia.client.screens.PhantasiaSceneScreen;
 
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -29,6 +31,10 @@ public class PhantasiaScripts {
 
     public static boolean has(MultiblockMachineDefinition def) {
         return REGISTRY.containsKey(def);
+    }
+
+    public static Collection<Map.Entry<MultiblockMachineDefinition, PhantasiaScript>> allEntries() {
+        return Collections.unmodifiableCollection(REGISTRY.entrySet());
     }
 
     public static void invalidateWorldCache() {

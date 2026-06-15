@@ -1,0 +1,506 @@
+[
+  {
+    "type": "script",
+    "id": "gtceu:steel_large_boiler",
+    "name": "steel large boiler",
+    "iconItem": "gtceu:steel_large_boiler",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:data_bank",
+    "name": "data bank",
+    "iconItem": "gtceu:data_bank",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:research_station",
+    "name": "research station",
+    "iconItem": "gtceu:research_station",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:cracker",
+    "name": "cracker",
+    "iconItem": "gtceu:cracker",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:large_brewer",
+    "name": "large brewer",
+    "iconItem": "gtceu:large_brewer",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:steam_oven",
+    "name": "steam oven",
+    "iconItem": "gtceu:steam_oven",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:uv_fusion_reactor",
+    "name": "uv fusion reactor",
+    "iconItem": "gtceu:uv_fusion_reactor",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:large_packer",
+    "name": "large packer",
+    "iconItem": "gtceu:large_packer",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:large_assembler",
+    "name": "large assembler",
+    "iconItem": "gtceu:large_assembler",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:large_cutter",
+    "name": "large cutter",
+    "iconItem": "gtceu:large_cutter",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:multi_smelter",
+    "name": "multi smelter",
+    "iconItem": "gtceu:multi_smelter",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:plasma_large_turbine",
+    "name": "plasma large turbine",
+    "iconItem": "gtceu:plasma_large_turbine",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:bronze_multiblock_tank",
+    "name": "bronze multiblock tank",
+    "iconItem": "gtceu:bronze_multiblock_tank",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:gas_large_turbine",
+    "name": "gas large turbine",
+    "iconItem": "gtceu:gas_large_turbine",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:large_autoclave",
+    "name": "large autoclave",
+    "iconItem": "gtceu:large_autoclave",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:power_substation",
+    "name": "power substation",
+    "iconItem": "gtceu:power_substation",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:primitive_blast_furnace",
+    "name": "primitive blast furnace",
+    "iconItem": "gtceu:primitive_blast_furnace",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:vacuum_freezer",
+    "name": "vacuum freezer",
+    "iconItem": "gtceu:vacuum_freezer",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:charcoal_pile_igniter",
+    "name": "charcoal pile igniter",
+    "iconItem": "gtceu:charcoal_pile_igniter",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:network_switch",
+    "name": "network switch",
+    "iconItem": "gtceu:network_switch",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:large_centrifuge",
+    "name": "large centrifuge",
+    "iconItem": "gtceu:large_centrifuge",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:large_mixer",
+    "name": "large mixer",
+    "iconItem": "gtceu:large_mixer",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:steel_multiblock_tank",
+    "name": "steel multiblock tank",
+    "iconItem": "gtceu:steel_multiblock_tank",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:large_sifting_funnel",
+    "name": "large sifting funnel",
+    "iconItem": "gtceu:large_sifting_funnel",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:electric_blast_furnace",
+    "name": "electric blast furnace",
+    "iconItem": "gtceu:electric_blast_furnace",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:large_circuit_assembler",
+    "name": "large circuit assembler",
+    "iconItem": "gtceu:large_circuit_assembler",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:mv_fluid_drilling_rig",
+    "name": "mv fluid drilling rig",
+    "iconItem": "gtceu:mv_fluid_drilling_rig",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:hv_fluid_drilling_rig",
+    "name": "hv fluid drilling rig",
+    "iconItem": "gtceu:hv_fluid_drilling_rig",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:large_combustion_engine",
+    "name": "large combustion engine",
+    "iconItem": "gtceu:large_combustion_engine",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:large_extractor",
+    "name": "large extractor",
+    "iconItem": "gtceu:large_extractor",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "phantasia:synchronized_chimera_core",
+    "name": "synchronized chimera core",
+    "iconItem": "phantasia:synchronized_chimera_core",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:large_distillery",
+    "name": "large distillery",
+    "iconItem": "gtceu:large_distillery",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:mega_blast_furnace",
+    "name": "mega blast furnace",
+    "iconItem": "gtceu:mega_blast_furnace",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:iv_large_miner",
+    "name": "iv large miner",
+    "iconItem": "gtceu:iv_large_miner",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:large_chemical_reactor",
+    "name": "large chemical reactor",
+    "iconItem": "gtceu:large_chemical_reactor",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:mv_bedrock_ore_miner",
+    "name": "mv bedrock ore miner",
+    "iconItem": "gtceu:mv_bedrock_ore_miner",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:ev_large_miner",
+    "name": "ev large miner",
+    "iconItem": "gtceu:ev_large_miner",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:bronze_large_boiler",
+    "name": "bronze large boiler",
+    "iconItem": "gtceu:bronze_large_boiler",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:central_monitor",
+    "name": "central monitor",
+    "iconItem": "gtceu:central_monitor",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:mega_vacuum_freezer",
+    "name": "mega vacuum freezer",
+    "iconItem": "gtceu:mega_vacuum_freezer",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:large_extruder",
+    "name": "large extruder",
+    "iconItem": "gtceu:large_extruder",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:large_electrolyzer",
+    "name": "large electrolyzer",
+    "iconItem": "gtceu:large_electrolyzer",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:coke_oven",
+    "name": "coke oven",
+    "iconItem": "gtceu:coke_oven",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:high_performance_computation_array",
+    "name": "high performance computation array",
+    "iconItem": "gtceu:high_performance_computation_array",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:active_transformer",
+    "name": "active transformer",
+    "iconItem": "gtceu:active_transformer",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:implosion_compressor",
+    "name": "implosion compressor",
+    "iconItem": "gtceu:implosion_compressor",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:steam_grinder",
+    "name": "steam grinder",
+    "iconItem": "gtceu:steam_grinder",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:luv_large_miner",
+    "name": "luv large miner",
+    "iconItem": "gtceu:luv_large_miner",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:extreme_combustion_engine",
+    "name": "extreme combustion engine",
+    "iconItem": "gtceu:extreme_combustion_engine",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:large_material_press",
+    "name": "large material press",
+    "iconItem": "gtceu:large_material_press",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:steam_large_turbine",
+    "name": "steam large turbine",
+    "iconItem": "gtceu:steam_large_turbine",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:ev_bedrock_ore_miner",
+    "name": "ev bedrock ore miner",
+    "iconItem": "gtceu:ev_bedrock_ore_miner",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:alloy_blast_smelter",
+    "name": "alloy blast smelter",
+    "iconItem": "gtceu:alloy_blast_smelter",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:wooden_multiblock_tank",
+    "name": "wooden multiblock tank",
+    "iconItem": "gtceu:wooden_multiblock_tank",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:large_solidifier",
+    "name": "large solidifier",
+    "iconItem": "gtceu:large_solidifier",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:hv_bedrock_ore_miner",
+    "name": "hv bedrock ore miner",
+    "iconItem": "gtceu:hv_bedrock_ore_miner",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:luv_fusion_reactor",
+    "name": "luv fusion reactor",
+    "iconItem": "gtceu:luv_fusion_reactor",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:titanium_large_boiler",
+    "name": "titanium large boiler",
+    "iconItem": "gtceu:titanium_large_boiler",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:large_chemical_bath",
+    "name": "large chemical bath",
+    "iconItem": "gtceu:large_chemical_bath",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:zpm_fusion_reactor",
+    "name": "zpm fusion reactor",
+    "iconItem": "gtceu:zpm_fusion_reactor",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:large_arc_smelter",
+    "name": "large arc smelter",
+    "iconItem": "gtceu:large_arc_smelter",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:primitive_pump",
+    "name": "primitive pump",
+    "iconItem": "gtceu:primitive_pump",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:large_wiremill",
+    "name": "large wiremill",
+    "iconItem": "gtceu:large_wiremill",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:large_engraving_laser",
+    "name": "large engraving laser",
+    "iconItem": "gtceu:large_engraving_laser",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:large_electromagnet",
+    "name": "large electromagnet",
+    "iconItem": "gtceu:large_electromagnet",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:pyrolyse_oven",
+    "name": "pyrolyse oven",
+    "iconItem": "gtceu:pyrolyse_oven",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:tungstensteel_large_boiler",
+    "name": "tungstensteel large boiler",
+    "iconItem": "gtceu:tungstensteel_large_boiler",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:distillation_tower",
+    "name": "distillation tower",
+    "iconItem": "gtceu:distillation_tower",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:cleanroom",
+    "name": "cleanroom",
+    "iconItem": "gtceu:cleanroom",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:assembly_line",
+    "name": "assembly line",
+    "iconItem": "gtceu:assembly_line",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:large_maceration_tower",
+    "name": "large maceration tower",
+    "iconItem": "gtceu:large_maceration_tower",
+    "hasPattern": true
+  },
+  {
+    "type": "script",
+    "id": "gtceu:ev_fluid_drilling_rig",
+    "name": "ev fluid drilling rig",
+    "iconItem": "gtceu:ev_fluid_drilling_rig",
+    "hasPattern": true
+  }
+]
