@@ -134,6 +134,10 @@ async function buildScene() {
   blockMeshes = [];
   if (!patternData) return;
 
+  // Neighbor lookup for CTM
+  const posTypeMap = new Map();
+  for (const b of patternData) posTypeMap.set(`${b.x},${b.y},${b.z}`, b.block);
+
   let minX = Infinity, maxX = -Infinity;
   let minY = Infinity, maxY = -Infinity;
   let minZ = Infinity, maxZ = -Infinity;
@@ -156,7 +160,9 @@ async function buildScene() {
     try {
       let ns = 'minecraft', blockId = block.block;
       if (block.block.includes(':')) [ns, blockId] = block.block.split(':');
-      const obj = await blockRenderer.buildBlock(ns, blockId, block.props || {});
+      const neighborChecker = (dx, dy, dz) =>
+        posTypeMap.get(`${block.x+dx},${block.y+dy},${block.z+dz}`) === block.block;
+      const obj = await blockRenderer.buildBlock(ns, blockId, block.props || {}, neighborChecker);
       obj.position.set(block.x - cx, block.y - cy, -(block.z - cz));
       scene.add(obj);
       blockMeshes.push({ mesh: obj, pos: block });

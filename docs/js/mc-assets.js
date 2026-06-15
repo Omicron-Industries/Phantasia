@@ -12,9 +12,10 @@
 export class MinecraftAssets {
   constructor(basePath = 'assets/mc') {
     this.base = basePath;
-    this._jsonCache = new Map();
-    this._texCache  = new Map();
-    this._loader    = null;
+    this._jsonCache  = new Map();
+    this._texCache   = new Map();
+    this._loader     = null;
+    this._mcmetaCache = new Map(); // texPath → mcmeta JSON or null
   }
 
   setTextureLoader(loader) { this._loader = loader; }
@@ -39,6 +40,19 @@ export class MinecraftAssets {
   async model(namespace, path) {
     const [ns, p] = path.includes(':') ? path.split(':') : [namespace, path];
     return this.fetchJson(`${this.base}/assets/${ns}/models/${p}.json`);
+  }
+
+  // ── CTM / mcmeta ──────────────────────────────────────────────────────────
+
+  /** Returns the ldlib CTM texture path for a given texture, or null if none. */
+  async ctmPathFor(namespace, texPath) {
+    const [ns, p] = texPath.includes(':') ? texPath.split(':') : [namespace, texPath];
+    const url = `${this.base}/assets/${ns}/textures/${p}.png.mcmeta`;
+    if (this._mcmetaCache.has(url)) return this._mcmetaCache.get(url);
+    const data = await this.fetchJson(url);
+    const result = data?.ldlib?.connection ?? null;
+    this._mcmetaCache.set(url, result);
+    return result;
   }
 
   // ── Texture ────────────────────────────────────────────────────────────────
@@ -92,10 +106,9 @@ export class MinecraftAssets {
     // Base textures from texture_overrides
     const baseTextures = { ...(machineData.texture_overrides || {}) };
 
-    // Pick idle/default inner variant model
-    // Prefer "is_formed=false,recipe_logic_status=idle", then first entry
+    // Pick idle/default inner variant model — prefer formed (is_formed=true) for better visuals
     const variants = machineData.variants || {};
-    const PREFERRED = ['is_formed=false,recipe_logic_status=idle', 'is_formed=true,recipe_logic_status=idle'];
+    const PREFERRED = ['is_formed=true,recipe_logic_status=idle', 'is_formed=false,recipe_logic_status=idle'];
     let innerModelData = null;
     for (const key of PREFERRED) {
       if (variants[key]?.model) { innerModelData = variants[key].model; break; }

@@ -174,6 +174,10 @@ async function buildScene() {
 
   if (!patternData) return;
 
+  // Build neighbor lookup: "x,y,z" → block type string (for CTM)
+  const posTypeMap = new Map();
+  for (const b of patternData) posTypeMap.set(`${b.x},${b.y},${b.z}`, b.block);
+
   // Compute bounds for centering
   let minY = Infinity, maxY = -Infinity;
   let minX = Infinity, maxX = -Infinity;
@@ -206,7 +210,11 @@ async function buildScene() {
         [ns, blockId] = block.block.split(':');
       }
 
-      const obj = await blockRenderer.buildBlock(ns, blockId, block.props || {});
+      // Neighbor checker for CTM: returns true if neighbor at offset is same block type
+      const neighborChecker = (dx, dy, dz) =>
+        posTypeMap.get(`${block.x+dx},${block.y+dy},${block.z+dz}`) === block.block;
+
+      const obj = await blockRenderer.buildBlock(ns, blockId, block.props || {}, neighborChecker);
       // Position in Three.js: invert Z
       obj.position.set(block.x - cx, block.y - cy, -(block.z - cz));
       scene.add(obj);

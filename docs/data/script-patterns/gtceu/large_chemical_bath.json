@@ -246,7 +246,7 @@
     "x": 2,
     "y": 0,
     "z": 6,
-    "block": "gtceu:cleaning_maintenance_hatch",
+    "block": "gtceu:auto_maintenance_hatch",
     "props": {
       "facing": "south"
     }
