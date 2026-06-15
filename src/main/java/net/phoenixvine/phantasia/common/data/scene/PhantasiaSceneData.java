@@ -64,6 +64,14 @@ public class PhantasiaSceneData {
     @SerializedName("name")
     public String name = "Unnamed Scene";
 
+    /**
+     * Item/block registry IDs that trigger the tooltip keybind for this scene.
+     * E.g. ["minecraft:iron_ore", "gtceu:wafer"] will show the hold-to-open
+     * tooltip whenever the player holds or looks at one of those items/blocks.
+     */
+    @SerializedName("tooltipItems")
+    public List<String> tooltipItems = new ArrayList<>();
+
     @SerializedName("placements")
     public List<PlacementData> placements = new ArrayList<>();
 
@@ -630,6 +638,7 @@ public class PhantasiaSceneData {
         for (StepData s : steps) c.steps.add(s.copy());
         if (mistakes != null)
             for (SceneMistakeData m : mistakes) c.mistakes.add(m.copy());
+        if (tooltipItems != null) c.tooltipItems = new ArrayList<>(tooltipItems);
         return c;
     }
 
@@ -642,12 +651,14 @@ public class PhantasiaSceneData {
     public static PhantasiaSceneData fromJson(String json) {
         PhantasiaSceneData d = PhantasiaScriptData.GSON.fromJson(json, PhantasiaSceneData.class);
         if (d.mistakes == null) d.mistakes = new ArrayList<>();
+        if (d.tooltipItems == null) d.tooltipItems = new ArrayList<>();
         return d;
     }
 
     public static PhantasiaSceneData fromJson(java.io.Reader reader) {
         PhantasiaSceneData d = PhantasiaScriptData.GSON.fromJson(reader, PhantasiaSceneData.class);
         if (d.mistakes == null) d.mistakes = new ArrayList<>();
+        if (d.tooltipItems == null) d.tooltipItems = new ArrayList<>();
         return d;
     }
 }

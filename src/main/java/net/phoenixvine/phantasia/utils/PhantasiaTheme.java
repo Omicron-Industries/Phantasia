@@ -14,6 +14,7 @@ public class PhantasiaTheme {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final File THEMES_DIR = new File("phantasia/themes");
+    private static final File ACTIVE_FILE = new File(THEMES_DIR, "active.txt");
     public static final Map<String, PhantasiaTheme> REGISTRY = new LinkedHashMap<>();
     private static String activeThemeName = "COBALT";
 
@@ -141,8 +142,18 @@ public class PhantasiaTheme {
     }
 
     public static void setActive(String name) {
-        if (REGISTRY.containsKey(name.toUpperCase(Locale.ROOT))) {
-            activeThemeName = name.toUpperCase(Locale.ROOT);
+        String upper = name.toUpperCase(Locale.ROOT);
+        if (REGISTRY.containsKey(upper)) {
+            activeThemeName = upper;
+            // Persist the player's choice so it survives world restarts
+            try {
+                if (!THEMES_DIR.exists()) THEMES_DIR.mkdirs();
+                try (Writer w = new FileWriter(ACTIVE_FILE)) {
+                    w.write(upper);
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
     }
 
@@ -270,6 +281,21 @@ public class PhantasiaTheme {
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
+            }
+        }
+
+        // ── Restore the player's last chosen theme ──
+        if (ACTIVE_FILE.exists()) {
+            try (BufferedReader br = new BufferedReader(new FileReader(ACTIVE_FILE))) {
+                String saved = br.readLine();
+                if (saved != null) {
+                    saved = saved.trim().toUpperCase(Locale.ROOT);
+                    if (REGISTRY.containsKey(saved)) {
+                        activeThemeName = saved;
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
             }
         }
     }

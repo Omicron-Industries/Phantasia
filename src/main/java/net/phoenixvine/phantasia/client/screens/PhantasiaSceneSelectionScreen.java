@@ -1,5 +1,7 @@
 package net.phoenixvine.phantasia.client.screens;
 
+import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
+
 import com.gregtechceu.gtceu.api.machine.MultiblockMachineDefinition;
 
 import net.minecraft.client.Minecraft;
@@ -167,7 +169,7 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
 
     @Override
     public void render(GuiGraphics g, int mx, int my, float partial) {
-        g.fillGradient(0, 0, this.width, this.height, C_BG, C_BG_BOT);
+        g.fillGradient(0, 0, this.width, this.height, C_BG(), C_BG_BOT);
         renderHeader(g, mx, my);
 
         if (this.searchBox != null)
@@ -182,9 +184,9 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
 
     private void renderHeader(GuiGraphics g, int mx, int my) {
         g.fill(0, 0, this.width, HEADER_H, 0xCC0A0A14);
-        g.fill(0, HEADER_H - 2, this.width, HEADER_H, C_ACCENT);
-        g.drawCenteredString(font, "\u2736 Phantasia", this.width / 2, 8, C_ACCENT);
-        g.drawCenteredString(font, Component.translatable("screen.phantasia.scene_selection.subtitle").getString(), this.width / 2, 20, C_DIM);
+        g.fill(0, HEADER_H - 2, this.width, HEADER_H, C_ACCENT());
+        g.drawCenteredString(font, "\u2736 Phantasia", this.width / 2, 8, C_ACCENT());
+        g.drawCenteredString(font, Component.translatable("screen.phantasia.scene_selection.subtitle").getString(), this.width / 2, 20, C_DIM());
 
         // Tab row
         int tabY = 32;
@@ -200,9 +202,9 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
         int w = font.width(label) + 16;
         boolean act = (activeTab == tab);
         boolean hov = isOver(mx, my, x, y, w, TAB_H);
-        g.fill(x, y, x + w, y + TAB_H, act ? C_BTN_HOV : (hov ? C_BTN_HOV : C_BTN));
-        if (act) g.fill(x, y + TAB_H - 2, x + w, y + TAB_H, C_ACCENT);
-        g.drawString(font, label, x + 8, y + 4, act ? C_ACCENT : C_DIM, false);
+        g.fill(x, y, x + w, y + TAB_H, act ? C_BTN_HOV() : (hov ? C_BTN_HOV() : C_BTN()));
+        if (act) g.fill(x, y + TAB_H - 2, x + w, y + TAB_H, C_ACCENT());
+        g.drawString(font, label, x + 8, y + 4, act ? C_ACCENT() : C_DIM(), false);
     }
 
     private void renderCards(GuiGraphics g, int mx, int my) {
@@ -214,7 +216,7 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
         hoveredCard = -1;
 
         if (filteredScenes.isEmpty()) {
-            g.drawCenteredString(font, Component.translatable("screen.phantasia.scene_selection.no_results").getString(), this.width / 2, startY + 20, C_DIM);
+            g.drawCenteredString(font, Component.translatable("screen.phantasia.scene_selection.no_results").getString(), this.width / 2, startY + 20, C_DIM());
             return;
         }
 
@@ -236,13 +238,18 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
     private void renderCard(GuiGraphics g, int mx, int my,
                             MultiblockMachineDefinition def,
                             int cx, int cy, boolean hovered) {
-        // 1. Card background and borders
-        g.fill(cx, cy, cx + CARD_W, cy + CARD_H, hovered ? C_CARD_HOV : C_CARD);
-        g.fill(cx, cy, cx + CARD_W, cy + 2, hovered ? C_ACCENT : 0x664FC3F7);
+        // 1. Theme-Aware Card Background Configuration
+        // Blend a 0xBB (~73%) transparency onto your dynamic panel and hover colors
+        int cardBg = (0xBB << 24) | (C_PANEL() & 0x00FFFFFF);
+        int cardHoverBg = (0xBB << 24) | (C_BTN_HOV() & 0x00FFFFFF);
+        g.fill(cx, cy, cx + CARD_W, cy + CARD_H, hovered ? cardHoverBg : cardBg);
+
+        // CHANGED: Top bar now cleanly shifts from C_BORDER() to C_ACCENT()
+        g.fill(cx, cy, cx + CARD_W, cy + 2, hovered ? C_ACCENT() : C_BORDER());
         if (hovered) {
-            g.fill(cx, cy, cx + 1, cy + CARD_H, C_ACCENT);
-            g.fill(cx + CARD_W - 1, cy, cx + CARD_W, cy + CARD_H, C_ACCENT);
-            g.fill(cx, cy + CARD_H - 1, cx + CARD_W, cy + CARD_H, C_ACCENT);
+            g.fill(cx, cy, cx + 1, cy + CARD_H, C_ACCENT());
+            g.fill(cx + CARD_W - 1, cy, cx + CARD_W, cy + CARD_H, C_ACCENT());
+            g.fill(cx, cy + CARD_H - 1, cx + CARD_W, cy + CARD_H, C_ACCENT());
         }
 
         // 2. Block icon (2D Item Sprite)
@@ -275,17 +282,17 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
             name = font.plainSubstrByWidth(name, maxWidth - font.width("...")) + "...";
         }
 
-        g.drawString(font, name, cx + 4, nameY, hovered ? C_ACCENT : C_TEXT, false);
+        g.drawString(font, name, cx + 4, nameY, hovered ? C_ACCENT() : C_TEXT(), false);
 
-        // 4. Script info
+        // 4. Script info (Green status dot switches to theme's progress feedback color)
         boolean hasScript = PhantasiaScripts.has(def);
         if (hasScript) {
-            g.fill(cx + CARD_W - 8, cy + 4, cx + CARD_W - 4, cy + 8, C_SCRIPT);
+            g.fill(cx + CARD_W - 8, cy + 4, cx + CARD_W - 4, cy + 8, C_GREEN());
             PhantasiaScript script = PhantasiaScripts.get(def);
             String steps = script.getSteps().size() + " steps";
-            g.drawString(font, steps, cx + 4, cy + CARD_H - 10, C_DIM, false);
+            g.drawString(font, steps, cx + 4, cy + CARD_H - 10, C_DIM(), false);
         } else {
-            g.drawString(font, Component.translatable("screen.phantasia.scene_selection.no_script").getString(), cx + 4, cy + CARD_H - 10, C_DIM, false);
+            g.drawString(font, Component.translatable("screen.phantasia.scene_selection.no_script").getString(), cx + 4, cy + CARD_H - 10, C_DIM(), false);
         }
     }
 
@@ -325,25 +332,35 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
     }
 
     private void renderNewSceneCard(GuiGraphics g, int cx, int cy, boolean hov) {
-        g.fill(cx, cy, cx + CARD_W, cy + CARD_H, hov ? C_CARD_HOV : C_CARD);
-        g.fill(cx, cy, cx + CARD_W, cy + 2, hov ? C_ACCENT : 0x334FC3F7);
+        // Dynamic Theme Color Mapping
+        int cardBg = (0xBB << 24) | (C_PANEL() & 0x00FFFFFF);
+        int cardHoverBg = (0xBB << 24) | (C_BTN_HOV() & 0x00FFFFFF);
+        g.fill(cx, cy, cx + CARD_W, cy + CARD_H, hov ? cardHoverBg : cardBg);
+
+        // CHANGED: Fixed accent line swapped for C_BORDER()
+        g.fill(cx, cy, cx + CARD_W, cy + 2, hov ? C_ACCENT() : C_BORDER());
         if (hov) {
-            g.fill(cx, cy, cx + 1, cy + CARD_H, C_ACCENT);
-            g.fill(cx + CARD_W - 1, cy, cx + CARD_W, cy + CARD_H, C_ACCENT);
-            g.fill(cx, cy + CARD_H - 1, cx + CARD_W, cy + CARD_H, C_ACCENT);
+            g.fill(cx, cy, cx + 1, cy + CARD_H, C_ACCENT());
+            g.fill(cx + CARD_W - 1, cy, cx + CARD_W, cy + CARD_H, C_ACCENT());
+            g.fill(cx, cy + CARD_H - 1, cx + CARD_W, cy + CARD_H, C_ACCENT());
         }
-        g.drawCenteredString(font, "+", cx + CARD_W / 2, cy + 28, hov ? C_ACCENT : C_DIM);
-        g.drawCenteredString(font, Component.translatable("screen.phantasia.scene_selection.btn_new_scene").getString(), cx + CARD_W / 2, cy + CARD_H - 20, hov ? C_ACCENT : C_DIM);
+        g.drawCenteredString(font, "+", cx + CARD_W / 2, cy + 28, hov ? C_ACCENT() : C_DIM());
+        g.drawCenteredString(font, Component.translatable("screen.phantasia.scene_selection.btn_new_scene").getString(), cx + CARD_W / 2, cy + CARD_H - 20, hov ? C_ACCENT() : C_DIM());
     }
 
     private void renderSceneCard(GuiGraphics g, int mx, int my,
                                  PhantasiaSceneData scene, int cx, int cy, boolean hov) {
-        g.fill(cx, cy, cx + CARD_W, cy + CARD_H, hov ? C_CARD_HOV : C_CARD);
-        g.fill(cx, cy, cx + CARD_W, cy + 2, hov ? C_ACCENT : 0x664FC3F7);
+        // Dynamic Theme Color Mapping
+        int cardBg = (0xBB << 24) | (C_PANEL() & 0x00FFFFFF);
+        int cardHoverBg = (0xBB << 24) | (C_BTN_HOV() & 0x00FFFFFF);
+        g.fill(cx, cy, cx + CARD_W, cy + CARD_H, hov ? cardHoverBg : cardBg);
+
+        // CHANGED: Fixed accent line swapped for C_BORDER()
+        g.fill(cx, cy, cx + CARD_W, cy + 2, hov ? C_ACCENT() : C_BORDER());
         if (hov) {
-            g.fill(cx, cy, cx + 1, cy + CARD_H, C_ACCENT);
-            g.fill(cx + CARD_W - 1, cy, cx + CARD_W, cy + CARD_H, C_ACCENT);
-            g.fill(cx, cy + CARD_H - 1, cx + CARD_W, cy + CARD_H, C_ACCENT);
+            g.fill(cx, cy, cx + 1, cy + CARD_H, C_ACCENT());
+            g.fill(cx + CARD_W - 1, cy, cx + CARD_W, cy + CARD_H, C_ACCENT());
+            g.fill(cx, cy + CARD_H - 1, cx + CARD_W, cy + CARD_H, C_ACCENT());
         }
 
         // Icon
@@ -369,49 +386,52 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
         int maxWidth = CARD_W - 8;
         if (font.width(name) > maxWidth)
             name = font.plainSubstrByWidth(name, maxWidth - font.width("...")) + "...";
-        g.drawString(font, name, cx + 4, cy + CARD_H - 34, hov ? C_ACCENT : C_TEXT, false);
+        g.drawString(font, name, cx + 4, cy + CARD_H - 34, hov ? C_ACCENT() : C_TEXT(), false);
 
         // Machine/step count
         int count = scene.placements.size();
         String countStr = count + " machine" + (count == 1 ? "" : "s");
         int steps = scene.steps != null ? scene.steps.size() : 0;
         if (steps > 0) countStr += "  " + steps + " step" + (steps == 1 ? "" : "s");
-        g.drawString(font, countStr, cx + 4, cy + CARD_H - 23, C_DIM, false);
+        g.drawString(font, countStr, cx + 4, cy + CARD_H - 23, C_DIM(), false);
 
-        // Green dot if has placements
+        // CHANGED: Fixed green dot swapped for the active theme's progress feedback color
         if (!scene.placements.isEmpty())
-            g.fill(cx + CARD_W - 8, cy + 4, cx + CARD_W - 4, cy + 8, C_SCRIPT);
+            g.fill(cx + CARD_W - 8, cy + 4, cx + CARD_W - 4, cy + 8, C_GREEN());
 
         // ── Action buttons (always visible at card bottom) ───────────────────
-        // Determine if this scene has guide content (any step with description)
         boolean hasGuide = scene.steps != null && scene.steps.stream()
                 .anyMatch(s -> (s.caption != null && !s.caption.isBlank()) ||
                         (s.description != null && !s.description.isBlank()) || (s.showItems && scene.placements.stream()
-                                .anyMatch(p -> !p.items.isEmpty())));
+                        .anyMatch(p -> !p.items.isEmpty())));
 
         int btnY = cy + CARD_H - 12;
         int btnH = 11;
 
-        // Component.translatable("screen.phantasia.scene_selection.btn_view").getString() button — always shown
+        // View Button
         int viewW = font.width(Component.translatable("screen.phantasia.scene_selection.btn_view").getString()) + 6;
         int viewX = cx + 3;
         boolean viewHov = isOver(mx, my, viewX, btnY, viewW, btnH);
-        g.fill(viewX, btnY, viewX + viewW, btnY + btnH,
-                viewHov ? C_BTN_HOV : (hov ? 0xBB111128 : 0x44111128));
-        if (viewHov) g.fill(viewX, btnY, viewX + viewW, btnY + 1, C_ACCENT);
-        g.drawString(font, Component.translatable("screen.phantasia.scene_selection.btn_view").getString(), viewX + 3, btnY + 2,
-                viewHov ? C_ACCENT : (hov ? C_TEXT : C_DIM), false);
 
-        // "📖 Guide" button — only shown if there's guide content
+        // CHANGED: Button background states dynamically sample cardBg and panel transparency configurations instead of static dark blues
+        int viewIdleBg = (0x44 << 24) | (C_PANEL() & 0x00FFFFFF);
+        g.fill(viewX, btnY, viewX + viewW, btnY + btnH, viewHov ? C_BTN_HOV() : (hov ? cardBg : viewIdleBg));
+        if (viewHov) g.fill(viewX, btnY, viewX + viewW, btnY + 1, C_ACCENT());
+        g.drawString(font, Component.translatable("screen.phantasia.scene_selection.btn_view").getString(), viewX + 3, btnY + 2,
+                viewHov ? C_ACCENT() : (hov ? C_TEXT() : C_DIM()), false);
+
+        // Guide Button
         if (hasGuide) {
             int guideW = font.width(Component.translatable("screen.phantasia.scene_selection.btn_read").getString()) + 6;
             int guideX = cx + CARD_W - 3 - guideW;
             boolean guideHov = isOver(mx, my, guideX, btnY, guideW, btnH);
-            g.fill(guideX, btnY, guideX + guideW, btnY + btnH,
-                    guideHov ? C_BTN_HOV : (hov ? 0xBB111128 : 0x44111128));
-            if (guideHov) g.fill(guideX, btnY, guideX + guideW, btnY + 1, C_ACCENT);
+
+            // CHANGED: Button background states dynamically sample cardBg and panel transparency
+            int guideIdleBg = (0x44 << 24) | (C_PANEL() & 0x00FFFFFF);
+            g.fill(guideX, btnY, guideX + guideW, btnY + btnH, guideHov ? C_BTN_HOV() : (hov ? cardBg : guideIdleBg));
+            if (guideHov) g.fill(guideX, btnY, guideX + guideW, btnY + 1, C_ACCENT());
             g.drawString(font, Component.translatable("screen.phantasia.scene_selection.btn_read").getString(), guideX + 3, btnY + 2,
-                    guideHov ? C_ACCENT : (hov ? C_TEXT : C_DIM), false);
+                    guideHov ? C_ACCENT() : (hov ? C_TEXT() : C_DIM()), false);
         }
     }
 
@@ -426,24 +446,35 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
 
         hoveredCard = -1;
 
-        // Component.translatable("screen.phantasia.scene_selection.btn_new_guide").getString() card always at index 0 in grid (maps to hoveredCard == -2)
+        // "＋ New Guide" card always at index 0 in grid
         int newRow = 0 - scrollOffset;
         if (newRow >= 0 && newRow < maxRows) {
             int cx = startX;
             int cy = startY + newRow * (CARD_H + CARD_PAD);
             boolean hov = isOver(mx, my, cx, cy, CARD_W, CARD_H);
             if (hov) hoveredCard = -2;
-            g.fill(cx, cy, cx + CARD_W, cy + CARD_H, hov ? C_CARD_HOV : C_CARD);
-            g.fill(cx, cy, cx + CARD_W, cy + 2, hov ? C_ACCENT : 0x334FC3F7);
-            g.drawCenteredString(font, "+", cx + CARD_W / 2, cy + 24, hov ? C_ACCENT : C_DIM);
+
+            // Dynamic Theme Color Mapping
+            int cardBg = (0xBB << 24) | (C_PANEL() & 0x00FFFFFF);
+            int cardHoverBg = (0xBB << 24) | (C_BTN_HOV() & 0x00FFFFFF);
+            g.fill(cx, cy, cx + CARD_W, cy + CARD_H, hov ? cardHoverBg : cardBg);
+
+            // CHANGED: Fixed accent line swapped for C_BORDER()
+            g.fill(cx, cy, cx + CARD_W, cy + 2, hov ? C_ACCENT() : C_BORDER());
+            if (hov) {
+                g.fill(cx, cy, cx + 1, cy + CARD_H, C_ACCENT());
+                g.fill(cx + CARD_W - 1, cy, cx + CARD_W, cy + CARD_H, C_ACCENT());
+                g.fill(cx, cy + CARD_H - 1, cx + CARD_W, cy + CARD_H, C_ACCENT());
+            }
+            g.drawCenteredString(font, "+", cx + CARD_W / 2, cy + 24, hov ? C_ACCENT() : C_DIM());
             g.drawCenteredString(font, Component.translatable("screen.phantasia.scene_selection.btn_new_guide").getString(), cx + CARD_W / 2, cy + CARD_H - 22,
-                    hov ? C_ACCENT : C_DIM);
+                    hov ? C_ACCENT() : C_DIM());
         }
 
         if (filteredGuides.isEmpty()) {
-            g.drawCenteredString(font, Component.translatable("screen.phantasia.scene_selection.no_guides").getString(), this.width / 2, startY + 30, C_DIM);
+            g.drawCenteredString(font, Component.translatable("screen.phantasia.scene_selection.no_guides").getString(), this.width / 2, startY + 30, C_DIM());
             g.drawCenteredString(font, Component.translatable("screen.phantasia.scene_selection.no_guides_hint").getString(),
-                    this.width / 2, startY + 44, C_DIM);
+                    this.width / 2, startY + 44, C_DIM());
         }
 
         for (int i = 0; i < filteredGuides.size(); i++) {
@@ -463,12 +494,17 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
 
     private void renderGuideCard(GuiGraphics g, int mx, int my,
                                  PhantasiaGuideData guide, int cx, int cy, boolean hov) {
-        g.fill(cx, cy, cx + CARD_W, cy + CARD_H, hov ? C_CARD_HOV : C_CARD);
-        g.fill(cx, cy, cx + CARD_W, cy + 2, hov ? C_ACCENT : 0x664FC3F7);
+        // Dynamic Theme Color Mapping
+        int cardBg = (0xBB << 24) | (C_PANEL() & 0x00FFFFFF);
+        int cardHoverBg = (0xBB << 24) | (C_BTN_HOV() & 0x00FFFFFF);
+        g.fill(cx, cy, cx + CARD_W, cy + CARD_H, hov ? cardHoverBg : cardBg);
+
+        // CHANGED: Fixed accent line swapped for C_BORDER()
+        g.fill(cx, cy, cx + CARD_W, cy + 2, hov ? C_ACCENT() : C_BORDER());
         if (hov) {
-            g.fill(cx, cy, cx + 1, cy + CARD_H, C_ACCENT);
-            g.fill(cx + CARD_W - 1, cy, cx + CARD_W, cy + CARD_H, C_ACCENT);
-            g.fill(cx, cy + CARD_H - 1, cx + CARD_W, cy + CARD_H, C_ACCENT);
+            g.fill(cx, cy, cx + 1, cy + CARD_H, C_ACCENT());
+            g.fill(cx + CARD_W - 1, cy, cx + CARD_W, cy + CARD_H, C_ACCENT());
+            g.fill(cx, cy + CARD_H - 1, cx + CARD_W, cy + CARD_H, C_ACCENT());
         }
 
         // Icon
@@ -494,33 +530,37 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
         String title = guide.title != null && !guide.title.isBlank() ? guide.title : guide.id;
         int maxW = CARD_W - 8;
         if (font.width(title) > maxW) title = font.plainSubstrByWidth(title, maxW - font.width("…")) + "…";
-        g.drawString(font, title, cx + 4, cy + CARD_H - 33, hov ? C_ACCENT : C_TEXT, false);
+        g.drawString(font, title, cx + 4, cy + CARD_H - 33, hov ? C_ACCENT() : C_TEXT(), false);
 
         // Page count + tag
         int pages = guide.pages != null ? guide.pages.size() : 0;
         String sub = pages + " page" + (pages == 1 ? "" : "s");
         if (guide.tag != null && !guide.tag.isBlank()) sub += "  #" + guide.tag;
-        g.drawString(font, sub, cx + 4, cy + CARD_H - 22, C_DIM, false);
+        g.drawString(font, sub, cx + 4, cy + CARD_H - 22, C_DIM(), false);
 
-        // Open / Edit buttons at bottom
+        // ── Open / Edit buttons at bottom ───────────────────────────────────────
         int btnY = cy + CARD_H - 12, btnH = 11;
+        int buttonIdleBg = (0x44 << 24) | (C_PANEL() & 0x00FFFFFF);
+
+        // Read Button
         int openW = font.width("📖 Read") + 6;
         boolean openHov = isOver(mx, my, cx + 3, btnY, openW, btnH);
-        g.fill(cx + 3, btnY, cx + 3 + openW, btnY + btnH,
-                openHov ? C_BTN_HOV : (hov ? 0xBB111128 : 0x44111128));
-        if (openHov) g.fill(cx + 3, btnY, cx + 3 + openW, btnY + 1, C_ACCENT);
-        g.drawString(font, "📖 Read", cx + 6, btnY + 2,
-                openHov ? C_ACCENT : (hov ? C_TEXT : C_DIM), false);
 
+        // CHANGED: Fixed background colors swapped for theme equivalents
+        g.fill(cx + 3, btnY, cx + 3 + openW, btnY + btnH, openHov ? C_BTN_HOV() : (hov ? cardBg : buttonIdleBg));
+        if (openHov) g.fill(cx + 3, btnY, cx + 3 + openW, btnY + 1, C_ACCENT());
+        g.drawString(font, "📖 Read", cx + 6, btnY + 2, openHov ? C_ACCENT() : (hov ? C_TEXT() : C_DIM()), false);
+
+        // Edit Button
         if (Minecraft.getInstance().player != null && Minecraft.getInstance().player.getAbilities().instabuild) {
             int editW = font.width("✏") + 6;
             int editX = cx + CARD_W - 3 - editW;
             boolean editHov = isOver(mx, my, editX, btnY, editW, btnH);
-            g.fill(editX, btnY, editX + editW, btnY + btnH,
-                    editHov ? C_BTN_HOV : (hov ? 0xBB111128 : 0x44111128));
-            if (editHov) g.fill(editX, btnY, editX + editW, btnY + 1, C_ACCENT);
-            g.drawString(font, "✏", editX + 3, btnY + 2,
-                    editHov ? C_ACCENT : (hov ? C_TEXT : C_DIM), false);
+
+            // CHANGED: Fixed background colors swapped for theme equivalents
+            g.fill(editX, btnY, editX + editW, btnY + btnH, editHov ? C_BTN_HOV() : (hov ? cardBg : buttonIdleBg));
+            if (editHov) g.fill(editX, btnY, editX + editW, btnY + 1, C_ACCENT());
+            g.drawString(font, "✏", editX + 3, btnY + 2, editHov ? C_ACCENT() : (hov ? C_TEXT() : C_DIM()), false);
         }
     }
 
@@ -533,19 +573,19 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
                 activeTab == Tab.GUIDES ? filteredGuides.size() + 1 : filteredManualScenes.size() + 1;
         int totalRows = (itemCount + COLS - 1) / COLS;
         if (totalRows > visibleRows())
-            g.drawCenteredString(font, "\u25B2 \u25BC  scroll to see more", this.width / 2, fy + 4, C_DIM);
+            g.drawCenteredString(font, "\u25B2 \u25BC  scroll to see more", this.width / 2, fy + 4, C_DIM());
 
         // Back button
         int bw = 80, bh = 18;
         int bx = (this.width - bw) / 2, by = fy + (FOOTER_H - bh) / 2;
         boolean bHov = isOver(mx, my, bx, by, bw, bh);
-        g.fill(bx, by, bx + bw, by + bh, bHov ? C_BTN_HOV : C_BTN);
+        g.fill(bx, by, bx + bw, by + bh, bHov ? C_BTN_HOV() : C_BTN());
         if (bHov) {
-            g.fill(bx, by, bx + bw, by + 1, C_ACCENT);
-            g.fill(bx, by + bh - 1, bx + bw, by + bh, C_ACCENT);
+            g.fill(bx, by, bx + bw, by + 1, C_ACCENT());
+            g.fill(bx, by + bh - 1, bx + bw, by + bh, C_ACCENT());
         }
         g.drawString(font, "\u2190 Back", bx + (bw - font.width("\u2190 Back")) / 2, by + 5,
-                bHov ? C_ACCENT : C_TEXT, false);
+                bHov ? C_ACCENT() : C_TEXT(), false);
     }
 
     // ──────────────────────────────────────────────────────────────────────────

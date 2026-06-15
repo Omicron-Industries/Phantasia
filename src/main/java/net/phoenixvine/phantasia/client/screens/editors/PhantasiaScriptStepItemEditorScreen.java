@@ -1,5 +1,7 @@
 package net.phoenixvine.phantasia.client.screens.editors;
 
+import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
@@ -13,6 +15,8 @@ import net.phoenixvine.phantasia.common.data.script.PhantasiaScriptData;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.List;
+
+import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
 
 /**
  * PhantasiaScriptStepItemEditorScreen
@@ -125,7 +129,7 @@ public class PhantasiaScriptStepItemEditorScreen extends PhantasiaScreen {
         btns.clear();
         hideAll();
 
-        g.fill(0, 0, width, height, C_BG);
+        g.fill(0, 0, width, height, C_BG());
         renderTopBar(g, mx, my);
         renderPanel(g, mx, my);
         super.render(g, mx, my, partial);
@@ -133,23 +137,23 @@ public class PhantasiaScriptStepItemEditorScreen extends PhantasiaScreen {
 
     private void renderTopBar(GuiGraphics g, int mx, int my) {
         g.fill(0, 0, width, TOP_BAR_H, 0xEE0A0A14);
-        g.fill(0, TOP_BAR_H - 1, width, TOP_BAR_H, C_ACCENT);
+        g.fill(0, TOP_BAR_H - 1, width, TOP_BAR_H, C_ACCENT());
         g.drawCenteredString(font,
                 "Items — Step " + (stepIndex + 1) + " of " + scriptData.getSteps().size(),
-                width / 2, (TOP_BAR_H - 8) / 2, C_DIM);
+                width / 2, (TOP_BAR_H - 8) / 2, C_DIM());
 
         int rx = width - 4;
-        rx = topBtn(g, mx, my, rx, "\u2190 Back", C_BTN, this::goBack);
+        rx = topBtn(g, mx, my, rx, "\u2190 Back", C_BTN(), this::goBack);
 
         // showItems toggle
         boolean si = step().showItems;
         int siW = font.width(si ? "Items: Visible" : "Items: Hidden") + 12;
         int siX = rx - siW;
         boolean siHov = isOver(mx, my, siX, 3, siW, TOP_BAR_H - 6);
-        g.fill(siX, 3, siX + siW, TOP_BAR_H - 3, si ? C_BTN_ACT : (siHov ? C_BTN_HOV : C_BTN));
-        if (si) g.fill(siX, 3, siX + siW, 4, C_ACCENT);
+        g.fill(siX, 3, siX + siW, TOP_BAR_H - 3, si ? C_BTN_ACT() : (siHov ? C_BTN_HOV() : C_BTN()));
+        if (si) g.fill(siX, 3, siX + siW, 4, C_ACCENT());
         g.drawString(font, si ? "Items: Visible" : "Items: Hidden",
-                siX + 6, (TOP_BAR_H - 8) / 2, si ? C_ACCENT : C_DIM, false);
+                siX + 6, (TOP_BAR_H - 8) / 2, si ? C_ACCENT() : C_DIM(), false);
         btns.add(new Btn(siX, 3, siW, TOP_BAR_H - 6, () -> {
             parent.checkpoint();
             step().showItems = !step().showItems;
@@ -161,9 +165,9 @@ public class PhantasiaScriptStepItemEditorScreen extends PhantasiaScreen {
         int w = font.width(label) + 10;
         int x = rx - w, y = 3, h = TOP_BAR_H - 6;
         boolean hov = isOver(mx, my, x, y, w, h);
-        g.fill(x, y, x + w, y + h, hov ? C_BTN_HOV : base);
-        if (hov) g.fill(x, y, x + w, y + 1, C_ACCENT);
-        g.drawString(font, label, x + 5, (TOP_BAR_H - 8) / 2, hov ? C_ACCENT : C_TEXT, false);
+        g.fill(x, y, x + w, y + h, hov ? C_BTN_HOV() : base);
+        if (hov) g.fill(x, y, x + w, y + 1, C_ACCENT());
+        g.drawString(font, label, x + 5, (TOP_BAR_H - 8) / 2, hov ? C_ACCENT() : C_TEXT(), false);
         btns.add(new Btn(x, y, w, h, action));
         return x - 4;
     }
@@ -174,15 +178,15 @@ public class PhantasiaScriptStepItemEditorScreen extends PhantasiaScreen {
         int py = TOP_BAR_H + 8;
         int cy = py;
 
-        g.fill(px, py, px + pw, height - 8, C_PANEL);
-        g.fill(px, py, px + pw, py + 1, C_ACCENT);
+        g.fill(px, py, px + pw, height - 8, C_PANEL());
+        g.fill(px, py, px + pw, py + 1, C_ACCENT());
         cy += 8;
 
         PhantasiaScriptData.StepData s = step();
 
         // ── Existing items ────────────────────────────────────────────────────
         if (s.items.isEmpty()) {
-            g.drawString(font, Component.translatable("screen.phantasia.script_step_item_editor.empty").getString(), px + 10, cy + 2, C_DIM, false);
+            g.drawString(font, Component.translatable("screen.phantasia.script_step_item_editor.empty").getString(), px + 10, cy + 2, C_DIM(), false);
             cy += 14;
         }
 
@@ -196,7 +200,7 @@ public class PhantasiaScriptStepItemEditorScreen extends PhantasiaScreen {
         cy += 8;
 
         // ── Add item form ─────────────────────────────────────────────────────
-        g.drawString(font, Component.translatable("screen.phantasia.script_step_item_editor.btn_add_section").getString(), px + 8, cy, C_ACCENT, false);
+        g.drawString(font, Component.translatable("screen.phantasia.script_step_item_editor.btn_add_section").getString(), px + 8, cy, C_ACCENT(), false);
         cy += 12;
 
         // Type selector
@@ -208,9 +212,9 @@ public class PhantasiaScriptStepItemEditorScreen extends PhantasiaScreen {
             boolean sel = t.equals(newItemType);
             int ac = PhantasiaSceneData.ItemConditionData.staticAccentFor(t);
             boolean hov = isOver(mx, my, bx, cy, tw, 14);
-            g.fill(bx, cy, bx + tw, cy + 14, sel ? C_BTN_ACT : (hov ? C_BTN_HOV : C_BTN));
+            g.fill(bx, cy, bx + tw, cy + 14, sel ? C_BTN_ACT() : (hov ? C_BTN_HOV() : C_BTN()));
             if (sel) g.fill(bx, cy, bx + tw, cy + 1, ac);
-            g.drawString(font, tl, bx + 5, cy + 3, sel ? ac : C_TEXT, false);
+            g.drawString(font, tl, bx + 5, cy + 3, sel ? ac : C_TEXT(), false);
             final String ft = t;
             btns.add(new Btn(bx, cy, tw, 14, () -> newItemType = ft));
             bx += tw + 3;
@@ -221,17 +225,17 @@ public class PhantasiaScriptStepItemEditorScreen extends PhantasiaScreen {
         cy = labeledBox(g, "Item:", px, cy, pw, itemIdBox);
 
         // Count + Label
-        g.drawString(font, Component.translatable("screen.phantasia.script_step_item_editor.label_count").getString(), px + 8, cy + 2, C_DIM, false);
+        g.drawString(font, Component.translatable("screen.phantasia.script_step_item_editor.label_count").getString(), px + 8, cy + 2, C_DIM(), false);
         int cntX = px + 8 + font.width(Component.translatable("screen.phantasia.script_step_item_editor.label_count").getString()) + 4;
         place(itemCountBox, cntX, cy, 34, 12);
         int lblX = cntX + 38;
-        g.drawString(font, Component.translatable("screen.phantasia.script_step_item_editor.label_label").getString(), lblX, cy + 2, C_DIM, false);
+        g.drawString(font, Component.translatable("screen.phantasia.script_step_item_editor.label_label").getString(), lblX, cy + 2, C_DIM(), false);
         place(itemLabelBox, lblX + font.width(Component.translatable("screen.phantasia.script_step_item_editor.label_label").getString()) + 4, cy,
                 pw - (lblX - px) - font.width(Component.translatable("screen.phantasia.script_step_item_editor.label_label").getString()) - 8, 12);
         cy += 16;
 
         // Track
-        g.drawString(font, Component.translatable("screen.phantasia.script_step_item_editor.label_track").getString(), px + 8, cy + 2, C_DIM, false);
+        g.drawString(font, Component.translatable("screen.phantasia.script_step_item_editor.label_track").getString(), px + 8, cy + 2, C_DIM(), false);
         int tbx = px + 8 + font.width(Component.translatable("screen.phantasia.script_step_item_editor.label_track").getString()) + 4;
         for (int ti = 0; ti < TRACKS.length; ti++) {
             String t = TRACKS[ti];
@@ -239,15 +243,15 @@ public class PhantasiaScriptStepItemEditorScreen extends PhantasiaScreen {
             int tw = font.width(tl) + 8;
             boolean sel = t.equals(newItemTrack);
             boolean hov = isOver(mx, my, tbx, cy, tw, 12);
-            g.fill(tbx, cy, tbx + tw, cy + 12, sel ? C_BTN_ACT : (hov ? C_BTN_HOV : C_BTN));
-            if (sel) g.fill(tbx, cy, tbx + tw, cy + 1, C_ACCENT);
-            g.drawString(font, tl, tbx + 4, cy + 2, sel ? C_ACCENT : C_TEXT, false);
+            g.fill(tbx, cy, tbx + tw, cy + 12, sel ? C_BTN_ACT() : (hov ? C_BTN_HOV() : C_BTN()));
+            if (sel) g.fill(tbx, cy, tbx + tw, cy + 1, C_ACCENT());
+            g.drawString(font, tl, tbx + 4, cy + 2, sel ? C_ACCENT() : C_TEXT(), false);
             final String ft = t;
             btns.add(new Btn(tbx, cy, tw, 12, () -> newItemTrack = ft));
             tbx += tw + 2;
         }
         if (!"none".equals(newItemTrack)) {
-            g.drawString(font, Component.translatable("screen.phantasia.script_step_item_editor.label_ticks").getString(), tbx + 2, cy + 2, C_DIM, false);
+            g.drawString(font, Component.translatable("screen.phantasia.script_step_item_editor.label_ticks").getString(), tbx + 2, cy + 2, C_DIM(), false);
             place(itemDurationBox, tbx + font.width(Component.translatable("screen.phantasia.script_step_item_editor.label_ticks").getString()) + 6, cy, 34, 12);
         } else {
             itemDurationBox.visible = false;
@@ -263,10 +267,10 @@ public class PhantasiaScriptStepItemEditorScreen extends PhantasiaScreen {
         // Add button
         int addBtnW = pw - 16;
         boolean addHov = isOver(mx, my, px + 8, cy, addBtnW, 14);
-        g.fill(px + 8, cy, px + 8 + addBtnW, cy + 14, addHov ? C_BTN_HOV : C_BTN);
-        if (addHov) g.fill(px + 8, cy, px + 8 + addBtnW, cy + 1, C_GREEN);
+        g.fill(px + 8, cy, px + 8 + addBtnW, cy + 14, addHov ? C_BTN_HOV() : C_BTN());
+        if (addHov) g.fill(px + 8, cy, px + 8 + addBtnW, cy + 1, C_GREEN());
         g.drawCenteredString(font, "\u2713 Add Item", px + 8 + addBtnW / 2, cy + 3,
-                addHov ? C_GREEN : C_TEXT);
+                addHov ? C_GREEN() : C_TEXT());
         btns.add(new Btn(px + 8, cy, addBtnW, 14, this::commitAdd));
     }
 
@@ -279,7 +283,7 @@ public class PhantasiaScriptStepItemEditorScreen extends PhantasiaScreen {
 
         boolean rowHov = isOver(mx, my, px + 4, cy, pw - 30, 14);
         g.fill(px + 4, cy, px + pw - 4, cy + 14,
-                editing ? C_BTN_ACT : (rowHov ? C_BTN_HOV : C_BTN));
+                editing ? C_BTN_ACT() : (rowHov ? C_BTN_HOV() : C_BTN()));
         g.fill(px + 4, cy, px + 5, cy + 14, ac);
 
         // Type badge
@@ -295,7 +299,7 @@ public class PhantasiaScriptStepItemEditorScreen extends PhantasiaScreen {
         // Name
         String nm = it.item.contains(":") ? it.item.split(":")[1].replace('_', ' ') : it.item;
         String disp = (it.label != null && !it.label.isBlank()) ? it.label + "  (" + nm + ")" : nm;
-        g.drawString(font, trunc(disp, pw - badgeW - 60), px + 10 + badgeW, cy + 3, C_TEXT, false);
+        g.drawString(font, trunc(disp, pw - badgeW - 60), px + 10 + badgeW, cy + 3, C_TEXT(), false);
 
         // Track indicator
         if (it.track != null && !"none".equals(it.track)) {
@@ -307,18 +311,18 @@ public class PhantasiaScriptStepItemEditorScreen extends PhantasiaScreen {
                 case "pulse" -> "~";
                 default -> "?";
             };
-            g.drawString(font, ti, px + pw - 54, cy + 3, C_ACCENT, false);
+            g.drawString(font, ti, px + pw - 54, cy + 3, C_ACCENT(), false);
         }
 
         // Count
         if (it.count > 1)
-            g.drawString(font, "x" + it.count, px + pw - 42, cy + 3, C_DIM, false);
+            g.drawString(font, "x" + it.count, px + pw - 42, cy + 3, C_DIM(), false);
 
         // Remove
         int rmX = px + pw - 24;
         boolean rmH = isOver(mx, my, rmX, cy + 1, 18, 12);
-        g.fill(rmX, cy + 1, rmX + 18, cy + 13, rmH ? C_BTN_HOV : C_BTN);
-        g.drawString(font, "\u2715", rmX + 5, cy + 3, rmH ? C_RED : C_DIM, false);
+        g.fill(rmX, cy + 1, rmX + 18, cy + 13, rmH ? C_BTN_HOV() : C_BTN());
+        g.drawString(font, "\u2715", rmX + 5, cy + 3, rmH ? C_RED() : C_DIM(), false);
         final int fii = ii;
         btns.add(new Btn(rmX, cy + 1, 18, 12, () -> {
             parent.checkpoint();
@@ -349,9 +353,9 @@ public class PhantasiaScriptStepItemEditorScreen extends PhantasiaScreen {
                 boolean sel = t.equals(it.type);
                 int iac = PhantasiaSceneData.ItemConditionData.staticAccentFor(t);
                 boolean hov = isOver(mx, my, bx, cy, tw, 12);
-                g.fill(bx, cy, bx + tw, cy + 12, sel ? C_BTN_ACT : (hov ? C_BTN_HOV : C_BTN));
+                g.fill(bx, cy, bx + tw, cy + 12, sel ? C_BTN_ACT() : (hov ? C_BTN_HOV() : C_BTN()));
                 if (sel) g.fill(bx, cy, bx + tw, cy + 1, iac);
-                g.drawString(font, tl, bx + 5, cy + 2, sel ? iac : C_TEXT, false);
+                g.drawString(font, tl, bx + 5, cy + 2, sel ? iac : C_TEXT(), false);
                 final String ft = t;
                 btns.add(new Btn(bx, cy, tw, 12, () -> {
                     parent.checkpoint();
@@ -364,17 +368,17 @@ public class PhantasiaScriptStepItemEditorScreen extends PhantasiaScreen {
 
             cy = labeledBox(g, "Item:", px, cy, pw, itemIdBox);
 
-            g.drawString(font, Component.translatable("screen.phantasia.script_step_item_editor.label_count").getString(), px + 8, cy + 2, C_DIM, false);
+            g.drawString(font, Component.translatable("screen.phantasia.script_step_item_editor.label_count").getString(), px + 8, cy + 2, C_DIM(), false);
             int cntX = px + 8 + font.width(Component.translatable("screen.phantasia.script_step_item_editor.label_count").getString()) + 4;
             place(itemCountBox, cntX, cy, 34, 12);
             int lbx = cntX + 38;
-            g.drawString(font, Component.translatable("screen.phantasia.script_step_item_editor.label_label").getString(), lbx, cy + 2, C_DIM, false);
+            g.drawString(font, Component.translatable("screen.phantasia.script_step_item_editor.label_label").getString(), lbx, cy + 2, C_DIM(), false);
             place(itemLabelBox, lbx + font.width(Component.translatable("screen.phantasia.script_step_item_editor.label_label").getString()) + 4, cy,
                     pw - (lbx - px) - font.width(Component.translatable("screen.phantasia.script_step_item_editor.label_label").getString()) - 8, 12);
             cy += 16;
 
             // Track row
-            g.drawString(font, Component.translatable("screen.phantasia.script_step_item_editor.label_track").getString(), px + 8, cy + 2, C_DIM, false);
+            g.drawString(font, Component.translatable("screen.phantasia.script_step_item_editor.label_track").getString(), px + 8, cy + 2, C_DIM(), false);
             int tbx = px + 8 + font.width(Component.translatable("screen.phantasia.script_step_item_editor.label_track").getString()) + 4;
             for (int ti = 0; ti < TRACKS.length; ti++) {
                 String t = TRACKS[ti];
@@ -382,9 +386,9 @@ public class PhantasiaScriptStepItemEditorScreen extends PhantasiaScreen {
                 int tw = font.width(tl) + 8;
                 boolean sel = t.equals(it.track == null ? "none" : it.track);
                 boolean hov = isOver(mx, my, tbx, cy, tw, 12);
-                g.fill(tbx, cy, tbx + tw, cy + 12, sel ? C_BTN_ACT : (hov ? C_BTN_HOV : C_BTN));
-                if (sel) g.fill(tbx, cy, tbx + tw, cy + 1, C_ACCENT);
-                g.drawString(font, tl, tbx + 4, cy + 2, sel ? C_ACCENT : C_TEXT, false);
+                g.fill(tbx, cy, tbx + tw, cy + 12, sel ? C_BTN_ACT() : (hov ? C_BTN_HOV() : C_BTN()));
+                if (sel) g.fill(tbx, cy, tbx + tw, cy + 1, C_ACCENT());
+                g.drawString(font, tl, tbx + 4, cy + 2, sel ? C_ACCENT() : C_TEXT(), false);
                 final String ft = t;
                 btns.add(new Btn(tbx, cy, tw, 12, () -> {
                     parent.checkpoint();
@@ -395,7 +399,7 @@ public class PhantasiaScriptStepItemEditorScreen extends PhantasiaScreen {
             }
             boolean hasTrack = it.track != null && !"none".equals(it.track);
             if (hasTrack) {
-                g.drawString(font, Component.translatable("screen.phantasia.script_step_item_editor.label_ticks").getString(), tbx + 2, cy + 2, C_DIM, false);
+                g.drawString(font, Component.translatable("screen.phantasia.script_step_item_editor.label_ticks").getString(), tbx + 2, cy + 2, C_DIM(), false);
                 place(itemDurationBox, tbx + font.width(Component.translatable("screen.phantasia.script_step_item_editor.label_ticks").getString()) + 6, cy, 34, 12);
             } else {
                 itemDurationBox.visible = false;
@@ -408,10 +412,10 @@ public class PhantasiaScriptStepItemEditorScreen extends PhantasiaScreen {
             // Apply & close
             int applyW = pw - 16;
             boolean applyHov = isOver(mx, my, px + 8, cy, applyW, 12);
-            g.fill(px + 8, cy, px + 8 + applyW, cy + 12, applyHov ? C_BTN_HOV : C_BTN);
-            if (applyHov) g.fill(px + 8, cy, px + 8 + applyW, cy + 1, C_ACCENT);
+            g.fill(px + 8, cy, px + 8 + applyW, cy + 12, applyHov ? C_BTN_HOV() : C_BTN());
+            if (applyHov) g.fill(px + 8, cy, px + 8 + applyW, cy + 1, C_ACCENT());
             g.drawCenteredString(font, "\u2713 Apply & close", px + 8 + applyW / 2, cy + 2,
-                    applyHov ? C_ACCENT : C_TEXT);
+                    applyHov ? C_ACCENT() : C_TEXT());
             btns.add(new Btn(px + 8, cy, applyW, 12, () -> {
                 parent.checkpoint();
                 String id = itemIdBox.getValue().trim();
@@ -533,7 +537,7 @@ public class PhantasiaScriptStepItemEditorScreen extends PhantasiaScreen {
 
     /** Places a labeled EditBox, returns next Y. */
     private int labeledBox(GuiGraphics g, String lbl, int px, int cy, int pw, EditBox box) {
-        g.drawString(font, lbl, px + 8, cy + 2, C_DIM, false);
+        g.drawString(font, lbl, px + 8, cy + 2, C_DIM(), false);
         place(box, px + 8 + font.width(lbl) + 4, cy, pw - 20 - font.width(lbl) - 4, 12);
         return cy + 16;
     }

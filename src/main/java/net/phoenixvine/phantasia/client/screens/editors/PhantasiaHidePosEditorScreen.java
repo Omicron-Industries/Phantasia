@@ -1,5 +1,7 @@
 package net.phoenixvine.phantasia.client.screens.editors;
 
+import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
@@ -21,6 +23,8 @@ import org.lwjgl.glfw.GLFW;
 import java.util.ArrayList;
 import java.util.List;
 
+import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
+
 /**
  * Subscreen for editing the "hide positions" list of a script step.
  *
@@ -33,18 +37,7 @@ import java.util.List;
 @OnlyIn(Dist.CLIENT)
 public class PhantasiaHidePosEditorScreen extends Screen {
 
-    // ── Theme ─────────────────────────────────────────────────────────────────
-    private static final int C_BG = 0xFF080810;
-    private static final int C_BAR = 0xEE0A0A14;
-    private static final int C_PANEL = 0xDD0C0C1A;
-    private static final int C_ACCENT = 0xFF4FC3F7;
-    private static final int C_BTN = 0xBB151528;
-    private static final int C_BTN_HOV = 0xBB1A2840;
-    private static final int C_TEXT = 0xFFDDDDDD;
-    private static final int C_DIM = 0xFF667788;
-    private static final int C_RED = 0xFFFF5252;
-    private static final int C_GREEN = 0xFF66BB6A;
-    private static final int C_HILIT = 0xAAFF4444; // highlight overlay for hovered row
+
 
     private static final int TOP_BAR_H = 22;
     private static final int BOTTOM_H = 36;
@@ -148,7 +141,7 @@ public class PhantasiaHidePosEditorScreen extends Screen {
         hoveredListPos = null;
         hoveredViewportPos = null;
 
-        g.fill(0, 0, this.width, this.height, C_BG);
+        g.fill(0, 0, this.width, this.height, C_BG());
 
         int viewW = this.width - PANEL_W;
         int viewH = this.height - TOP_BAR_H;
@@ -184,31 +177,31 @@ public class PhantasiaHidePosEditorScreen extends Screen {
     // ── Top bar ───────────────────────────────────────────────────────────────
 
     private void renderTopBar(GuiGraphics g, int mx, int my) {
-        g.fill(0, 0, this.width, TOP_BAR_H, C_BAR);
-        g.fill(0, TOP_BAR_H - 1, this.width, TOP_BAR_H, C_ACCENT);
+        g.fill(0, 0, this.width, TOP_BAR_H, C_BAR());
+        g.fill(0, TOP_BAR_H - 1, this.width, TOP_BAR_H, C_ACCENT());
 
         g.drawCenteredString(font,
                 "Hide Positions — Step " + (stepIndex + 1) + "  (" + step().hidePositions.size() + " hidden)",
-                (this.width - PANEL_W) / 2, (TOP_BAR_H - 8) / 2, C_ACCENT);
+                (this.width - PANEL_W) / 2, (TOP_BAR_H - 8) / 2, C_ACCENT());
 
         // Done button
         int doneW = font.width(Component.translatable("screen.phantasia.hide_pos_editor.btn_done").getString()) + 12;
         int doneX = this.width - 4 - doneW;
         boolean doneHov = isOver(mx, my, doneX, 3, doneW, TOP_BAR_H - 6);
-        g.fill(doneX, 3, doneX + doneW, TOP_BAR_H - 3, doneHov ? C_BTN_HOV : C_BTN);
+        g.fill(doneX, 3, doneX + doneW, TOP_BAR_H - 3, doneHov ? C_BTN_HOV() : C_BTN());
         if (doneHov) {
-            g.fill(doneX, 3, doneX + doneW, 4, C_ACCENT);
-            g.fill(doneX, TOP_BAR_H - 4, doneX + doneW, TOP_BAR_H - 3, C_ACCENT);
+            g.fill(doneX, 3, doneX + doneW, 4, C_ACCENT());
+            g.fill(doneX, TOP_BAR_H - 4, doneX + doneW, TOP_BAR_H - 3, C_ACCENT());
         }
-        g.drawString(font, Component.translatable("screen.phantasia.hide_pos_editor.btn_done").getString(), doneX + 6, (TOP_BAR_H - 8) / 2, doneHov ? C_GREEN : C_TEXT, false);
+        g.drawString(font, Component.translatable("screen.phantasia.hide_pos_editor.btn_done").getString(), doneX + 6, (TOP_BAR_H - 8) / 2, doneHov ? C_GREEN() : C_TEXT(), false);
         btns.add(new Btn(doneX, 3, doneW, TOP_BAR_H - 6, this::close));
 
         // Clear all button
         int clrW = font.width(Component.translatable("screen.phantasia.hide_pos_editor.btn_clear").getString()) + 12;
         int clrX = doneX - 4 - clrW;
         boolean clrHov = isOver(mx, my, clrX, 3, clrW, TOP_BAR_H - 6);
-        g.fill(clrX, 3, clrX + clrW, TOP_BAR_H - 3, clrHov ? C_BTN_HOV : C_BTN);
-        g.drawString(font, Component.translatable("screen.phantasia.hide_pos_editor.btn_clear").getString(), clrX + 6, (TOP_BAR_H - 8) / 2, clrHov ? C_RED : C_TEXT, false);
+        g.fill(clrX, 3, clrX + clrW, TOP_BAR_H - 3, clrHov ? C_BTN_HOV() : C_BTN());
+        g.drawString(font, Component.translatable("screen.phantasia.hide_pos_editor.btn_clear").getString(), clrX + 6, (TOP_BAR_H - 8) / 2, clrHov ? C_RED() : C_TEXT(), false);
         btns.add(new Btn(clrX, 3, clrW, TOP_BAR_H - 6, () -> {
             parent.checkpoint();
             step().hidePositions.clear();
@@ -218,9 +211,9 @@ public class PhantasiaHidePosEditorScreen extends Screen {
 
         // Hint: click block in viewport to hide it
         if (hoveredViewportPos != null) {
-            g.drawString(font, Component.translatable("screen.phantasia.hide_pos_editor.hint_click").getString(), 8, (TOP_BAR_H - 8) / 2, C_DIM, false);
+            g.drawString(font, Component.translatable("screen.phantasia.hide_pos_editor.hint_click").getString(), 8, (TOP_BAR_H - 8) / 2, C_DIM(), false);
         } else {
-            g.drawString(font, Component.translatable("screen.phantasia.hide_pos_editor.hint_click_verbose").getString(), 8, (TOP_BAR_H - 8) / 2, C_DIM, false);
+            g.drawString(font, Component.translatable("screen.phantasia.hide_pos_editor.hint_click_verbose").getString(), 8, (TOP_BAR_H - 8) / 2, C_DIM(), false);
         }
     }
 
@@ -228,12 +221,12 @@ public class PhantasiaHidePosEditorScreen extends Screen {
 
     private void renderRightPanel(GuiGraphics g, int mx, int my) {
         int px = this.width - PANEL_W;
-        g.fill(px, TOP_BAR_H, this.width, this.height, C_PANEL);
-        g.fill(px, TOP_BAR_H, px + 1, this.height, C_ACCENT);
+        g.fill(px, TOP_BAR_H, this.width, this.height, C_PANEL());
+        g.fill(px, TOP_BAR_H, px + 1, this.height, C_ACCENT());
 
         // Panel header
-        g.fill(px, TOP_BAR_H, this.width, TOP_BAR_H + 14, C_BAR);
-        g.drawString(font, Component.translatable("screen.phantasia.hide_pos_editor.section_positions").getString(), px + 6, TOP_BAR_H + 3, C_ACCENT, false);
+        g.fill(px, TOP_BAR_H, this.width, TOP_BAR_H + 14, C_BAR());
+        g.drawString(font, Component.translatable("screen.phantasia.hide_pos_editor.section_positions").getString(), px + 6, TOP_BAR_H + 3, C_ACCENT(), false);
 
         renderList(g, mx, my, px);
         renderBottomStrip(g, mx, my, px);
@@ -253,9 +246,9 @@ public class PhantasiaHidePosEditorScreen extends Screen {
 
         if (positions.isEmpty()) {
             g.drawCenteredString(font, Component.translatable("screen.phantasia.hide_pos_editor.empty").getString(),
-                    px + PANEL_W / 2, listTop + listH / 2 - 4, C_DIM);
+                    px + PANEL_W / 2, listTop + listH / 2 - 4, C_DIM());
             g.drawCenteredString(font, Component.translatable("screen.phantasia.hide_pos_editor.empty_hint").getString(),
-                    px + PANEL_W / 2, listTop + listH / 2 + 6, C_DIM);
+                    px + PANEL_W / 2, listTop + listH / 2 + 6, C_DIM());
             return;
         }
 
@@ -265,7 +258,7 @@ public class PhantasiaHidePosEditorScreen extends Screen {
             g.fill(sbX, listTop, sbX + 4, listBottom, 0x33FFFFFF);
             int thumbH = Math.max(12, listH * visRows / positions.size());
             int thumbY = listTop + (listH - thumbH) * scrollOffset / Math.max(1, maxScroll);
-            g.fill(sbX, thumbY, sbX + 4, thumbY + thumbH, C_ACCENT);
+            g.fill(sbX, thumbY, sbX + 4, thumbY + thumbH, C_ACCENT());
         }
 
         for (int i = scrollOffset; i < Math.min(positions.size(), scrollOffset + visRows + 1); i++) {
@@ -279,11 +272,11 @@ public class PhantasiaHidePosEditorScreen extends Screen {
             // Row background
             g.fill(px + 1, ry, this.width - 6, ry + ROW_H - 1,
                     hov ? 0xBB0D1A2D : (i % 2 == 0 ? 0x11FFFFFF : 0x00000000));
-            if (hov) g.fill(px + 1, ry, px + 2, ry + ROW_H - 1, C_ACCENT);
+            if (hov) g.fill(px + 1, ry, px + 2, ry + ROW_H - 1, C_ACCENT());
 
             // Coord label
             String coord = pos[0] + ", " + pos[1] + ", " + pos[2];
-            g.drawString(font, coord, px + 7, ry + (ROW_H - 8) / 2, C_ACCENT, false);
+            g.drawString(font, coord, px + 7, ry + (ROW_H - 8) / 2, C_ACCENT(), false);
 
             // Block name (dimmed, right-aligned to avoid coord overlap)
             String blockName = lookupBlockName(pos);
@@ -292,16 +285,16 @@ public class PhantasiaHidePosEditorScreen extends Screen {
                 if (font.width(blockName) > maxNameW)
                     blockName = font.plainSubstrByWidth(blockName, maxNameW - font.width("…")) + "…";
                 g.drawString(font, blockName,
-                        px + 7 + font.width(coord) + 6, ry + (ROW_H - 8) / 2, C_DIM, false);
+                        px + 7 + font.width(coord) + 6, ry + (ROW_H - 8) / 2, C_DIM(), false);
             }
 
             // ✕ remove button
             int rbx = this.width - 22;
             boolean rbHov = isOver(mx, my, rbx, ry + 3, 16, ROW_H - 6);
             g.fill(rbx, ry + 3, rbx + 16, ry + ROW_H - 3,
-                    rbHov ? 0xBB3A0A0A : C_BTN);
+                    rbHov ? 0xBB3A0A0A : C_BTN());
             g.drawCenteredString(font, "✕", rbx + 8, ry + (ROW_H - 8) / 2,
-                    rbHov ? C_RED : C_DIM);
+                    rbHov ? C_RED() : C_DIM());
             final int fi = i;
             btns.add(new Btn(rbx, ry + 3, 16, ROW_H - 6, () -> {
                 parent.checkpoint();
@@ -318,23 +311,23 @@ public class PhantasiaHidePosEditorScreen extends Screen {
 
     private void renderBottomStrip(GuiGraphics g, int mx, int my, int px) {
         int barY = this.height - BOTTOM_H;
-        g.fill(px, barY, this.width, this.height, C_BAR);
-        g.fill(px, barY, px + 1, this.height, C_ACCENT);
+        g.fill(px, barY, this.width, this.height, C_BAR());
+        g.fill(px, barY, px + 1, this.height, C_ACCENT());
         g.fill(px + 1, barY, this.width, barY + 1, 0x33FFFFFF);
 
-        g.drawString(font, Component.translatable("screen.phantasia.hide_pos_editor.label_add").getString(), px + 6, barY + 11, C_DIM, false);
+        g.drawString(font, Component.translatable("screen.phantasia.hide_pos_editor.label_add").getString(), px + 6, barY + 11, C_DIM(), false);
         // addBox is positioned in init; just draw the Add button beside it
         int addBtnX = this.width - PANEL_W + 4 + (PANEL_W - 60) + 4;
         boolean addHov = isOver(mx, my, addBtnX, barY + 8, 44, 16);
         g.fill(addBtnX, barY + 8, addBtnX + 44, barY + 24,
-                addHov ? C_BTN_HOV : C_BTN);
-        if (addHov) g.fill(addBtnX, barY + 8, addBtnX + 44, barY + 9, C_ACCENT);
+                addHov ? C_BTN_HOV() : C_BTN());
+        if (addHov) g.fill(addBtnX, barY + 8, addBtnX + 44, barY + 9, C_ACCENT());
         g.drawCenteredString(font, Component.translatable("screen.phantasia.hide_pos_editor.btn_add").getString(), addBtnX + 22, barY + 11,
-                addHov ? C_ACCENT : C_TEXT);
+                addHov ? C_ACCENT() : C_TEXT());
         btns.add(new Btn(addBtnX, barY + 8, 44, 16, this::tryAdd));
 
         if (addError != null)
-            g.drawString(font, addError, px + 6, barY + 24, C_RED, false);
+            g.drawString(font, addError, px + 6, barY + 24, C_RED(), false);
     }
 
     // ── Viewport highlight overlays ───────────────────────────────────────────
@@ -370,10 +363,10 @@ public class PhantasiaHidePosEditorScreen extends Screen {
             tipY = Math.max(tipY, TOP_BAR_H + 2);
 
             g.fill(tipX - 1, tipY - 1, tipX + tipW + 1, tipY + tipH + 1, 0xBB000000);
-            g.fill(tipX - 1, tipY - 1, tipX, tipY + tipH + 1, C_ACCENT);
-            g.drawString(font, line1, tipX + 3, tipY + 3, C_TEXT, false);
+            g.fill(tipX - 1, tipY - 1, tipX, tipY + tipH + 1, C_ACCENT());
+            g.drawString(font, line1, tipX + 3, tipY + 3, C_TEXT(), false);
             if (!line2.isEmpty())
-                g.drawString(font, line2, tipX + 3, tipY + 13, C_DIM, false);
+                g.drawString(font, line2, tipX + 3, tipY + 13, C_DIM(), false);
         }
 
         // Dim the viewport when a list row is hovered to draw attention to it
@@ -385,7 +378,7 @@ public class PhantasiaHidePosEditorScreen extends Screen {
             // Draw the local coords in the corner of the viewport
             String coordLabel = "  Hiding: " + hoveredListPos[0] + ", " + hoveredListPos[1] + ", " + hoveredListPos[2];
             g.fill(2, TOP_BAR_H + 2, font.width(coordLabel) + 6, TOP_BAR_H + 14, 0xAA000000);
-            g.drawString(font, coordLabel, 4, TOP_BAR_H + 4, C_RED, false);
+            g.drawString(font, coordLabel, 4, TOP_BAR_H + 4, C_RED(), false);
         }
     }
 

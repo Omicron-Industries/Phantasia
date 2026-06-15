@@ -1,5 +1,7 @@
 package net.phoenixvine.phantasia.client.screens.editors;
 
+import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
@@ -13,6 +15,8 @@ import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
 
 /**
  * PhantasiaSceneMistakesEditorScreen
@@ -124,7 +128,7 @@ public class PhantasiaSceneMistakesEditorScreen extends PhantasiaScreen {
         btns.clear();
         hideAll();
 
-        g.fill(0, 0, width, height, C_BG);
+        g.fill(0, 0, width, height, C_BG());
         renderTopBar(g, mx, my);
         renderContent(g, mx, my);
         renderBottomHint(g);
@@ -133,22 +137,22 @@ public class PhantasiaSceneMistakesEditorScreen extends PhantasiaScreen {
     }
 
     private void renderTopBar(GuiGraphics g, int mx, int my) {
-        g.fill(0, 0, width, TOP_BAR_H, C_BAR);
-        g.fill(0, TOP_BAR_H - 1, width, TOP_BAR_H, C_ACCENT);
+        g.fill(0, 0, width, TOP_BAR_H, C_BAR());
+        g.fill(0, TOP_BAR_H - 1, width, TOP_BAR_H, C_ACCENT());
 
         g.drawCenteredString(font,
                 "\u26A0 Layout Mistakes  \u2014  " + data.mistakes.size() + " defined",
-                width / 2, (TOP_BAR_H - 8) / 2, C_ACCENT);
+                width / 2, (TOP_BAR_H - 8) / 2, C_ACCENT());
 
         // Done
         int doneW = font.width("\u2713 Done") + 12;
         int doneX = width - 4 - doneW;
         boolean doneHov = isOver(mx, my, doneX, 3, doneW, TOP_BAR_H - 6);
-        g.fill(doneX, 3, doneX + doneW, TOP_BAR_H - 3, doneHov ? C_BTN_HOV : C_BTN);
+        g.fill(doneX, 3, doneX + doneW, TOP_BAR_H - 3, doneHov ? C_BTN_HOV() : C_BTN());
         if (doneHov) {
-            g.fill(doneX, 3, doneX + doneW, 4, C_ACCENT);
+            g.fill(doneX, 3, doneX + doneW, 4, C_ACCENT());
         }
-        g.drawString(font, "\u2713 Done", doneX + 6, (TOP_BAR_H - 8) / 2, doneHov ? C_GREEN : C_TEXT, false);
+        g.drawString(font, "\u2713 Done", doneX + 6, (TOP_BAR_H - 8) / 2, doneHov ? C_GREEN() : C_TEXT(), false);
         btns.add(new Btn(doneX, 3, doneW, TOP_BAR_H - 6, this::goBack));
     }
 
@@ -165,7 +169,7 @@ public class PhantasiaSceneMistakesEditorScreen extends PhantasiaScreen {
         }
 
         if (data.mistakes.isEmpty()) {
-            g.drawCenteredString(font, Component.translatable("screen.phantasia.scene_mistakes_editor.empty").getString(), width / 2, cy + 8, C_DIM);
+            g.drawCenteredString(font, Component.translatable("screen.phantasia.scene_mistakes_editor.empty").getString(), width / 2, cy + 8, C_DIM());
             cy += 22;
         }
 
@@ -175,11 +179,11 @@ public class PhantasiaSceneMistakesEditorScreen extends PhantasiaScreen {
         cy += 8;
 
         // ── Add-new form ──────────────────────────────────────────────────────
-        g.drawString(font, Component.translatable("screen.phantasia.scene_mistakes_editor.btn_new").getString(), px + 4, cy, C_ACCENT, false);
+        g.drawString(font, Component.translatable("screen.phantasia.scene_mistakes_editor.btn_new").getString(), px + 4, cy, C_ACCENT(), false);
         cy += 12;
 
         // Severity selector
-        g.drawString(font, Component.translatable("screen.phantasia.scene_mistakes_editor.label_severity").getString(), px + 4, cy + 2, C_DIM, false);
+        g.drawString(font, Component.translatable("screen.phantasia.scene_mistakes_editor.label_severity").getString(), px + 4, cy + 2, C_DIM(), false);
         int sbx = px + 4 + font.width(Component.translatable("screen.phantasia.scene_mistakes_editor.label_severity").getString()) + 4;
         for (int si = 0; si < SEVERITIES.length; si++) {
             String sv = SEVERITIES[si];
@@ -188,9 +192,9 @@ public class PhantasiaSceneMistakesEditorScreen extends PhantasiaScreen {
             boolean svSel = sv.equals(newSeverity);
             boolean svHov = isOver(mx, my, sbx, cy, svW, 12);
             int svCol = SEVERITY_COLORS[si];
-            g.fill(sbx, cy, sbx + svW, cy + 12, svSel ? C_BTN_ACT : (svHov ? C_BTN_HOV : C_BTN));
+            g.fill(sbx, cy, sbx + svW, cy + 12, svSel ? C_BTN_ACT() : (svHov ? C_BTN_HOV() : C_BTN()));
             if (svSel) g.fill(sbx, cy, sbx + svW, cy + 1, svCol);
-            g.drawString(font, svl, sbx + 5, cy + 2, svSel ? svCol : C_TEXT, false);
+            g.drawString(font, svl, sbx + 5, cy + 2, svSel ? svCol : C_TEXT(), false);
             final String fsv = sv;
             btns.add(new Btn(sbx, cy, svW, 12, () -> newSeverity = fsv));
             sbx += svW + 3;
@@ -198,17 +202,17 @@ public class PhantasiaSceneMistakesEditorScreen extends PhantasiaScreen {
         cy += 16;
 
         // ID field
-        g.drawString(font, Component.translatable("screen.phantasia.scene_mistakes_editor.label_id").getString(), px + 4, cy + 2, C_DIM, false);
+        g.drawString(font, Component.translatable("screen.phantasia.scene_mistakes_editor.label_id").getString(), px + 4, cy + 2, C_DIM(), false);
         place(editIdBox, px + 4 + font.width(Component.translatable("screen.phantasia.scene_mistakes_editor.label_id").getString()) + 4, cy, 160, 12);
         cy += 16;
 
         // Description field
-        g.drawString(font, Component.translatable("screen.phantasia.scene_mistakes_editor.label_desc").getString(), px + 4, cy + 2, C_DIM, false);
+        g.drawString(font, Component.translatable("screen.phantasia.scene_mistakes_editor.label_desc").getString(), px + 4, cy + 2, C_DIM(), false);
         place(editDescBox, px + 4 + font.width(Component.translatable("screen.phantasia.scene_mistakes_editor.label_desc").getString()) + 4, cy, pw - 12 - font.width(Component.translatable("screen.phantasia.scene_mistakes_editor.label_desc").getString()), 12);
         cy += 16;
 
         // Placements field
-        g.drawString(font, Component.translatable("screen.phantasia.scene_mistakes_editor.label_placements").getString(), px + 4, cy + 2, C_DIM, false);
+        g.drawString(font, Component.translatable("screen.phantasia.scene_mistakes_editor.label_placements").getString(), px + 4, cy + 2, C_DIM(), false);
         int plLblW = font.width(Component.translatable("screen.phantasia.scene_mistakes_editor.label_placements").getString()) + 4;
         place(editPlacementsBox, px + 4 + plLblW, cy, 120, 12);
 
@@ -216,7 +220,7 @@ public class PhantasiaSceneMistakesEditorScreen extends PhantasiaScreen {
         int refX = px + 4 + plLblW + 124;
         for (int pi = 0; pi < data.placements.size(); pi++) {
             String ref = "#" + pi + " " + shortMachineId(data.placements.get(pi).machine);
-            g.drawString(font, ref, refX, cy + 2, C_DIM, false);
+            g.drawString(font, ref, refX, cy + 2, C_DIM(), false);
             refX += font.width(ref) + 8;
             if (refX > px + pw - 20) break; // don't overflow
         }
@@ -224,16 +228,16 @@ public class PhantasiaSceneMistakesEditorScreen extends PhantasiaScreen {
 
         // Error
         if (addError != null) {
-            g.drawString(font, addError, px + 4, cy, C_RED, false);
+            g.drawString(font, addError, px + 4, cy, C_RED(), false);
             cy += 12;
         }
 
         // Add button
         int addBtnW = pw - 8;
         boolean addHov = isOver(mx, my, px + 4, cy, addBtnW, 14);
-        g.fill(px + 4, cy, px + 4 + addBtnW, cy + 14, addHov ? C_BTN_HOV : C_BTN);
-        if (addHov) g.fill(px + 4, cy, px + 4 + addBtnW, cy + 1, C_GREEN);
-        g.drawCenteredString(font, "\u2713 Add Mistake", px + 4 + addBtnW / 2, cy + 3, addHov ? C_GREEN : C_TEXT);
+        g.fill(px + 4, cy, px + 4 + addBtnW, cy + 14, addHov ? C_BTN_HOV() : C_BTN());
+        if (addHov) g.fill(px + 4, cy, px + 4 + addBtnW, cy + 1, C_GREEN());
+        g.drawCenteredString(font, "\u2713 Add Mistake", px + 4 + addBtnW / 2, cy + 3, addHov ? C_GREEN() : C_TEXT());
         btns.add(new Btn(px + 4, cy, addBtnW, 14, this::commitAdd));
     }
 
@@ -250,7 +254,7 @@ public class PhantasiaSceneMistakesEditorScreen extends PhantasiaScreen {
         // Row background
         boolean rowHov = isOver(mx, my, px + 2, cy, pw - 28, ROW_H);
         g.fill(px + 2, cy, px + pw - 2, cy + ROW_H,
-                expanded ? C_BTN_ACT : (rowHov ? C_BTN_HOV : C_BTN));
+                expanded ? C_BTN_ACT() : (rowHov ? C_BTN_HOV() : C_BTN()));
         g.fill(px + 2, cy, px + 3, cy + ROW_H, sevCol);
 
         // Severity badge
@@ -261,10 +265,10 @@ public class PhantasiaSceneMistakesEditorScreen extends PhantasiaScreen {
 
         // ID + description
         String idStr = m.id != null ? m.id : "(no id)";
-        g.drawString(font, idStr, px + 5 + badgeW + 4, cy + 4, expanded ? C_ACCENT : C_TEXT, false);
+        g.drawString(font, idStr, px + 5 + badgeW + 4, cy + 4, expanded ? C_ACCENT() : C_TEXT(), false);
         if (m.description != null && !m.description.isBlank()) {
             String desc = trunc(m.description, pw - badgeW - 60);
-            g.drawString(font, desc, px + 5 + badgeW + 4, cy + 12, C_DIM, false);
+            g.drawString(font, desc, px + 5 + badgeW + 4, cy + 12, C_DIM(), false);
         }
 
         // Placement indices badge
@@ -277,8 +281,8 @@ public class PhantasiaSceneMistakesEditorScreen extends PhantasiaScreen {
         // Remove button
         int rmX = px + pw - 24, rmY = cy + 4;
         boolean rmHov = isOver(mx, my, rmX, rmY, 18, 12);
-        g.fill(rmX, rmY, rmX + 18, rmY + 12, rmHov ? C_BTN_HOV : C_BTN);
-        g.drawString(font, "\u2715", rmX + 5, rmY + 2, rmHov ? C_RED : C_DIM, false);
+        g.fill(rmX, rmY, rmX + 18, rmY + 12, rmHov ? C_BTN_HOV() : C_BTN());
+        g.drawString(font, "\u2715", rmX + 5, rmY + 2, rmHov ? C_RED() : C_DIM(), false);
         final int fi = idx;
         btns.add(new Btn(rmX, rmY, 18, 12, () -> {
             parent.checkpoint();
@@ -323,9 +327,9 @@ public class PhantasiaSceneMistakesEditorScreen extends PhantasiaScreen {
             boolean svSel = sv.equals(m.severity);
             boolean svHov = isOver(mx, my, sbx, cy, svW, 12);
             int svCol = SEVERITY_COLORS[si];
-            g.fill(sbx, cy, sbx + svW, cy + 12, svSel ? C_BTN_ACT : (svHov ? C_BTN_HOV : C_BTN));
+            g.fill(sbx, cy, sbx + svW, cy + 12, svSel ? C_BTN_ACT() : (svHov ? C_BTN_HOV() : C_BTN()));
             if (svSel) g.fill(sbx, cy, sbx + svW, cy + 1, svCol);
-            g.drawString(font, svl, sbx + 5, cy + 2, svSel ? svCol : C_TEXT, false);
+            g.drawString(font, svl, sbx + 5, cy + 2, svSel ? svCol : C_TEXT(), false);
             final String fsv = sv;
             btns.add(new Btn(sbx, cy, svW, 12, () -> {
                 parent.checkpoint();
@@ -337,26 +341,26 @@ public class PhantasiaSceneMistakesEditorScreen extends PhantasiaScreen {
         cy += 16;
 
         // ID field
-        g.drawString(font, Component.translatable("screen.phantasia.scene_mistakes_editor.label_id").getString(), px + 8, cy + 2, C_DIM, false);
+        g.drawString(font, Component.translatable("screen.phantasia.scene_mistakes_editor.label_id").getString(), px + 8, cy + 2, C_DIM(), false);
         place(editIdBox, px + 8 + font.width(Component.translatable("screen.phantasia.scene_mistakes_editor.label_id").getString()) + 4, cy, 160, 12);
         cy += 16;
 
         // Description field
-        g.drawString(font, Component.translatable("screen.phantasia.scene_mistakes_editor.label_desc").getString(), px + 8, cy + 2, C_DIM, false);
+        g.drawString(font, Component.translatable("screen.phantasia.scene_mistakes_editor.label_desc").getString(), px + 8, cy + 2, C_DIM(), false);
         place(editDescBox, px + 8 + font.width(Component.translatable("screen.phantasia.scene_mistakes_editor.label_desc").getString()) + 4, cy, pw - 20 - font.width(Component.translatable("screen.phantasia.scene_mistakes_editor.label_desc").getString()), 12);
         cy += 16;
 
         // Placements
-        g.drawString(font, Component.translatable("screen.phantasia.scene_mistakes_editor.label_placements").getString(), px + 8, cy + 2, C_DIM, false);
+        g.drawString(font, Component.translatable("screen.phantasia.scene_mistakes_editor.label_placements").getString(), px + 8, cy + 2, C_DIM(), false);
         place(editPlacementsBox, px + 8 + font.width(Component.translatable("screen.phantasia.scene_mistakes_editor.label_placements").getString()) + 4, cy, 120, 12);
         cy += 16;
 
         // Apply button
         int applyW = pw - 16;
         boolean applyHov = isOver(mx, my, px + 8, cy, applyW, 12);
-        g.fill(px + 8, cy, px + 8 + applyW, cy + 12, applyHov ? C_BTN_HOV : C_BTN);
-        if (applyHov) g.fill(px + 8, cy, px + 8 + applyW, cy + 1, C_ACCENT);
-        g.drawCenteredString(font, "\u2713 Apply", px + 8 + applyW / 2, cy + 2, applyHov ? C_ACCENT : C_TEXT);
+        g.fill(px + 8, cy, px + 8 + applyW, cy + 12, applyHov ? C_BTN_HOV() : C_BTN());
+        if (applyHov) g.fill(px + 8, cy, px + 8 + applyW, cy + 1, C_ACCENT());
+        g.drawCenteredString(font, "\u2713 Apply", px + 8 + applyW / 2, cy + 2, applyHov ? C_ACCENT() : C_TEXT());
         btns.add(new Btn(px + 8, cy, applyW, 12, () -> commitEdit(idx, m)));
         cy += 16;
 
@@ -365,12 +369,12 @@ public class PhantasiaSceneMistakesEditorScreen extends PhantasiaScreen {
 
     private void renderBottomHint(GuiGraphics g) {
         int by = height - BOTTOM_H;
-        g.fill(0, by, width, height, C_BAR);
+        g.fill(0, by, width, height, C_BAR());
         g.fill(0, by, width, by + 1, 0x22FFFFFF);
         g.drawCenteredString(font,
                 "Mistakes flag incorrect machine placements in the scene viewer  \u2014  " + data.placements.size() +
                         " placement(s) available",
-                width / 2, by + (BOTTOM_H - 8) / 2, C_DIM);
+                width / 2, by + (BOTTOM_H - 8) / 2, C_DIM());
     }
 
     // ─────────────────────────────────────────────────────────────────────────

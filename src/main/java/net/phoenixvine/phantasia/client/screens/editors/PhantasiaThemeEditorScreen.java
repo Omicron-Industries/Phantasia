@@ -1,5 +1,7 @@
 package net.phoenixvine.phantasia.client.screens.editors;
 
+import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
@@ -46,7 +48,6 @@ public class PhantasiaThemeEditorScreen extends Screen {
     public PhantasiaThemeEditorScreen(Screen parent) {
         super(Component.translatable("screen.phantasia.theme_editor.title"));
         this.parent = parent;
-        PhantasiaTheme.loadAllThemes();
     }
 
     @Override

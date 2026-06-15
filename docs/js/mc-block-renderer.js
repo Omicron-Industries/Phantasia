@@ -30,9 +30,6 @@ export class McBlockRenderer {
    * @param {function|null} neighborChecker  (dx,dy,dz)=>boolean — same block type?
    */
   async buildBlock(namespace, blockId, props, neighborChecker = null) {
-    // Cache key includes a neighbor mask when CTM is in play
-    // We'll decide on cache hit vs miss after model resolution for CTM blocks,
-    // so use a provisional key first and fall through if CTM needs neighbors.
     const baseKey = `${namespace}:${blockId}:${this._propsKey(props)}`;
     if (!neighborChecker && this._meshCache.has(baseKey)) {
       return this._meshCache.get(baseKey).clone();
@@ -184,8 +181,7 @@ export class McBlockRenderer {
       const ctmPath = await this.assets.ctmPathFor(namespace, texPath);
       if (ctmPath) {
         const { col, row } = this._ctmTile(dir, neighborChecker);
-        const mat = await this._getCtmTileMat(namespace, ctmPath, col, row, isOverlay);
-        return mat;
+        return this._getCtmTileMat(namespace, ctmPath, col, row, isOverlay);
       }
     }
 
@@ -220,71 +216,39 @@ export class McBlockRenderer {
     return { col: hasH ? 1 : 0, row: hasV ? 1 : 0 };
   }
 
-  /** Returns a material sampling the (col, row) tile from the 2×2 CTM atlas. */
-  async _getCtmTileMat(namespace, ctmPath, col, row, isOverlay) {
-    const cacheKey = `${ctmPath}:${col}:${row}`;
-    if (!this._ctmTileCache.has(cacheKey)) {
-      await this._loadCtmTiles(namespace, ctmPath);
-    }
-    const tiles = this._ctmTileCache.get(cacheKey);
-    if (!tiles) return this._fallbackMat();
+  /**
+   * Returns a material sampling the (col, row) tile from the 2×2 CTM atlas.
+   * Uses UV offset/repeat on a cloned Three.js texture — no canvas or blob URLs needed.
+   * With Three.js flipY=true (default): UV (0,0) = PNG top-left, so
+   *   offset.x = col * 0.5,  offset.y = row * 0.5
+   */
+  _getCtmTileMat(namespace, ctmPath, col, row, isOverlay) {
+    const cacheKey = `${ctmPath}:${col}:${row}:${isOverlay ? 1 : 0}`;
+    if (this._ctmTileCache.has(cacheKey)) return this._ctmTileCache.get(cacheKey);
+
+    const [ns, p] = ctmPath.includes(':') ? ctmPath.split(':') : [namespace, ctmPath];
+    const atlas = this.assets.texture(ns, p);
+
+    const tile = atlas.clone();
+    tile.needsUpdate = true;
+    tile.repeat.set(0.5, 0.5);
+    tile.offset.set(col * 0.5, row * 0.5);
+    tile.wrapS = this.THREE.ClampToEdgeWrapping;
+    tile.wrapT = this.THREE.ClampToEdgeWrapping;
 
     const mat = new this.THREE.MeshLambertMaterial({
-      map: tiles,
+      map: tile,
       transparent: true,
       alphaTest: 0.05,
+      depthWrite: !isOverlay,
     });
-    if (isOverlay) { mat.polygonOffset = true; mat.polygonOffsetFactor = -2; mat.polygonOffsetUnits = -4; }
-    return mat;
-  }
-
-  /** Loads all 4 tiles from a CTM atlas and caches them individually. */
-  async _loadCtmTiles(namespace, ctmPath) {
-    const [ns, p] = ctmPath.includes(':') ? ctmPath.split(':') : [namespace, ctmPath];
-    const url = `${this.assets.base}/assets/${ns}/textures/${p}.png`;
-
-    try {
-      // Use fetch + blob URL to avoid crossOrigin canvas-taint issues
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(`CTM 404: ${url}`);
-      const blob = await res.blob();
-      const blobUrl = URL.createObjectURL(blob);
-
-      const img = await new Promise((resolve, reject) => {
-        const i = new Image();
-        i.onload  = () => { URL.revokeObjectURL(blobUrl); resolve(i); };
-        i.onerror = () => { URL.revokeObjectURL(blobUrl); reject(new Error(`CTM img failed: ${url}`)); };
-        i.src = blobUrl;
-      });
-
-      const tw = img.width  / 2;
-      const th = img.height / 2;
-
-      for (let row = 0; row < 2; row++) {
-        for (let col = 0; col < 2; col++) {
-          const canvas = document.createElement('canvas');
-          canvas.width  = tw;
-          canvas.height = th;
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, col * tw, row * th, tw, th, 0, 0, tw, th);
-
-          const tex = new this.THREE.CanvasTexture(canvas);
-          tex.magFilter      = this.THREE.NearestFilter;
-          tex.minFilter      = this.THREE.NearestFilter;
-          tex.generateMipmaps = false;
-          tex.colorSpace     = this.THREE.SRGBColorSpace;
-          tex.needsUpdate    = true;
-
-          this._ctmTileCache.set(`${ctmPath}:${col}:${row}`, tex);
-        }
-      }
-    } catch (e) {
-      console.warn('[CTM] Failed to load', ctmPath, e.message);
-      // Cache null so we don't retry
-      for (let r = 0; r < 2; r++)
-        for (let c = 0; c < 2; c++)
-          this._ctmTileCache.set(`${ctmPath}:${c}:${r}`, null);
+    if (isOverlay) {
+      mat.polygonOffset      = true;
+      mat.polygonOffsetFactor = -4;
+      mat.polygonOffsetUnits  = -8;
     }
+    this._ctmTileCache.set(cacheKey, mat);
+    return mat;
   }
 
   // ── Texture-only cube (model had textures but no elements) ─────────────────

@@ -207,7 +207,7 @@ function setLoading(show, text = '', sub = '') {
   if (text) loadTxt.textContent = text;
   if (sub)  loadSub.textContent = sub;
 }
-function yieldFrame() { return new Promise(r => requestAnimationFrame(r)); }
+function yieldFrame() { return new Promise(r => setTimeout(r, 0)); }
 
 // ── Timeline UI ───────────────────────────────────────────────────────────
 
@@ -362,8 +362,14 @@ canvas.addEventListener('mouseleave', () => { tooltip.style.display = 'none'; })
 
 // ── Render loop ────────────────────────────────────────────────────────────
 
+function scheduleAnimate() {
+  let fired = false;
+  const id = requestAnimationFrame(ts => { fired = true; animate(ts); });
+  setTimeout(() => { if (!fired) { cancelAnimationFrame(id); animate(performance.now()); } }, 50);
+}
+
 function animate(ts) {
-  requestAnimationFrame(animate);
+  scheduleAnimate();
   const dt = lastFrameTime !== null ? (ts - lastFrameTime) / 1000 : 0;
   lastFrameTime = ts;
 
@@ -398,7 +404,7 @@ function animate(ts) {
 // ── Init ───────────────────────────────────────────────────────────────────
 
 async function init() {
-  requestAnimationFrame(animate);
+  scheduleAnimate();
 
   const params    = new URLSearchParams(location.search);
   const machineId = params.get('id');

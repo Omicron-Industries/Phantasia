@@ -1,5 +1,7 @@
 package net.phoenixvine.phantasia.client.screens;
 
+import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
@@ -14,6 +16,8 @@ import net.phoenixvine.phantasia.common.data.scene.PhantasiaScenes;
 
 import org.lwjgl.glfw.GLFW;
 
+import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
+
 /**
  * PhantasiaSceneCreateScreen
  *
@@ -24,16 +28,7 @@ import org.lwjgl.glfw.GLFW;
 @OnlyIn(Dist.CLIENT)
 public class PhantasiaSceneCreateScreen extends Screen {
 
-    private static final int C_BG = 0xBB000000;
-    private static final int C_PANEL = 0xFF0C0C1A;
-    private static final int C_ACCENT = 0xFF4FC3F7;
-    private static final int C_DIM = 0xFF667788;
-    private static final int C_TEXT = 0xFFDDDDDD;
-    private static final int C_BTN = 0xBB151528;
-    private static final int C_BTN_H = 0xBB1A2840;
-    private static final int C_GREEN = 0xFF66BB6A;
-    private static final int C_RED = 0xFFFF5252;
-    private static final int C_WARN = 0xFFFFB74D;
+
 
     private final Screen parent;
     private EditBox idBox;
@@ -73,39 +68,39 @@ public class PhantasiaSceneCreateScreen extends Screen {
 
     @Override
     public void render(GuiGraphics g, int mx, int my, float partial) {
-        g.fill(0, 0, this.width, this.height, C_BG);
+        g.fill(0, 0, this.width, this.height, C_BG());
 
         int pw = 300, ph = 130;
         int px = (this.width - pw) / 2;
         int py = (this.height - ph) / 2;
 
-        g.fill(px, py, px + pw, py + ph, C_PANEL);
-        g.fill(px, py, px + pw, py + 1, C_ACCENT);
+        g.fill(px, py, px + pw, py + ph, C_PANEL());
+        g.fill(px, py, px + pw, py + 1, C_ACCENT());
 
-        g.drawCenteredString(font, Component.translatable("screen.phantasia.scene_create.title").getString(), px + pw / 2, py + 4, C_ACCENT);
+        g.drawCenteredString(font, Component.translatable("screen.phantasia.scene_create.title").getString(), px + pw / 2, py + 4, C_ACCENT());
 
-        g.drawString(font, Component.translatable("screen.phantasia.scene_create.label_id").getString(), px + 6, py + 19, C_DIM, false);
-        g.drawString(font, Component.translatable("screen.phantasia.scene_create.label_name").getString(), px + 6, py + 39, C_DIM, false);
-        g.drawString(font, Component.translatable("screen.phantasia.scene_create.label_icon").getString(), px + 6, py + 59, C_DIM, false);
+        g.drawString(font, Component.translatable("screen.phantasia.scene_create.label_id").getString(), px + 6, py + 19, C_DIM(), false);
+        g.drawString(font, Component.translatable("screen.phantasia.scene_create.label_name").getString(), px + 6, py + 39, C_DIM(), false);
+        g.drawString(font, Component.translatable("screen.phantasia.scene_create.label_icon").getString(), px + 6, py + 59, C_DIM(), false);
 
         super.render(g, mx, my, partial);
 
         if (errorMsg != null)
-            g.drawCenteredString(font, errorMsg, px + pw / 2, py + 76, C_WARN);
+            g.drawCenteredString(font, errorMsg, px + pw / 2, py + 76, C_WARN());
 
         int btnY = py + ph - 22;
-        drawBtn(g, mx, my, px + pw / 2 - 118, btnY, 110, 14, Component.translatable("screen.phantasia.scene_create.btn_create").getString(), C_GREEN);
-        drawBtn(g, mx, my, px + pw / 2 + 8, btnY, 110, 14, Component.translatable("screen.phantasia.scene_create.btn_cancel").getString(), C_BTN);
+        drawBtn(g, mx, my, px + pw / 2 - 118, btnY, 110, 14, Component.translatable("screen.phantasia.scene_create.btn_create").getString(), C_GREEN());
+        drawBtn(g, mx, my, px + pw / 2 + 8, btnY, 110, 14, Component.translatable("screen.phantasia.scene_create.btn_cancel").getString(), C_BTN());
     }
 
     private void drawBtn(GuiGraphics g, int mx, int my, int x, int y, int w, int h, String label, int col) {
         boolean hov = mx >= x && mx < x + w && my >= y && my < y + h;
-        g.fill(x, y, x + w, y + h, hov ? C_BTN_H : col);
+        g.fill(x, y, x + w, y + h, hov ? C_BTN_HOV() : col);
         if (hov) {
-            g.fill(x, y, x + w, y + 1, C_ACCENT);
-            g.fill(x, y + h - 1, x + w, y + h, C_ACCENT);
+            g.fill(x, y, x + w, y + 1, C_ACCENT());
+            g.fill(x, y + h - 1, x + w, y + h, C_ACCENT());
         }
-        g.drawCenteredString(font, label, x + w / 2, y + (h - 8) / 2, hov ? C_ACCENT : C_TEXT);
+        g.drawCenteredString(font, label, x + w / 2, y + (h - 8) / 2, hov ? C_ACCENT() : C_TEXT());
     }
 
     @Override

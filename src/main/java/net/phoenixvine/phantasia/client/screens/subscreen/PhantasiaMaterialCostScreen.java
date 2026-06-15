@@ -1,5 +1,7 @@
 package net.phoenixvine.phantasia.client.screens.subscreen;
 
+import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
+
 import com.lowdragmc.lowdraglib.utils.BlockInfo;
 
 import net.minecraft.Util;
@@ -23,21 +25,12 @@ import dev.emi.emi.api.stack.EmiStack;
 
 import java.util.*;
 
+import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
+
 @OnlyIn(Dist.CLIENT)
 public class PhantasiaMaterialCostScreen extends Screen {
 
-    // ── Colors ────────────────────────────────────────────────────────────────
-    private static final int C_BG = 0xFF080810;
-    private static final int C_BTN = 0xBB151528;
-    private static final int C_BTN_HOV = 0xBB1A2840;
-    private static final int C_BTN_ACT = 0xBB0D3050;
-    private static final int C_ACCENT = 0xFF4FC3F7;
-    private static final int C_TEXT = 0xFFDDDDDD;
-    private static final int C_DIM = 0xFF667788;
-    private static final int C_GREEN = 0xFF66BB6A;
-    private static final int C_ORANGE = 0xFFFFB74D;
-    private static final int C_CYCLE = 0xFFEF5350;
-    private static final int C_TAG = 0xFFCE93D8;
+
 
     private static final int ROW_H = 22;
     private static final int HEADER_H = 50;
@@ -569,23 +562,23 @@ public class PhantasiaMaterialCostScreen extends Screen {
 
         g.fill(pickerX - 1, pickerY - 1, pickerX + PICKER_W + 1, pickerY + ph + 1, 0xFF000000);
         g.fill(pickerX, pickerY, pickerX + PICKER_W, pickerY + ph, 0xFF0E0E1C);
-        g.fill(pickerX, pickerY, pickerX + PICKER_W, pickerY + 1, C_ACCENT);
-        g.fill(pickerX, pickerY + ph - 1, pickerX + PICKER_W, pickerY + ph, C_ACCENT);
+        g.fill(pickerX, pickerY, pickerX + PICKER_W, pickerY + 1, C_ACCENT());
+        g.fill(pickerX, pickerY + ph - 1, pickerX + PICKER_W, pickerY + ph, C_ACCENT());
 
         g.drawString(font, trunc("Recipe for: " + pickerNode.displayName, PICKER_W - 8),
-                pickerX + 4, pickerY + 5, C_ACCENT, false);
+                pickerX + 4, pickerY + 5, C_ACCENT(), false);
 
         int sX = pickerX + 4, sY = pickerY + 16, sW = PICKER_W - 8, sH = 14;
 
-        g.fill(sX - 1, sY - 1, sX + sW + 1, sY + sH + 1, this.isPickerSearchFocused ? C_ACCENT : 0xFF000000);
+        g.fill(sX - 1, sY - 1, sX + sW + 1, sY + sH + 1, this.isPickerSearchFocused ? C_ACCENT() : 0xFF000000);
         g.fill(sX, sY, sX + sW, sY + sH, 0xBB05050A);
         g.fill(sX, sY, sX + sW, sY + 1, 0x44FFFFFF);
 
         if (pickerSearchQuery.isEmpty()) {
-            g.drawString(font, "Search recipe type... (e.g. blast)", sX + 4, sY + 3, C_DIM, false);
+            g.drawString(font, "Search recipe type... (e.g. blast)", sX + 4, sY + 3, C_DIM(), false);
         } else {
             String cursor = (this.isPickerSearchFocused && (Util.getMillis() / 500 % 2 == 0)) ? "_" : "";
-            g.drawString(font, trunc(pickerSearchQuery, sW - 12) + cursor, sX + 4, sY + 3, C_TEXT, false);
+            g.drawString(font, trunc(pickerSearchQuery, sW - 12) + cursor, sX + 4, sY + 3, C_TEXT(), false);
         }
 
         g.enableScissor(pickerX, pickerY + 34, pickerX + PICKER_W, pickerY + ph - 4);
@@ -595,7 +588,7 @@ public class PhantasiaMaterialCostScreen extends Screen {
             EmiRecipe recipe = filteredPickerRecipes.get(i);
             int rowY = ry + (i - pickerScroll) * PICKER_ROW;
             boolean hov = isOver(mx, my, pickerX, rowY, PICKER_W, PICKER_ROW - 1);
-            g.fill(pickerX, rowY, pickerX + PICKER_W, rowY + PICKER_ROW - 1, hov ? C_BTN_HOV : 0);
+            g.fill(pickerX, rowY, pickerX + PICKER_W, rowY + PICKER_ROW - 1, hov ? C_BTN_HOV() : 0);
             if (hov) g.fill(pickerX, rowY, pickerX + PICKER_W, rowY + 1, 0x33FFFFFF);
 
             int cx = pickerX + 4;
@@ -628,7 +621,7 @@ public class PhantasiaMaterialCostScreen extends Screen {
 
             String cat = recipe.getCategory().getId().getPath().replace("_", " ");
             String recId = recipe.getId() != null ? "  [" + recipe.getId().getPath() + "]" : "";
-            g.drawString(font, trunc(cat + recId, PICKER_W - (cx - pickerX) - 8), cx, rowY + 6, C_TEXT, false);
+            g.drawString(font, trunc(cat + recId, PICKER_W - (cx - pickerX) - 8), cx, rowY + 6, C_TEXT(), false);
         }
 
         g.disableScissor();
@@ -641,17 +634,17 @@ public class PhantasiaMaterialCostScreen extends Screen {
 
     @Override
     public void render(GuiGraphics g, int mx, int my, float pt) {
-        g.fill(0, 0, this.width, this.height, C_BG);
-        g.fill(0, 0, this.width, 1, C_ACCENT);
-        g.fill(0, this.height - 1, this.width, this.height, C_ACCENT);
+        g.fill(0, 0, this.width, this.height, C_BG());
+        g.fill(0, 0, this.width, 1, C_ACCENT());
+        g.fill(0, this.height - 1, this.width, this.height, C_ACCENT());
 
         hoveredStack = null;
 
         g.drawString(font, "Material Cost  —  " + blockEntries.size() + " block types",
-                8, 8, C_ACCENT, false);
+                8, 8, C_ACCENT(), false);
 
         if (!this.recipesLoadedSuccessfully) {
-            g.drawString(font, "EMI Synchronizing...", this.width - 120, 8, C_ORANGE, false);
+            g.drawString(font, "EMI Synchronizing...", this.width - 120, 8, C_ORANGE(), false);
         }
 
         renderTabs(g, mx, my);
@@ -686,14 +679,14 @@ public class PhantasiaMaterialCostScreen extends Screen {
             Tab t = tabs[i];
             int bx = i * tw;
             boolean act = tab == t, hov = isOver(mx, my, bx, 20, tw, 18);
-            g.fill(bx, 20, bx + tw, 38, act ? C_BTN_ACT : (hov ? C_BTN_HOV : C_BTN));
-            g.fill(bx, 37, bx + tw, 38, act ? C_ACCENT : C_DIM);
+            g.fill(bx, 20, bx + tw, 38, act ? C_BTN_ACT() : (hov ? C_BTN_HOV() : C_BTN()));
+            g.fill(bx, 37, bx + tw, 38, act ? C_ACCENT() : C_DIM());
             String label = switch (t) {
                 case BLOCKS -> "Blocks (" + blockEntries.size() + ")";
                 case INGREDIENTS -> "Ingredients (" + ingredientRows.size() + ")";
                 case TOTALS -> "Totals (" + totalEntries.size() + ")";
             };
-            g.drawCenteredString(font, label, bx + tw / 2, 25, act ? C_ACCENT : C_TEXT);
+            g.drawCenteredString(font, label, bx + tw / 2, 25, act ? C_ACCENT() : C_TEXT());
         }
     }
 
@@ -708,11 +701,11 @@ public class PhantasiaMaterialCostScreen extends Screen {
         for (BlockEntry be : blockEntries) {
             if (y + ROW_H > startY && y < startY + contentH) {
                 boolean hov = isOver(mx, my, x, y, w, ROW_H - 2);
-                g.fill(x, y, x + w, y + ROW_H - 2, hov ? C_BTN_HOV : 0);
+                g.fill(x, y, x + w, y + ROW_H - 2, hov ? C_BTN_HOV() : 0);
                 if (hov) g.fill(x, y, x + w, y + 1, 0x33FFFFFF);
                 int cx = x + 2;
 
-                cx = drawBadge(g, String.valueOf(be.needed), cx, y, C_ACCENT);
+                cx = drawBadge(g, String.valueOf(be.needed), cx, y, C_ACCENT());
                 if (be.icon != null && !be.icon.isEmpty()) {
                     be.icon.render(g, cx, y + 3, pt);
                     if (hov && isOver(mx, my, cx, y + 3, ICON_SZ, ICON_SZ)) {
@@ -722,13 +715,13 @@ public class PhantasiaMaterialCostScreen extends Screen {
                     }
                     cx += ICON_SZ + 4;
                 }
-                g.drawString(font, trunc(be.displayName, this.width - cx - 110), cx, y + 6, C_TEXT, false);
+                g.drawString(font, trunc(be.displayName, this.width - cx - 110), cx, y + 6, C_TEXT(), false);
                 if (be.craftCount > 0) {
                     String s = "\u00D7 " + be.craftCount + " craft" + (be.craftCount != 1 ? "s" : "") +
                             (be.craftOutput > 1 ? "  (\u2192" + be.craftOutput + ")" : "");
-                    g.drawString(font, s, x + w - font.width(s) - 4, y + 6, C_GREEN, false);
+                    g.drawString(font, s, x + w - font.width(s) - 4, y + 6, C_GREEN(), false);
                 } else {
-                    g.drawString(font, "direct", x + w - font.width("direct") - 4, y + 6, C_DIM, false);
+                    g.drawString(font, "direct", x + w - font.width("direct") - 4, y + 6, C_DIM(), false);
                 }
             }
             y += ROW_H;
@@ -744,7 +737,7 @@ public class PhantasiaMaterialCostScreen extends Screen {
         g.fill(0, startY, this.width, startY + contentH, 0x22FFFFFF);
 
         if (ingredientRows.isEmpty()) {
-            g.drawCenteredString(font, "No ingredients found.", this.width / 2, startY + 30, C_DIM);
+            g.drawCenteredString(font, "No ingredients found.", this.width / 2, startY + 30, C_DIM());
             return;
         }
 
@@ -759,7 +752,7 @@ public class PhantasiaMaterialCostScreen extends Screen {
                 boolean hov = !pickerActive && isOver(mx, my, rx, y, rw, ROW_H - 2);
 
                 g.fill(rx, y, rx + rw, y + ROW_H - 2,
-                        pickerActive ? C_BTN_ACT : (hov ? C_BTN_HOV : 0));
+                        pickerActive ? C_BTN_ACT() : (hov ? C_BTN_HOV() : 0));
                 if (hov || pickerActive) g.fill(rx, y, rx + rw, y + 1, 0x33FFFFFF);
 
                 if (node.depth > 0) {
@@ -771,18 +764,18 @@ public class PhantasiaMaterialCostScreen extends Screen {
                 int cx = rx + 2;
 
                 if (node.isCycle) {
-                    g.drawString(font, "\u21BA", cx, y + 7, C_CYCLE, false);
+                    g.drawString(font, "\u21BA", cx, y + 7, C_CYCLE(), false);
                 } else if (node.canExpand()) {
-                    g.drawString(font, "\u25B6", cx, y + 7, C_ACCENT, false);
+                    g.drawString(font, "\u25B6", cx, y + 7, C_ACCENT(), false);
                 } else if (node.canCollapse()) {
-                    g.drawString(font, "\u25BC", cx, y + 7, C_ORANGE, false);
+                    g.drawString(font, "\u25BC", cx, y + 7, C_ORANGE(), false);
                 } else {
-                    g.drawString(font, "\u2022", cx, y + 7, C_DIM, false);
+                    g.drawString(font, "\u2022", cx, y + 7, C_DIM(), false);
                 }
                 cx += 10;
 
                 cx = drawBadge(g, String.valueOf(node.totalCount), cx, y,
-                        node.isCycle ? C_CYCLE : C_ACCENT);
+                        node.isCycle ? C_CYCLE() : C_ACCENT());
 
                 if (node.icon != null && !node.icon.isEmpty()) {
                     node.icon.render(g, cx, y + 3, pt);
@@ -794,14 +787,14 @@ public class PhantasiaMaterialCostScreen extends Screen {
                     cx += ICON_SZ + 4;
                 }
 
-                int nameColor = node.isCycle ? C_CYCLE : (node.isTag ? C_TAG : C_TEXT);
+                int nameColor = node.isCycle ? C_CYCLE() : (node.isTag ? C_ACCENT() : C_TEXT());
                 int hintW = node.hasRecipes() && node.availableRecipes.size() > 1 ? 50 : 8;
                 g.drawString(font, trunc(node.displayName, rw - (cx - rx) - hintW), cx, y + 6,
                         nameColor, false);
 
                 if (node.hasRecipes() && node.availableRecipes.size() > 1) {
                     String hint = node.availableRecipes.size() + " opt";
-                    g.drawString(font, hint, rx + rw - font.width(hint) - 4, y + 6, C_DIM, false);
+                    g.drawString(font, hint, rx + rw - font.width(hint) - 4, y + 6, C_DIM(), false);
                 }
             }
             y += ROW_H;
@@ -818,12 +811,12 @@ public class PhantasiaMaterialCostScreen extends Screen {
         g.fill(0, startY, this.width, startY + contentH, 0x22FFFFFF);
 
         if (totalEntries.isEmpty()) {
-            g.drawCenteredString(font, "No totals yet.", this.width / 2, startY + 30, C_DIM);
+            g.drawCenteredString(font, "No totals yet.", this.width / 2, startY + 30, C_DIM());
             return;
         }
 
         g.drawString(font, "Current leaf costs — expand items in Ingredients to break down further",
-                8, startY + 4, C_DIM, false);
+                8, startY + 4, C_DIM(), false);
 
         int padding = 8;
         int availableW = this.width - padding * 2;
@@ -842,7 +835,7 @@ public class PhantasiaMaterialCostScreen extends Screen {
 
             if (cellY + ROW_H > startY + 14 && cellY < startY + contentH) {
                 boolean hov = isOver(mx, my, cellX, cellY, cellW - 4, ROW_H - 2);
-                g.fill(cellX, cellY, cellX + cellW - 4, cellY + ROW_H - 2, hov ? C_BTN_HOV : 0);
+                g.fill(cellX, cellY, cellX + cellW - 4, cellY + ROW_H - 2, hov ? C_BTN_HOV() : 0);
                 if (hov) g.fill(cellX, cellY, cellX + cellW - 4, cellY + 1, 0x33FFFFFF);
 
                 int cx = cellX + 4;
@@ -857,9 +850,9 @@ public class PhantasiaMaterialCostScreen extends Screen {
                     cx += ICON_SZ + 4;
                 }
 
-                cx = drawBadge(g, String.valueOf(te.totalCount), cx, cellY, C_ACCENT);
+                cx = drawBadge(g, String.valueOf(te.totalCount), cx, cellY, C_ACCENT());
 
-                int nameColor = te.isTag ? C_TAG : C_TEXT;
+                int nameColor = te.isTag ? C_ACCENT() : C_TEXT();
                 int maxNameW = cellX + cellW - 6 - cx;
                 g.drawString(font, trunc(te.displayName, maxNameW), cx, cellY + 6, nameColor, false);
             }
@@ -875,29 +868,29 @@ public class PhantasiaMaterialCostScreen extends Screen {
 
     private void renderFooter(GuiGraphics g, int mx, int my) {
         int fy = this.height - FOOTER_H;
-        g.fill(0, fy, this.width, fy + 1, C_ACCENT);
+        g.fill(0, fy, this.width, fy + 1, C_ACCENT());
 
         if (clipboardFeedbackTicks > 0) {
-            g.drawString(font, "\u2714 Copied to clipboard!", 8, fy + 9, C_GREEN, false);
+            g.drawString(font, "\u2714 Copied to clipboard!", 8, fy + 9, C_GREEN(), false);
         } else {
             g.drawString(font, "\u25B6 expand  \u2022  \u25BC right-click collapse  \u2022  \u21BA cycle",
-                    8, fy + 9, C_DIM, false);
+                    8, fy + 9, C_DIM(), false);
         }
 
         // Close Button
         int bw = 60, bh = 16, bx = this.width - bw - 8, by = fy + (FOOTER_H - bh) / 2;
         boolean hov = isOver(mx, my, bx, by, bw, bh);
-        g.fill(bx, by, bx + bw, by + bh, hov ? C_BTN_HOV : C_BTN);
-        g.fill(bx, by, bx + bw, by + 1, C_DIM);
-        g.drawCenteredString(font, "Close", bx + bw / 2, by + 4, C_TEXT);
+        g.fill(bx, by, bx + bw, by + bh, hov ? C_BTN_HOV() : C_BTN());
+        g.fill(bx, by, bx + bw, by + 1, C_DIM());
+        g.drawCenteredString(font, "Close", bx + bw / 2, by + 4, C_TEXT());
 
         // Copy List Button
         int cbw = 90;
         int cbx = bx - cbw - 6;
         boolean cbHov = isOver(mx, my, cbx, by, cbw, bh);
-        g.fill(cbx, by, cbx + cbw, by + bh, cbHov ? C_BTN_HOV : C_BTN);
-        g.fill(cbx, by, cbx + cbw, by + 1, C_DIM);
-        g.drawCenteredString(font, "Copy List", cbx + cbw / 2, by + 4, totalEntries.isEmpty() ? C_DIM : C_TEXT);
+        g.fill(cbx, by, cbx + cbw, by + bh, cbHov ? C_BTN_HOV() : C_BTN());
+        g.fill(cbx, by, cbx + cbw, by + 1, C_DIM());
+        g.drawCenteredString(font, "Copy List", cbx + cbw / 2, by + 4, totalEntries.isEmpty() ? C_DIM() : C_TEXT());
     }
 
     // ── Scrollbar Helpers ─────────────────────────────────────────────────────
@@ -923,7 +916,7 @@ public class PhantasiaMaterialCostScreen extends Screen {
         int trackH = getScrollbarTrackHeight(contentH);
         int thumbY = getScrollbarThumbY(startY, contentH, scrollY, totalH);
         g.fill(this.width - 5, startY + 2, this.width - 2, startY + 2 + trackH, 0x33FFFFFF);
-        g.fill(this.width - 5, thumbY, this.width - 2, thumbY + thumbH, C_ACCENT);
+        g.fill(this.width - 5, thumbY, this.width - 2, thumbY + thumbH, C_ACCENT());
     }
 
     private void handleScrollbarDragging(double my) {

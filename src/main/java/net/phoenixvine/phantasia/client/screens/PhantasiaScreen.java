@@ -1,5 +1,7 @@
 package net.phoenixvine.phantasia.client.screens;
 
+import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
+
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
@@ -7,15 +9,18 @@ import net.minecraft.network.chat.Component;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.phoenixvine.phantasia.client.camera.LerpType;
+import net.phoenixvine.phantasia.utils.PhantasiaThemeUtils;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
 
 /**
  * PhantasiaScreen
  *
  * Base class for all Phantasia editor screens. Centralises:
- * - Theme constants
+ * - Theme constants (dynamically supplied from PhantasiaThemeUtils)
  * - The {@link Btn} record and button list
  * - {@code pendingTooltip} and its render pass
  * - Common rendering helpers: {@code btn}, {@code tipBtn}, {@code topBtn},
@@ -29,22 +34,10 @@ import java.util.List;
 @OnlyIn(Dist.CLIENT)
 public abstract class PhantasiaScreen extends Screen {
 
-    // ── Theme ─────────────────────────────────────────────────────────────────
-    public static final int C_BG = 0xFF080810;
-    public static final int C_BAR = 0xEE0A0A14;
-    public static final int C_PANEL = 0xDD0C0C1A;
-    public static final int C_ACCENT = 0xFF4FC3F7;
-    public static final int C_BTN = 0xBB151528;
-    public static final int C_BTN_HOV = 0xBB1A2840;
-    public static final int C_BTN_ACT = 0xFF0D3050;
-    public static final int C_TEXT = 0xFFDDDDDD;
-    public static final int C_DIM = 0xFF667788;
-    public static final int C_WARN = 0xFFFFB74D;
-    public static final int C_GREEN = 0xFF66BB6A;
-    public static final int C_RED = 0xFFFF5252;
-
     /** Top bar height — consistent across all editors. */
     public static final int TOP_BAR_H = 22;
+
+
 
     // ── Button list ───────────────────────────────────────────────────────────
 
@@ -54,7 +47,7 @@ public abstract class PhantasiaScreen extends Screen {
      */
     public record Btn(int x, int y, int w, int h, Runnable action) {
 
-       public boolean hit(double mx, double my) {
+        public boolean hit(double mx, double my) {
             return mx >= x && mx < x + w && my >= y && my < y + h;
         }
     }
@@ -91,8 +84,8 @@ public abstract class PhantasiaScreen extends Screen {
         int tx = Math.min(mx + 12, this.width - tw - 2);
         int ty = Math.max(my - 18, TOP_BAR_H + 2);
         g.fill(tx - 2, ty - 2, tx + tw + 2, ty + 12, 0xDD070712);
-        g.fill(tx - 2, ty - 2, tx + tw + 2, ty - 1, C_ACCENT);
-        g.drawString(font, pendingTooltip, tx + 4, ty + 2, C_TEXT, false);
+        g.fill(tx - 2, ty - 2, tx + tw + 2, ty - 1, C_ACCENT());
+        g.drawString(font, pendingTooltip, tx + 4, ty + 2, C_TEXT(), false);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -100,66 +93,46 @@ public abstract class PhantasiaScreen extends Screen {
     // ─────────────────────────────────────────────────────────────────────────
 
     /**
-     * Plain button. Registers the action in {@link #btns} and draws the button.
-     * No tooltip. Use {@link #tipBtn} if you need hover text.
+     * Plain button. Registers the action in {@link #btns} and draws the button
+     * completely via the theme layout utility.
      */
     public void btn(GuiGraphics g, int mx, int my,
-                       int x, int y, int w, int h,
-                       String label, int base, Runnable action) {
+                    int x, int y, int w, int h,
+                    String label, int base, Runnable action) {
         boolean hov = isOver(mx, my, x, y, w, h);
-        g.fill(x, y, x + w, y + h, hov ? C_BTN_HOV : base);
-        if (hov) {
-            g.fill(x, y, x + w, y + 1, C_ACCENT);
-            g.fill(x, y + h - 1, x + w, y + h, C_ACCENT);
-        }
-        g.drawString(font, label,
-                x + (w - font.width(label)) / 2,
-                y + (h - 8) / 2,
-                hov ? C_ACCENT : C_TEXT, false);
+        PhantasiaThemeUtils.drawThemedBtn(g, font, x, y, w, h, label, hov, base);
         btns.add(new Btn(x, y, w, h, action));
     }
 
     /**
-     * Button with a tooltip. Sets {@link #pendingTooltip} on hover so the
-     * floating overlay picks it up at the end of the frame.
+     * Button with a tooltip. Sets {@link #pendingTooltip} on hover and renders
+     * through the theme manager layout.
      */
     public void tipBtn(GuiGraphics g, int mx, int my,
-                          int x, int y, int w, int h,
-                          String label, int base, String tooltip, Runnable action) {
+                       int x, int y, int w, int h,
+                       String label, int base, String tooltip, Runnable action) {
         boolean hov = isOver(mx, my, x, y, w, h);
-        g.fill(x, y, x + w, y + h, hov ? C_BTN_HOV : base);
+        PhantasiaThemeUtils.drawThemedBtn(g, font, x, y, w, h, label, hov, base);
         if (hov) {
-            g.fill(x, y, x + w, y + 1, C_ACCENT);
-            g.fill(x, y + h - 1, x + w, y + h, C_ACCENT);
             pendingTooltip = tooltip;
         }
-        g.drawString(font, label,
-                x + (w - font.width(label)) / 2,
-                y + (h - 8) / 2,
-                hov ? C_ACCENT : C_TEXT, false);
         btns.add(new Btn(x, y, w, h, action));
     }
 
     /**
      * Right-aligned top-bar button. Returns the x coordinate of the left edge
-     * minus a 4 px gap, so callers can chain:
-     * {@code rx = topBtn(g, mx, my, rx, "Save", ...); rx = topBtn(g, mx, my, rx, "Back", ...);}
-     *
-     * @param rx right edge to pack against
+     * minus a 4 px gap for sequential horizontal packing.
      */
     public int topBtn(GuiGraphics g, int mx, int my,
-                         int rx, String label, int color, String tooltip,
-                         Runnable action) {
+                      int rx, String label, int color, String tooltip,
+                      Runnable action) {
         int w = font.width(label) + 10;
         int x = rx - w, y = 3, h = TOP_BAR_H - 6;
         boolean hov = isOver(mx, my, x, y, w, h);
-        g.fill(x, y, x + w, y + h, hov ? C_BTN_HOV : color);
+        PhantasiaThemeUtils.drawThemedBtn(g, font, x, y, w, h, label, hov, color);
         if (hov) {
-            g.fill(x, y, x + w, y + 1, C_ACCENT);
-            g.fill(x, y + h - 1, x + w, y + h, C_ACCENT);
             pendingTooltip = tooltip;
         }
-        g.drawString(font, label, x + 5, (TOP_BAR_H - 8) / 2, hov ? C_ACCENT : C_TEXT, false);
         btns.add(new Btn(x, y, w, h, action));
         return x - 4;
     }
@@ -169,16 +142,14 @@ public abstract class PhantasiaScreen extends Screen {
      * edge plus a 4 px gap for chaining left-to-right.
      */
     public int topBtnL(GuiGraphics g, int mx, int my,
-                          int x, String label, int color, String tooltip,
-                          Runnable action) {
+                       int x, String label, int color, String tooltip,
+                       Runnable action) {
         int w = font.width(label) + 10, h = TOP_BAR_H - 6, y = 3;
         boolean hov = isOver(mx, my, x, y, w, h);
-        g.fill(x, y, x + w, y + h, hov ? C_BTN_HOV : color);
+        PhantasiaThemeUtils.drawThemedBtn(g, font, x, y, w, h, label, hov, color);
         if (hov) {
-            g.fill(x, y, x + w, y + 1, C_ACCENT);
             pendingTooltip = tooltip;
         }
-        g.drawString(font, label, x + 5, (TOP_BAR_H - 8) / 2, hov ? C_ACCENT : C_TEXT, false);
         btns.add(new Btn(x, y, w, h, action));
         return x + w + 4;
     }
@@ -188,22 +159,20 @@ public abstract class PhantasiaScreen extends Screen {
     // ─────────────────────────────────────────────────────────────────────────
 
     /**
-     * Renders a centred Component.translatable("screen.phantasia.editor.close_confirm_title").getString() modal.
-     * {@code onDiscard} should call {@code forceClose()} or equivalent;
-     * {@code onKeep} should dismiss the dialog (e.g. set a flag to false).
+     * Renders a centered discard confirm dialog modal using dynamic theme elements.
      */
     public void renderCloseConfirmDialog(GuiGraphics g, int mx, int my,
-                                            Runnable onDiscard, Runnable onKeep) {
+                                         Runnable onDiscard, Runnable onKeep) {
         g.fill(0, 0, this.width, this.height, 0xBB000000);
         int dw = 280, dh = 70;
         int dx = (this.width - dw) / 2, dy = (this.height - dh) / 2;
-        g.fill(dx, dy, dx + dw, dy + dh, C_PANEL);
-        g.fill(dx, dy, dx + dw, dy + 1, C_WARN);
-        g.drawCenteredString(font, "Unsaved changes \u2014 discard and close?", dx + dw / 2, dy + 10, C_WARN);
-        g.drawCenteredString(font, Component.translatable("screen.phantasia.editor.close_confirm_body").getString(), dx + dw / 2, dy + 22, C_DIM);
+        g.fill(dx, dy, dx + dw, dy + dh, C_PANEL());
+        g.fill(dx, dy, dx + dw, dy + 1, C_WARN());
+        g.drawCenteredString(font, "Unsaved changes \u2014 discard and close?", dx + dw / 2, dy + 10, C_WARN());
+        g.drawCenteredString(font, Component.translatable("screen.phantasia.editor.close_confirm_body").getString(), dx + dw / 2, dy + 22, C_DIM());
         int btnY = dy + dh - 20;
-        btn(g, mx, my, dx + dw / 2 - 118, btnY, 110, 14, "\u2715 Discard & Close", C_RED, onDiscard);
-        btn(g, mx, my, dx + dw / 2 + 8, btnY, 110, 14, "\u21A9 Keep Editing", C_BTN, onKeep);
+        btn(g, mx, my, dx + dw / 2 - 118, btnY, 110, 14, "\u2715 Discard & Close", C_RED(), onDiscard);
+        btn(g, mx, my, dx + dw / 2 + 8, btnY, 110, 14, "\u21A9 Keep Editing", C_BTN(), onKeep);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -211,14 +180,14 @@ public abstract class PhantasiaScreen extends Screen {
     // ─────────────────────────────────────────────────────────────────────────
 
     /**
-     * Centred one-line banner pill — used for mode hints and preview overlays.
+     * Centered one-line banner pill — used for mode hints and preview overlays.
      */
     public void drawBanner(GuiGraphics g, String text, int y, int accentColor) {
         int tw = font.width(text) + 20;
         int tx = (this.width - tw) / 2;
         g.fill(tx, y, tx + tw, y + 16, 0xBB0C0C1A);
         g.fill(tx, y, tx + tw, y + 1, accentColor);
-        g.drawString(font, text, tx + 10, y + 4, C_DIM, false);
+        g.drawString(font, text, tx + 10, y + 4, C_DIM(), false);
     }
 
     // ─────────────────────────────────────────────────────────────────────────

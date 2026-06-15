@@ -1,5 +1,7 @@
 package net.phoenixvine.phantasia.client.screens.subscreen;
 
+import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
+
 import net.minecraft.SharedConstants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -18,6 +20,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
+import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
+
 /**
  * PhantasiaTextInputScreen
  *
@@ -27,14 +31,7 @@ import java.util.function.Consumer;
 @OnlyIn(Dist.CLIENT)
 public class PhantasiaTextInputScreen extends Screen {
 
-    private static final int C_BG = 0xBB000000;
-    private static final int C_PANEL = 0xFF0C0C1A;
-    private static final int C_ACCENT = 0xFF4FC3F7;
-    private static final int C_DIM = 0xFF667788;
-    private static final int C_TEXT = 0xFFDDDDDD;
-    private static final int C_BTN = 0xBB151528;
-    private static final int C_BTN_H = 0xBB1A2840;
-    private static final int C_GREEN = 0xFF66BB6A;
+
 
     // Standard Minecraft Formats: 0-9, a-f, and r (Reset)
     private static final char[] COLOR_CODES = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd',
@@ -86,20 +83,20 @@ public class PhantasiaTextInputScreen extends Screen {
 
     @Override
     public void render(GuiGraphics g, int mx, int my, float partial) {
-        g.fill(0, 0, this.width, this.height, C_BG);
+        g.fill(0, 0, this.width, this.height, C_BG());
 
-        g.fill(px, py, px + pw, py + ph, C_PANEL);
-        g.fill(px, py, px + pw, py + 1, C_ACCENT);
+        g.fill(px, py, px + pw, py + ph, C_PANEL());
+        g.fill(px, py, px + pw, py + 1, C_ACCENT());
 
-        g.drawCenteredString(font, title, px + pw / 2, py + 6, C_ACCENT);
+        g.drawCenteredString(font, title, px + pw / 2, py + 6, C_ACCENT());
 
         super.render(g, mx, my, partial);
 
         renderColorPicker(g, mx, my);
 
         int half = pw / 2 - 4;
-        drawBtn(g, mx, my, px + 8, btnY, half, 14, "✓ Confirm", C_GREEN);
-        drawBtn(g, mx, my, px + pw / 2 + 4, btnY, half, 14, "✕ Cancel", C_BTN);
+        drawBtn(g, mx, my, px + 8, btnY, half, 14, "✓ Confirm", C_GREEN());
+        drawBtn(g, mx, my, px + pw / 2 + 4, btnY, half, 14, "✕ Cancel", C_BTN());
     }
 
     private void renderColorPicker(GuiGraphics g, int mx, int my) {
@@ -107,7 +104,7 @@ public class PhantasiaTextInputScreen extends Screen {
         int startX = px + 8;
         int pickerY = btnY - 20;
 
-        g.drawString(font, "Colors: ", startX, pickerY + 2, C_DIM);
+        g.drawString(font, "Colors: ", startX, pickerY + 2, C_DIM());
 
         int boxX = startX + labelWidth;
         int size = 12;
@@ -118,7 +115,7 @@ public class PhantasiaTextInputScreen extends Screen {
             boolean hov = mx >= cx && mx < cx + size && my >= pickerY && my < pickerY + size;
 
             g.fill(cx, pickerY, cx + size, pickerY + size, COLOR_VALUES[i]);
-            g.renderOutline(cx, pickerY, size, size, hov ? C_ACCENT : 0xFF444444);
+            g.renderOutline(cx, pickerY, size, size, hov ? C_ACCENT() : 0xFF444444);
 
             if (hov) {
                 g.renderTooltip(font, Component.translatable("ui.phantasia.color_code_display", COLOR_CODES[i], COLOR_CODES[i]), mx, my);
@@ -129,12 +126,12 @@ public class PhantasiaTextInputScreen extends Screen {
     private void drawBtn(GuiGraphics g, int mx, int my, int x, int y, int w, int h,
                          String label, int col) {
         boolean hov = mx >= x && mx < x + w && my >= y && my < y + h;
-        g.fill(x, y, x + w, y + h, hov ? C_BTN_H : col);
+        g.fill(x, y, x + w, y + h, hov ? C_BTN_HOV() : col);
         if (hov) {
-            g.fill(x, y, x + w, y + 1, C_ACCENT);
-            g.fill(x, y + h - 1, x + w, y + h, C_ACCENT);
+            g.fill(x, y, x + w, y + 1, C_ACCENT());
+            g.fill(x, y + h - 1, x + w, y + h, C_ACCENT());
         }
-        g.drawCenteredString(font, label, x + w / 2, y + (h - 8) / 2, hov ? C_ACCENT : C_TEXT);
+        g.drawCenteredString(font, label, x + w / 2, y + (h - 8) / 2, hov ? C_ACCENT() : C_TEXT());
     }
 
     @Override
@@ -256,7 +253,7 @@ public class PhantasiaTextInputScreen extends Screen {
         @Override
         protected void renderWidget(GuiGraphics g, int mx, int my, float partial) {
             g.fill(getX(), getY(), getX() + width, getY() + height, 0xFF000000);
-            g.renderOutline(getX(), getY(), width, height, isFocused() ? C_ACCENT : 0xFF444444);
+            g.renderOutline(getX(), getY(), width, height, isFocused() ? C_ACCENT() : 0xFF444444);
 
             int textX = getX() + 6;
             int textY = getY() + 6;
@@ -306,14 +303,14 @@ public class PhantasiaTextInputScreen extends Screen {
                 LinePos line = linesCache.get(i);
                 int lineY = textY + (i * 9);
 
-                g.drawString(PhantasiaTextInputScreen.this.font, line.text, textX, lineY, C_TEXT, false);
+                g.drawString(PhantasiaTextInputScreen.this.font, line.text, textX, lineY, C_TEXT(), false);
 
                 if (isFocused() && cursorIdx >= line.start && cursorIdx <= line.end) {
                     if ((System.currentTimeMillis() / 500) % 2 == 0) {
                         int offset = cursorIdx - line.start;
                         String sub = line.text.substring(0, Math.min(offset, line.text.length()));
                         int cx = textX + PhantasiaTextInputScreen.this.font.width(sub);
-                        g.fill(cx, lineY, cx + 1, lineY + 9, C_ACCENT);
+                        g.fill(cx, lineY, cx + 1, lineY + 9, C_ACCENT());
                     }
                 }
             }

@@ -1,5 +1,7 @@
 package net.phoenixvine.phantasia.client.screens.subscreen;
 
+import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
+
 import com.gregtechceu.gtceu.api.block.MetaMachineBlock;
 
 import net.minecraft.client.Minecraft;
@@ -20,6 +22,8 @@ import net.phoenixvine.phantasia.common.data.script.PhantasiaScript;
 
 import java.util.*;
 
+import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
+
 /**
  * PhantasiaBlockFilterScreen
  *
@@ -35,17 +39,6 @@ import java.util.*;
 @OnlyIn(Dist.CLIENT)
 public class PhantasiaBlockFilterScreen extends Screen {
 
-    // ── Colors (unified with Phantasia theme) ─────────────────────────────────
-    private static final int C_BG = 0xFF080810;
-    private static final int C_PANEL = 0xEE0C0C1A;
-    private static final int C_ACCENT = 0xFF4FC3F7;
-    private static final int C_BTN = 0xBB151528;
-    private static final int C_BTN_HOV = 0xBB1A2840;
-    private static final int C_BTN_ACT = 0xBB0D3050;
-    private static final int C_TEXT = 0xFFDDDDDD;
-    private static final int C_DIM = 0xFF667788;
-    private static final int C_WARN = 0xFFFFB74D;
-    private static final int C_GREEN = 0xFF66BB6A;
 
     private enum Tab {
         FILTER,
@@ -135,12 +128,12 @@ public class PhantasiaBlockFilterScreen extends Screen {
 
     @Override
     public void render(GuiGraphics g, int mx, int my, float partial) {
-        g.fill(0, 0, this.width, this.height, C_BG);
+        g.fill(0, 0, this.width, this.height, C_BG());
 
         // Header
-        g.fill(0, 0, this.width, 22, 0xCC0A0A14);
-        g.fill(0, 21, this.width, 22, C_ACCENT);
-        g.drawString(font, "Block Filter — " + pattern.shoppingList.size() + " block types", 8, 7, C_ACCENT, false);
+        g.fill(0, 0, this.width, 22, C_PANEL());
+        g.fill(0, 21, this.width, 22, C_ACCENT());
+        g.drawString(font, "Block Filter — " + pattern.shoppingList.size() + " block types", 8, 7, C_ACCENT(), false);
 
         renderTabBar(g, mx, my);
 
@@ -154,14 +147,7 @@ public class PhantasiaBlockFilterScreen extends Screen {
         int bw = 80, bh = 18;
         int bx = (this.width - bw) / 2, by = this.height - bh - 6;
         boolean bHov = isOver(mx, my, bx, by, bw, bh);
-        g.fill(bx, by, bx + bw, by + bh, bHov ? C_BTN_HOV : C_BTN);
-        if (bHov) {
-            g.fill(bx, by, bx + bw, by + 1, C_ACCENT);
-            g.fill(bx, by + bh - 1, bx + bw, by + bh, C_ACCENT);
-        }
-        g.drawString(font, "\u2190 Back",
-                bx + (bw - font.width("\u2190 Back")) / 2, by + 5,
-                bHov ? C_ACCENT : C_TEXT, false);
+        drawThemedBtn(g, font, bx, by, bw, bh, "\u2190 Back", bHov, C_BTN());
     }
 
     private void renderTabBar(GuiGraphics g, int mx, int my) {
@@ -172,11 +158,8 @@ public class PhantasiaBlockFilterScreen extends Screen {
             int tx = 8 + i * (tw + 4);
             boolean active = tab == tabs[i];
             boolean hov = isOver(mx, my, tx, y, tw, th);
-            g.fill(tx, y, tx + tw, y + th, active ? C_BTN_ACT : (hov ? C_BTN_HOV : C_BTN));
-            g.fill(tx, y + th - 1, tx + tw, y + th, active ? C_ACCENT : 0x33FFFFFF);
-            g.drawString(font, labels[i],
-                    tx + (tw - font.width(labels[i])) / 2, y + 4,
-                    active ? C_ACCENT : C_TEXT, false);
+
+            drawThemedBtn(g, font, tx, y, tw, th, labels[i], hov, active ? C_BTN_ACT() : C_BTN());
         }
     }
 
@@ -186,7 +169,7 @@ public class PhantasiaBlockFilterScreen extends Screen {
         int y = 50;
         int bw = 200, x = (this.width - bw) / 2;
 
-        g.drawCenteredString(font, "Select which blocks to highlight", this.width / 2, y, C_DIM);
+        g.drawCenteredString(font, "Select which blocks to highlight", this.width / 2, y, C_DIM());
         y += 18;
 
         PhantasiaSceneScreen.ViewFilter[] vfs = PhantasiaSceneScreen.ViewFilter.values();
@@ -201,13 +184,10 @@ public class PhantasiaBlockFilterScreen extends Screen {
         for (int i = 0; i < vfs.length; i++) {
             boolean active = activeFilter == vfs[i];
             boolean hov = isOver(mx, my, x, y, bw, 22);
-            g.fill(x, y, x + bw, y + 22, active ? C_BTN_ACT : (hov ? C_BTN_HOV : C_BTN));
-            if (active) {
-                g.fill(x, y, x + bw, y + 1, C_ACCENT);
-                g.fill(x, y + 21, x + bw, y + 22, C_ACCENT);
-            }
-            g.drawString(font, vfs[i].name(), x + 6, y + 4, active ? C_ACCENT : C_TEXT, false);
-            g.drawString(font, trunc(descs[i], bw - 12), x + 6, y + 13, C_DIM, false);
+
+            drawThemedBtn(g, font, x, y, bw, 22, "", hov, active ? C_BTN_ACT() : C_BTN());
+            g.drawString(font, vfs[i].name(), x + 6, y + 4, active ? C_ACCENT() : C_TEXT(), false);
+            g.drawString(font, trunc(descs[i], bw - 12), x + 6, y + 13, C_DIM(), false);
             y += 26;
         }
 
@@ -219,30 +199,27 @@ public class PhantasiaBlockFilterScreen extends Screen {
         if (script.hasCommonMistakes()) {
             boolean showM = parent instanceof PhantasiaSceneScreen pss && pss.showMistakes;
             boolean hov = isOver(mx, my, x, y, bw, 18);
-            g.fill(x, y, x + bw, y + 18, showM ? C_BTN_ACT : (hov ? C_BTN_HOV : C_BTN));
-            if (showM) g.fill(x, y, x + bw, y + 1, C_WARN);
-            g.drawString(font, (showM ? "✓ " : "  ") + "Show Common Mistakes",
-                    x + 6, y + 5, showM ? C_WARN : C_TEXT, false);
+
+            drawThemedBtn(g, font, x, y, bw, 18, (showM ? "✓ " : "  ") + "Show Common Mistakes", hov, showM ? C_BTN_ACT() : C_BTN());
             y += 22;
         }
 
         // Heatmap tiers
         if (!script.getHeatmapTiers().isEmpty()) {
-            g.drawString(font, "Heatmap Layers:", x + 6, y, C_DIM, false);
+            g.drawString(font, "Heatmap Layers:", x + 6, y, C_DIM(), false);
             y += 12;
             int sel = parent instanceof PhantasiaSceneScreen pss ? pss.selectedTierIndex : -1;
             for (int i = 0; i < script.getHeatmapTiers().size(); i++) {
                 PhantasiaScript.HeatmapTier tier = script.getHeatmapTiers().get(i);
                 boolean active = sel == i;
                 boolean hov = isOver(mx, my, x, y, bw, 14);
-                g.fill(x, y, x + bw, y + 14, active ? C_BTN_ACT : (hov ? C_BTN_HOV : C_BTN));
+
+                drawThemedBtn(g, font, x, y, bw, 14, tier.name(), hov, active ? C_BTN_ACT() : C_BTN());
                 g.fill(x, y, x + 4, y + 14, tier.color());
-                g.drawString(font, tier.name(), x + 8, y + 3, active ? C_ACCENT : C_TEXT, false);
                 y += 16;
             }
             boolean disHov = isOver(mx, my, x, y, bw, 14);
-            g.fill(x, y, x + bw, y + 14, sel == -1 ? C_BTN_ACT : (disHov ? C_BTN_HOV : C_BTN));
-            g.drawString(font, "Disable Heatmap", x + 8, y + 3, sel == -1 ? C_ACCENT : C_DIM, false);
+            drawThemedBtn(g, font, x, y, bw, 14, "Disable Heatmap", disHov, sel == -1 ? C_BTN_ACT() : C_BTN());
             y += 16;
         }
 
@@ -250,11 +227,7 @@ public class PhantasiaBlockFilterScreen extends Screen {
         // Apply & Return button
         int aw = 120, ax = (this.width - aw) / 2;
         boolean aHov = isOver(mx, my, ax, y, aw, 18);
-        g.fill(ax, y, ax + aw, y + 18, aHov ? C_BTN_HOV : C_BTN);
-        if (aHov) g.fill(ax, y, ax + aw, y + 1, C_ACCENT);
-        g.drawString(font, "Apply & Return",
-                ax + (aw - font.width("Apply & Return")) / 2, y + 5,
-                aHov ? C_ACCENT : C_TEXT, false);
+        drawThemedBtn(g, font, ax, y, aw, 18, "Apply & Return", aHov, C_BTN());
     }
 
     // ── LIST TAB ──────────────────────────────────────────────────────────────
@@ -270,16 +243,16 @@ public class PhantasiaBlockFilterScreen extends Screen {
         for (Map.Entry<String, List<BlockPos>> e : blocksByName.entrySet()) {
             if (y + 18 >= startY && y <= startY + contentH) {
                 boolean hov = isOver(mx, my, x, y, w, 18);
-                g.fill(x, y, x + w, y + 18, hov ? C_BTN_HOV : 0x00000000);
+                g.fill(x, y, x + w, y + 18, hov ? C_BTN_HOV() : 0x00000000);
                 if (hov) g.fill(x, y, x + w, y + 1, 0x33FFFFFF);
 
                 // Count badge
                 String cnt = String.valueOf(e.getValue().size());
                 int cntW = font.width(cnt) + 8;
                 g.fill(x, y + 1, x + cntW, y + 17, 0xBB1A2840);
-                g.drawString(font, cnt, x + 4, y + 5, C_ACCENT, false);
+                g.drawString(font, cnt, x + 4, y + 5, C_ACCENT(), false);
 
-                g.drawString(font, trunc(e.getKey(), w - cntW - 8), x + cntW + 4, y + 5, C_TEXT, false);
+                g.drawString(font, trunc(e.getKey(), w - cntW - 8), x + cntW + 4, y + 5, C_TEXT(), false);
             }
             y += 20;
         }
@@ -291,13 +264,11 @@ public class PhantasiaBlockFilterScreen extends Screen {
             int thumbH = Math.max(20, trackH * contentH / total);
             int thumbY = startY + 2 + (trackH - thumbH) * listScrollY / Math.max(1, total - contentH);
             g.fill(this.width - 6, startY + 2, this.width - 2, startY + 2 + trackH, 0x33FFFFFF);
-            g.fill(this.width - 6, thumbY, this.width - 2, thumbY + thumbH, C_ACCENT);
+            g.fill(this.width - 6, thumbY, this.width - 2, thumbY + thumbH, C_ACCENT());
         }
     }
 
     // ── INSPECT TAB (Enhanced Technical Visual Style) ─────────────────────────
-
-    // ── INSPECT TAB (Enhanced Technical Visual Style with Full Tooltips) ─────
 
     private void renderInspectTab(GuiGraphics g, int mx, int my) {
         int leftCol = 24;
@@ -308,7 +279,7 @@ public class PhantasiaBlockFilterScreen extends Screen {
 
         if (inspectedWorldPos == null) {
             g.drawCenteredString(font, "Click a block in the Shopping tab to inspect it.",
-                    this.width / 2, y + 20, C_DIM);
+                    this.width / 2, y + 20, C_DIM());
             return;
         }
 
@@ -320,15 +291,13 @@ public class PhantasiaBlockFilterScreen extends Screen {
         } catch (Exception ignored) {}
 
         if (state == null || state.isAir()) {
-            g.drawCenteredString(font, "No block at this position.", this.width / 2, y + 20, C_DIM);
+            g.drawCenteredString(font, "No block at this position.", this.width / 2, y + 20, C_DIM());
             return;
         }
 
-        ItemStack itemStack = new ItemStack(
-                state.getBlock().asItem());
+        ItemStack itemStack = new ItemStack(state.getBlock().asItem());
 
         // --- LEFT COLUMN: IDENTITY & STRUCTURAL DATA ---
-        // Render large Block Icon
         g.pose().pushPose();
         g.pose().translate(leftCol, y, 100);
         g.pose().scale(4.0f, 4.0f, 1.0f);
@@ -350,37 +319,37 @@ public class PhantasiaBlockFilterScreen extends Screen {
         if (rl != null) {
             for (net.minecraft.util.FormattedCharSequence seq : font.split(
                     Component.literal(rl.toString()).withStyle(net.minecraft.ChatFormatting.ITALIC), leftColWidth)) {
-                g.drawString(font, seq, leftCol, y, C_DIM, false);
+                g.drawString(font, seq, leftCol, y, C_DIM(), false);
                 y += 10;
             }
         }
 
         y += 16;
-        g.drawString(font, "COORDINATES", leftCol, y, C_ACCENT, false);
+        g.drawString(font, "COORDINATES", leftCol, y, C_ACCENT(), false);
         y += 12;
-        g.drawString(font, "X: " + inspectedWorldPos.getX(), leftCol, y, C_TEXT, false);
-        g.drawString(font, "Y: " + inspectedWorldPos.getY(), leftCol + 40, y, C_TEXT, false);
-        g.drawString(font, "Z: " + inspectedWorldPos.getZ(), leftCol + 80, y, C_TEXT, false);
+        g.drawString(font, "X: " + inspectedWorldPos.getX(), leftCol, y, C_TEXT(), false);
+        g.drawString(font, "Y: " + inspectedWorldPos.getY(), leftCol + 40, y, C_TEXT(), false);
+        g.drawString(font, "Z: " + inspectedWorldPos.getZ(), leftCol + 80, y, C_TEXT(), false);
 
         // --- RIGHT COLUMN: ATTRIBUTES, TOOLTIPS, & EMI ACTION ---
         y = 60;
-        g.drawString(font, "SPECIFICATIONS & UTILITY", rightCol, y - 15, C_ACCENT, false);
+        g.drawString(font, "SPECIFICATIONS & UTILITY", rightCol, y - 15, C_ACCENT(), false);
 
         // Dynamic Tag/Role Badges
         if (pattern.hasBlockEntity(inspectedWorldPos)) {
-            g.drawString(font, "\u26A1 Has Block Entity", rightCol, y, C_WARN, false);
+            g.drawString(font, "⚡ Has Block Entity", rightCol, y, C_WARN(), false);
             y += 12;
         }
         if (inspectedWorldPos.equals(pattern.controllerWorldPos)) {
-            g.drawString(font, "\u2605 Multiblock Controller", rightCol, y, C_ACCENT, false);
+            g.drawString(font, "★ Multiblock Controller", rightCol, y, C_ACCENT(), false);
             y += 12;
         }
         if (hatchBusSet.contains(inspectedWorldPos)) {
-            g.drawString(font, "\uD83D\uDD17 Component: Hatch / Bus", rightCol, y, C_GREEN, false);
+            g.drawString(font, "\uD83D\uDD17 Component: Hatch / Bus", rightCol, y, C_GREEN(), false);
             y += 12;
         }
         if (energySet.contains(inspectedWorldPos)) {
-            g.drawString(font, "\u26A1 System: Energy I/O", rightCol, y, C_WARN, false);
+            g.drawString(font, "\u26A1 System: Energy I/O", rightCol, y, C_WARN(), false);
             y += 12;
         }
 
@@ -392,7 +361,7 @@ public class PhantasiaBlockFilterScreen extends Screen {
                     net.minecraft.world.item.TooltipFlag.Default.NORMAL);
             for (Component line : tooltips) {
                 for (net.minecraft.util.FormattedCharSequence sequence : font.split(line, maxRightWidth)) {
-                    g.drawString(font, sequence, rightCol, y, C_TEXT, false);
+                    g.drawString(font, sequence, rightCol, y, C_TEXT(), false);
                     y += 10;
                 }
                 y += 2;
@@ -406,7 +375,7 @@ public class PhantasiaBlockFilterScreen extends Screen {
         if (!state.getProperties().isEmpty()) {
             g.fill(rightCol, y, rightCol + 120, y + 1, 0x22FFFFFF);
             y += 8;
-            g.drawString(font, "BLOCKSTATE PROPERTIES", rightCol, y, C_DIM, false);
+            g.drawString(font, "BLOCKSTATE PROPERTIES", rightCol, y, C_DIM(), false);
             y += 12;
 
             for (Property<?> prop : state.getProperties()) {
@@ -414,7 +383,7 @@ public class PhantasiaBlockFilterScreen extends Screen {
                 String line = prop.getName() + " = " + getPropName(prop, val);
                 for (net.minecraft.util.FormattedCharSequence seq : font.split(Component.literal(line),
                         maxRightWidth)) {
-                    g.drawString(font, seq, rightCol, y, C_TEXT, false);
+                    g.drawString(font, seq, rightCol, y, C_TEXT(), false);
                     y += 10;
                 }
                 if (y > this.height - 75) break;
@@ -426,22 +395,17 @@ public class PhantasiaBlockFilterScreen extends Screen {
         // --- ACTION BUTTONS (EMI RECIPES & CLEAR) ---
         if (!itemStack.isEmpty()) {
             boolean emiHov = isOver(mx, my, rightCol, y, 90, 16);
-            g.fill(rightCol, y, rightCol + 90, y + 16, emiHov ? C_BTN_HOV : C_BTN);
-            if (emiHov) g.fill(rightCol, y, rightCol + 90, y + 1, C_ACCENT);
-            g.drawString(font, "EMI Recipes", rightCol + (90 - font.width("EMI Recipes")) / 2, y + 4,
-                    emiHov ? C_ACCENT : C_TEXT, false);
+            drawThemedBtn(g, font, rightCol, y, 90, 16, "EMI Recipes", emiHov, C_BTN());
 
             boolean clrHov = isOver(mx, my, rightCol + 96, y, 60, 16);
-            g.fill(rightCol + 96, y, rightCol + 156, y + 16, clrHov ? C_BTN_HOV : C_BTN);
-            g.drawString(font, "Clear", rightCol + 96 + (60 - font.width("Clear")) / 2, y + 4,
-                    clrHov ? C_WARN : C_DIM, false);
+            drawThemedBtn(g, font, rightCol + 96, y, 60, 16, "Clear", clrHov, C_BTN());
         } else {
             boolean clrHov = isOver(mx, my, rightCol, y, 70, 16);
-            g.fill(rightCol, y, rightCol + 70, y + 16, clrHov ? C_BTN_HOV : C_BTN);
-            g.drawString(font, "Clear", rightCol + (70 - font.width("Clear")) / 2, y + 4,
-                    clrHov ? C_WARN : C_DIM, false);
+            drawThemedBtn(g, font, rightCol, y, 70, 16, "Clear", clrHov, C_BTN());
         }
-    }    // ── Input ─────────────────────────────────────────────────────────────────
+    }
+
+    // ── Input ─────────────────────────────────────────────────────────────────
 
     @Override
     public boolean mouseClicked(double mx, double my, int btn) {
@@ -472,9 +436,7 @@ public class PhantasiaBlockFilterScreen extends Screen {
                 PhantasiaSceneScreen.ViewFilter[] vfs = PhantasiaSceneScreen.ViewFilter.values();
                 for (PhantasiaSceneScreen.ViewFilter vf : vfs) {
                     if (isOver((int) mx, (int) my, fx, y, fw, 22)) {
-                        // Toggle: clicking the active filter deactivates it (returns to ALL)
                         activeFilter = (activeFilter == vf) ? PhantasiaSceneScreen.ViewFilter.ALL : vf;
-                        // FIX (B5/B6): push the change into the parent scene immediately
                         if (parent instanceof PhantasiaSceneScreen pss) {
                             pss.applyViewFilter(activeFilter);
                         }
@@ -582,7 +544,6 @@ public class PhantasiaBlockFilterScreen extends Screen {
                                     if (manager != null) {
                                         var emiStack = dev.emi.emi.api.stack.EmiStack.of(itemStack);
 
-                                        // Fallback Chain: Try Recipes (Output) -> Usages (Input)
                                         if (!manager.getRecipesByOutput(emiStack).isEmpty()) {
                                             dev.emi.emi.api.EmiApi.displayRecipes(emiStack);
                                         } else if (!manager.getRecipesByInput(emiStack).isEmpty()) {

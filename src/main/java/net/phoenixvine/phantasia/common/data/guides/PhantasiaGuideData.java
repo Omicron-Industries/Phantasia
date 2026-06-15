@@ -65,6 +65,14 @@ public class PhantasiaGuideData {
     @SerializedName("tag")
     public String tag = null;
 
+    /**
+     * Item/block registry IDs that trigger the tooltip keybind for this guide.
+     * E.g. ["minecraft:iron_ore", "gtceu:wafer"] — holding or looking at one of
+     * these items/blocks shows the hold-to-open tooltip.
+     */
+    @SerializedName("tooltipItems")
+    public List<String> tooltipItems = new ArrayList<>();
+
     @SerializedName("pages")
     public List<PageData> pages = new ArrayList<>();
 
@@ -164,6 +172,7 @@ public class PhantasiaGuideData {
         c.iconItem = iconItem;
         c.subtitle = subtitle;
         c.tag = tag;
+        if (tooltipItems != null) c.tooltipItems = new ArrayList<>(tooltipItems);
         for (PageData p : pages) c.pages.add(p.copy());
         return c;
     }
@@ -177,12 +186,14 @@ public class PhantasiaGuideData {
     public static PhantasiaGuideData fromJson(String json) {
         PhantasiaGuideData d = PhantasiaScriptData.GSON.fromJson(json, PhantasiaGuideData.class);
         if (d.pages == null) d.pages = new ArrayList<>();
+        if (d.tooltipItems == null) d.tooltipItems = new ArrayList<>();
         return d;
     }
 
     public static PhantasiaGuideData fromJson(java.io.Reader reader) {
         PhantasiaGuideData d = PhantasiaScriptData.GSON.fromJson(reader, PhantasiaGuideData.class);
         if (d.pages == null) d.pages = new ArrayList<>();
+        if (d.tooltipItems == null) d.tooltipItems = new ArrayList<>();
         return d;
     }
 }

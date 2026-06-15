@@ -8,6 +8,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
@@ -19,7 +20,9 @@ import net.minecraftforge.client.gui.overlay.VanillaGuiOverlay;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.player.ItemTooltipEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.registries.ForgeRegistries;
 import net.phoenixvine.phantasia.client.keybind.PhoenixKeybinds;
+import net.phoenixvine.phantasia.client.screens.PhantasiaContextualSelectionScreen;
 import net.phoenixvine.phantasia.client.screens.PhantasiaSceneScreen;
 import net.phoenixvine.phantasia.client.screens.PhantasiaSceneSelectionScreen;
 import net.phoenixvine.phantasia.configs.PhantasiaConfigs;
@@ -38,6 +41,9 @@ public class PhantasiaKeybind {
 
     // Refreshed every render frame by onItemTooltip while a tooltip is visible.
     private static MultiblockMachineDefinition tooltipTarget = null;
+
+    // Generic item/block target set by onItemTooltip or block look-up (non-multiblock).
+    private static String tooltipItemTarget = null;
 
     // -------------------------------------------------------------------------
     // KEY CHECK — raw GLFW, works even when a GUI is open
@@ -80,8 +86,38 @@ public class PhantasiaKeybind {
                     event.getToolTip().add(Component.literal(
                             "  §b" + "▬".repeat(filled) + "§8" + "▬".repeat(barLen - filled)));
                 }
+                return;
             }
         }
+
+        // Generic item tooltip — check if any guide or scene lists this item in tooltipItems
+        ResourceLocation itemId = ForgeRegistries.ITEMS.getKey(stack.getItem());
+        if (itemId != null) {
+            String itemKey = itemId.toString();
+            boolean matched = hasTooltipItemMatch(itemKey);
+            if (matched) {
+                tooltipItemTarget = itemKey;
+                String keyName = PhoenixKeybinds.OPEN_PHANTASIA_MENU.getTranslatedKeyMessage().getString();
+                event.getToolTip().add(Component.translatable("tooltip.phantasia.hold_to_phantasize", keyName));
+                if (holdTimer > 0) {
+                    float progress = (float) holdTimer / PhantasiaConfigs.INSTANCE.phantasiaUI.activationTicks;
+                    int barLen = 12;
+                    int filled = (int) (barLen * progress);
+                    event.getToolTip().add(Component.literal(
+                            "  §b" + "▬".repeat(filled) + "§8" + "▬".repeat(barLen - filled)));
+                }
+            }
+        }
+    }
+
+    private static boolean hasTooltipItemMatch(String itemKey) {
+        for (var scene : net.phoenixvine.phantasia.common.data.scene.PhantasiaScenes.all()) {
+            if (scene.tooltipItems != null && scene.tooltipItems.contains(itemKey)) return true;
+        }
+        for (var guide : net.phoenixvine.phantasia.common.data.guides.PhantasiaGuideRegistry.all()) {
+            if (guide.tooltipItems != null && guide.tooltipItems.contains(itemKey)) return true;
+        }
+        return false;
     }
 
     // -------------------------------------------------------------------------
@@ -98,20 +134,87 @@ public class PhantasiaKeybind {
         if (currentTarget == null) currentTarget = tooltipTarget;
         if (currentTarget == null) tooltipTarget = null;
 
-        if (currentTarget != null && isPhantasiaKeyDown()) {
+        // Check for generic item/block target (non-multiblock)
+        String currentItemTarget = getTargetItemId(mc);
+        if (currentItemTarget == null) currentItemTarget = tooltipItemTarget;
+        if (currentItemTarget == null) tooltipItemTarget = null;
+
+        boolean hasAnyTarget = (currentTarget != null) || (currentItemTarget != null);
+
+        if (hasAnyTarget && isPhantasiaKeyDown()) {
             holdTimer++;
             if (holdTimer >= PhantasiaConfigs.INSTANCE.phantasiaUI.activationTicks) {
-                final MultiblockMachineDefinition defToOpen = currentTarget;
-                mc.tell(() -> mc.setScreen(new PhantasiaSceneScreen(defToOpen, null)));
+                if (currentTarget != null) {
+                    final MultiblockMachineDefinition defToOpen = currentTarget;
+                    mc.tell(() -> openForMultiblock(mc, defToOpen));
+                } else {
+                    final String itemKey = currentItemTarget;
+                    mc.tell(() -> openForItemKey(mc, itemKey));
+                }
+
                 holdTimer = 0;
                 fadeTimer = 0;
                 tooltipTarget = null;
+                tooltipItemTarget = null;
             }
         } else {
             holdTimer = Math.max(0, holdTimer - 2);
         }
     }
 
+    private static void openForMultiblock(Minecraft mc, MultiblockMachineDefinition defToOpen) {
+        String targetId = defToOpen.getId().getPath().toLowerCase(java.util.Locale.ROOT);
+        java.util.List<net.phoenixvine.phantasia.common.data.scene.PhantasiaSceneData> matchingScenes = new java.util.ArrayList<>();
+        for (var scene : net.phoenixvine.phantasia.common.data.scene.PhantasiaScenes.all()) {
+            if (scene.id != null && scene.id.toLowerCase(java.util.Locale.ROOT).contains(targetId)) {
+                matchingScenes.add(scene);
+            }
+        }
+        java.util.List<net.phoenixvine.phantasia.common.data.guides.PhantasiaGuideData> matchingGuides = new java.util.ArrayList<>();
+        for (var guide : net.phoenixvine.phantasia.common.data.guides.PhantasiaGuideRegistry.all()) {
+            if (guide.id != null && guide.id.toLowerCase(java.util.Locale.ROOT).contains(targetId)) {
+                matchingGuides.add(guide);
+            }
+        }
+        boolean hasScript = PhantasiaSceneSelectionScreen.PHANTASIA_SCENES.contains(defToOpen);
+        int totalMatches = (hasScript ? 1 : 0) + matchingScenes.size() + matchingGuides.size();
+        if (totalMatches == 1) {
+            if (hasScript) {
+                mc.setScreen(new PhantasiaSceneScreen(defToOpen, null));
+            } else if (!matchingScenes.isEmpty()) {
+                mc.setScreen(new net.phoenixvine.phantasia.client.screens.PhantasiaSceneViewerScreen(null, matchingScenes.get(0)));
+            } else {
+                mc.setScreen(new net.phoenixvine.phantasia.client.screens.PhantasiaGuideScreen(null, matchingGuides.get(0)));
+            }
+        } else if (totalMatches > 1) {
+            mc.setScreen(new PhantasiaContextualSelectionScreen(defToOpen, matchingScenes, matchingGuides, hasScript));
+        }
+    }
+
+    private static void openForItemKey(Minecraft mc, String itemKey) {
+        java.util.List<net.phoenixvine.phantasia.common.data.scene.PhantasiaSceneData> matchingScenes = new java.util.ArrayList<>();
+        for (var scene : net.phoenixvine.phantasia.common.data.scene.PhantasiaScenes.all()) {
+            if (scene.tooltipItems != null && scene.tooltipItems.contains(itemKey)) {
+                matchingScenes.add(scene);
+            }
+        }
+        java.util.List<net.phoenixvine.phantasia.common.data.guides.PhantasiaGuideData> matchingGuides = new java.util.ArrayList<>();
+        for (var guide : net.phoenixvine.phantasia.common.data.guides.PhantasiaGuideRegistry.all()) {
+            if (guide.tooltipItems != null && guide.tooltipItems.contains(itemKey)) {
+                matchingGuides.add(guide);
+            }
+        }
+        int totalMatches = matchingScenes.size() + matchingGuides.size();
+        if (totalMatches == 1) {
+            if (!matchingScenes.isEmpty()) {
+                mc.setScreen(new net.phoenixvine.phantasia.client.screens.PhantasiaSceneViewerScreen(null, matchingScenes.get(0)));
+            } else {
+                mc.setScreen(new net.phoenixvine.phantasia.client.screens.PhantasiaGuideScreen(null, matchingGuides.get(0)));
+            }
+        } else if (totalMatches > 1) {
+            mc.setScreen(new PhantasiaContextualSelectionScreen(null, matchingScenes, matchingGuides, false));
+        }
+    }
     // -------------------------------------------------------------------------
     // OVERLAY — fade logic (original) + hotbar toast render
     // -------------------------------------------------------------------------
@@ -225,6 +328,30 @@ public class PhantasiaKeybind {
             }
         }
         return getLookedAtDefinition(mc);
+    }
+
+    /** Returns the registry ID of the held or looked-at item/block if it matches a tooltipItems entry. */
+    private static String getTargetItemId(Minecraft mc) {
+        // Check held item first
+        ItemStack stack = mc.player.getMainHandItem();
+        if (!stack.isEmpty() && !(stack.getItem() instanceof MetaMachineItem)) {
+            ResourceLocation heldId = ForgeRegistries.ITEMS.getKey(stack.getItem());
+            if (heldId != null && hasTooltipItemMatch(heldId.toString())) {
+                return heldId.toString();
+            }
+        }
+        // Check looked-at block
+        if (mc.hitResult != null && mc.hitResult.getType() == HitResult.Type.BLOCK) {
+            BlockPos pos = ((BlockHitResult) mc.hitResult).getBlockPos();
+            BlockState state = mc.level.getBlockState(pos);
+            if (!(state.getBlock() instanceof MetaMachineBlock)) {
+                ResourceLocation blockId = ForgeRegistries.BLOCKS.getKey(state.getBlock());
+                if (blockId != null && hasTooltipItemMatch(blockId.toString())) {
+                    return blockId.toString();
+                }
+            }
+        }
+        return null;
     }
 
     public static MultiblockMachineDefinition getLookedAtDefinition(Minecraft mc) {

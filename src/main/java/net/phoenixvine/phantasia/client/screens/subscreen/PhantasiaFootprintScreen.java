@@ -1,5 +1,7 @@
 package net.phoenixvine.phantasia.client.screens.subscreen;
 
+import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
@@ -16,6 +18,8 @@ import lombok.Getter;
 
 import java.util.*;
 
+import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
+
 /**
  * PhantasiaFootprintScreen
  *
@@ -28,18 +32,8 @@ import java.util.*;
 @OnlyIn(Dist.CLIENT)
 public class PhantasiaFootprintScreen extends Screen {
 
-    // ── Colors ────────────────────────────────────────────────────────────────
-    private static final int C_BG = 0xFF080810;
-    private static final int C_PANEL = 0xEE0C0C1A;
-    private static final int C_ACCENT = 0xFF4FC3F7;
-    private static final int C_BTN = 0xBB151528;
-    private static final int C_BTN_HOV = 0xBB1A2840;
-    private static final int C_TEXT = 0xFFDDDDDD;
-    private static final int C_DIM = 0xFF667788;
-    private static final int C_WARN = 0xFFFFB74D;
+    // ── Grid Canvas Constraints ────────────────────────────────────────────────
     private static final int C_GRID_LINE = 0xFF1E2D3C;
-    private static final int C_CONTROLLER = 0xFF4FC3F7;
-    private static final int C_BE = 0xFFFFB74D;
     private static final int C_NORMAL = 0xFF3A506A;
     private static final int C_HOVER = 0xAAFFFFFF;
 
@@ -146,13 +140,12 @@ public class PhantasiaFootprintScreen extends Screen {
 
     @Override
     public void render(GuiGraphics g, int mx, int my, float partial) {
-        g.fill(0, 0, this.width, this.height, C_BG);
+        g.fill(0, 0, this.width, this.height, C_BG());
 
         g.fill(0, 0, this.width, 23, 0xCC0A0A14);
-        g.fill(0, 22, this.width, 23, C_ACCENT);
-        String title = "Footprint  —  Layer Y = " + currentLayerY() + "  (" + (layerIndex + 1) + " / " + layers.size() +
-                ")";
-        g.drawCenteredString(font, title, (this.width - PANEL_W) / 2, 7, C_ACCENT);
+        g.fill(0, 22, this.width, 23, C_ACCENT());
+        String title = "Footprint  —  Layer Y = " + currentLayerY() + "  (" + (layerIndex + 1) + " / " + layers.size() + ")";
+        g.drawCenteredString(font, title, (this.width - PANEL_W) / 2, 7, C_ACCENT());
 
         hoveredLocal = screenToLocal(mx, my);
 
@@ -193,10 +186,10 @@ public class PhantasiaFootprintScreen extends Screen {
 
             // Inspect border
             if (lp.equals(inspectedLocal)) {
-                g.fill(sx, sz, sx + cellSize, sz + 1, C_ACCENT);
-                g.fill(sx, sz + cellSize - 1, sx + cellSize, sz + cellSize, C_ACCENT);
-                g.fill(sx, sz, sx + 1, sz + cellSize, C_ACCENT);
-                g.fill(sx + cellSize - 1, sz, sx + cellSize, sz + cellSize, C_ACCENT);
+                g.fill(sx, sz, sx + cellSize, sz + 1, C_ACCENT());
+                g.fill(sx, sz + cellSize - 1, sx + cellSize, sz + cellSize, C_ACCENT());
+                g.fill(sx, sz, sx + 1, sz + cellSize, C_ACCENT());
+                g.fill(sx + cellSize - 1, sz, sx + cellSize, sz + cellSize, C_ACCENT());
             }
 
             // Abbreviation labels
@@ -219,9 +212,9 @@ public class PhantasiaFootprintScreen extends Screen {
             // Axis labels
             if (cellSize >= 12) {
                 if (drawnX.add(lp.getX()))
-                    g.drawString(font, String.valueOf(lp.getX()), sx + 1, 25, C_DIM, false);
+                    g.drawString(font, String.valueOf(lp.getX()), sx + 1, 25, C_DIM(), false);
                 if (drawnZ.add(lp.getZ()))
-                    g.drawString(font, String.valueOf(lp.getZ()), 1, sz + (cellSize - 8) / 2, C_DIM, false);
+                    g.drawString(font, String.valueOf(lp.getZ()), 1, sz + (cellSize - 8) / 2, C_DIM(), false);
             }
         }
 
@@ -244,28 +237,28 @@ public class PhantasiaFootprintScreen extends Screen {
             }
             return 0xFF222222;
         }
-        if (worldPos.equals(pattern.controllerWorldPos)) return C_CONTROLLER;
-        if (pattern.hasBlockEntity(worldPos)) return C_BE;
+        if (worldPos.equals(pattern.controllerWorldPos)) return C_ACCENT();
+        if (pattern.hasBlockEntity(worldPos)) return C_WARN();
         return C_NORMAL;
     }
 
     private void renderSidePanel(GuiGraphics g, int mx, int my) {
         int px = this.width - PANEL_W;
-        g.fill(px, 0, this.width, this.height, C_PANEL);
-        g.fill(px, 0, px + 2, this.height, C_ACCENT);
+        g.fill(px, 0, this.width, this.height, C_PANEL());
+        g.fill(px, 0, px + 2, this.height, C_ACCENT());
 
         int y = 28;
         int hw = (PANEL_W - 18) / 2;
 
         // Layer navigation
-        g.drawString(font, "Layer (Y):", px + 10, y, C_DIM, false);
+        g.drawString(font, "Layer (Y):", px + 10, y, C_DIM(), false);
         y += 11;
-        drawBtn(g, mx, my, px + 8, y, hw, 15, "\u25BC Prev", isOver(mx, my, px + 8, y, hw, 15), C_BTN);
-        drawBtn(g, mx, my, px + 10 + hw, y, hw, 15, "Next \u25B2", isOver(mx, my, px + 10 + hw, y, hw, 15), C_BTN);
+        drawThemedBtn(g, font, px + 8, y, hw, 15, "\u25BC Prev", isOver(mx, my, px + 8, y, hw, 15), C_BTN());
+        drawThemedBtn(g, font, px + 10 + hw, y, hw, 15, "Next \u25B2", isOver(mx, my, px + 10 + hw, y, hw, 15), C_BTN());
         y += 19;
 
         // Layer pills
-        g.drawString(font, "Jump to:", px + 10, y, C_DIM, false);
+        g.drawString(font, "Jump to:", px + 10, y, C_DIM(), false);
         y += 11;
         int pillX = px + 8;
         for (int i = 0; i < layers.size(); i++) {
@@ -275,9 +268,9 @@ public class PhantasiaFootprintScreen extends Screen {
             }
             boolean active = i == layerIndex;
             boolean hov = isOver(mx, my, pillX, y, 28, 13);
-            g.fill(pillX, y, pillX + 28, y + 13, active ? C_ACCENT : (hov ? C_BTN_HOV : C_BTN));
+            g.fill(pillX, y, pillX + 28, y + 13, active ? C_ACCENT() : (hov ? C_BTN_HOV() : C_BTN()));
             String lbl = String.valueOf(layers.get(i));
-            g.drawString(font, lbl, pillX + (28 - font.width(lbl)) / 2, y + 3, active ? C_BG : C_TEXT, false);
+            g.drawString(font, lbl, pillX + (28 - font.width(lbl)) / 2, y + 3, active ? C_BG() : C_TEXT(), false);
             pillX += 30;
         }
         y += 18;
@@ -286,10 +279,10 @@ public class PhantasiaFootprintScreen extends Screen {
         y += 8;
 
         // Heatmap toggle
-        drawBtn(g, mx, my, px + 8, y, PANEL_W - 16, 15,
+        drawThemedBtn(g, font, px + 8, y, PANEL_W - 16, 15,
                 "Heatmap: " + (showHeatmap ? "ON" : "OFF"),
                 isOver(mx, my, px + 8, y, PANEL_W - 16, 15),
-                showHeatmap ? C_ACCENT : C_BTN);
+                showHeatmap ? C_ACCENT() : C_BTN());
         y += 20;
 
         // Inspect panel
@@ -299,25 +292,23 @@ public class PhantasiaFootprintScreen extends Screen {
                 try {
                     BlockState bs = PhantasiaSceneScreen.SHARED_LEVEL.getBlockState(wp);
                     if (!bs.isAir()) {
-                        g.drawString(font, "Inspecting:", px + 10, y, C_ACCENT, false);
+                        g.drawString(font, "Inspecting:", px + 10, y, C_ACCENT(), false);
                         y += 11;
-                        g.drawString(font, trunc(bs.getBlock().getName().getString(), PANEL_W - 18), px + 10, y, C_TEXT,
-                                false);
+                        g.drawString(font, trunc(bs.getBlock().getName().getString(), PANEL_W - 18), px + 10, y, C_TEXT(), false);
                         y += 10;
-                        g.drawString(font, "X=" + inspectedLocal.getX() + " Z=" + inspectedLocal.getZ(), px + 10, y,
-                                C_DIM, false);
+                        g.drawString(font, "X=" + inspectedLocal.getX() + " Z=" + inspectedLocal.getZ(), px + 10, y, C_DIM(), false);
                         y += 10;
                         if (pattern.hasBlockEntity(wp)) {
-                            g.drawString(font, "\u26A1 Block Entity", px + 10, y, C_WARN, false);
+                            g.drawString(font, "\u26A1 Block Entity", px + 10, y, C_WARN(), false);
                             y += 10;
                         }
                         if (wp.equals(pattern.controllerWorldPos)) {
-                            g.drawString(font, "\u2605 Controller", px + 10, y, C_ACCENT, false);
+                            g.drawString(font, "\u2605 Controller", px + 10, y, C_ACCENT(), false);
                             y += 10;
                         }
                         y += 3;
                         boolean ch = isOver(mx, my, px + 8, y, PANEL_W - 16, 13);
-                        drawBtn(g, mx, my, px + 8, y, PANEL_W - 16, 13, "Clear", ch, C_BTN);
+                        drawThemedBtn(g, font, px + 8, y, PANEL_W - 16, 13, "Clear", ch, C_BTN());
                         y += 18;
                     }
                 } catch (Exception ignored) {}
@@ -329,33 +320,33 @@ public class PhantasiaFootprintScreen extends Screen {
         // Layer block counts
         int layerY = currentLayerY();
         Map<String, Integer> counts = layerBlockCounts.computeIfAbsent(layerY, this::computeLayerCounts);
-        g.drawString(font, "Layer blocks:", px + 10, y, C_DIM, false);
+        g.drawString(font, "Layer blocks:", px + 10, y, C_DIM(), false);
         y += 11;
         for (Map.Entry<String, Integer> e : counts.entrySet()) {
             if (y >= this.height - 35) {
-                g.drawString(font, "...", px + 10, y, C_DIM, false);
+                g.drawString(font, "...", px + 10, y, C_DIM(), false);
                 break;
             }
-            g.drawString(font, e.getValue() + "\u00D7 " + trunc(e.getKey(), PANEL_W - 30), px + 10, y, C_TEXT, false);
+            g.drawString(font, e.getValue() + "\u00D7 " + trunc(e.getKey(), PANEL_W - 30), px + 10, y, C_TEXT(), false);
             y += 10;
         }
 
         // Back button — pinned to bottom
-        drawBtn(g, mx, my, px + 8, this.height - 24, PANEL_W - 16, 18, "\u2190 Back",
-                isOver(mx, my, px + 8, this.height - 24, PANEL_W - 16, 18), C_BTN);
+        drawThemedBtn(g, font, px + 8, this.height - 24, PANEL_W - 16, 18, "\u2190 Back",
+                isOver(mx, my, px + 8, this.height - 24, PANEL_W - 16, 18), C_BTN());
     }
 
     private void renderLegend(GuiGraphics g) {
         int ly = this.height - 13, x = 8;
-        g.fill(0, ly - 3, this.width - PANEL_W, this.height, 0xBB060610);
-        x = legendDot(g, x, ly, C_CONTROLLER, "Controller");
-        x = legendDot(g, x, ly, C_BE, "Block Entity");
+        g.fill(0, ly - 3, this.width - PANEL_W, this.height, 0xCC000000 | (C_BG() & 0xFFFFFF));
+        x = legendDot(g, x, ly, C_ACCENT(), "Controller");
+        x = legendDot(g, x, ly, C_WARN(), "Block Entity");
         legendDot(g, x, ly, C_NORMAL, "Block");
     }
 
     private int legendDot(GuiGraphics g, int x, int y, int color, String label) {
         g.fill(x, y, x + 8, y + 8, color);
-        g.drawString(font, label, x + 10, y, C_DIM, false);
+        g.drawString(font, label, x + 10, y, C_DIM(), false);
         return x + 12 + font.width(label) + 6;
     }
 
@@ -458,26 +449,19 @@ public class PhantasiaFootprintScreen extends Screen {
                 else if (btn == 1) {
                     BlockPos worldPos = pattern.toWorld(lp);
                     if (worldPos != null) {
-                        // 1. Fix SHARED_LEVEL reference by pointing to PhantasiaSceneScreen
                         var blockState = PhantasiaSceneScreen.SHARED_LEVEL.getBlockState(worldPos);
-
-                        // 2. Fix getBlock() - blockState.getBlock() is correct here
                         var itemStack = new net.minecraft.world.item.ItemStack(blockState.getBlock().asItem());
 
                         if (!itemStack.isEmpty()) {
                             var emiStack = dev.emi.emi.api.stack.EmiStack.of(itemStack);
                             var manager = dev.emi.emi.api.EmiApi.getRecipeManager();
 
-                            // Fallback chain: Try finding it as a recipe output first
                             if (!manager.getRecipesByOutput(emiStack).isEmpty()) {
                                 dev.emi.emi.api.EmiApi.displayRecipes(emiStack);
                             }
-                            // Fallback: If it's a base block/uncraftable casing, look up its usages (Stonecutter
-                            // inputs, etc.)
                             else if (!manager.getRecipesByInput(emiStack).isEmpty()) {
                                 dev.emi.emi.api.EmiApi.displayUses(emiStack);
                             }
-                            // Ultimate safe fallback
                             else {
                                 dev.emi.emi.api.EmiApi.displayRecipes(emiStack);
                             }
@@ -523,11 +507,6 @@ public class PhantasiaFootprintScreen extends Screen {
         inspectedLocal = null;
     }
 
-    /**
-     * FIX (B5): call applyVisibility() on the parent PhantasiaSceneScreen so the scene
-     * reflects the current filter / view state immediately on return, without needing
-     * an extra click.
-     */
     @Override
     public void onClose() {
         if (parent instanceof PhantasiaSceneScreen pss) pss.applyVisibility();
@@ -540,16 +519,6 @@ public class PhantasiaFootprintScreen extends Screen {
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
-
-    private void drawBtn(GuiGraphics g, int mx, int my, int x, int y, int w, int h,
-                         String label, boolean hov, int color) {
-        g.fill(x, y, x + w, y + h, hov ? C_BTN_HOV : color);
-        if (hov) {
-            g.fill(x, y, x + w, y + 1, C_ACCENT);
-            g.fill(x, y + h - 1, x + w, y + h, C_ACCENT);
-        }
-        g.drawString(font, label, x + (w - font.width(label)) / 2, y + (h - 8) / 2, hov ? C_ACCENT : C_TEXT, false);
-    }
 
     private boolean isOver(int mx, int my, int x, int y, int w, int h) {
         return mx >= x && mx < x + w && my >= y && my < y + h;

@@ -1,5 +1,7 @@
 package net.phoenixvine.phantasia.client.screens;
 
+import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
@@ -25,6 +27,8 @@ import org.joml.Vector3f;
 
 import java.util.*;
 
+import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
+
 /**
  * PhantasiaSceneViewerScreen
  *
@@ -42,9 +46,7 @@ import java.util.*;
 @OnlyIn(Dist.CLIENT)
 public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
 
-    // ── Theme (mirrors SceneScreen) ───────────────────────────────────────────
-    private static final int C_TL_BG = 0xDD0A0A14;
-    private static final int C_PROG = 0xFF4FC3F7;
+
 
     private static final int TIMELINE_H = 24;
 
@@ -234,7 +236,7 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
             RenderSystem.setShaderGameTime(gameTime, partial);
         }
 
-        g.fill(0, 0, this.width, this.height, C_BG);
+        g.fill(0, 0, this.width, this.height, C_BG());
 
         int viewH = this.height - TOP_BAR_H - TIMELINE_H;
 
@@ -268,8 +270,8 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
                     int tx = Math.min(mx + 10, this.width - tw - 2);
                     int ty = Math.max(my - 18, TOP_BAR_H + 2);
                     g.fill(tx - 1, ty - 1, tx + tw + 1, ty + 11, 0xBB000000);
-                    g.fill(tx - 1, ty - 1, tx, ty + 11, C_ACCENT);
-                    g.drawString(font, name, tx + 3, ty + 1, C_TEXT, false);
+                    g.fill(tx - 1, ty - 1, tx, ty + 11, C_ACCENT());
+                    g.drawString(font, name, tx + 3, ty + 1, C_TEXT(), false);
                 }
             } catch (Exception ignored) {}
         }
@@ -278,12 +280,12 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
     // ── Top bar ───────────────────────────────────────────────────────────────
 
     private void renderTopBar(GuiGraphics g, int mx, int my) {
-        g.fill(0, 0, this.width, TOP_BAR_H, C_BAR);
-        g.fill(0, TOP_BAR_H - 1, this.width, TOP_BAR_H, C_ACCENT);
+        g.fill(0, 0, this.width, TOP_BAR_H, C_BAR());
+        g.fill(0, TOP_BAR_H - 1, this.width, TOP_BAR_H, C_ACCENT());
 
         // Title centred
         String title = data.name != null && !data.name.isBlank() ? data.name : data.id;
-        g.drawCenteredString(font, title, this.width / 2, (TOP_BAR_H - 8) / 2, C_ACCENT);
+        g.drawCenteredString(font, title, this.width / 2, (TOP_BAR_H - 8) / 2, C_ACCENT());
 
         // Left: Back
         topBtn(g, mx, my, 4, "← Back", this::onClose);
@@ -304,9 +306,9 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
     private void topBtn(GuiGraphics g, int mx, int my, int x, String label, Runnable action) {
         int w = font.width(label) + 10, h = TOP_BAR_H - 6;
         boolean hov = isOver(mx, my, x, 3, w, h);
-        g.fill(x, 3, x + w, 3 + h, hov ? C_BTN_HOV : C_BTN);
-        if (hov) g.fill(x, 3, x + w, 4, C_ACCENT);
-        g.drawString(font, label, x + 5, (TOP_BAR_H - 8) / 2, hov ? C_ACCENT : C_TEXT, false);
+        g.fill(x, 3, x + w, 3 + h, hov ? C_BTN_HOV() : C_BTN());
+        if (hov) g.fill(x, 3, x + w, 4, C_ACCENT());
+        g.drawString(font, label, x + 5, (TOP_BAR_H - 8) / 2, hov ? C_ACCENT() : C_TEXT(), false);
         btns.add(new Btn(x, 3, w, h, action));
     }
 
@@ -314,9 +316,9 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
         int w = font.width(label) + 10, h = TOP_BAR_H - 6;
         int x = rx - w;
         boolean hov = isOver(mx, my, x, 3, w, h);
-        g.fill(x, 3, x + w, 3 + h, hov ? C_BTN_HOV : C_BTN);
-        if (hov) g.fill(x, 3, x + w, 4, C_ACCENT);
-        g.drawString(font, label, x + 5, (TOP_BAR_H - 8) / 2, hov ? C_ACCENT : C_TEXT, false);
+        g.fill(x, 3, x + w, 3 + h, hov ? C_BTN_HOV() : C_BTN());
+        if (hov) g.fill(x, 3, x + w, 4, C_ACCENT());
+        g.drawString(font, label, x + 5, (TOP_BAR_H - 8) / 2, hov ? C_ACCENT() : C_TEXT(), false);
         btns.add(new Btn(x, 3, w, h, action));
         return x - 4;
     }
@@ -328,15 +330,15 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
         int tx = 80, tw = this.width - tx - 70;
         int midY = tlY + TIMELINE_H / 2;
 
-        g.fill(0, tlY, this.width, this.height, C_TL_BG);
+        g.fill(0, tlY, this.width, this.height, C_TL_BG());
         g.fill(0, tlY, this.width, tlY + 1, 0x33FFFFFF);
 
         // ▶/⏸ button
         int pbW = font.width(playing ? "⏸" : "▶") + 10;
         boolean pbHov = isOver(mx, my, 6, tlY + 4, pbW, TIMELINE_H - 8);
-        g.fill(6, tlY + 4, 6 + pbW, tlY + TIMELINE_H - 4, pbHov ? C_BTN_HOV : C_BTN);
+        g.fill(6, tlY + 4, 6 + pbW, tlY + TIMELINE_H - 4, pbHov ? C_BTN_HOV() : C_BTN());
         g.drawString(font, playing ? "⏸" : "▶", 6 + 5, tlY + (TIMELINE_H - 8) / 2 + 2,
-                pbHov ? C_ACCENT : C_TEXT, false);
+                pbHov ? C_ACCENT() : C_TEXT(), false);
         btns.add(new Btn(6, tlY + 4, pbW, TIMELINE_H - 8, () -> {
             if (!playing && playbackTick >= totalTicks()) {
                 playbackTick = 0;
@@ -351,9 +353,9 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
         int spdX = 6 + pbW + 4;
         int spdW = font.width(spdLabel) + 8;
         boolean spdHov = isOver(mx, my, spdX, tlY + 4, spdW, TIMELINE_H - 8);
-        g.fill(spdX, tlY + 4, spdX + spdW, tlY + TIMELINE_H - 4, spdHov ? C_BTN_HOV : C_BTN);
+        g.fill(spdX, tlY + 4, spdX + spdW, tlY + TIMELINE_H - 4, spdHov ? C_BTN_HOV() : C_BTN());
         g.drawString(font, spdLabel, spdX + 4, tlY + (TIMELINE_H - 8) / 2 + 2,
-                spdHov ? C_ACCENT : C_DIM, false);
+                spdHov ? C_ACCENT() : C_DIM(), false);
         btns.add(new Btn(spdX, tlY + 4, spdW, TIMELINE_H - 8,
                 () -> speed = speed == 1f ? 2f : speed == 2f ? 0.5f : 1f));
 
@@ -372,13 +374,13 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
 
         // Progress bar + scrub head
         float prog = total > 0 ? (float) playbackTick / total : 0f;
-        g.fill(tx, midY - 1, tx + (int) (tw * prog), midY + 1, C_PROG);
+        g.fill(tx, midY - 1, tx + (int) (tw * prog), midY + 1, C_PROG());
         int headX = tx + (int) (tw * prog);
-        g.fill(headX - 3, midY - 5, headX + 3, midY + 5, C_ACCENT);
+        g.fill(headX - 3, midY - 5, headX + 3, midY + 5, C_ACCENT());
 
         // Time label
         g.drawString(font, formatTicks(playbackTick), tx + tw + 6, tlY + (TIMELINE_H - 8) / 2 + 2,
-                C_DIM, false);
+                C_DIM(), false);
 
         // Scrub zone button
         btns.add(new Btn(tx, tlY, tw, TIMELINE_H, () -> {})); // handled in mouseClicked

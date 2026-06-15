@@ -1,5 +1,7 @@
 package net.phoenixvine.phantasia.client.screens.subscreen;
 
+import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
+
 import com.gregtechceu.gtceu.api.block.ICoilType;
 import com.gregtechceu.gtceu.api.block.MetaMachineBlock;
 import com.gregtechceu.gtceu.api.machine.multiblock.PartAbility;
@@ -19,6 +21,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.Property;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
+import net.minecraftforge.fml.loading.LoadingModList;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.phoenix.core.integration.phoenix_fission.common.data.block.FissionBlanketBlock;
 import net.phoenix.core.integration.phoenix_fission.common.data.block.FissionCoolerBlock;
@@ -35,13 +38,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
+
 @OnlyIn(Dist.CLIENT)
 public class PhantasiaBlockInspectScreen extends Screen {
-
-    private static final int C_BG = 0xFF020205;
-    private static final int C_ACCENT = 0xFF4FC3F7;
-    private static final int C_TEXT = 0xFFDDDDDD;
-    private static final int C_DIM = 0xFF778899;
 
     private final BlockPos pos;
     private final PhantasiaLoadedPattern pattern;
@@ -100,7 +100,7 @@ public class PhantasiaBlockInspectScreen extends Screen {
             infoLines.add(Component.translatable("spec.phantasia.energy_discount",
                     Component.literal(type.getEnergyDiscount() + "x").withStyle(ChatFormatting.GREEN)).withStyle(ChatFormatting.GRAY));
         }
-        if (net.minecraftforge.fml.loading.LoadingModList.get().getModFileById("phoenixcore") != null) {
+        if (LoadingModList.get().getModFileById("phoenixcore") != null) {
             tryAppendPhoenixData(block, infoLines);
         }
         else if (block instanceof LampBlock) {
@@ -188,14 +188,12 @@ public class PhantasiaBlockInspectScreen extends Screen {
         }
     }
 
-
-
     @Override
     public void render(GuiGraphics g, int mx, int my, float pt) {
-        g.fill(0, 0, this.width, this.height, C_BG);
+        g.fill(0, 0, this.width, this.height, C_BG());
 
-        g.fill(20, 35, this.width - 20, 36, C_ACCENT);
-        g.drawString(font, Component.translatable("screen.phantasia.block_inspector.header"), 25, 22, C_ACCENT, false);
+        g.fill(20, 35, this.width - 20, 36, C_ACCENT());
+        g.drawString(font, Component.translatable("screen.phantasia.block_inspector.header"), 25, 22, C_ACCENT(), false);
 
         int leftCol = 30;
         int leftColWidth = 120;
@@ -221,12 +219,12 @@ public class PhantasiaBlockInspectScreen extends Screen {
 
         String id = ForgeRegistries.BLOCKS.getKey(state.getBlock()).toString();
         for (FormattedCharSequence seq : font.split(Component.literal(id).withStyle(ChatFormatting.ITALIC), leftColWidth)) {
-            g.drawString(font, seq, leftCol, y, C_DIM, false);
+            g.drawString(font, seq, leftCol, y, C_DIM(), false);
             y += 10;
         }
 
         y += 20;
-        g.drawString(font, Component.translatable("screen.phantasia.block_inspector.designation"), leftCol, y, C_ACCENT, false);
+        g.drawString(font, Component.translatable("screen.phantasia.block_inspector.designation"), leftCol, y, C_ACCENT(), false);
         y += 12;
 
         for (FormattedCharSequence seq : font.split(machineRole, leftColWidth)) {
@@ -237,19 +235,19 @@ public class PhantasiaBlockInspectScreen extends Screen {
         y += 20;
         BlockPos lp = pattern.toLocal(pos);
         if (lp != null) {
-            g.drawString(font, Component.translatable("screen.phantasia.block_inspector.local_pos"), leftCol, y, C_ACCENT, false);
+            g.drawString(font, Component.translatable("screen.phantasia.block_inspector.local_pos"), leftCol, y, C_ACCENT(), false);
             y += 12;
-            g.drawString(font, "X: " + lp.getX(), leftCol, y, C_TEXT, false);
-            g.drawString(font, "Y: " + lp.getY(), leftCol + 40, y, C_TEXT, false);
-            g.drawString(font, "Z: " + lp.getZ(), leftCol + 80, y, C_TEXT, false);
+            g.drawString(font, "X: " + lp.getX(), leftCol, y, C_TEXT(), false);
+            g.drawString(font, "Y: " + lp.getY(), leftCol + 40, y, C_TEXT(), false);
+            g.drawString(font, "Z: " + lp.getZ(), leftCol + 80, y, C_TEXT(), false);
         }
 
         y = 55;
-        g.drawString(font, Component.translatable("screen.phantasia.block_inspector.specs_utility"), rightCol, y - 15, C_ACCENT, false);
+        g.drawString(font, Component.translatable("screen.phantasia.block_inspector.specs_utility"), rightCol, y - 15, C_ACCENT(), false);
 
         for (Component line : infoLines) {
             for (FormattedCharSequence sequence : font.split(line, maxRightWidth)) {
-                g.drawString(font, sequence, rightCol, y, C_TEXT, false);
+                g.drawString(font, sequence, rightCol, y, C_TEXT(), false);
                 y += 10;
             }
             y += 2;
@@ -261,12 +259,12 @@ public class PhantasiaBlockInspectScreen extends Screen {
         if (!state.getValues().isEmpty()) {
             g.fill(rightCol, y, rightCol + 120, y + 1, 0x22FFFFFF);
             y += 10;
-            g.drawString(font, Component.translatable("screen.phantasia.block_inspector.properties"), rightCol, y, C_DIM, false);
+            g.drawString(font, Component.translatable("screen.phantasia.block_inspector.properties"), rightCol, y, C_DIM(), false);
             y += 12;
             for (Map.Entry<Property<?>, Comparable<?>> entry : state.getValues().entrySet()) {
                 String combined = entry.getKey().getName() + ": " + entry.getValue();
                 for (FormattedCharSequence seq : font.split(Component.literal(combined), maxRightWidth)) {
-                    g.drawString(font, seq, rightCol, y, C_ACCENT, false);
+                    g.drawString(font, seq, rightCol, y, C_ACCENT(), false);
                     y += 10;
                 }
                 if (y > this.height - 60) break;
@@ -282,22 +280,12 @@ public class PhantasiaBlockInspectScreen extends Screen {
             bxClose = this.width - (bw * 2) - 40;
             int bxEmi = this.width - bw - 30;
 
-            boolean emiHov = mx >= bxEmi && mx < bxEmi + bw && my >= by && my < by + bh;
-            g.fill(bxEmi, by, bxEmi + bw, by + bh, emiHov ? 0xFF2A3A5A : 0xFF151A25);
-            if (emiHov) {
-                g.fill(bxEmi, by, bxEmi + bw, by + 1, C_ACCENT);
-                g.fill(bxEmi, by + bh - 1, bxEmi + bw, by + bh, C_ACCENT);
-            }
-            g.drawCenteredString(font, Component.translatable("screen.phantasia.block_inspector.btn_emi"), bxEmi + bw / 2, by + 6, emiHov ? C_ACCENT : C_TEXT);
+            boolean emiHov = isOver(mx, my, bxEmi, by, bw, bh);
+            drawThemedBtn(g, font, bxEmi, by, bw, bh, Component.translatable("screen.phantasia.block_inspector.btn_emi").getString(), emiHov, C_BTN());
         }
 
-        boolean hov = mx >= bxClose && mx < bxClose + bw && my >= by && my < by + bh;
-        g.fill(bxClose, by, bxClose + bw, by + bh, hov ? 0xFF2A3A5A : 0xFF151A25);
-        if (hov) {
-            g.fill(bxClose, by, bxClose + bw, by + 1, C_ACCENT);
-            g.fill(bxClose, by + bh - 1, bxClose + bw, by + bh, C_ACCENT);
-        }
-        g.drawCenteredString(font, Component.translatable("screen.phantasia.block_inspector.btn_close"), bxClose + bw / 2, by + 6, hov ? C_ACCENT : C_TEXT);
+        boolean hov = isOver(mx, my, bxClose, by, bw, bh);
+        drawThemedBtn(g, font, bxClose, by, bw, bh, Component.translatable("screen.phantasia.block_inspector.btn_close").getString(), hov, C_BTN());
     }
 
     @Override
@@ -311,7 +299,7 @@ public class PhantasiaBlockInspectScreen extends Screen {
             bxClose = this.width - (bw * 2) - 40;
             int bxEmi = this.width - bw - 30;
 
-            if (mx >= bxEmi && mx < bxEmi + bw && my >= by && my < by + bh) {
+            if (isOver((int) mx, (int) my, bxEmi, by, bw, bh)) {
                 var emiStack = dev.emi.emi.api.stack.EmiStack.of(itemStack);
                 var manager = dev.emi.emi.api.EmiApi.getRecipeManager();
 
@@ -328,7 +316,7 @@ public class PhantasiaBlockInspectScreen extends Screen {
             }
         }
 
-        if (mx >= bxClose && mx < bxClose + bw && my >= by && my < by + bh) {
+        if (isOver((int) mx, (int) my, bxClose, by, bw, bh)) {
             onClose();
             return true;
         }
@@ -343,5 +331,11 @@ public class PhantasiaBlockInspectScreen extends Screen {
     @Override
     public boolean isPauseScreen() {
         return false;
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    private boolean isOver(int mx, int my, int x, int y, int w, int h) {
+        return mx >= x && mx < x + w && my >= y && my < y + h;
     }
 }

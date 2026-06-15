@@ -1,5 +1,7 @@
 package net.phoenixvine.phantasia.client.screens;
 
+import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
@@ -187,9 +189,9 @@ public class PhantasiaGuideScreen extends PhantasiaScreen {
     }
 
     private void renderTopBar(GuiGraphics g, int mx, int my) {
-        g.fill(0, 0, width, TOP_BAR_H, C_BAR);
-        g.fill(0, TOP_BAR_H - 1, width, TOP_BAR_H, C_ACCENT);
-        g.drawCenteredString(font, guideTitle, width / 2, (TOP_BAR_H - 8) / 2, C_ACCENT);
+        g.fill(0, 0, width, TOP_BAR_H, C_BAR());
+        g.fill(0, TOP_BAR_H - 1, width, TOP_BAR_H, C_ACCENT());
+        g.drawCenteredString(font, guideTitle, width / 2, (TOP_BAR_H - 8) / 2, C_ACCENT());
 
         topBtnLeft(g, mx, my, 4, "← Back", this::onClose);
 
@@ -221,7 +223,7 @@ public class PhantasiaGuideScreen extends PhantasiaScreen {
 
         // Headline
         if (page.headline() != null && !page.headline().isBlank()) {
-            g.fill(colX, y, colX + colW, y + 1, C_ACCENT);
+            g.fill(colX, y, colX + colW, y + 1, C_ACCENT());
             y += 7;
 
             float scale = 1.5f;
@@ -247,7 +249,7 @@ public class PhantasiaGuideScreen extends PhantasiaScreen {
             g.drawString(font,
                     (source instanceof PhantasiaGuideData ? "Page " : "Step ") + (pageIndex + 1) + " of " +
                             pages.size(),
-                    colX, y, C_DIM, false);
+                    colX, y, C_DIM(), false);
             y += font.lineHeight + 5;
         }
         y += 4;
@@ -260,7 +262,7 @@ public class PhantasiaGuideScreen extends PhantasiaScreen {
                 } else {
                     String formattedPara = para.replace('&', '§');
                     for (var line : font.split(Component.literal(formattedPara), colW)) {
-                        g.drawString(font, line, colX, y, C_TEXT, false);
+                        g.drawString(font, line, colX, y, C_TEXT(), false);
                         y += font.lineHeight + 2;
                     }
                 }
@@ -272,7 +274,7 @@ public class PhantasiaGuideScreen extends PhantasiaScreen {
         if (!page.cards().isEmpty()) {
             g.fill(colX, y, colX + colW, y + 1, C_RULE);
             y += 6;
-            g.drawString(font, Component.translatable("screen.phantasia.guide.label_items").getString(), colX, y, C_DIM, false);
+            g.drawString(font, Component.translatable("screen.phantasia.guide.label_items").getString(), colX, y, C_DIM(), false);
             y += font.lineHeight + 6;
 
             int perRow = Math.max(1, (colW + CARD_GAP) / (CARD_W + CARD_GAP));
@@ -392,7 +394,7 @@ public class PhantasiaGuideScreen extends PhantasiaScreen {
         String label = it.displayLabel();
         if (font.width(label) > CARD_W - 6)
             label = font.plainSubstrByWidth(label, CARD_W - 6 - font.width("…")) + "…";
-        g.drawCenteredString(font, label, cx + CARD_W / 2, cy + CARD_H - 26, hov ? 0xFFFFFFFF : C_TEXT);
+        g.drawCenteredString(font, label, cx + CARD_W / 2, cy + CARD_H - 26, hov ? 0xFFFFFFFF : C_TEXT());
 
         String pillTxt = switch (it.type == null ? "input" : it.type.toLowerCase(Locale.ROOT)) {
             case "output" -> "Out ▲";
@@ -407,7 +409,7 @@ public class PhantasiaGuideScreen extends PhantasiaScreen {
         g.drawString(font, pillTxt, pillX + 4, pillY + 2, 0xFFFFFFFF, false);
 
         if (it.microsceneId != null && !it.microsceneId.isBlank())
-            g.drawString(font, "▶", cx + CARD_W - 9, cy + 3, hov ? C_ACCENT : 0x554FC3F7, false);
+            g.drawString(font, "▶", cx + CARD_W - 9, cy + 3, hov ? C_ACCENT() : 0x554FC3F7, false);
     }
 
     private int renderMistakeBanner(GuiGraphics g, PhantasiaSceneData.SceneMistakeData m, int x, int y, int colW) {
@@ -434,9 +436,9 @@ public class PhantasiaGuideScreen extends PhantasiaScreen {
         int bw = font.width(label) + 16;
         int bh = 14;
         boolean hov = isOver(mx, my, colX, y, bw, bh);
-        g.fill(colX, y, colX + bw, y + bh, hov ? C_BTN_HOV : C_BTN);
-        if (hov) g.fill(colX, y, colX + bw, y + 1, C_ACCENT);
-        g.drawString(font, label, colX + 8, y + 3, hov ? C_ACCENT : C_TEXT, false);
+        g.fill(colX, y, colX + bw, y + bh, hov ? C_BTN_HOV() : C_BTN());
+        if (hov) g.fill(colX, y, colX + bw, y + 1, C_ACCENT());
+        g.drawString(font, label, colX + 8, y + 3, hov ? C_ACCENT() : C_TEXT(), false);
         btns.add(new Btn(colX, y + scrollY, bw, bh, action));
         return y + bh;
     }
@@ -452,7 +454,7 @@ public class PhantasiaGuideScreen extends PhantasiaScreen {
         navBtn(g, mx, my, midX - font.width("◀  Prev") - 14 - 26, bY,
                 font.width("◀  Prev") + 14, bH, "◀  Prev", pageIndex > 0, () -> navigate(-1));
 
-        g.drawCenteredString(font, (pageIndex + 1) + " / " + pages.size(), midX, bY + (bH - 8) / 2, C_DIM);
+        g.drawCenteredString(font, (pageIndex + 1) + " / " + pages.size(), midX, bY + (bH - 8) / 2, C_DIM());
 
         navBtn(g, mx, my, midX + 26, bY,
                 font.width("Next  ▶") + 14, bH, "Next  ▶", pageIndex < pages.size() - 1, () -> navigate(+1));
@@ -461,9 +463,9 @@ public class PhantasiaGuideScreen extends PhantasiaScreen {
     private void navBtn(GuiGraphics g, int mx, int my, int x, int y, int w, int h, String label, boolean enabled,
                         Runnable action) {
         boolean hov = enabled && isOver(mx, my, x, y, w, h);
-        g.fill(x, y, x + w, y + h, hov ? C_BTN_HOV : (enabled ? C_BTN : 0x33111128));
-        if (hov) g.fill(x, y, x + w, y + 1, C_ACCENT);
-        g.drawCenteredString(font, label, x + w / 2, y + (h - 8) / 2, hov ? C_ACCENT : (enabled ? C_TEXT : C_DIM));
+        g.fill(x, y, x + w, y + h, hov ? C_BTN_HOV() : (enabled ? C_BTN() : 0x33111128));
+        if (hov) g.fill(x, y, x + w, y + 1, C_ACCENT());
+        g.drawCenteredString(font, label, x + w / 2, y + (h - 8) / 2, hov ? C_ACCENT() : (enabled ? C_TEXT() : C_DIM()));
         if (enabled) btns.add(new Btn(x, y, w, h, action));
     }
 
@@ -657,9 +659,9 @@ public class PhantasiaGuideScreen extends PhantasiaScreen {
         int by = (TOP_BAR_H - bh) / 2;
         boolean hov = isOver(mx, my, x, by, bw, bh);
 
-        g.fill(x, by, x + bw, by + bh, hov ? C_BTN_HOV : C_BTN);
-        if (hov) g.fill(x, by, x + bw, by + 1, C_ACCENT);
-        g.drawString(font, label, x + 6, by + (bh - 8) / 2, hov ? C_ACCENT : C_TEXT, false);
+        g.fill(x, by, x + bw, by + bh, hov ? C_BTN_HOV() : C_BTN());
+        if (hov) g.fill(x, by, x + bw, by + 1, C_ACCENT());
+        g.drawString(font, label, x + 6, by + (bh - 8) / 2, hov ? C_ACCENT() : C_TEXT(), false);
 
         btns.add(new Btn(x, by, bw, bh, action));
     }
@@ -671,9 +673,9 @@ public class PhantasiaGuideScreen extends PhantasiaScreen {
         int by = (TOP_BAR_H - bh) / 2;
         boolean hov = isOver(mx, my, bx, by, bw, bh);
 
-        g.fill(bx, by, bx + bw, by + bh, hov ? C_BTN_HOV : C_BTN);
-        if (hov) g.fill(bx, by, bx + bw, by + 1, C_ACCENT);
-        g.drawString(font, label, bx + 6, by + (bh - 8) / 2, hov ? C_ACCENT : C_TEXT, false);
+        g.fill(bx, by, bx + bw, by + bh, hov ? C_BTN_HOV() : C_BTN());
+        if (hov) g.fill(bx, by, bx + bw, by + 1, C_ACCENT());
+        g.drawString(font, label, bx + 6, by + (bh - 8) / 2, hov ? C_ACCENT() : C_TEXT(), false);
 
         btns.add(new Btn(bx, by, bw, bh, action));
     }

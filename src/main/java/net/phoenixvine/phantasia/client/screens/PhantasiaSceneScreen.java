@@ -1,5 +1,7 @@
 package net.phoenixvine.phantasia.client.screens;
 
+import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
+
 import com.gregtechceu.gtceu.api.block.MetaMachineBlock;
 import com.gregtechceu.gtceu.api.blockentity.MetaMachineBlockEntity;
 import com.gregtechceu.gtceu.api.machine.MultiblockMachineDefinition;
@@ -1467,7 +1469,7 @@ public class PhantasiaSceneScreen extends Screen {
         int stripY = this.height - TIMELINE_H - CAPTION_STRIP_H;
 
         g.fill(0, stripY, sw, stripY + CAPTION_STRIP_H, 0xDD08080F);
-        g.fill(0, stripY, sw, stripY + 1, 0xFF4FC3F7);
+        g.fill(0, stripY, sw, stripY + 1, C_ACCENT());
 
         if (captionOutgoing != null && captionOutAlpha > 0.05f) {
             int col = ((int) (captionOutAlpha * 160) << 24) | 0xBBBBBB;

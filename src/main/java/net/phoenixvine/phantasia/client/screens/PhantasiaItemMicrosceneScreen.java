@@ -1,5 +1,7 @@
 package net.phoenixvine.phantasia.client.screens;
 
+import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
@@ -183,7 +185,7 @@ public class PhantasiaItemMicrosceneScreen extends PhantasiaScreen {
         btns.clear();
 
         // Dim entire background
-        g.fill(0, 0, width, height, C_BG);
+        g.fill(0, 0, width, height, C_BG());
 
         // Card dimensions
         int cardW = Math.min(700, width - 40);
@@ -193,10 +195,10 @@ public class PhantasiaItemMicrosceneScreen extends PhantasiaScreen {
 
         // Card background + border
         g.fill(cardX, cardY, cardX + cardW, cardY + cardH, C_CARD);
-        g.fill(cardX, cardY, cardX + cardW, cardY + 1, C_ACCENT);
-        g.fill(cardX, cardY + cardH - 1, cardX + cardW, cardY + cardH, C_ACCENT & 0x55FFFFFF | 0x55000000);
-        g.fill(cardX, cardY, cardX + 1, cardY + cardH, C_ACCENT & 0x44FFFFFF | 0x44000000);
-        g.fill(cardX + cardW - 1, cardY, cardX + cardW, cardY + cardH, C_ACCENT & 0x44FFFFFF | 0x44000000);
+        g.fill(cardX, cardY, cardX + cardW, cardY + 1, C_ACCENT());
+        g.fill(cardX, cardY + cardH - 1, cardX + cardW, cardY + cardH, C_ACCENT() & 0x55FFFFFF | 0x55000000);
+        g.fill(cardX, cardY, cardX + 1, cardY + cardH, C_ACCENT() & 0x44FFFFFF | 0x44000000);
+        g.fill(cardX + cardW - 1, cardY, cardX + cardW, cardY + cardH, C_ACCENT() & 0x44FFFFFF | 0x44000000);
 
         // Layout: if microscene present split 50/50, else full width for item info
         boolean has3d = sceneRenderer != null && sceneCamera != null;
@@ -222,7 +224,7 @@ public class PhantasiaItemMicrosceneScreen extends PhantasiaScreen {
                 var lines = font.split(Component.literal(step.caption), sw - 16);
                 int ly = capY + (22 - lines.size() * 9) / 2;
                 for (var line : lines) {
-                    g.drawCenteredString(font, line, sx + sw / 2, ly, C_TEXT);
+                    g.drawCenteredString(font, line, sx + sw / 2, ly, C_TEXT());
                     ly += 9;
                 }
             }
@@ -256,7 +258,7 @@ public class PhantasiaItemMicrosceneScreen extends PhantasiaScreen {
         // Item registry ID under the icon
         String shortId = item.item != null && item.item.contains(":") ? item.item.split(":")[1].replace('_', ' ') :
                 (item.item != null ? item.item : "?");
-        g.drawString(font, shortId, ix, iy + ICON_SIZE + 3, C_DIM, false);
+        g.drawString(font, shortId, ix, iy + ICON_SIZE + 3, C_DIM(), false);
 
         // ── Header block — to the right of the icon ───────────────────────────
         int tx = ix + ICON_SIZE + 12;
@@ -283,7 +285,7 @@ public class PhantasiaItemMicrosceneScreen extends PhantasiaScreen {
         // Track info if animated
         if (item.track != null && !"none".equals(item.track)) {
             String trackDesc = "Animated: " + item.track + " (" + item.trackDurationTicks + " ticks/cycle)";
-            g.drawString(font, trackDesc, tx, ty, C_DIM, false);
+            g.drawString(font, trackDesc, tx, ty, C_DIM(), false);
             ty += 10;
         }
 
@@ -298,21 +300,21 @@ public class PhantasiaItemMicrosceneScreen extends PhantasiaScreen {
             int fy = descStartY;
             for (var line : lines) {
                 if (fy + 9 > bottomLimit) break;
-                g.drawString(font, line, ix, fy, C_TEXT, false);
+                g.drawString(font, line, ix, fy, C_TEXT(), false);
                 fy += 10;
             }
         } else {
             g.fill(ix, descStartY - 4, ix + iw, descStartY - 3, 0x22FFFFFF);
-            g.drawString(font, Component.translatable("screen.phantasia.item_microscene.no_description").getString(), ix, descStartY, C_DIM, false);
+            g.drawString(font, Component.translatable("screen.phantasia.item_microscene.no_description").getString(), ix, descStartY, C_DIM(), false);
         }
 
         // ── Close button ──────────────────────────────────────────────────────
         int closeX = cardX + cardW - 52;
         int closeY = cardY + cardH - 20;
         boolean closeHov = isOver(mx, my, closeX, closeY, 44, 14);
-        g.fill(closeX, closeY, closeX + 44, closeY + 14, closeHov ? C_BTN_HOV : C_BTN);
-        if (closeHov) g.fill(closeX, closeY, closeX + 44, closeY + 1, C_ACCENT);
-        g.drawCenteredString(font, "\u2190 Back", closeX + 22, closeY + 3, closeHov ? C_ACCENT : C_TEXT);
+        g.fill(closeX, closeY, closeX + 44, closeY + 14, closeHov ? C_BTN_HOV() : C_BTN());
+        if (closeHov) g.fill(closeX, closeY, closeX + 44, closeY + 1, C_ACCENT());
+        g.drawCenteredString(font, "\u2190 Back", closeX + 22, closeY + 3, closeHov ? C_ACCENT() : C_TEXT());
         btns.add(new Btn(closeX, closeY, 44, 14, this::goBack));
 
         // Click anywhere outside card to close
