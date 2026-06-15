@@ -105,7 +105,7 @@
     "x": 2,
     "y": 0,
     "z": 2,
-    "block": "gtceu:auto_maintenance_hatch",
+    "block": "gtceu:cleaning_maintenance_hatch",
     "props": {
       "facing": "south"
     }

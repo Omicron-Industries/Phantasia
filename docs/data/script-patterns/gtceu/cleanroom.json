@@ -231,19 +231,19 @@
     "x": 1,
     "y": 4,
     "z": 1,
-    "block": "gtceu:filter_casing"
+    "block": "gtceu:sterilizing_filter_casing"
   },
   {
     "x": 1,
     "y": 4,
     "z": 2,
-    "block": "gtceu:filter_casing"
+    "block": "gtceu:sterilizing_filter_casing"
   },
   {
     "x": 1,
     "y": 4,
     "z": 3,
-    "block": "gtceu:filter_casing"
+    "block": "gtceu:sterilizing_filter_casing"
   },
   {
     "x": 1,
@@ -347,7 +347,7 @@
     "x": 2,
     "y": 4,
     "z": 1,
-    "block": "gtceu:filter_casing"
+    "block": "gtceu:sterilizing_filter_casing"
   },
   {
     "x": 2,
@@ -359,7 +359,7 @@
     "x": 2,
     "y": 4,
     "z": 3,
-    "block": "gtceu:filter_casing"
+    "block": "gtceu:sterilizing_filter_casing"
   },
   {
     "x": 2,
@@ -449,19 +449,19 @@
     "x": 3,
     "y": 4,
     "z": 1,
-    "block": "gtceu:filter_casing"
+    "block": "gtceu:sterilizing_filter_casing"
   },
   {
     "x": 3,
     "y": 4,
     "z": 2,
-    "block": "gtceu:filter_casing"
+    "block": "gtceu:sterilizing_filter_casing"
   },
   {
     "x": 3,
     "y": 4,
     "z": 3,
-    "block": "gtceu:filter_casing"
+    "block": "gtceu:sterilizing_filter_casing"
   },
   {
     "x": 3,
