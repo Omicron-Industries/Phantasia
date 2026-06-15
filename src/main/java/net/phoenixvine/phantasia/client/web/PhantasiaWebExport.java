@@ -7,10 +7,13 @@ import com.gregtechceu.gtceu.api.machine.MultiblockMachineDefinition;
 import com.gregtechceu.gtceu.api.pattern.MultiblockShapeInfo;
 import com.lowdragmc.lowdraglib.utils.BlockInfo;
 
+import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.Property;
+import net.minecraftforge.client.model.data.ModelData;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.phoenixvine.phantasia.client.render.PhantasiaTrackedDummyWorld;
 import net.phoenixvine.phantasia.common.data.guides.PhantasiaGuideData;
@@ -24,8 +27,10 @@ import net.phoenixvine.phantasia.common.data.script.PhantasiaScripts;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public class PhantasiaWebExport {
 
@@ -35,6 +40,7 @@ public class PhantasiaWebExport {
         StringBuilder errors = new StringBuilder();
 
         var gson = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().serializeNulls().create();
+        Set<String> seenBlockIds = new HashSet<>();
 
         // ── Scenes ─────────────────────────────────────────────────────────────
         try {
@@ -56,7 +62,7 @@ public class PhantasiaWebExport {
                     PhantasiaScenePattern pattern = PhantasiaScenePattern.build(scene, tempWorld);
 
                     if (pattern != null) {
-                        JsonArray blocks = serializeBlockMap(pattern);
+                        JsonArray blocks = serializeBlockMap(pattern, seenBlockIds);
                         blockCount += blocks.size();
                         Path patternFile = patternsDir.resolve(safeId + ".json");
                         Files.createDirectories(patternFile.getParent());
@@ -115,7 +121,7 @@ public class PhantasiaWebExport {
                     boolean hasPattern = false;
                     if (shapes != null && !shapes.isEmpty()) {
                         BlockInfo[][][] raw = shapes.get(0).getBlocks();
-                        JsonArray patternBlocks = serializeRawPattern(raw);
+                        JsonArray patternBlocks = serializeRawPattern(raw, seenBlockIds);
                         blockCount += patternBlocks.size();
                         Path patFile = scriptPatsDir.resolve(safeId + ".json");
                         Files.createDirectories(patFile.getParent());
@@ -176,12 +182,70 @@ public class PhantasiaWebExport {
             errors.append("Fatal IO error (guides): ").append(e.getMessage()).append("\n");
         }
 
+        // ── Synthetic blockstates for material-set blocks not in JAR ──────────────
+        try {
+            exportSyntheticBlockstates(seenBlockIds, docsDir, gson, errors);
+        } catch (Exception e) {
+            errors.append("Synthetic blockstate export failed: ").append(e.getMessage()).append("\n");
+        }
+
         return new ExportResult(sceneCount, scriptCount, guideCount, blockCount, errors.toString());
+    }
+
+    // ── Synthetic blockstates for blocks missing from extracted JAR assets ────────
+
+    private static void exportSyntheticBlockstates(Set<String> blockIds, Path docsDir,
+                                                    com.google.gson.Gson gson, StringBuilder errors) throws IOException {
+        Path assetsBase = docsDir.resolve("assets/mc/assets");
+        Minecraft mc = Minecraft.getInstance();
+
+        for (String blockId : blockIds) {
+            try {
+                ResourceLocation rl = new ResourceLocation(blockId);
+                String ns = rl.getNamespace();
+                String id = rl.getPath();
+
+                // Skip if blockstate already exists
+                Path bsPath = assetsBase.resolve(ns).resolve("blockstates").resolve(id + ".json");
+                if (Files.exists(bsPath)) continue;
+
+                Block block = ForgeRegistries.BLOCKS.getValue(rl);
+                if (block == null) continue;
+
+                BlockState defaultState = block.defaultBlockState();
+                var bakedModel = mc.getBlockRenderer().getBlockModel(defaultState);
+                var particle = bakedModel.getParticleIcon(ModelData.EMPTY);
+                ResourceLocation texName = particle.contents().name();
+
+                // Write synthetic blockstate
+                JsonObject bsJson = new JsonObject();
+                JsonObject variants = new JsonObject();
+                JsonObject variant = new JsonObject();
+                variant.addProperty("model", ns + ":block/_synth/" + id);
+                variants.add("", variant);
+                bsJson.add("variants", variants);
+                Files.createDirectories(bsPath.getParent());
+                Files.writeString(bsPath, gson.toJson(bsJson));
+
+                // Write synthetic cube_all model pointing to particle texture
+                Path modelPath = assetsBase.resolve(ns).resolve("models/block/_synth").resolve(id + ".json");
+                JsonObject modelJson = new JsonObject();
+                modelJson.addProperty("parent", "minecraft:block/cube_all");
+                JsonObject textures = new JsonObject();
+                textures.addProperty("all", texName.toString());
+                modelJson.add("textures", textures);
+                Files.createDirectories(modelPath.getParent());
+                Files.writeString(modelPath, gson.toJson(modelJson));
+
+            } catch (Exception e) {
+                errors.append("Synth blockstate ").append(blockId).append(": ").append(e.getMessage()).append("\n");
+            }
+        }
     }
 
     // ── Scene block map (with placement tags) ──────────────────────────────────
 
-    private static JsonArray serializeBlockMap(PhantasiaScenePattern pattern) {
+    private static JsonArray serializeBlockMap(PhantasiaScenePattern pattern, Set<String> seenBlockIds) {
         JsonArray blocks = new JsonArray();
 
         for (Map.Entry<BlockPos, BlockInfo> e : pattern.mergedBlockMap.entrySet()) {
@@ -196,7 +260,9 @@ public class PhantasiaWebExport {
             block.addProperty("z", pos.getZ());
 
             var rl = ForgeRegistries.BLOCKS.getKey(state.getBlock());
-            block.addProperty("block", rl != null ? rl.toString() : "minecraft:stone");
+            String blockStr = rl != null ? rl.toString() : "minecraft:stone";
+            block.addProperty("block", blockStr);
+            seenBlockIds.add(blockStr);
 
             JsonObject props = new JsonObject();
             for (Property<?> prop : state.getProperties()) {
@@ -228,7 +294,7 @@ public class PhantasiaWebExport {
 
     // ── Raw BlockInfo[][][] → flat block list (for scripts) ───────────────────
 
-    private static JsonArray serializeRawPattern(BlockInfo[][][] raw) {
+    private static JsonArray serializeRawPattern(BlockInfo[][][] raw, Set<String> seenBlockIds) {
         JsonArray blocks = new JsonArray();
         for (int x = 0; x < raw.length; x++) {
             if (raw[x] == null) continue;
@@ -246,7 +312,9 @@ public class PhantasiaWebExport {
                     block.addProperty("z", z);
 
                     var rl = ForgeRegistries.BLOCKS.getKey(state.getBlock());
-                    block.addProperty("block", rl != null ? rl.toString() : "minecraft:stone");
+                    String blockStr = rl != null ? rl.toString() : "minecraft:stone";
+                    block.addProperty("block", blockStr);
+                    seenBlockIds.add(blockStr);
 
                     JsonObject props = new JsonObject();
                     for (Property<?> prop : state.getProperties()) {

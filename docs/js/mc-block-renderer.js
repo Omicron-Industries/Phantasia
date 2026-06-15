@@ -244,12 +244,17 @@ export class McBlockRenderer {
     const url = `${this.assets.base}/assets/${ns}/textures/${p}.png`;
 
     try {
+      // Use fetch + blob URL to avoid crossOrigin canvas-taint issues
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`CTM 404: ${url}`);
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+
       const img = await new Promise((resolve, reject) => {
         const i = new Image();
-        i.crossOrigin = 'anonymous';
-        i.onload = () => resolve(i);
-        i.onerror = () => reject(new Error(`CTM load failed: ${url}`));
-        i.src = url;
+        i.onload  = () => { URL.revokeObjectURL(blobUrl); resolve(i); };
+        i.onerror = () => { URL.revokeObjectURL(blobUrl); reject(new Error(`CTM img failed: ${url}`)); };
+        i.src = blobUrl;
       });
 
       const tw = img.width  / 2;
@@ -264,16 +269,18 @@ export class McBlockRenderer {
           ctx.drawImage(img, col * tw, row * th, tw, th, 0, 0, tw, th);
 
           const tex = new this.THREE.CanvasTexture(canvas);
-          tex.magFilter     = 0x2630; // NearestFilter
-          tex.minFilter     = 0x2630;
+          tex.magFilter      = this.THREE.NearestFilter;
+          tex.minFilter      = this.THREE.NearestFilter;
           tex.generateMipmaps = false;
-          tex.colorSpace    = 'srgb';
+          tex.colorSpace     = this.THREE.SRGBColorSpace;
+          tex.needsUpdate    = true;
 
           this._ctmTileCache.set(`${ctmPath}:${col}:${row}`, tex);
         }
       }
     } catch (e) {
-      // On failure, cache null for all 4 tiles so we don't retry
+      console.warn('[CTM] Failed to load', ctmPath, e.message);
+      // Cache null so we don't retry
       for (let r = 0; r < 2; r++)
         for (let c = 0; c < 2; c++)
           this._ctmTileCache.set(`${ctmPath}:${c}:${r}`, null);
@@ -326,11 +333,12 @@ export class McBlockRenderer {
       map: tex,
       transparent: true,
       alphaTest: 0.05,
+      depthWrite: !isOverlay,
     });
     if (isOverlay) {
       mat.polygonOffset      = true;
-      mat.polygonOffsetFactor = -2;
-      mat.polygonOffsetUnits  = -4;
+      mat.polygonOffsetFactor = -4;
+      mat.polygonOffsetUnits  = -8;
     }
     this._matCache.set(cacheKey, mat);
     return mat;

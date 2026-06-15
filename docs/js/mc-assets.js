@@ -34,7 +34,22 @@ export class MinecraftAssets {
   }
 
   async blockstate(namespace, block) {
-    return this.fetchJson(`${this.base}/assets/${namespace}/blockstates/${block}.json`);
+    const data = await this.fetchJson(`${this.base}/assets/${namespace}/blockstates/${block}.json`);
+    if (data) return data;
+
+    // Synthetic fallback: check if a block model exists at the conventional path
+    const modelData = await this.model(namespace, `block/${block}`);
+    if (modelData) {
+      return { variants: { '': { model: `${namespace}:block/${block}` } } };
+    }
+
+    // Also check exported synthetic fallback model (written by PhantasiaWebExport)
+    const synthData = await this.model(namespace, `block/_synth/${block}`);
+    if (synthData) {
+      return { variants: { '': { model: `${namespace}:block/_synth/${block}` } } };
+    }
+
+    return null;
   }
 
   async model(namespace, path) {
@@ -90,14 +105,46 @@ export class MinecraftAssets {
     if (!rawData) return { textures: {}, elements: null, customLoader: null };
 
     // ── GTCEu machine loader ───────────────────────────────────────────────
-    // The top-level model has "loader":"gtceu:machine" and embeds inner variant
-    // models.  We pick the idle/default variant and resolve its inline model.
     if (rawData.loader === 'gtceu:machine') {
       return this._resolveGtceuMachine(namespace, rawData);
     }
 
+    // ── Forge composite loader ─────────────────────────────────────────────
+    // children map: pick "base" or first child, resolve its inline model chain
+    if (rawData.loader === 'forge:composite' && rawData.children) {
+      return this._resolveForgeComposite(namespace, rawData);
+    }
+
     // ── Standard Minecraft model chain ────────────────────────────────────
     return this._resolveStandardChain(namespace, modelPath, rawData);
+  }
+
+  // ── Forge composite loader ─────────────────────────────────────────────────
+
+  async _resolveForgeComposite(namespace, compositeData) {
+    const children = compositeData.children || {};
+    // Prefer "base" child, then first child
+    const childKey  = Object.prototype.hasOwnProperty.call(children, 'base') ? 'base' : Object.keys(children)[0];
+    const child     = children[childKey];
+    if (!child) {
+      // Fall back to particle texture cube
+      const textures = this._resolveTextureVars({ ...(compositeData.textures || {}) });
+      return { textures, elements: null, customLoader: null };
+    }
+
+    // child may have its own parent + textures (inline model)
+    const topTextures  = { ...(compositeData.textures || {}), ...(child.textures || {}) };
+    const parentPath   = child.parent;
+    if (!parentPath) {
+      return { textures: this._resolveTextureVars(topTextures), elements: null, customLoader: null };
+    }
+
+    const parentResult = await this._resolveStandardChain(namespace, parentPath, null);
+    return {
+      textures:     this._resolveTextureVars({ ...parentResult.textures, ...topTextures }),
+      elements:     parentResult.elements,
+      customLoader: null,
+    };
   }
 
   // ── GTCEu machine loader ───────────────────────────────────────────────────
