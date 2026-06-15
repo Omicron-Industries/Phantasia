@@ -976,10 +976,7 @@ public final class PhantasiaWorldRenderer {
             bucket(brd, random, snapshot, solidBuckets, fluidBuckets);
 
             // Bake ALL layers to CPU buffers first (no render-thread sync needed),
-            // then enqueue all GPU uploads in one batch. The old per-layer semaphore
-            // forced the bake thread to wait a full frame per layer for the render
-            // thread to drain recordRenderCall -- adding LAYER_COUNT * ~16ms = ~300ms
-            // of pure waiting to every bake.
+            // then enqueue all GPU uploads in one batch.
             Set<BlockPos> animatedBack = new HashSet<>();
             BakedLayer[] baked = new BakedLayer[LAYER_COUNT];
             try {
@@ -996,11 +993,8 @@ public final class PhantasiaWorldRenderer {
                 restoreVariants(hiddenSaved);
                 restoreVariants(variantSaved);
             }
-            // Only upload non-empty layers; set counter to actual upload count.
-            // All LAYER_COUNT slots must be uploaded to clear any stale geometry
-            // from previous bakes. Empty layers get an empty buffer rather than
-            // being skipped entirely -- skipping leaves stale VBO content that
-            // gets swapped into front[] and renders phantom blocks.
+            // Only upload non-empty layers
+
             pendingUploads.set(LAYER_COUNT);
             for (int i = 0; i < LAYER_COUNT; i++) {
                 final int fi = i;

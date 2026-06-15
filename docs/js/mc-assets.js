@@ -46,12 +46,18 @@ export class MinecraftAssets {
     if (this._texCache.has(url)) return this._texCache.get(url);
 
     if (!this._loader) throw new Error('TextureLoader not set');
-    const tex = this._loader.load(url, undefined, undefined, () => {
-      // on error: leave as missing (magenta fallback handled by material)
+    const tex = this._loader.load(url, loaded => {
+      // NearestFilter = pixel-perfect like MC
+      loaded.magFilter = 0x2630;
+      loaded.minFilter = 0x2630;
+      loaded.generateMipmaps = false;
+      loaded.colorSpace = 'srgb';
+      loaded.needsUpdate = true;
     });
-    tex.magFilter = 0x2630; // NearestFilter
+    // Set before load completes too (avoids one-frame blur)
+    tex.magFilter = 0x2630;
     tex.minFilter = 0x2630;
-    tex.colorSpace = 'srgb';
+    tex.generateMipmaps = false;
     this._texCache.set(url, tex);
     return tex;
   }
@@ -77,14 +83,20 @@ export class MinecraftAssets {
       if (!data) break;
 
       chain.unshift({ ns, data }); // prepend so parent is first
+
+      // Stop if this model uses a custom Forge/NeoForge model loader —
+      // we cannot render those natively, but we do read their texture defs.
+      if (data.loader) break;
+
       current = data.parent || null;
     }
 
     // Merge from parent → child
-    const result = { textures: {}, elements: null };
+    const result = { textures: {}, elements: null, customLoader: null };
     for (const { data } of chain) {
       if (data.textures) Object.assign(result.textures, data.textures);
       if (data.elements) result.elements = data.elements; // child wins
+      if (data.loader)   result.customLoader = data.loader;
     }
 
     // Resolve texture variable references (#key → actual path)

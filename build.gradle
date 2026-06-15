@@ -206,7 +206,7 @@ tasks.withType(JavaCompile).configureEach {
 // ─────────────────────────────────────────────────────────────────────────────
 tasks.register('extractWebTextures') {
     group = 'phantasia web'
-    description = 'Extracts block textures/models/blockstates from mod jars to docs/assets/mc/'
+    description = 'Extracts block textures/models/blockstates from ALL mod jars to docs/assets/mc/'
 
     dependsOn configurations.runtimeClasspath
 
@@ -214,38 +214,50 @@ tasks.register('extractWebTextures') {
         def outputDir = file("docs/assets/mc")
         outputDir.mkdirs()
 
-        def namespaces = ['gtceu', 'ldlib', 'minecraft', 'forge']
-
-        def includes = namespaces.collectMany { ns -> [
-            "assets/${ns}/blockstates/**",
-            "assets/${ns}/models/block/**",
-            "assets/${ns}/models/item/**",
-            "assets/${ns}/textures/block/**",
-            "assets/${ns}/textures/item/**",
-            "assets/${ns}/textures/gui/darkened/**",
-        ]}
+        // Match assets from ANY namespace — the MC client jar arrives under an
+        // internal NeoGradle name (not 'net.minecraft'), so we can't filter by
+        // group.  We filter by content pattern instead, which is just as safe.
+        def includes = [
+            'assets/*/blockstates/**',
+            'assets/*/models/block/**',
+            'assets/*/models/item/**',
+            'assets/*/textures/block/**',
+            'assets/*/textures/item/**',
+            'assets/*/textures/gui/darkened/**',
+        ]
 
         int jarCount = 0
-        configurations.runtimeClasspath.resolvedConfiguration.resolvedArtifacts.each { artifact ->
-            def file = artifact.file
-            if (!file.name.endsWith('.jar')) return
 
-            try {
-                def tree = zipTree(file)
-                def matchedFiles = tree.matching { include includes }
-                if (!matchedFiles.empty) {
-                    copy {
-                        from matchedFiles
-                        into outputDir
-                    }
-                    jarCount++
-                    logger.lifecycle("[extractWebTextures] Extracted assets from: ${file.name}")
+        // Collect every .jar on the runtime classpath (mods + MC + Forge)
+        def allJars = configurations.runtimeClasspath.resolvedConfiguration
+            .resolvedArtifacts.collect { it.file }.findAll { it.name.endsWith('.jar') }
+
+        // Also walk the local Gradle cache for the minecraft client jar that
+        // NeoGradle downloads but may not expose as a resolvable artifact.
+        def gradleHome = gradle.gradleUserHomeDir.absolutePath
+        def mcCacheDir = new File("${gradleHome}/caches/")
+        if (mcCacheDir.exists()) {
+            mcCacheDir.eachFileRecurse { f ->
+                if (f.name.endsWith('.jar') && (f.name.contains('minecraft') || f.name.contains('client'))
+                        && !f.name.contains('sources') && !f.name.contains('javadoc')) {
+                    allJars << f
                 }
-            } catch (Exception e) {
-                logger.warn("[extractWebTextures] Skipped ${file.name}: ${e.message}")
             }
         }
 
-        logger.lifecycle("[extractWebTextures] Done! Processed ${jarCount} jars → ${outputDir}")
+        allJars.unique { it.absolutePath }.each { jarFile ->
+            try {
+                def matchedFiles = zipTree(jarFile).matching { include includes }
+                if (!matchedFiles.empty) {
+                    copy { from matchedFiles; into outputDir }
+                    jarCount++
+                    logger.lifecycle("[extractWebTextures] ✓ ${jarFile.name}")
+                }
+            } catch (Exception e) {
+                logger.debug("[extractWebTextures] skip ${jarFile.name}: ${e.message}")
+            }
+        }
+
+        logger.lifecycle("[extractWebTextures] Done — ${jarCount} jars → ${outputDir}")
     }
 }
