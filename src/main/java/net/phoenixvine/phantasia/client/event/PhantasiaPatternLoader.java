@@ -1,10 +1,7 @@
 package net.phoenixvine.phantasia.client.event;
 
-import com.gregtechceu.gtceu.api.blockentity.MetaMachineBlockEntity;
-import com.gregtechceu.gtceu.api.machine.multiblock.MultiblockControllerMachine;
-import com.gregtechceu.gtceu.api.pattern.MultiblockShapeInfo;
-
 import com.lowdragmc.lowdraglib.utils.BlockInfo;
+import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockShape;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.Blocks;
@@ -124,7 +121,7 @@ public final class PhantasiaPatternLoader {
      * @param total pre-counted non-null block count (caller already counted to decide
      *              whether to use the loader, so we reuse that value)
      */
-    public PhantasiaPatternLoader(MultiblockShapeInfo shape, int total) {
+    public PhantasiaPatternLoader(IPhantasiaMultiblockShape shape, int total) {
         this.total = total;
         this.future = LOADER_POOL.submit(() -> build(shape));
     }
@@ -166,7 +163,7 @@ public final class PhantasiaPatternLoader {
 
     // ── Off-thread build ──────────────────────────────────────────────────────
 
-    private void build(MultiblockShapeInfo shape) {
+    private void build(IPhantasiaMultiblockShape shape) {
         try {
             BlockPos origin = new BlockPos(0, 50, 0);
 
@@ -177,16 +174,17 @@ public final class PhantasiaPatternLoader {
             int padX = Math.max(2, sxLen / 2 + 1);
             int padZ = Math.max(2, szLen / 2 + 1);
 
-            BlockInfo floor = BlockInfo.fromBlockState(Blocks.DEEPSLATE_BRICKS.defaultBlockState());
+            var _baseplateState = net.phoenixvine.phantasia.utils.PhantasiaTheme.currentBaseplateBlockState();
+            BlockInfo floor = _baseplateState != null ? BlockInfo.fromBlockState(_baseplateState) : null;
 
             Map<BlockPos, BlockInfo> blockMap = new HashMap<>();
             Map<BlockPos, BlockPos> localToWorld = new HashMap<>();
             Set<BlockPos> baseplatePos = new HashSet<>();
             Set<BlockPos> bePos = new HashSet<>();
-            BlockPos controllerWP = null;
+            BlockPos controllerWP = null; // populated by definition.onShapeLoaded() at apply time
 
             // ── Baseplate ─────────────────────────────────────────────────────
-            for (int bx = -padX; bx <= sxLen + padX; bx++)
+            if (floor != null) for (int bx = -padX; bx <= sxLen + padX; bx++)
                 for (int bz = -padZ; bz <= szLen + padZ; bz++) {
                     if (Thread.interrupted() || cancelled) return;
                     BlockPos wp = origin.offset(bx, -1, bz);
@@ -212,21 +210,6 @@ public final class PhantasiaPatternLoader {
 
                         minY = Math.min(minY, y);
                         maxY = Math.max(maxY, y);
-
-                        // Detect controller position by instantiating the BE here.
-                        // BlockInfo.getBlockEntity() is safe off-thread (no GL).
-                        // We only need the class, not registration — the render thread
-                        // will reinstantiate fresh BEs with setLevel() before use.
-                        try {
-                            var be = info.getBlockEntity(wp);
-                            if (be instanceof MetaMachineBlockEntity mbe) {
-                                var machine = mbe.getMetaMachine();
-                                if (machine instanceof MultiblockControllerMachine && controllerWP == null) {
-                                    controllerWP = wp;
-                                }
-                                bePos.add(wp);
-                            }
-                        } catch (Exception ignored) {}
 
                         blockMap.put(wp, info);
                         localToWorld.put(lp, wp);

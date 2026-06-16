@@ -15,7 +15,14 @@ public final class PhantasiaGuideRegistry {
 
     private PhantasiaGuideRegistry() {}
 
+    /** Built-in guides shipped with Phantasia itself. Never cleared on reload. */
+    private static final Map<String, PhantasiaGuideData> BUILTINS = new LinkedHashMap<>();
     private static final Map<String, PhantasiaGuideData> GUIDES = new LinkedHashMap<>();
+
+    public static void registerBuiltin(PhantasiaGuideData guide) {
+        if (guide.id != null && !guide.id.isBlank())
+            BUILTINS.put(guide.id, guide);
+    }
 
     public static void register(PhantasiaGuideData guide) {
         if (guide.id != null && !guide.id.isBlank())
@@ -23,15 +30,21 @@ public final class PhantasiaGuideRegistry {
     }
 
     public static PhantasiaGuideData get(String id) {
-        return id == null ? null : GUIDES.get(id);
+        if (id == null) return null;
+        PhantasiaGuideData d = GUIDES.get(id);
+        return d != null ? d : BUILTINS.get(id);
     }
 
     public static Collection<PhantasiaGuideData> all() {
-        return Collections.unmodifiableCollection(GUIDES.values());
+        // Builtins appear first; user guides can shadow them by ID.
+        Map<String, PhantasiaGuideData> combined = new LinkedHashMap<>(BUILTINS);
+        combined.putAll(GUIDES);
+        return Collections.unmodifiableCollection(combined.values());
     }
 
     public static void clear() {
         GUIDES.clear();
+        // BUILTINS are intentionally not cleared on reload.
     }
 
     /**

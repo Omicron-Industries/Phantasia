@@ -38,6 +38,7 @@ public final class PhantasiaGuideLoader {
                         .forEach(PhantasiaGuideLoader::loadGuideFile);
             }
 
+            PhantasiaBuiltinGuides.register();
             Phantasia.LOGGER.info("[Phantasia] Successfully loaded {} guide(s).", PhantasiaGuideRegistry.all().size());
 
         } catch (Exception e) {

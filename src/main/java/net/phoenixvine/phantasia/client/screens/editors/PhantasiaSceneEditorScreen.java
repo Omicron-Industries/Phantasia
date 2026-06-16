@@ -1725,9 +1725,9 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
 
     @Override
     public void hideAllInputs() {
-        for (var box : List.of(captionBox, descriptionBox, tickBox, lerpTicksBox, camZoomBox,
+        for (var box : new EditBox[] { captionBox, descriptionBox, tickBox, lerpTicksBox, camZoomBox,
                 ovLayerBox, ovHidePosBox, ovFakeRecipeBox, ovParticleBox, newMachineIdBox,
-                newOffsetXBox, newOffsetYBox, newOffsetZBox, sceneNameBox, sceneIconBox, tooltipItemBox)) {
+                newOffsetXBox, newOffsetYBox, newOffsetZBox, sceneNameBox, sceneIconBox, tooltipItemBox }) {
             if (box != null) {
                 box.visible = false;
                 box.active = false;

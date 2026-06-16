@@ -1,12 +1,10 @@
 package net.phoenixvine.phantasia.common.data.script;
 
-import com.gregtechceu.gtceu.api.machine.MachineDefinition;
-import com.gregtechceu.gtceu.api.machine.MultiblockMachineDefinition;
-import com.gregtechceu.gtceu.api.registry.GTRegistries;
-
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.fml.loading.FMLPaths;
 import net.phoenixvine.phantasia.client.screens.PhantasiaSceneSelectionScreen;
+import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockDefinition;
+import net.phoenixvine.phantasia.common.multiblock.PhantasiaMultiblockRegistry;
 
 import java.io.File;
 import java.io.IOException;
@@ -46,13 +44,13 @@ public class PhantasiaScriptLoader {
             return;
         }
 
-        MultiblockMachineDefinition def = resolveDefinition(machineId);
+        IPhantasiaMultiblockDefinition def = resolveDefinition(machineId);
         if (def != null) {
-            PhantasiaScripts.registerJson(def, PhantasiaScript.fromData(data));
+            PhantasiaScripts.register(def, PhantasiaScript.fromData(data));
             log("Saved and hot-reloaded script for " + machineId);
         } else {
-            logErr("Saved script for " + machineId + " but could not resolve definition — " +
-                    "it will load on next reload.");
+            logErr("Saved script for " + machineId + " but could not resolve definition — "
+                    + "it will load on next reload.");
         }
     }
 
@@ -101,27 +99,27 @@ public class PhantasiaScriptLoader {
     private static void discoverAllMultiblocks() {
         var scenes = PhantasiaSceneSelectionScreen.PHANTASIA_SCENES;
 
-        for (MachineDefinition def : GTRegistries.MACHINES) {
-            if (!(def instanceof MultiblockMachineDefinition multi)) continue;
-
-            if (!scenes.contains(multi)) {
-                scenes.add(multi);
+        for (IPhantasiaMultiblockDefinition def : PhantasiaMultiblockRegistry.getAllDefinitions()) {
+            if (!scenes.contains(def)) {
+                scenes.add(def);
             }
 
             String machineId = def.getId().toString();
             Path path = pathFor(machineId);
             if (!Files.exists(path)) {
-                writeDefaultScript(machineId, path);
+                writeDefaultScript(def, machineId, path);
             }
         }
 
         log("Discovered " + scenes.size() + " multiblock machines.");
     }
 
-    private static void writeDefaultScript(String machineId, Path path) {
+    private static void writeDefaultScript(IPhantasiaMultiblockDefinition def,
+                                           String machineId, Path path) {
         try {
             ensureDir(path.getParent());
-            PhantasiaScriptData data = PhantasiaScriptData.defaultFor(machineId);
+            PhantasiaScriptData data = def.getDefaultScriptData();
+            if (data == null) data = PhantasiaScriptData.defaultFor(machineId);
             Files.writeString(path, data.toJson(), StandardCharsets.UTF_8);
         } catch (IOException e) {
             logErr("Could not write default script for " + machineId + ": " + e.getMessage());
@@ -154,15 +152,15 @@ public class PhantasiaScriptLoader {
                 return false;
             }
 
-            MultiblockMachineDefinition def = resolveDefinition(data.getMachine());
+            IPhantasiaMultiblockDefinition def = resolveDefinition(data.getMachine());
             if (def == null) {
-                logErr("No MultiblockMachineDefinition found for \"" + data.getMachine() +
-                        "\" (from " + path.getFileName() + ") — script will not apply. " +
-                        "Check the machine ID, or call /phantasia reload after world load.");
+                logErr("No multiblock definition found for \"" + data.getMachine()
+                        + "\" (from " + path.getFileName() + ") — script will not apply. "
+                        + "Check the machine ID, or call /phantasia reload after world load.");
                 return false;
             }
 
-            PhantasiaScripts.registerJson(def, PhantasiaScript.fromData(data));
+            PhantasiaScripts.register(def, PhantasiaScript.fromData(data));
             return true;
         } catch (Exception e) {
             logErr("Failed to load " + path + ": " + e.getMessage());
@@ -187,16 +185,8 @@ public class PhantasiaScriptLoader {
         }
     }
 
-    private static MultiblockMachineDefinition resolveDefinition(String machineId) {
-        ResourceLocation rl = ResourceLocation.parse(machineId);
-
-        MachineDefinition def = GTRegistries.MACHINES.get(rl);
-
-        if (def instanceof MultiblockMachineDefinition multi) {
-            return multi;
-        }
-
-        return null;
+    private static IPhantasiaMultiblockDefinition resolveDefinition(String machineId) {
+        return PhantasiaMultiblockRegistry.resolve(machineId).orElse(null);
     }
 
     private static ResourceLocation parseId(String machineId) {

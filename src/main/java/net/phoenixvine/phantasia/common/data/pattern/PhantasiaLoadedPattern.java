@@ -1,7 +1,5 @@
 package net.phoenixvine.phantasia.common.data.pattern;
 
-import com.gregtechceu.gtceu.api.machine.multiblock.MultiblockControllerMachine;
-
 import com.lowdragmc.lowdraglib.utils.BlockInfo;
 
 import net.minecraft.core.BlockPos;
@@ -30,7 +28,6 @@ public class PhantasiaLoadedPattern {
     public final BlockPos origin;
     public final int minY;
     public final int maxY;
-    public final MultiblockControllerMachine controller;
 
     @Getter
     public final PhantasiaScript script;
@@ -43,7 +40,6 @@ public class PhantasiaLoadedPattern {
                                   Set<BlockPos> blockEntityWorldPos,
                                   BlockPos origin,
                                   int minY, int maxY,
-                                  MultiblockControllerMachine controller,
                                   PhantasiaScript script) {
         this.blockMap = new HashMap<>(blockMap);
         this.localToWorld = Map.copyOf(localToWorld);
@@ -53,7 +49,6 @@ public class PhantasiaLoadedPattern {
         this.origin = origin;
         this.minY = minY;
         this.maxY = maxY;
-        this.controller = controller;
         this.script = script;
 
         Map<BlockPos, BlockPos> rev = new HashMap<>();

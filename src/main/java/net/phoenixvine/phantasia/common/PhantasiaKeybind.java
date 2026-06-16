@@ -1,9 +1,5 @@
 package net.phoenixvine.phantasia.common;
 
-import com.gregtechceu.gtceu.api.block.MetaMachineBlock;
-import com.gregtechceu.gtceu.api.item.MetaMachineItem;
-import com.gregtechceu.gtceu.api.machine.MultiblockMachineDefinition;
-
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.core.BlockPos;
@@ -26,6 +22,8 @@ import net.phoenixvine.phantasia.client.screens.PhantasiaContextualSelectionScre
 import net.phoenixvine.phantasia.client.screens.PhantasiaSceneScreen;
 import net.phoenixvine.phantasia.client.screens.PhantasiaSceneSelectionScreen;
 import net.phoenixvine.phantasia.configs.PhantasiaConfigs;
+import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockDefinition;
+import net.phoenixvine.phantasia.common.multiblock.PhantasiaMultiblockRegistry;
 
 import com.mojang.blaze3d.platform.InputConstants;
 
@@ -34,19 +32,16 @@ public class PhantasiaKeybind {
 
     private static int holdTimer = 0;
     private static int fadeTimer = 0;
-    private static final int MAX_FADE_TICKS = 120; // 3 seconds
-    private static final int FADE_OUT_TICKS = 40;  // 1 second actual fade
-    private static MultiblockMachineDefinition lastDef = null;
+    private static final int MAX_FADE_TICKS = 120;
+    private static final int FADE_OUT_TICKS = 40;
+    private static IPhantasiaMultiblockDefinition lastDef = null;
     private static boolean wasLookingAtValid = false;
 
-    // Refreshed every render frame by onItemTooltip while a tooltip is visible.
-    private static MultiblockMachineDefinition tooltipTarget = null;
-
-    // Generic item/block target set by onItemTooltip or block look-up (non-multiblock).
+    private static IPhantasiaMultiblockDefinition tooltipTarget = null;
     private static String tooltipItemTarget = null;
 
     // -------------------------------------------------------------------------
-    // KEY CHECK — raw GLFW, works even when a GUI is open
+    // KEY CHECK
     // -------------------------------------------------------------------------
     private static boolean isPhantasiaKeyDown() {
         Minecraft mc = Minecraft.getInstance();
@@ -70,15 +65,13 @@ public class PhantasiaKeybind {
             return;
 
         ItemStack stack = event.getItemStack();
-        if (stack.getItem() instanceof MetaMachineItem machineItem) {
-            if (machineItem.getDefinition() instanceof MultiblockMachineDefinition multiDef &&
-                    PhantasiaSceneSelectionScreen.PHANTASIA_SCENES.contains(multiDef)) {
-
-                tooltipTarget = multiDef;
-
+        var defOpt = PhantasiaMultiblockRegistry.resolveFromItem(stack);
+        if (defOpt.isPresent()) {
+            IPhantasiaMultiblockDefinition def = defOpt.get();
+            if (PhantasiaSceneSelectionScreen.PHANTASIA_SCENES.contains(def)) {
+                tooltipTarget = def;
                 String keyName = PhoenixKeybinds.OPEN_PHANTASIA_MENU.getTranslatedKeyMessage().getString();
                 event.getToolTip().add(Component.translatable("tooltip.phantasia.hold_to_phantasize", keyName));
-
                 if (holdTimer > 0) {
                     float progress = (float) holdTimer / PhantasiaConfigs.INSTANCE.phantasiaUI.activationTicks;
                     int barLen = 12;
@@ -90,7 +83,6 @@ public class PhantasiaKeybind {
             }
         }
 
-        // Generic item tooltip — check if any guide or scene lists this item in tooltipItems
         ResourceLocation itemId = ForgeRegistries.ITEMS.getKey(stack.getItem());
         if (itemId != null) {
             String itemKey = itemId.toString();
@@ -121,7 +113,7 @@ public class PhantasiaKeybind {
     }
 
     // -------------------------------------------------------------------------
-    // CLIENT TICK — hold detection, runs regardless of open GUI
+    // CLIENT TICK
     // -------------------------------------------------------------------------
     @SubscribeEvent
     public static void onClientTick(TickEvent.ClientTickEvent event) {
@@ -130,14 +122,18 @@ public class PhantasiaKeybind {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || mc.player == null) return;
 
-        MultiblockMachineDefinition currentTarget = getTargetDefinition(mc);
-        if (currentTarget == null) currentTarget = tooltipTarget;
-        if (currentTarget == null) tooltipTarget = null;
-
-        // Check for generic item/block target (non-multiblock)
         String currentItemTarget = getTargetItemId(mc);
         if (currentItemTarget == null) currentItemTarget = tooltipItemTarget;
         if (currentItemTarget == null) tooltipItemTarget = null;
+
+        IPhantasiaMultiblockDefinition currentTarget = null;
+        if (currentItemTarget == null) {
+            currentTarget = getTargetDefinition(mc);
+            if (currentTarget == null) currentTarget = tooltipTarget;
+            if (currentTarget == null) tooltipTarget = null;
+        } else {
+            tooltipTarget = null;
+        }
 
         boolean hasAnyTarget = (currentTarget != null) || (currentItemTarget != null);
 
@@ -145,13 +141,12 @@ public class PhantasiaKeybind {
             holdTimer++;
             if (holdTimer >= PhantasiaConfigs.INSTANCE.phantasiaUI.activationTicks) {
                 if (currentTarget != null) {
-                    final MultiblockMachineDefinition defToOpen = currentTarget;
+                    final IPhantasiaMultiblockDefinition defToOpen = currentTarget;
                     mc.tell(() -> openForMultiblock(mc, defToOpen));
                 } else {
                     final String itemKey = currentItemTarget;
                     mc.tell(() -> openForItemKey(mc, itemKey));
                 }
-
                 holdTimer = 0;
                 fadeTimer = 0;
                 tooltipTarget = null;
@@ -162,7 +157,7 @@ public class PhantasiaKeybind {
         }
     }
 
-    private static void openForMultiblock(Minecraft mc, MultiblockMachineDefinition defToOpen) {
+    private static void openForMultiblock(Minecraft mc, IPhantasiaMultiblockDefinition defToOpen) {
         String targetId = defToOpen.getId().getPath().toLowerCase(java.util.Locale.ROOT);
         java.util.List<net.phoenixvine.phantasia.common.data.scene.PhantasiaSceneData> matchingScenes = new java.util.ArrayList<>();
         for (var scene : net.phoenixvine.phantasia.common.data.scene.PhantasiaScenes.all()) {
@@ -215,8 +210,9 @@ public class PhantasiaKeybind {
             mc.setScreen(new PhantasiaContextualSelectionScreen(null, matchingScenes, matchingGuides, false));
         }
     }
+
     // -------------------------------------------------------------------------
-    // OVERLAY — fade logic (original) + hotbar toast render
+    // OVERLAY
     // -------------------------------------------------------------------------
     @SubscribeEvent
     public static void onRenderOverlay(RenderGuiOverlayEvent.Pre event) {
@@ -225,9 +221,8 @@ public class PhantasiaKeybind {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || mc.player == null) return;
 
-        MultiblockMachineDefinition lookedAt = getLookedAtDefinition(mc);
+        IPhantasiaMultiblockDefinition lookedAt = getLookedAtDefinition(mc);
 
-        // Sticky fade: reset to full whenever we look at a (possibly new) machine
         if (lookedAt != null) {
             if (lookedAt != lastDef || !wasLookingAtValid) fadeTimer = MAX_FADE_TICKS;
             lastDef = lookedAt;
@@ -250,7 +245,7 @@ public class PhantasiaKeybind {
     // TOAST RENDERING
     // -------------------------------------------------------------------------
     private static void renderPhantasiaToast(GuiGraphics g, Minecraft mc,
-                                             MultiblockMachineDefinition def,
+                                             IPhantasiaMultiblockDefinition def,
                                              int timer, int fade) {
         int screenW = mc.getWindow().getGuiScaledWidth();
         int screenH = mc.getWindow().getGuiScaledHeight();
@@ -269,12 +264,9 @@ public class PhantasiaKeybind {
         g.pose().pushPose();
         g.pose().translate(0, 0, 500);
 
-        // Background
         g.fill(barX, barY, barX + barW, barY + barH, alphaBG | 0x08080F);
-        // Bottom accent line
         g.fill(barX, barY + barH - 1, barX + barW, barY + barH, accent);
 
-        // Progress fill
         float progress = (float) timer / Math.max(1, PhantasiaConfigs.INSTANCE.phantasiaUI.activationTicks);
         if (progress > 0) {
             g.fill(barX, barY + barH - 2,
@@ -282,25 +274,14 @@ public class PhantasiaKeybind {
                     (int) (0xAA * alphaMult) << 24 | 0x4FC3F7);
         }
 
-        // Machine icon — only rendered while fully opaque (not fading).
-        // renderItem() ignores GL alpha entirely, so we hide it the moment
-        // the fade starts rather than letting it linger at full brightness
-        // while everything else fades out.
         if (fade > FADE_OUT_TICKS) {
-            g.renderItem(def.asStack(), barX + 6, barY + 4);
+            g.renderItem(def.getIcon(), barX + 6, barY + 4);
         }
 
-        // Name
-        String name = def.getLangValue();
-        if (name == null || name.isEmpty() || name.contains(".")) {
-            name = Component.translatable(def.getDescriptionId()).getString();
-        }
-        name = truncate(name, 120, mc);
-
+        String name = truncate(def.getDisplayName(), 120, mc);
         String keyName = PhoenixKeybinds.OPEN_PHANTASIA_MENU.getTranslatedKeyMessage().getString();
 
-        g.drawString(mc.font, name,
-                barX + 28, barY + 4, alphaText | 0xFFFFFF, false);
+        g.drawString(mc.font, name, barX + 28, barY + 4, alphaText | 0xFFFFFF, false);
         g.drawString(mc.font, "§b[" + keyName + "] §7to Phantasize",
                 barX + 28, barY + 15, alphaText | 0xBBBBBB, false);
 
@@ -319,32 +300,27 @@ public class PhantasiaKeybind {
         return s + e;
     }
 
-    private static MultiblockMachineDefinition getTargetDefinition(Minecraft mc) {
+    private static IPhantasiaMultiblockDefinition getTargetDefinition(Minecraft mc) {
         ItemStack stack = mc.player.getMainHandItem();
-        if (stack.getItem() instanceof MetaMachineItem machineItem) {
-            if (machineItem.getDefinition() instanceof MultiblockMachineDefinition multiDef &&
-                    PhantasiaSceneSelectionScreen.PHANTASIA_SCENES.contains(multiDef)) {
-                return multiDef;
-            }
+        var fromItem = PhantasiaMultiblockRegistry.resolveFromItem(stack);
+        if (fromItem.isPresent() && PhantasiaSceneSelectionScreen.PHANTASIA_SCENES.contains(fromItem.get())) {
+            return fromItem.get();
         }
         return getLookedAtDefinition(mc);
     }
 
-    /** Returns the registry ID of the held or looked-at item/block if it matches a tooltipItems entry. */
     private static String getTargetItemId(Minecraft mc) {
-        // Check held item first
         ItemStack stack = mc.player.getMainHandItem();
-        if (!stack.isEmpty() && !(stack.getItem() instanceof MetaMachineItem)) {
+        if (!stack.isEmpty() && PhantasiaMultiblockRegistry.resolveFromItem(stack).isEmpty()) {
             ResourceLocation heldId = ForgeRegistries.ITEMS.getKey(stack.getItem());
             if (heldId != null && hasTooltipItemMatch(heldId.toString())) {
                 return heldId.toString();
             }
         }
-        // Check looked-at block
         if (mc.hitResult != null && mc.hitResult.getType() == HitResult.Type.BLOCK) {
             BlockPos pos = ((BlockHitResult) mc.hitResult).getBlockPos();
             BlockState state = mc.level.getBlockState(pos);
-            if (!(state.getBlock() instanceof MetaMachineBlock)) {
+            if (!PhantasiaMultiblockRegistry.isControllerBlock(state)) {
                 ResourceLocation blockId = ForgeRegistries.BLOCKS.getKey(state.getBlock());
                 if (blockId != null && hasTooltipItemMatch(blockId.toString())) {
                     return blockId.toString();
@@ -354,16 +330,13 @@ public class PhantasiaKeybind {
         return null;
     }
 
-    public static MultiblockMachineDefinition getLookedAtDefinition(Minecraft mc) {
+    public static IPhantasiaMultiblockDefinition getLookedAtDefinition(Minecraft mc) {
         if (mc.hitResult == null || mc.hitResult.getType() != HitResult.Type.BLOCK) return null;
         BlockPos pos = ((BlockHitResult) mc.hitResult).getBlockPos();
         BlockState state = mc.level.getBlockState(pos);
-        if (state.getBlock() instanceof MetaMachineBlock machineBlock) {
-            if (machineBlock.getDefinition() instanceof MultiblockMachineDefinition multiDef &&
-                    PhantasiaSceneSelectionScreen.PHANTASIA_SCENES.contains(multiDef)) {
-                return multiDef;
-            }
-        }
-        return null;
+        if (!PhantasiaMultiblockRegistry.isControllerBlock(state)) return null;
+        return PhantasiaMultiblockRegistry.resolveFromBlock(state)
+                .filter(PhantasiaSceneSelectionScreen.PHANTASIA_SCENES::contains)
+                .orElse(null);
     }
 }

@@ -71,9 +71,11 @@ public class PhantasiaTheme {
 
     // ── Theme Properties ──
     public ThemeColor bg, panel, accent, btn, btnHov, btnAct, text, dim, tlBg, prog, warn, hilight;
+    public String baseplateBlock = "minecraft:deepslate_bricks";
 
     public PhantasiaTheme(String bg, String panel, String accent, String btn, String btnHov, String btnAct,
-                          String text, String dim, String tlBg, String prog, String warn, String hilight) {
+                          String text, String dim, String tlBg, String prog, String warn, String hilight,
+                          String baseplateBlock) {
         this.bg = new ThemeColor(bg);
         this.panel = new ThemeColor(panel);
         this.accent = new ThemeColor(accent);
@@ -86,6 +88,7 @@ public class PhantasiaTheme {
         this.prog = new ThemeColor(prog);
         this.warn = new ThemeColor(warn);
         this.hilight = new ThemeColor(hilight);
+        this.baseplateBlock = baseplateBlock != null ? baseplateBlock : "minecraft:deepslate_bricks";
     }
 
     // ── Functional Getters ──
@@ -135,6 +138,28 @@ public class PhantasiaTheme {
 
     public int hilight() {
         return hilight.getColor(5500);
+    }
+
+    /**
+     * Resolves the theme's baseplate block ID to a BlockState.
+     * Returns {@code null} when the block is air or blank — callers should skip baseplate placement entirely.
+     * Falls back to deepslate bricks for unrecognised IDs.
+     */
+    public static net.minecraft.world.level.block.state.BlockState currentBaseplateBlockState() {
+        String id = current().baseplateBlock;
+        if (id == null || id.isBlank()) return net.minecraft.world.level.block.Blocks.DEEPSLATE_BRICKS.defaultBlockState();
+        String trimmed = id.trim();
+        if (trimmed.equals("minecraft:air") || trimmed.equals("air")) return null;
+        net.minecraft.resources.ResourceLocation rl = net.minecraft.resources.ResourceLocation.tryParse(trimmed);
+        if (rl != null) {
+            net.minecraft.world.level.block.Block block = net.minecraftforge.registries.ForgeRegistries.BLOCKS.getValue(rl);
+            if (block != null) {
+                net.minecraft.world.level.block.state.BlockState state = block.defaultBlockState();
+                if (state.isAir()) return null;
+                return state;
+            }
+        }
+        return net.minecraft.world.level.block.Blocks.DEEPSLATE_BRICKS.defaultBlockState();
     }
 
     public static PhantasiaTheme current() {
@@ -247,26 +272,26 @@ public class PhantasiaTheme {
         REGISTRY.clear();
 
         REGISTRY.put("COBALT", new PhantasiaTheme("FF080810", "EE0C0C1A", "FF4FC3F7", "BB151528", "BB1A2840",
-                "BB0D3050", "FFDDDDDD", "FF667788", "FF0F1820", "FF4FC3F7", "FFFFB74D", "FFFFEB3B"));
+                "BB0D3050", "FFDDDDDD", "FF667788", "FF0F1820", "FF4FC3F7", "FFFFB74D", "FFFFEB3B", "minecraft:deepslate_bricks"));
         REGISTRY.put("RAINBOW", new PhantasiaTheme("FF090909", "EE111111", "RAINBOW", "BB1A1A1A", "BB2A2A2A",
-                "BB202040", "FFEEEEEE", "FF666666", "FF101010", "RAINBOW", "FFFFB74D", "RAINBOW"));
+                "BB202040", "FFEEEEEE", "FF666666", "FF101010", "RAINBOW", "FFFFB74D", "RAINBOW", "minecraft:glass"));
         REGISTRY.put("AMETHYST", new PhantasiaTheme("FF08060F", "EE100818", "FFB39DDB", "BB1A0A2E", "BB2A1048",
-                "BB3D1A6E", "FFE8D5FF", "FF7755AA", "FF0C0514", "FFFFD700", "FFFF9800", "FFFFD700"));
+                "BB3D1A6E", "FFE8D5FF", "FF7755AA", "FF0C0514", "FFFFD700", "FFFF9800", "FFFFD700", "minecraft:calcite"));
         REGISTRY.put("MINECRAFT", new PhantasiaTheme("FF373737", "FF2D2D2D", "FFFFAA00", "FF5A5A5A", "FF6E6E6E",
-                "FF4A4A8A", "FFFFFF", "FFAAAAAA", "FF1E1E1E", "FF55FF55", "FFFF5555", "FFFFFF55"));
+                "FF4A4A8A", "FFFFFF", "FFAAAAAA", "FF1E1E1E", "FF55FF55", "FFFF5555", "FFFFFF55", "minecraft:stone_bricks"));
         REGISTRY.put("CRIMSON", new PhantasiaTheme("FF120505", "EE1C0A0A", "FFFF5252", "BB2A1010", "BB421414",
-                "BB5A1818", "FFFFEAEA", "FF996666", "FF180808", "FFFF5252", "FFFFB74D", "FFFFEB3B"));
+                "BB5A1818", "FFFFEAEA", "FF996666", "FF180808", "FFFF5252", "FFFFB74D", "FFFFEB3B", "minecraft:nether_bricks"));
         REGISTRY.put("EMERALD", new PhantasiaTheme("FF040A06", "EE08140C", "FF69F0AE", "BB0D2415", "BB143A22",
-                "BB1B5230", "FFE0F2F1", "FF669977", "FF060F09", "FF69F0AE", "FFFFB74D", "FFFFEB3B"));
+                "BB1B5230", "FFE0F2F1", "FF669977", "FF060F09", "FF69F0AE", "FFFFB74D", "FFFFEB3B", "minecraft:mossy_cobblestone"));
         REGISTRY.put("VOID", new PhantasiaTheme("FF020204", "EE050508", "FFE0E0FF", "BB101018", "BB181826", "BB252538",
-                "FFF5F5F5", "FF555566", "FF08080C", "FF80DEEA", "FFFF8A80", "FFFFFF8D"));
+                "FFF5F5F5", "FF555566", "FF08080C", "FF80DEEA", "FFFF8A80", "FFFFFF8D", "minecraft:obsidian"));
         REGISTRY.put("CYBERPUNK", new PhantasiaTheme("FF050308", "EE0A0512", "FFFF007F", "BB140520", "BB280A40",
-                "BB00E5FF", "FF00E5FF", "FF7A20A0", "FF0A0015", "FFFF007F", "FFFFEA00", "FFFF007F"));
+                "BB00E5FF", "FF00E5FF", "FF7A20A0", "FF0A0015", "FFFF007F", "FFFFEA00", "FFFF007F", "minecraft:black_concrete"));
         REGISTRY.put("QUARTZ", new PhantasiaTheme("FFEAEAEA", "EEF5F5F5", "FF1976D2", "FFDCDCDC", "FFCECECE",
-                "FFB4B4B4", "FF212121", "FF666666", "FFE0E0E0", "FF4CAF50", "FFF57C00", "FFFBC02D"));
+                "FFB4B4B4", "FF212121", "FF666666", "FFE0E0E0", "FF4CAF50", "FFF57C00", "FFFBC02D", "minecraft:quartz_bricks"));
         REGISTRY.put("LIGHT_RAINBOW",
                 new PhantasiaTheme("FFEAEAEA", "EEF5F5F5", "PASTEL_RAINBOW", "FFDCDCDC", "FFCECECE", "FFB4B4B4",
-                        "FF212121", "FF666666", "FFE0E0E0", "PASTEL_RAINBOW", "FFF57C00", "PASTEL_RAINBOW"));
+                        "FF212121", "FF666666", "FFE0E0E0", "PASTEL_RAINBOW", "FFF57C00", "PASTEL_RAINBOW", "minecraft:white_concrete"));
 
         if (!THEMES_DIR.exists()) THEMES_DIR.mkdirs();
         File[] files = THEMES_DIR.listFiles((dir, name) -> name.toLowerCase().endsWith(".json"));
@@ -275,6 +300,7 @@ public class PhantasiaTheme {
                 try (Reader r = new FileReader(file)) {
                     PhantasiaTheme loaded = GSON.fromJson(r, PhantasiaTheme.class);
                     if (loaded != null) {
+                        if (loaded.baseplateBlock == null) loaded.baseplateBlock = "minecraft:deepslate_bricks";
                         String name = file.getName().substring(0, file.getName().length() - 5).toUpperCase(Locale.ROOT);
                         REGISTRY.put(name, loaded);
                     }

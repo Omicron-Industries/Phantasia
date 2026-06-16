@@ -125,6 +125,26 @@ public final class PhantasiaVariantState {
         return selections.getOrDefault(groupId, group != null ? group.defaultIndex() : 0);
     }
 
+    // ── Shape index persistence ───────────────────────────────────────────────
+
+    private static String shapeKey(String machineId) {
+        return "#shape:" + machineId;
+    }
+
+    public int getShapeIndex(String machineId) {
+        return selections.getOrDefault(shapeKey(machineId), 0);
+    }
+
+    public void setShapeIndex(String machineId, int index) {
+        String key = shapeKey(machineId);
+        Integer current = selections.get(key);
+        if (current != null && current == index) return;
+        selections.put(key, index);
+        saveSelections();
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+
     /**
      * Sets the selected option index, triggers a rebake, and persists the choice to disk.
      */

@@ -130,6 +130,7 @@ public class PhantasiaItemMicrosceneScreen extends PhantasiaScreen {
         PhantasiaSceneData.StepData step = currentStep();
         if (step == null) return;
         sceneRenderer.setVisible(scenePattern.computeVisible(step, microsceneData));
+        sceneRenderer.requestBake();
     }
 
     @Nullable

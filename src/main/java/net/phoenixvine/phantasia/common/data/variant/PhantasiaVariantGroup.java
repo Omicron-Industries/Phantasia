@@ -1,9 +1,5 @@
 package net.phoenixvine.phantasia.common.data.variant;
 
-import com.gregtechceu.gtceu.api.machine.MultiblockMachineDefinition;
-import com.gregtechceu.gtceu.api.machine.multiblock.PartAbility;
-import com.gregtechceu.gtceu.api.pattern.MultiblockShapeInfo;
-
 import com.lowdragmc.lowdraglib.utils.BlockInfo;
 
 import net.minecraft.core.BlockPos;
@@ -15,6 +11,9 @@ import net.minecraftforge.registries.ForgeRegistries;
 import net.phoenixvine.phantasia.common.data.pattern.PhantasiaLoadedPattern;
 import net.phoenixvine.phantasia.common.data.script.PhantasiaScript;
 import net.phoenixvine.phantasia.common.data.script.PhantasiaScriptData;
+import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockDefinition;
+import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockShape;
+import net.phoenixvine.phantasia.common.multiblock.PhantasiaMultiblockRegistry;
 
 import lombok.Getter;
 
@@ -32,12 +31,6 @@ import java.util.*;
  * {@link PhantasiaScript}. The active choice for each group is held in
  * {@link PhantasiaVariantState},
  * which the renderer queries per-position in {@code resolveState()}.
- *
- * <h3>Key design fix</h3>
- * Auto-detection scans <em>all</em> available shapes for a machine, not just
- * the currently-loaded one. This is critical for machines like the Fusion
- * Reactor where shape 0 is all-casing and shape 1 has fusion glass — without
- * scanning all shapes, fusion glass would never be found.
  */
 @Getter
 public final class PhantasiaVariantGroup {
@@ -96,8 +89,7 @@ public final class PhantasiaVariantGroup {
     /**
      * Maps world-space BlockPos → the index in {@link #options} that represents
      * what the dummy world currently holds at that position (i.e. the "base" state
-     * as loaded). The renderer uses this to know which positions belong to this group
-     * and what to substitute when the selection differs from the base index.
+     * as loaded).
      */
     private final Map<BlockPos, Integer> positionBaseIndex;
 
@@ -115,6 +107,19 @@ public final class PhantasiaVariantGroup {
         this.optionLabels = Collections.unmodifiableList(new ArrayList<>(optionLabels));
         this.positionBaseIndex = Collections.unmodifiableMap(new HashMap<>(positionBaseIndex));
         this.forcedDefaultIndex = forcedDefaultIndex;
+    }
+
+    /**
+     * Public factory used by provider implementations (e.g. {@code GTCEuMultiblockDefinition})
+     * to create groups for their custom variant types.
+     */
+    public static PhantasiaVariantGroup create(String id, String label, Category category,
+                                               boolean shownByDefault,
+                                               List<BlockState> options, List<String> optionLabels,
+                                               Map<BlockPos, Integer> positionBaseIndex,
+                                               int forcedDefaultIndex) {
+        return new PhantasiaVariantGroup(id, label, category, shownByDefault,
+                options, optionLabels, positionBaseIndex, forcedDefaultIndex);
     }
 
     /** True if this group has more than one option (otherwise hidden in the UI). */
@@ -136,16 +141,16 @@ public final class PhantasiaVariantGroup {
 
     /**
      * Compiles all variant groups for the given script + pattern.
+     * Mod-agnostic: provider-specific groups (e.g. GTCEu PartAbility tiers) are
+     * contributed via {@link IPhantasiaMultiblockDefinition#detectProviderVariants}.
      */
     public static List<PhantasiaVariantGroup> compile(
             PhantasiaScriptData data,
-            MultiblockMachineDefinition definition,
-            PhantasiaLoadedPattern pattern,
-            List<MultiblockShapeInfo> allShapes) {
+            IPhantasiaMultiblockDefinition definition,
+            PhantasiaLoadedPattern pattern) {
         List<PhantasiaVariantGroup> result = new ArrayList<>();
         Set<String> explicitIds = new HashSet<>();
 
-        // Create a unique prefix based on the multiblock's ID (e.g., "gtceu:fusion_reactor")
         String machinePrefix = definition.getId().toString();
 
         // 1. Script-defined (manual) groups — highest priority
@@ -157,14 +162,20 @@ public final class PhantasiaVariantGroup {
             }
         }
 
-        // 2. Auto-detected groups
+        // 2. Provider-specific auto-detection (e.g. GTCEu PartAbility tier groups)
         try {
-            List<PhantasiaVariantGroup> autoGroups = autoDetect(machinePrefix, definition, pattern, allShapes, explicitIds);
-            result.addAll(autoGroups);
+            result.addAll(definition.detectProviderVariants(data, pattern, machinePrefix, explicitIds));
         } catch (Exception e) {
-            System.err.println("[Phantasia] WARNING: variant auto-detection failed for " + definition.getId() + ": " +
-                    e.getMessage());
-            e.printStackTrace();
+            System.err.println("[Phantasia] WARNING: provider variant detection failed for "
+                    + definition.getId() + ": " + e.getMessage());
+        }
+
+        // 3. Generic optional block detection — scans all shapes for positional variation
+        try {
+            result.addAll(detectOptionalBlocks(machinePrefix, definition.getAllShapes(), pattern, explicitIds));
+        } catch (Exception e) {
+            System.err.println("[Phantasia] WARNING: optional block detection failed for "
+                    + definition.getId() + ": " + e.getMessage());
         }
 
         return Collections.unmodifiableList(result);
@@ -202,20 +213,19 @@ public final class PhantasiaVariantGroup {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // Auto-detection
+    // Generic optional block detection (e.g. fusion glass)
     // ─────────────────────────────────────────────────────────────────────────
 
-    private static List<PhantasiaVariantGroup> autoDetect(
+    public static List<PhantasiaVariantGroup> detectOptionalBlocks(
             String machinePrefix,
-            MultiblockMachineDefinition definition,
+            List<IPhantasiaMultiblockShape> allShapes,
             PhantasiaLoadedPattern pattern,
-            List<MultiblockShapeInfo> allShapes,
             Set<String> excludeIds) {
-        if (allShapes == null || allShapes.isEmpty()) return Collections.emptyList();
 
         Map<BlockPos, Set<Block>> localPosToAllBlocks = new HashMap<>();
         Map<Block, List<BlockPos>> loadedShapeBlockToWorldPos = new HashMap<>();
 
+        // Index the currently-loaded shape
         for (Map.Entry<BlockPos, BlockPos> e : pattern.localToWorld.entrySet()) {
             BlockPos local = e.getKey();
             BlockPos world = e.getValue();
@@ -228,7 +238,8 @@ public final class PhantasiaVariantGroup {
             localPosToAllBlocks.computeIfAbsent(local, k -> new HashSet<>()).add(block);
         }
 
-        for (MultiblockShapeInfo shape : allShapes) {
+        // Scan all shapes for block variation at each position
+        for (IPhantasiaMultiblockShape shape : allShapes) {
             BlockInfo[][][] raw = shape.getBlocks();
             if (raw == null) continue;
             for (int x = 0; x < raw.length; x++) {
@@ -241,103 +252,12 @@ public final class PhantasiaVariantGroup {
                         BlockState state = info.getBlockState();
                         if (state == null || state.isAir()) continue;
                         BlockPos local = new BlockPos(x, y, z);
-                        localPosToAllBlocks.computeIfAbsent(local, k -> new HashSet<>())
-                                .add(state.getBlock());
+                        localPosToAllBlocks.computeIfAbsent(local, k -> new HashSet<>()).add(state.getBlock());
                     }
                 }
             }
         }
 
-        List<PhantasiaVariantGroup> result = new ArrayList<>();
-        result.addAll(detectPartAbilityGroups(machinePrefix, definition, loadedShapeBlockToWorldPos, pattern, excludeIds));
-        result.addAll(detectOptionalBlocks(machinePrefix, localPosToAllBlocks, loadedShapeBlockToWorldPos, pattern, excludeIds));
-
-        return result;
-    }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // Hatch / Bus / Muffler tier detection
-    // ─────────────────────────────────────────────────────────────────────────
-
-    private static List<PhantasiaVariantGroup> detectPartAbilityGroups(
-            String machinePrefix,
-            MultiblockMachineDefinition definition,
-            Map<Block, List<BlockPos>> loadedBlockToWorldPos,
-            PhantasiaLoadedPattern pattern,
-            Set<String> excludeIds) {
-        List<PhantasiaVariantGroup> result = new ArrayList<>();
-
-        record AbilitySpec(PartAbility ability, String id, String label,
-                           Category category, int minTier, int maxTier) {}
-
-        List<AbilitySpec> specs = List.of(
-                new AbilitySpec(PartAbility.INPUT_ENERGY, "energy_hatch_in", "Energy Hatch (Input)", Category.HATCHES_BUSES, 0, 13),
-                new AbilitySpec(PartAbility.OUTPUT_ENERGY, "energy_hatch_out", "Energy Hatch (Output)", Category.HATCHES_BUSES, 0, 13),
-                new AbilitySpec(PartAbility.IMPORT_FLUIDS, "fluid_hatch_in", "Fluid Hatch (Input)", Category.HATCHES_BUSES, 0, 13),
-                new AbilitySpec(PartAbility.EXPORT_FLUIDS, "fluid_hatch_out", "Fluid Hatch (Output)", Category.HATCHES_BUSES, 0, 13),
-                new AbilitySpec(PartAbility.IMPORT_ITEMS, "item_bus_in", "Item Bus (Input)", Category.HATCHES_BUSES, 0, 13),
-                new AbilitySpec(PartAbility.EXPORT_ITEMS, "item_bus_out", "Item Bus (Output)", Category.HATCHES_BUSES, 0, 13),
-                new AbilitySpec(PartAbility.MUFFLER, "muffler_hatch", "Muffler Hatch", Category.MUFFLERS, 0, 13));
-
-        for (AbilitySpec spec : specs) {
-            if (excludeIds.contains(spec.id())) continue;
-
-            List<BlockState> tierStates = new ArrayList<>();
-            List<String> tierLabels = new ArrayList<>();
-            try {
-                Block[] abilityBlocks = spec.ability()
-                        .getBlockRange(spec.minTier(), spec.maxTier())
-                        .toArray(Block[]::new);
-                for (Block b : abilityBlocks) {
-                    if (b == null) continue;
-                    BlockState st = b.defaultBlockState();
-                    tierStates.add(st);
-                    tierLabels.add(blockDisplayName(st));
-                }
-            } catch (Exception ignored) {
-                continue;
-            }
-
-            if (tierStates.size() < 2) continue;
-
-            Map<BlockPos, Integer> posMap = new HashMap<>();
-            int defaultIdx = 0;
-            boolean found = false;
-            for (int ti = 0; ti < tierStates.size(); ti++) {
-                List<BlockPos> positions = loadedBlockToWorldPos.get(tierStates.get(ti).getBlock());
-                if (positions == null || positions.isEmpty()) continue;
-                for (BlockPos wp : positions) posMap.put(wp, ti);
-                if (!found) {
-                    defaultIdx = ti;
-                    found = true;
-                }
-            }
-            if (posMap.isEmpty()) continue;
-
-            result.add(new PhantasiaVariantGroup(
-                    machinePrefix + "::" + spec.id(), spec.label(), spec.category(),
-                    true,
-                    tierStates, tierLabels, posMap,
-                    defaultIdx));
-        }
-
-        return result;
-    }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // Optional block detection (e.g. fusion glass)
-    // ─────────────────────────────────────────────────────────────────────────
-
-// ─────────────────────────────────────────────────────────────────────────
-    // Optional block detection (e.g. fusion glass)
-    // ─────────────────────────────────────────────────────────────────────────
-
-    private static List<PhantasiaVariantGroup> detectOptionalBlocks(
-            String machinePrefix,
-            Map<BlockPos, Set<Block>> localPosToAllBlocks,
-            Map<Block, List<BlockPos>> loadedBlockToWorldPos,
-            PhantasiaLoadedPattern pattern,
-            Set<String> excludeIds) {
         Map<String, List<BlockPos>> signatureToLocalPositions = new LinkedHashMap<>();
         Map<String, Set<Block>> signatureToBlocks = new LinkedHashMap<>();
 
@@ -345,7 +265,6 @@ public final class PhantasiaVariantGroup {
             Set<Block> blocks = entry.getValue();
             if (blocks.size() < 2) continue;
 
-            // ... (keep machine block filtering the same) ...
             Set<Block> nonMachine = new HashSet<>();
             for (Block b : blocks) {
                 if (!isMachineBlock(b) && b != Blocks.AIR) nonMachine.add(b);
@@ -368,13 +287,11 @@ public final class PhantasiaVariantGroup {
 
         for (Map.Entry<String, List<BlockPos>> sigEntry : signatureToLocalPositions.entrySet()) {
             Set<Block> blocks = signatureToBlocks.get(sigEntry.getKey());
-
-            // FIX: Removed the trailing comma after BlockPos
             List<BlockPos> localPositions = sigEntry.getValue();
 
             List<Block> sortedBlocks = new ArrayList<>(blocks);
             sortedBlocks.sort(Comparator.comparingInt(b -> {
-                List<BlockPos> wp = loadedBlockToWorldPos.get(b);
+                List<BlockPos> wp = loadedShapeBlockToWorldPos.get(b);
                 return wp != null ? wp.size() : 0;
             }));
 
@@ -395,7 +312,8 @@ public final class PhantasiaVariantGroup {
                 BlockPos world = pattern.localToWorld.get(local);
                 if (world == null) continue;
                 BlockInfo info = pattern.blockMap.get(world);
-                Block loadedBlock = (info != null && !info.getBlockState().isAir()) ? info.getBlockState().getBlock() : null;
+                Block loadedBlock = (info != null && !info.getBlockState().isAir())
+                        ? info.getBlockState().getBlock() : null;
                 int baseIdx = 1;
                 if (loadedBlock != null) {
                     for (int i = 0; i < sortedBlocks.size(); i++) {
@@ -437,7 +355,8 @@ public final class PhantasiaVariantGroup {
     }
 
     private static boolean isMachineBlock(Block b) {
-        return b instanceof com.gregtechceu.gtceu.api.block.MetaMachineBlock;
+        return PhantasiaMultiblockRegistry.isControllerBlock(b.defaultBlockState())
+                || PhantasiaMultiblockRegistry.isPartBlock(b.defaultBlockState());
     }
 
     public static String blockDisplayName(BlockState state) {

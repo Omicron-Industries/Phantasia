@@ -209,6 +209,14 @@ public class PhantasiaScriptData {
         public String fakeRecipeId = null;
 
         /**
+         * If set, the scene screen pauses at this step and calls
+         * {@link net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockDefinition#shouldHoldStep}
+         * with this id each tick. Playback resumes when that method returns false.
+         */
+        @SerializedName("hold")
+        public String hold = null;
+
+        /**
          * Whether the item panel is visible during this step.
          * Defaults to {@code true}. Set to {@code false} on steps focused on
          * structure assembly where recipe context would be distracting.

@@ -131,6 +131,15 @@ public class PhantasiaSceneData {
         public String microsceneId = null;
 
         /**
+         * Optional ID of a {@link net.phoenixvine.phantasia.common.data.guides.PhantasiaGuideData}
+         * to open when the user clicks this item. Takes precedence over {@link #microsceneId}
+         * when both are set.
+         * Example: {@code "phoenixvine:source_gem"}.
+         */
+        @SerializedName("guideId")
+        public String guideId = null;
+
+        /**
          * Relationship to the machine: {@code "input"}, {@code "output"},
          * or {@code "catalyst"}. Drives the accent colour in the HUD strip
          * (blue / green / yellow) and the auto-label when {@link #label} is null.
@@ -198,6 +207,7 @@ public class PhantasiaSceneData {
             c.trackDurationTicks = trackDurationTicks;
             c.description = description;
             c.microsceneId = microsceneId;
+            c.guideId = guideId;
             return c;
         }
     }

@@ -3,8 +3,8 @@ package net.phoenixvine.phantasia.client.screens.editors;
 import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
 
 import com.gregtechceu.gtceu.api.block.MetaMachineBlock;
-import com.gregtechceu.gtceu.api.machine.MultiblockMachineDefinition;
 
+import com.gregtechceu.gtceu.api.machine.MultiblockMachineDefinition;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
@@ -300,18 +300,14 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen {
             } catch (Exception ignored) {}
         }
 
-        // Attempt structure formation on the controller (mirrors finalisePattern in PhantasiaSceneScreen)
-        if (pattern.controller != null && pattern.controllerWorldPos != null) {
-            try {
-                com.gregtechceu.gtceu.api.pattern.BlockPattern pat = pattern.controller.getPattern();
-                if (pat != null) {
-                    boolean matched = pat.checkPatternAt(pattern.controller.getMultiblockState(), true);
-                    if (matched) pattern.controller.onStructureFormed();
-                }
-            } catch (Exception e) {
-                net.phoenixvine.phantasia.Phantasia.LOGGER.warn(
-                        "[Phantasia] Editor: onStructureFormed failed: {}", e.getMessage());
-            }
+        // Delegate structure formation to the provider (e.g. GTCEu fires onStructureFormed)
+        if (parentScene != null && pattern.controllerWorldPos != null) {
+            com.mojang.blaze3d.systems.RenderSystem.recordRenderCall(() ->
+                    parentScene.definition.onShapeLoaded(
+                            editorLevel,
+                            pattern.origin,
+                            new java.util.HashMap<>(pattern.blockMap),
+                            new java.util.HashMap<>(pattern.localToWorld)));
         }
     }
 

@@ -163,8 +163,9 @@ public class PhantasiaScenePattern {
         MultiblockControllerMachine controller = null;
 
         // Baseplate
-        BlockInfo floor = BlockInfo.fromBlockState(Blocks.DEEPSLATE_BRICKS.defaultBlockState());
-        for (int bx = -padX; bx <= sxLen + padX; bx++)
+        var _baseplateState0 = net.phoenixvine.phantasia.utils.PhantasiaTheme.currentBaseplateBlockState();
+        BlockInfo floor = _baseplateState0 != null ? BlockInfo.fromBlockState(_baseplateState0) : null;
+        if (floor != null) for (int bx = -padX; bx <= sxLen + padX; bx++)
             for (int bz = -padZ; bz <= szLen + padZ; bz++) {
                 BlockPos wp = origin.offset(bx, -1, bz);
                 placementMap.put(wp, floor);
@@ -268,8 +269,9 @@ public class PhantasiaScenePattern {
         Set<BlockPos> baseplatePos = new HashSet<>();
 
         // Small 5×5 baseplate centered on origin
-        BlockInfo floor = BlockInfo.fromBlockState(Blocks.DEEPSLATE_BRICKS.defaultBlockState());
-        for (int bx = -2; bx <= 2; bx++)
+        var _baseplateState1 = net.phoenixvine.phantasia.utils.PhantasiaTheme.currentBaseplateBlockState();
+        BlockInfo floor = _baseplateState1 != null ? BlockInfo.fromBlockState(_baseplateState1) : null;
+        if (floor != null) for (int bx = -2; bx <= 2; bx++)
             for (int bz = -2; bz <= 2; bz++) {
                 BlockPos wp = origin.offset(bx, -1, bz);
                 placementMap.put(wp, floor);

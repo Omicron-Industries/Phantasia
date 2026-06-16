@@ -240,7 +240,7 @@
   "spec.phantasia.unit.percent_positive": "%s%%+",
   "spec.phantasia.unit.seconds": "%ss",
   "spec.phantasia.unit.weight_suffix": ")%s:M( ",
-  "tooltip.phantasia.hold_to_phantasize": "ǝzısɐʇuɐɥԀ oʇ pןoHㄥ§ ]%s[q§ »ן§9§",
+  "tooltip.phantasia.hold_to_phantasize": "ǝzısɐʇuɐɥԀ oʇ pןoHㄥ§ ]q§%s[q§ »ן§9§",
   "ui.phantasia.bullet_prefix": " -   ",
   "ui.phantasia.color_code_display": ")%s§( %s§",
   "ui.phantasia.raw_value": "%s"

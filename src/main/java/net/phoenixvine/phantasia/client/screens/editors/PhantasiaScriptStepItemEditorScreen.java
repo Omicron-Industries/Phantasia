@@ -59,6 +59,7 @@ public class PhantasiaScriptStepItemEditorScreen extends PhantasiaScreen {
     private EditBox itemDurationBox;
     private EditBox itemDescBox;
     private EditBox itemMicrosceneBox;
+    private EditBox itemGuideIdBox;
 
     // ── Btn ───────────────────────────────────────────────────────────────────
 
@@ -115,6 +116,10 @@ public class PhantasiaScriptStepItemEditorScreen extends PhantasiaScreen {
         itemMicrosceneBox = addW(new EditBox(font, 0, 0, 200, 12, Component.empty()));
         itemMicrosceneBox.setMaxLength(128);
         itemMicrosceneBox.setHint(Component.translatable("screen.phantasia.script_step_item_editor.hint_scene"));
+
+        itemGuideIdBox = addW(new EditBox(font, 0, 0, 200, 12, Component.empty()));
+        itemGuideIdBox.setMaxLength(128);
+        itemGuideIdBox.setHint(Component.translatable("screen.phantasia.script_step_item_editor.hint_guide_id"));
 
         hideAll();
     }
@@ -261,8 +266,9 @@ public class PhantasiaScriptStepItemEditorScreen extends PhantasiaScreen {
         // Description
         cy = labeledBox(g, "Desc:", px, cy, pw, itemDescBox);
 
-        // Microscene
+        // Microscene / Guide links
         cy = labeledBox(g, "Scene:", px, cy, pw, itemMicrosceneBox);
+        cy = labeledBox(g, "Guide ID:", px, cy, pw, itemGuideIdBox);
 
         // Add button
         int addBtnW = pw - 16;
@@ -408,6 +414,7 @@ public class PhantasiaScriptStepItemEditorScreen extends PhantasiaScreen {
 
             cy = labeledBox(g, "Desc:", px, cy, pw, itemDescBox);
             cy = labeledBox(g, "Scene:", px, cy, pw, itemMicrosceneBox);
+            cy = labeledBox(g, "Guide ID:", px, cy, pw, itemGuideIdBox);
 
             // Apply & close
             int applyW = pw - 16;
@@ -434,6 +441,8 @@ public class PhantasiaScriptStepItemEditorScreen extends PhantasiaScreen {
                 it.description = desc.isEmpty() ? null : desc;
                 String sc = itemMicrosceneBox.getValue().trim();
                 it.microsceneId = sc.isEmpty() ? null : sc;
+                String gi = itemGuideIdBox.getValue().trim();
+                it.guideId = gi.isEmpty() ? null : gi;
                 parent.dirty = true;
                 editingItem = -1;
                 goBack();
@@ -469,6 +478,8 @@ public class PhantasiaScriptStepItemEditorScreen extends PhantasiaScreen {
         item.trackDurationTicks = dur;
         item.description = desc.isEmpty() ? null : desc;
         item.microsceneId = sc.isEmpty() ? null : sc;
+        String gi = itemGuideIdBox.getValue().trim();
+        item.guideId = gi.isEmpty() ? null : gi;
         step().items.add(item);
 
         itemIdBox.setValue("");
@@ -487,6 +498,7 @@ public class PhantasiaScriptStepItemEditorScreen extends PhantasiaScreen {
         itemDurationBox.setValue(it.trackDurationTicks != 20 ? String.valueOf(it.trackDurationTicks) : "");
         itemDescBox.setValue(it.description != null ? it.description : "");
         itemMicrosceneBox.setValue(it.microsceneId != null ? it.microsceneId : "");
+        itemGuideIdBox.setValue(it.guideId != null ? it.guideId : "");
     }
 
     private void goBack() {
@@ -527,7 +539,7 @@ public class PhantasiaScriptStepItemEditorScreen extends PhantasiaScreen {
 
     private void hideAll() {
         for (var box : List.of(itemIdBox, itemCountBox, itemLabelBox, itemDurationBox,
-                itemDescBox, itemMicrosceneBox)) {
+                itemDescBox, itemMicrosceneBox, itemGuideIdBox)) {
             if (box != null) {
                 box.visible = false;
                 box.active = false;

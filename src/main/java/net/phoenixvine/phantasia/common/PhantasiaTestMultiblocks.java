@@ -21,7 +21,8 @@ import static com.gregtechceu.gtceu.common.data.GCYMBlocks.*;
 import static com.gregtechceu.gtceu.common.data.GTBlocks.*;
 import static com.gregtechceu.gtceu.common.data.models.GTMachineModels.createWorkableCasingMachineModel;
 import static net.minecraft.world.level.block.Blocks.*;
-import static net.phoenixvine.phantasia.Phantasia.PHANTASIA_REGISTRATE;
+import static net.phoenixvine.phantasia.compat.gtceu.PhantasiaGTCompat.PHANTASIA_REGISTRATE;
+
 
 public class PhantasiaTestMultiblocks {
 

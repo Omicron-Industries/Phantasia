@@ -2,8 +2,6 @@ package net.phoenixvine.phantasia.client.screens;
 
 import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
 
-import com.gregtechceu.gtceu.api.machine.MultiblockMachineDefinition;
-
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
@@ -13,7 +11,6 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.level.block.Block;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.registries.ForgeRegistries;
@@ -22,8 +19,11 @@ import net.phoenixvine.phantasia.common.data.guides.PhantasiaGuideData;
 import net.phoenixvine.phantasia.common.data.guides.PhantasiaGuideRegistry;
 import net.phoenixvine.phantasia.common.data.scene.PhantasiaSceneData;
 import net.phoenixvine.phantasia.common.data.scene.PhantasiaScenes;
+import net.phoenixvine.phantasia.client.tutorial.PhantasiaTutorials;
+import net.phoenixvine.phantasia.client.tutorial.TutorialSequence;
 import net.phoenixvine.phantasia.common.data.script.PhantasiaScript;
 import net.phoenixvine.phantasia.common.data.script.PhantasiaScripts;
+import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockDefinition;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -40,17 +40,18 @@ import java.util.Locale;
 @OnlyIn(Dist.CLIENT)
 public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
 
-    public static final List<MultiblockMachineDefinition> PHANTASIA_SCENES = new ArrayList<>();
+    public static final List<IPhantasiaMultiblockDefinition> PHANTASIA_SCENES = new ArrayList<>();
 
     // Runtime filtered list matching the search query
-    private final List<MultiblockMachineDefinition> filteredScenes = new ArrayList<>();
+    private final List<IPhantasiaMultiblockDefinition> filteredScenes = new ArrayList<>();
     private final List<PhantasiaSceneData> filteredManualScenes = new ArrayList<>();
     private final List<PhantasiaGuideData> filteredGuides = new ArrayList<>();
 
     private enum Tab {
         MULTIBLOCKS,
         SCENES,
-        GUIDES
+        GUIDES,
+        TUTORIALS
     }
 
     private Tab activeTab = Tab.MULTIBLOCKS;
@@ -118,12 +119,12 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
 
         // Multiblocks
         filteredScenes.clear();
-        for (MultiblockMachineDefinition def : PHANTASIA_SCENES) {
+        for (IPhantasiaMultiblockDefinition def : PHANTASIA_SCENES) {
             if (query.isEmpty()) {
                 filteredScenes.add(def);
                 continue;
             }
-            String name = def.getLangValue();
+            String name = def.getDisplayName();
             if (name != null && name.toLowerCase(Locale.ROOT).contains(query)) {
                 filteredScenes.add(def);
                 continue;
@@ -177,7 +178,8 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
 
         if (activeTab == Tab.MULTIBLOCKS) renderCards(g, mx, my);
         else if (activeTab == Tab.SCENES) renderSceneCards(g, mx, my);
-        else renderGuideCards(g, mx, my);
+        else if (activeTab == Tab.GUIDES) renderGuideCards(g, mx, my);
+        else renderTutorialCards(g, mx, my);
 
         renderFooter(g, mx, my);
     }
@@ -195,7 +197,9 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
 
         renderTab(g, mx, my, tabStartX, tabY, "Multiblocks", Tab.MULTIBLOCKS);
         renderTab(g, mx, my, tabStartX + 104, tabY, "Scenes", Tab.SCENES);
-        renderTab(g, mx, my, tabStartX + 104 + font.width("Scenes") + 20, tabY, "Guides", Tab.GUIDES);
+        int guidesTabX = tabStartX + 104 + font.width("Scenes") + 20;
+        renderTab(g, mx, my, guidesTabX, tabY, "Guides", Tab.GUIDES);
+        renderTab(g, mx, my, guidesTabX + font.width("Guides") + 20, tabY, "Tutorials", Tab.TUTORIALS);
     }
 
     private void renderTab(GuiGraphics g, int mx, int my, int x, int y, String label, Tab tab) {
@@ -236,15 +240,12 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
     }
 
     private void renderCard(GuiGraphics g, int mx, int my,
-                            MultiblockMachineDefinition def,
+                            IPhantasiaMultiblockDefinition def,
                             int cx, int cy, boolean hovered) {
-        // 1. Theme-Aware Card Background Configuration
-        // Blend a 0xBB (~73%) transparency onto your dynamic panel and hover colors
         int cardBg = (0xBB << 24) | (C_PANEL() & 0x00FFFFFF);
         int cardHoverBg = (0xBB << 24) | (C_BTN_HOV() & 0x00FFFFFF);
         g.fill(cx, cy, cx + CARD_W, cy + CARD_H, hovered ? cardHoverBg : cardBg);
 
-        // CHANGED: Top bar now cleanly shifts from C_BORDER() to C_ACCENT()
         g.fill(cx, cy, cx + CARD_W, cy + 2, hovered ? C_ACCENT() : C_BORDER());
         if (hovered) {
             g.fill(cx, cy, cx + 1, cy + CARD_H, C_ACCENT());
@@ -252,10 +253,9 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
             g.fill(cx, cy + CARD_H - 1, cx + CARD_W, cy + CARD_H, C_ACCENT());
         }
 
-        // 2. Block icon (2D Item Sprite)
-        Block block = def.getBlock();
-        if (block != null) {
-            ItemStack stack = new ItemStack(block);
+        // Block icon (2D Item Sprite)
+        ItemStack icon = def.getIcon();
+        if (!icon.isEmpty()) {
             int iconSize = 32;
             int iconX = cx + (CARD_W - iconSize) / 2;
             int iconY = cy + 6;
@@ -263,14 +263,13 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
             g.pose().pushPose();
             g.pose().translate(iconX, iconY, 0);
             g.pose().scale(2f, 2f, 1f);
-            g.renderItem(stack, 0, 0);
+            g.renderItem(icon, 0, 0);
             g.pose().popPose();
         }
 
-        // 3. Machine name with Truncation and Fallback
-        String name = def.getLangValue();
-
-        if (name == null || name.isEmpty() || name.contains("gtceu.multiblock.")) {
+        // Machine name
+        String name = def.getDisplayName();
+        if (name == null || name.isEmpty()) {
             name = def.getId().getPath().replace('_', ' ');
             name = org.apache.commons.lang3.text.WordUtils.capitalizeFully(name);
         }
@@ -626,6 +625,14 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
             }
             return true;
         }
+        int tutorialsTabX = guidesTabX + font.width("Guides") + 20;
+        if (isOver((int) mx, (int) my, tutorialsTabX, tabY, font.width("Tutorials") + 16, TAB_H)) {
+            if (activeTab != Tab.TUTORIALS) {
+                activeTab = Tab.TUTORIALS;
+                scrollOffset = 0;
+            }
+            return true;
+        }
 
         // Back button
         int fy = this.height - FOOTER_H;
@@ -676,7 +683,7 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
                 Minecraft.getInstance().setScreen(new PhantasiaGuideScreen(this, guide));
                 return true;
             }
-        } else {
+        } else if (activeTab == Tab.SCENES) {
             if (hoveredCard == -2) {
                 Minecraft.getInstance().setScreen(new PhantasiaSceneCreateScreen(this));
                 return true;
@@ -716,6 +723,12 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
                 Minecraft.getInstance().setScreen(new PhantasiaSceneViewerScreen(this, scene));
                 return true;
             }
+        } else if (activeTab == Tab.TUTORIALS) {
+            if (hoveredCard >= 0 && hoveredCard < PhantasiaTutorials.ALL.size()) {
+                Minecraft.getInstance().setScreen(
+                        new PhantasiaTutorialScreen(this, PhantasiaTutorials.ALL.get(hoveredCard)));
+                return true;
+            }
         }
 
         return super.mouseClicked(mx, my, btn);
@@ -723,8 +736,11 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
 
     @Override
     public boolean mouseScrolled(double mx, double my, double delta) {
-        int itemCount = activeTab == Tab.MULTIBLOCKS ? filteredScenes.size() :
-                activeTab == Tab.GUIDES ? filteredGuides.size() + 1 : filteredManualScenes.size() + 1;
+        int itemCount;
+        if (activeTab == Tab.MULTIBLOCKS) itemCount = filteredScenes.size();
+        else if (activeTab == Tab.GUIDES) itemCount = filteredGuides.size() + 1;
+        else if (activeTab == Tab.SCENES) itemCount = filteredManualScenes.size() + 1;
+        else itemCount = PhantasiaTutorials.ALL.size();
         int totalRows = (itemCount + COLS - 1) / COLS;
         int maxScroll = Math.max(0, totalRows - visibleRows());
         scrollOffset = Math.max(0, Math.min(maxScroll, scrollOffset + (delta > 0 ? -1 : 1)));
@@ -754,6 +770,101 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
     @Override
     public void onClose() {
         Minecraft.getInstance().setScreen(parent);
+    }
+
+    // ── Tutorial cards ────────────────────────────────────────────────────────
+
+    private void renderTutorialCards(GuiGraphics g, int mx, int my) {
+        List<TutorialSequence> tutorials = PhantasiaTutorials.ALL;
+        int totalW  = COLS * CARD_W + (COLS - 1) * CARD_PAD;
+        int startX  = (this.width - totalW) / 2;
+        int startY  = HEADER_H + SEARCH_H + 6;
+        int maxRows = visibleRows();
+        hoveredCard = -1;
+
+        // Section labels
+        boolean playerSectionDrawn = false;
+        boolean devSectionDrawn    = false;
+
+        int visIdx = 0;
+        for (int i = 0; i < tutorials.size(); i++) {
+            TutorialSequence seq = tutorials.get(i);
+            int row = visIdx / COLS - scrollOffset;
+            int col = visIdx % COLS;
+            visIdx++;
+
+            // Section header (only once per category, in first column)
+            if (col == 0) {
+                boolean isPlayer = TutorialSequence.PLAYER.equals(seq.category);
+                if (isPlayer && !playerSectionDrawn) {
+                    playerSectionDrawn = true;
+                    if (row >= 0 && row < maxRows) {
+                        g.drawString(font, "For Players", startX, startY + row * (CARD_H + CARD_PAD) - 12, C_ACCENT(), false);
+                    }
+                }
+                if (!isPlayer && !devSectionDrawn) {
+                    devSectionDrawn = true;
+                    if (row >= 0 && row < maxRows) {
+                        g.drawString(font, "For Pack Authors", startX, startY + row * (CARD_H + CARD_PAD) - 12, C_DIM(), false);
+                    }
+                }
+            }
+
+            if (row < 0 || row >= maxRows) continue;
+
+            int cx = startX + col * (CARD_W + CARD_PAD);
+            int cy = startY + row * (CARD_H + CARD_PAD);
+            boolean hov = isOver(mx, my, cx, cy, CARD_W, CARD_H);
+            if (hov) hoveredCard = i;
+
+            g.fill(cx, cy, cx + CARD_W, cy + CARD_H, hov ? C_CARD_HOV : C_CARD);
+            boolean isDev = TutorialSequence.DEV.equals(seq.category);
+            g.fill(cx, cy, cx + CARD_W, cy + 1, isDev ? C_DIM() : C_ACCENT());
+
+            // Icon
+            ResourceLocation iconRL = null;
+            try {
+                iconRL = new ResourceLocation(seq.iconItem);
+            } catch (Exception ignored) {}
+            if (iconRL != null) {
+                Item iconItem = net.minecraftforge.registries.ForgeRegistries.ITEMS.getValue(iconRL);
+                if (iconItem != null && iconItem != Items.AIR) {
+                    g.renderItem(new ItemStack(iconItem), cx + 4, cy + 4);
+                }
+            }
+
+            // Title
+            g.drawString(font, seq.title, cx + 22, cy + 6, C_ACCENT(), false);
+
+            // Description (wrapped to 2 lines)
+            String desc = seq.description != null ? seq.description : "";
+            int maxDescW = CARD_W - 8;
+            java.util.List<net.minecraft.util.FormattedCharSequence> lines =
+                    font.split(Component.literal(desc), maxDescW);
+            int ty = cy + 20;
+            for (int li = 0; li < Math.min(lines.size(), 3); li++) {
+                g.drawString(font, lines.get(li), cx + 4, ty + li * 10, C_DIM(), false);
+            }
+
+            // Slide count
+            String slideStr = seq.slides.size() + " slides";
+            g.drawString(font, slideStr, cx + 4, cy + CARD_H - 12, C_DIM(), false);
+
+            // Dev badge
+            if (isDev) {
+                g.drawString(font, "DEV", cx + CARD_W - font.width("DEV") - 4, cy + CARD_H - 12, C_DIM(), false);
+            }
+
+            // Hover: "▶ Start"
+            if (hov) {
+                String btnLabel = "▶ Start";
+                int bw = font.width(btnLabel) + 6;
+                int bx2 = cx + CARD_W - bw - 4;
+                int by2 = cy + CARD_H - 12;
+                g.fill(bx2 - 1, by2 - 1, bx2 + bw + 1, by2 + 10, C_BTN());
+                g.drawString(font, btnLabel, bx2 + 3, by2 + 1, C_ACCENT(), false);
+            }
+        }
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

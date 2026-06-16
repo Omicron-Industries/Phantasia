@@ -654,7 +654,7 @@ public class PhantasiaGuideEditorScreen extends Screen {
             if (font.width(lbl) > rightWidth - 30)
                 lbl = font.plainSubstrByWidth(lbl, rightWidth - 30 - font.width("…")) + "…";
 
-            g.drawString(font, lbl, px + 6, y + (ROW_H - 8) / 2, sel ? C_ACCENT() : C_TEXT(), false);
+            g.drawString(font, lbl, px + 6, y + (ROW_H - 8) / 2, C_TEXT(), false);
 
             boolean delHov = over(mx, my, width - 18, y + 2, 14, ROW_H - 4);
             g.fill(width - 18, y + 2, width - 4, y + ROW_H - 2, delHov ? 0xBB3A0A0A : C_BTN());
@@ -705,7 +705,7 @@ public class PhantasiaGuideEditorScreen extends Screen {
                 String itLbl = it.displayLabel() + " — " + it.item;
                 if (font.width(itLbl) > rightWidth - 34) itLbl = font.plainSubstrByWidth(itLbl, rightWidth - 34) + "…";
 
-                g.drawString(font, itLbl, px + 8, renderY + 3, isel ? C_ACCENT() : C_TEXT(), false);
+                g.drawString(font, itLbl, px + 8, renderY + 3, C_TEXT(), false);
 
                 boolean diHov = over(mx, my, width - 18, renderY, 14, 14);
                 g.fill(width - 18, renderY, width - 4, renderY + 14, diHov ? 0xBB3A0A0A : C_BTN());
@@ -796,10 +796,9 @@ public class PhantasiaGuideEditorScreen extends Screen {
         y += 18;
 
         String slk = page().scriptId != null && !page().scriptId.isBlank() &&
-                com.gregtechceu.gtceu.api.registry.GTRegistries.MACHINES.values().stream().anyMatch(
-                        def -> def instanceof com.gregtechceu.gtceu.api.machine.MultiblockMachineDefinition multi &&
-                                PhantasiaScripts.has(multi) && def.getId().toString().equals(page().scriptId)) ?
-                                        page().scriptId : "None";
+                net.phoenixvine.phantasia.common.multiblock.PhantasiaMultiblockRegistry.getAllDefinitions().stream()
+                        .anyMatch(def -> PhantasiaScripts.has(def) && def.getId().toString().equals(page().scriptId)) ?
+                                page().scriptId : "None";
         boolean slkHov = over(mx, my, px + 4, y, rightWidth - 8, 14);
         g.fill(px + 4, y, width - 4, y + 14, slkHov ? C_BTN_HOV() : C_BTN());
         String scriptBtnLabel = "Script: " + slk;
@@ -808,9 +807,8 @@ public class PhantasiaGuideEditorScreen extends Screen {
         g.drawCenteredString(font, scriptBtnLabel, px + rightWidth / 2, y + 3, slkHov ? C_ACCENT() : C_TEXT());
 
         btns.add(new Btn(px + 4, y, rightWidth - 8, 14, () -> {
-            List<String> scriptIds = com.gregtechceu.gtceu.api.registry.GTRegistries.MACHINES.values().stream()
-                    .filter(def -> def instanceof com.gregtechceu.gtceu.api.machine.MultiblockMachineDefinition multi &&
-                            PhantasiaScripts.has(multi))
+            List<String> scriptIds = net.phoenixvine.phantasia.common.multiblock.PhantasiaMultiblockRegistry.getAllDefinitions().stream()
+                    .filter(def -> PhantasiaScripts.has(def))
                     .map(def -> def.getId().toString())
                     .toList();
             Minecraft.getInstance().setScreen(new RegistrySearchScreen(this, "Select Script Link", scriptIds, id -> {
@@ -1025,7 +1023,7 @@ public class PhantasiaGuideEditorScreen extends Screen {
     }
 
     private void hideAllInputs() {
-        for (var b : List.of(titleBox, iconItemBox, itemIdBox, itemLabelBox, itemCountBox, tooltipItemBox)) {
+        for (var b : new EditBox[] { titleBox, iconItemBox, itemIdBox, itemLabelBox, itemCountBox, tooltipItemBox }) {
             if (b != null) {
                 b.visible = false;
                 b.active = false;

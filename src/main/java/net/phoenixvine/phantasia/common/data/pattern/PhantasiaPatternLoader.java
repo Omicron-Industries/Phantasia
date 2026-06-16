@@ -1,11 +1,5 @@
 package net.phoenixvine.phantasia.common.data.pattern;
 
-import com.gregtechceu.gtceu.api.blockentity.MetaMachineBlockEntity;
-import com.gregtechceu.gtceu.api.machine.MultiblockMachineDefinition;
-import com.gregtechceu.gtceu.api.machine.feature.multiblock.IMultiPart;
-import com.gregtechceu.gtceu.api.machine.multiblock.MultiblockControllerMachine;
-import com.gregtechceu.gtceu.api.pattern.MultiblockShapeInfo;
-
 import com.lowdragmc.lowdraglib.utils.BlockInfo;
 
 import net.minecraft.client.Minecraft;
@@ -18,6 +12,8 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.phoenixvine.phantasia.client.render.PhantasiaTrackedDummyWorld;
 import net.phoenixvine.phantasia.common.data.scene.PhantasiaSceneData;
 import net.phoenixvine.phantasia.common.data.script.PhantasiaScript;
+import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockDefinition;
+import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockShape;
 import net.phoenixvine.phantasia.common.world.PhantasiaDimension;
 import net.phoenixvine.phantasia.common.world.PhantasiaSlotAllocator;
 import net.phoenixvine.phantasia.common.world.PhantasiaSlotVersions;
@@ -28,7 +24,6 @@ import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 /**
@@ -47,15 +42,10 @@ import java.util.function.Consumer;
  *       given a bake request — nothing reads {@code SHARED_LEVEL} until
  *       {@code onPatternLoaded} fires on the render thread and calls
  *       {@code renderer.requestBake()}.
- *   <li>{@code onStructureFormed()} is always dispatched back to the render thread
- *       via {@code recordRenderCall} so GT machine state is never mutated off-thread.
+ *   <li>Structure-forming logic (e.g. GTCEu's {@code onStructureFormed}) is always
+ *       dispatched back to the render thread via {@code recordRenderCall} inside
+ *       {@link IPhantasiaMultiblockDefinition#onShapeLoaded}.
  * </ul>
- *
- * <h3>Progress</h3>
- * {@link #blocksPlaced} and {@link #blocksTotal} are {@code volatile int}s safe to
- * read from the render thread for a progress bar.  {@link #isDone()} becomes true
- * when the callback has been posted (though the render thread may not have processed
- * it yet). {@link #isFailed()} is set if an unrecoverable exception occurs.
  */
 public final class PhantasiaPatternLoader {
 
@@ -101,9 +91,9 @@ public final class PhantasiaPatternLoader {
      * @param onLoaded    callback invoked on the render thread with the finished pattern
      */
     public static PhantasiaPatternLoader start(
-            MultiblockMachineDefinition definition,
+            IPhantasiaMultiblockDefinition definition,
             int shapeIndex,
-            List<MultiblockShapeInfo> shapes,
+            List<IPhantasiaMultiblockShape> shapes,
             PhantasiaScript script,
             PhantasiaTrackedDummyWorld sharedLevel,
             Consumer<PhantasiaLoadedPattern> onLoaded) {
@@ -125,19 +115,16 @@ public final class PhantasiaPatternLoader {
     // ── Core load logic ───────────────────────────────────────────────────────
 
     private void run(
-            MultiblockMachineDefinition definition,
+            IPhantasiaMultiblockDefinition definition,
             int shapeIndex,
-            List<MultiblockShapeInfo> shapes,
+            List<IPhantasiaMultiblockShape> shapes,
             PhantasiaScript script,
             PhantasiaTrackedDummyWorld sharedLevel,
             Consumer<PhantasiaLoadedPattern> onLoaded) {
 
         try {
-            PhantasiaLoadedPattern result = doLoad(
-                    definition, shapeIndex, shapes, script, sharedLevel);
+            PhantasiaLoadedPattern result = doLoad(definition, shapeIndex, shapes, script, sharedLevel);
 
-            // Post the callback to the render thread so onStructureFormed and
-            // renderer.requestBake() happen in the right thread context.
             RenderSystem.recordRenderCall(() -> {
                 done = true;
                 onLoaded.accept(result);
@@ -153,9 +140,9 @@ public final class PhantasiaPatternLoader {
     }
 
     private PhantasiaLoadedPattern doLoad(
-            MultiblockMachineDefinition definition,
+            IPhantasiaMultiblockDefinition definition,
             int shapeIndex,
-            List<MultiblockShapeInfo> shapes,
+            List<IPhantasiaMultiblockShape> shapes,
             PhantasiaScript script,
             PhantasiaTrackedDummyWorld sharedLevel) throws InterruptedException {
 
@@ -163,7 +150,7 @@ public final class PhantasiaPatternLoader {
         BlockPos slotOrigin   = PhantasiaSlotAllocator.originFor(machineId);
         BlockPos renderOrigin = PhantasiaSlotAllocator.RENDER_ORIGIN;
 
-        MultiblockShapeInfo shape = shapes.get(shapeIndex);
+        IPhantasiaMultiblockShape shape = shapes.get(shapeIndex);
         int shapeHash  = PhantasiaSlotVersions.hashShape(shape.getBlocks());
         int scriptHash = PhantasiaSlotVersions.hashScript(script.getSourceData());
         boolean warm   = PhantasiaSlotVersions.isValid(machineId, shapeHash, scriptHash, slotOrigin);
@@ -185,8 +172,8 @@ public final class PhantasiaPatternLoader {
     // ── Cold load ─────────────────────────────────────────────────────────────
 
     private PhantasiaLoadedPattern loadCold(
-            MultiblockMachineDefinition definition,
-            MultiblockShapeInfo shape,
+            IPhantasiaMultiblockDefinition definition,
+            IPhantasiaMultiblockShape shape,
             BlockPos renderOrigin,
             BlockPos slotOrigin,
             PhantasiaTrackedDummyWorld sharedLevel,
@@ -201,7 +188,6 @@ public final class PhantasiaPatternLoader {
         int padX  = Math.max(2, sxLen / 2 + 1);
         int padZ  = Math.max(2, szLen / 2 + 1);
 
-        // Count total work units upfront so the progress bar is accurate.
         int baseplateCount = (sxLen + 2 * padX + 1) * (szLen + 2 * padZ + 1);
         int machineCount   = countNonNull(raw);
         blocksTotal = baseplateCount + machineCount;
@@ -210,15 +196,13 @@ public final class PhantasiaPatternLoader {
         Map<BlockPos, BlockPos>   localToWorld = new HashMap<>(machineCount);
         Set<BlockPos>             baseplatePos = new HashSet<>(baseplateCount);
         Set<BlockPos>             bePos        = new HashSet<>();
-        List<IMultiPart>          parts        = new ArrayList<>();
-        BlockPos                  controllerWP = null;
-        MultiblockControllerMachine controller  = null;
 
         // ── Baseplate ─────────────────────────────────────────────────────────
         phase = "Placing baseplate…";
-        BlockInfo floor = BlockInfo.fromBlockState(Blocks.DEEPSLATE_BRICKS.defaultBlockState());
+        var _baseplateState0 = net.phoenixvine.phantasia.utils.PhantasiaTheme.currentBaseplateBlockState();
+        BlockInfo floor = _baseplateState0 != null ? BlockInfo.fromBlockState(_baseplateState0) : null;
 
-        for (int bx = -padX; bx <= sxLen + padX; bx++) {
+        if (floor != null) for (int bx = -padX; bx <= sxLen + padX; bx++) {
             for (int bz = -padZ; bz <= szLen + padZ; bz++) {
                 if (Thread.interrupted()) throw new InterruptedException();
                 BlockPos wp = renderOrigin.offset(bx, -1, bz);
@@ -253,16 +237,6 @@ public final class PhantasiaPatternLoader {
                         BlockEntity newBE = entityBlock.newBlockEntity(wp, state);
                         if (newBE != null) {
                             sharedLevel.setInnerBlockEntity(newBE);
-                            if (newBE instanceof MetaMachineBlockEntity mmbe) {
-                                mmbe.setLevel(sharedLevel);
-                                var machine = mmbe.getMetaMachine();
-                                if (machine instanceof MultiblockControllerMachine ctrl && controllerWP == null) {
-                                    controller = ctrl;
-                                    controllerWP = wp;
-                                } else if (machine instanceof IMultiPart part) {
-                                    parts.add(part);
-                                }
-                            }
                             bePos.add(wp);
                         }
                     }
@@ -278,21 +252,23 @@ public final class PhantasiaPatternLoader {
             BlockPos localOffset = e.getKey().subtract(renderOrigin);
             slotSpaceMap.put(slotOrigin.offset(localOffset), e.getValue());
         }
-        // coldPopulateDimensionSlot submits its own async server task — safe to call here.
         net.phoenixvine.phantasia.client.screens.PhantasiaSceneScreen
                 .coldPopulateDimensionSlot(definition.getId(), slotSpaceMap);
 
-        // ── onStructureFormed — must run on render thread ─────────────────────
-        // Captured for the recordRenderCall closure below.
+        // ── Notify definition to fire structure-forming logic ─────────────────
         phase = "Forming structure…";
-        return finalise(raw, blockMap, localToWorld, baseplatePos, bePos,
-                controllerWP, controller, renderOrigin, parts, script, sharedLevel, true);
+        final Map<BlockPos, BlockInfo> blockMapSnapshot = Map.copyOf(blockMap);
+        final Map<BlockPos, BlockPos> localToWorldSnapshot = Map.copyOf(localToWorld);
+        RenderSystem.recordRenderCall(() ->
+                definition.onShapeLoaded(sharedLevel, renderOrigin, blockMapSnapshot, localToWorldSnapshot));
+
+        return buildResult(raw, blockMap, localToWorld, baseplatePos, bePos, renderOrigin, script);
     }
 
     // ── Warm load ─────────────────────────────────────────────────────────────
 
     private PhantasiaLoadedPattern loadWarm(
-            MultiblockShapeInfo shape,
+            IPhantasiaMultiblockShape shape,
             BlockPos renderOrigin,
             PhantasiaTrackedDummyWorld sharedLevel,
             PhantasiaScript script) throws InterruptedException {
@@ -310,21 +286,17 @@ public final class PhantasiaPatternLoader {
         int machineCount   = countNonNull(raw);
         blocksTotal = baseplateCount + machineCount;
 
-        // Warm load: block states already in SHARED_LEVEL from a previous session.
-        // Clear BEs so we re-register fresh instances (BEs are session-local).
         sharedLevel.blockEntities.clear();
 
         Map<BlockPos, BlockInfo>  blockMap     = new HashMap<>(blocksTotal);
         Map<BlockPos, BlockPos>   localToWorld = new HashMap<>(machineCount);
         Set<BlockPos>             baseplatePos = new HashSet<>(baseplateCount);
         Set<BlockPos>             bePos        = new HashSet<>();
-        List<IMultiPart>          parts        = new ArrayList<>();
-        BlockPos                  controllerWP = null;
-        MultiblockControllerMachine controller  = null;
 
         phase = "Indexing baseplate…";
-        BlockInfo floor = BlockInfo.fromBlockState(Blocks.DEEPSLATE_BRICKS.defaultBlockState());
-        for (int bx = -padX; bx <= sxLen + padX; bx++) {
+        var _baseplateState1 = net.phoenixvine.phantasia.utils.PhantasiaTheme.currentBaseplateBlockState();
+        BlockInfo floor = _baseplateState1 != null ? BlockInfo.fromBlockState(_baseplateState1) : null;
+        if (floor != null) for (int bx = -padX; bx <= sxLen + padX; bx++) {
             for (int bz = -padZ; bz <= szLen + padZ; bz++) {
                 if (Thread.interrupted()) throw new InterruptedException();
                 BlockPos wp = renderOrigin.offset(bx, -1, bz);
@@ -349,22 +321,11 @@ public final class PhantasiaPatternLoader {
                     blockMap.put(wp, info);
                     localToWorld.put(lp, wp);
 
-                    // Re-register BEs from the world state (blocks are already placed).
                     BlockState state = sharedLevel.getBlockState(wp);
                     if (state.getBlock() instanceof EntityBlock entityBlock) {
                         BlockEntity newBE = entityBlock.newBlockEntity(wp, state);
                         if (newBE != null) {
                             sharedLevel.setInnerBlockEntity(newBE);
-                            if (newBE instanceof MetaMachineBlockEntity mmbe) {
-                                mmbe.setLevel(sharedLevel);
-                                var machine = mmbe.getMetaMachine();
-                                if (machine instanceof MultiblockControllerMachine ctrl && controllerWP == null) {
-                                    controller = ctrl;
-                                    controllerWP = wp;
-                                } else if (machine instanceof IMultiPart part) {
-                                    parts.add(part);
-                                }
-                            }
                             bePos.add(wp);
                         }
                     }
@@ -374,56 +335,21 @@ public final class PhantasiaPatternLoader {
         }
 
         phase = "Forming structure…";
-        return finalise(raw, blockMap, localToWorld, baseplatePos, bePos,
-                controllerWP, controller, renderOrigin, parts, script, sharedLevel, true);
+        return buildResult(raw, blockMap, localToWorld, baseplatePos, bePos, renderOrigin, script);
     }
 
-    // ── Shared finalise ───────────────────────────────────────────────────────
+    // ── Build result ──────────────────────────────────────────────────────────
 
-    /**
-     * Builds the {@link PhantasiaLoadedPattern} from the collected data.
-     * {@code onStructureFormed} is deferred to the render thread when
-     * {@code fireStructureFormed} is true.
-     */
-    private PhantasiaLoadedPattern finalise(
+    private static PhantasiaLoadedPattern buildResult(
             BlockInfo[][][] raw,
             Map<BlockPos, BlockInfo> blockMap,
             Map<BlockPos, BlockPos> localToWorld,
             Set<BlockPos> baseplatePos,
             Set<BlockPos> bePos,
-            BlockPos controllerWP,
-            MultiblockControllerMachine controller,
             BlockPos origin,
-            List<IMultiPart> parts,
-            PhantasiaScript script,
-            PhantasiaTrackedDummyWorld sharedLevel,
-            boolean fireStructureFormed) {
+            PhantasiaScript script) {
 
         LOGGER.info("[Phantasia] PatternLoader: registered {} BEs", bePos.size());
-
-        // onStructureFormed touches GT machine state — defer to render thread.
-        if (fireStructureFormed && controller != null) {
-            final MultiblockControllerMachine ctrl = controller;
-            final List<IMultiPart> partsCopy = List.copyOf(parts);
-            RenderSystem.recordRenderCall(() -> {
-                try {
-                    var mState = ctrl.getMultiblockState();
-                    if (mState != null) {
-                        mState.setError(null);
-                        mState.getMatchContext().set("parts", new HashSet<>(partsCopy));
-                    }
-                    ctrl.getPatternLock().lock();
-                    try {
-                        ctrl.onStructureFormed();
-                    } finally {
-                        ctrl.getPatternLock().unlock();
-                    }
-                    LOGGER.info("[Phantasia] onStructureFormed simulated successfully.");
-                } catch (Exception e) {
-                    LOGGER.error("[Phantasia] onStructureFormed failed: {}", e.getMessage(), e);
-                }
-            });
-        }
 
         int minY = Integer.MAX_VALUE, maxY = Integer.MIN_VALUE;
         for (BlockPos lp : localToWorld.keySet()) {
@@ -433,7 +359,7 @@ public final class PhantasiaPatternLoader {
         if (minY > maxY) { minY = 0; maxY = 0; }
 
         return new PhantasiaLoadedPattern(blockMap, localToWorld, baseplatePos,
-                controllerWP, bePos, origin, minY, maxY, controller, script);
+                null, bePos, origin, minY, maxY, script);
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

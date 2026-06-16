@@ -94,7 +94,7 @@ public class PhantasiaClient {
         });
     }
 
-    private static void addPhantasiaMachine(com.gregtechceu.gtceu.api.machine.MultiblockMachineDefinition def) {
+    private static void addPhantasiaMachine(net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockDefinition def) {
         if (!PhantasiaSceneSelectionScreen.PHANTASIA_SCENES.contains(def))
             PhantasiaSceneSelectionScreen.PHANTASIA_SCENES.add(def);
     }

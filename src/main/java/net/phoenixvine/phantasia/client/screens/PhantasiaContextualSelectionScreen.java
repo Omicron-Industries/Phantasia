@@ -4,13 +4,13 @@ package net.phoenixvine.phantasia.client.screens;
 
 import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
 
-import com.gregtechceu.gtceu.api.machine.MultiblockMachineDefinition;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.phoenixvine.phantasia.common.data.guides.PhantasiaGuideData;
 import net.phoenixvine.phantasia.common.data.scene.PhantasiaSceneData;
+import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockDefinition;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 
@@ -20,7 +20,7 @@ import java.util.List;
 @OnlyIn(Dist.CLIENT)
 public class PhantasiaContextualSelectionScreen extends PhantasiaScreen {
 
-    private final MultiblockMachineDefinition definition;
+    private final IPhantasiaMultiblockDefinition definition;
     private final List<PhantasiaSceneData> manualScenes;
     private final List<PhantasiaGuideData> guides;
     private final boolean hasScript;
@@ -36,7 +36,7 @@ public class PhantasiaContextualSelectionScreen extends PhantasiaScreen {
     private enum ItemType { SCRIPT, SCENE, GUIDE }
     private record ContextItem(ItemType type, Object data) {}
 
-    public PhantasiaContextualSelectionScreen(MultiblockMachineDefinition definition,
+    public PhantasiaContextualSelectionScreen(IPhantasiaMultiblockDefinition definition,
                                               List<PhantasiaSceneData> manualScenes,
                                               List<PhantasiaGuideData> guides,
                                               boolean hasScript) {
@@ -63,8 +63,8 @@ public class PhantasiaContextualSelectionScreen extends PhantasiaScreen {
         // Subtitle Header
         String name = "";
         if (definition != null) {
-            name = definition.getLangValue();
-            if (name == null || name.isEmpty() || name.contains(".")) {
+            name = definition.getDisplayName();
+            if (name == null || name.isEmpty()) {
                 name = org.apache.commons.lang3.text.WordUtils.capitalizeFully(definition.getId().getPath().replace('_', ' '));
             }
         }
@@ -121,7 +121,7 @@ public class PhantasiaContextualSelectionScreen extends PhantasiaScreen {
 
         switch (item.type()) {
             case SCRIPT -> {
-                g.renderItem(definition.asStack(), 0, 0);
+                g.renderItem(definition.getIcon(), 0, 0);
                 cardTitle = "Structure Script";
                 badgeLabel = "§aReady";
             }

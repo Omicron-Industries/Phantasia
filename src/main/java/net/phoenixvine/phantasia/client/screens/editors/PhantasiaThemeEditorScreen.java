@@ -21,6 +21,7 @@ public class PhantasiaThemeEditorScreen extends Screen {
     private final List<EditBoxWrapper> editBoxes = new ArrayList<>();
     private final List<CategoryHeader> categories = new ArrayList<>();
     private EditBox nameInput;
+    private EditBox baseplateBox;
     private int scrollOffset = 0;
 
     // ── Staging Area for Deferred Deletions ──
@@ -28,7 +29,7 @@ public class PhantasiaThemeEditorScreen extends Screen {
 
     // ── UX Preservation Records & Undo Stack ──
     private enum UndoType { COLOR_EDIT, THEME_DELETE }
-    private record ThemeSnapshot(String bg, String panel, String accent, String btn, String btnHov, String text, String dim, String prog, String hilight, String name) {}
+    private record ThemeSnapshot(String bg, String panel, String accent, String btn, String btnHov, String text, String dim, String prog, String hilight, String baseplateBlock, String name) {}
     private record CategoryHeader(String title, int x, int y) {}
 
     private record UndoEntry(
@@ -75,7 +76,19 @@ public class PhantasiaThemeEditorScreen extends Screen {
 
         categories.add(new CategoryHeader("■ Base Layers", startX + 5, startY)); startY += 12;
         addSettingField("BG Color", active.bg, startX, startY, sidebarWidth - 75); startY += rowHeight;
-        addSettingField("Panel Color", active.panel, startX, startY, sidebarWidth - 75); startY += rowHeight + 6;
+        addSettingField("Panel Color", active.panel, startX, startY, sidebarWidth - 75); startY += rowHeight;
+
+        baseplateBox = new EditBox(this.font, startX + 65, startY, sidebarWidth - 75, 16, Component.literal("Baseplate"));
+        baseplateBox.setMaxLength(128);
+        baseplateBox.setValue(active.baseplateBlock != null ? active.baseplateBlock : "minecraft:deepslate_bricks");
+        baseplateBox.setHint(Component.literal("e.g. minecraft:stone_bricks"));
+        baseplateBox.setResponder(str -> {
+            if (!isUndoing) pushUndoSnapshot();
+            PhantasiaTheme.current().baseplateBlock = str.isBlank() ? "minecraft:deepslate_bricks" : str.trim();
+            confirmWarningActive = false;
+        });
+        this.addWidget(baseplateBox);
+        startY += rowHeight + 6;
 
         categories.add(new CategoryHeader("■ Typography System", startX + 5, startY)); startY += 12;
         addSettingField("Text Color", active.text, startX, startY, sidebarWidth - 75); startY += rowHeight;
@@ -155,7 +168,8 @@ public class PhantasiaThemeEditorScreen extends Screen {
                     active.tlBg.hex,
                     getBoxValue("Progress", active.prog.hex),
                     active.warn.hex,
-                    getBoxValue("Highlight", active.hilight.hex)
+                    getBoxValue("Highlight", active.hilight.hex),
+                    baseplateBox != null ? baseplateBox.getValue().trim() : active.baseplateBlock
             );
 
             // If user overwrites a theme they previously marked for deletion, drop it from staging
@@ -217,6 +231,9 @@ public class PhantasiaThemeEditorScreen extends Screen {
                     case "Highlight" -> wrapper.box.setValue(previousState.hilight);
                 }
             }
+            if (baseplateBox != null && previousState.baseplateBlock != null) {
+                baseplateBox.setValue(previousState.baseplateBlock);
+            }
             if (nameInput != null) {
                 nameInput.setValue(previousState.name);
             }
@@ -237,7 +254,7 @@ public class PhantasiaThemeEditorScreen extends Screen {
     }
 
     private ThemeSnapshot createSnapshotInline(PhantasiaTheme theme, String currentName) {
-        return new ThemeSnapshot(theme.bg.hex, theme.panel.hex, theme.accent.hex, theme.btn.hex, theme.btnHov.hex, theme.text.hex, theme.dim.hex, theme.prog.hex, theme.hilight.hex, currentName);
+        return new ThemeSnapshot(theme.bg.hex, theme.panel.hex, theme.accent.hex, theme.btn.hex, theme.btnHov.hex, theme.text.hex, theme.dim.hex, theme.prog.hex, theme.hilight.hex, theme.baseplateBlock, currentName);
     }
 
     private void restoreSnapshot(ThemeSnapshot target) {
@@ -251,6 +268,7 @@ public class PhantasiaThemeEditorScreen extends Screen {
         active.dim.set(target.dim);
         active.prog.set(target.prog);
         active.hilight.set(target.hilight);
+        active.baseplateBlock = target.baseplateBlock != null ? target.baseplateBlock : "minecraft:deepslate_bricks";
     }
 
     // ── Get filtered themes currently not hidden inside staging ──
@@ -289,6 +307,10 @@ public class PhantasiaThemeEditorScreen extends Screen {
         for (EditBoxWrapper wrapper : editBoxes) {
             g.drawString(this.font, wrapper.label, wrapper.box.getX() - 62, wrapper.box.getY() + 4, PhantasiaThemeUtils.C_TEXT(), false);
             wrapper.box.render(g, mouseX, mouseY, partialTicks);
+        }
+        if (baseplateBox != null) {
+            g.drawString(this.font, "Baseplate", baseplateBox.getX() - 62, baseplateBox.getY() + 4, PhantasiaThemeUtils.C_TEXT(), false);
+            baseplateBox.render(g, mouseX, mouseY, partialTicks);
         }
         this.nameInput.render(g, mouseX, mouseY, partialTicks);
 

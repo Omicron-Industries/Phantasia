@@ -1,9 +1,5 @@
 package net.phoenixvine.phantasia.common.data.script;
 
-import com.gregtechceu.gtceu.api.block.MetaMachineBlock;
-import com.gregtechceu.gtceu.api.machine.MultiblockMachineDefinition;
-import com.gregtechceu.gtceu.api.pattern.MultiblockShapeInfo;
-
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.state.BlockState;
 import net.phoenixvine.phantasia.client.camera.LerpType;
@@ -11,6 +7,8 @@ import net.phoenixvine.phantasia.client.screens.PhantasiaSceneScreen;
 import net.phoenixvine.phantasia.common.PhantasiaParticleEffect;
 import net.phoenixvine.phantasia.common.data.pattern.PhantasiaLoadedPattern;
 import net.phoenixvine.phantasia.common.data.variant.PhantasiaVariantGroup;
+import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockDefinition;
+import net.phoenixvine.phantasia.common.multiblock.PhantasiaMultiblockRegistry;
 
 import lombok.Getter;
 
@@ -36,7 +34,8 @@ public class PhantasiaScript {
                        LerpType lerpType,
                        int lerpTicks,
                        @Nullable String fakeRecipeId,
-                       List<PhantasiaParticleEffect> particleEffects) {
+                       List<PhantasiaParticleEffect> particleEffects,
+                       @Nullable String hold) {
 
         public boolean hasCamera() {
             return useCam;
@@ -151,10 +150,9 @@ public class PhantasiaScript {
      * Called by {@link net.phoenixvine.phantasia.client.screens.PhantasiaSceneScreen}
      * after the pattern has been loaded.
      */
-    public PhantasiaScript withVariants(MultiblockMachineDefinition definition,
-                                        PhantasiaLoadedPattern pattern,
-                                        java.util.List<MultiblockShapeInfo> allShapes) {
-        List<PhantasiaVariantGroup> groups = PhantasiaVariantGroup.compile(sourceData, definition, pattern, allShapes);
+    public PhantasiaScript withVariants(IPhantasiaMultiblockDefinition definition,
+                                        PhantasiaLoadedPattern pattern) {
+        List<PhantasiaVariantGroup> groups = PhantasiaVariantGroup.compile(sourceData, definition, pattern);
         return new PhantasiaScript(sourceData, steps, commonMistakes, globalMistakes,
                 heatmapTiers, groups);
     }
@@ -188,7 +186,8 @@ public class PhantasiaScript {
         return new Step(sd.tick, sd.caption, filter,
                 sd.working, -1, -1,
                 yaw, pitch, zoom, useCam, lerpType, lerpTicks,
-                sd.fakeRecipeId, Collections.unmodifiableList(new ArrayList<>(particleFx)));
+                sd.fakeRecipeId, Collections.unmodifiableList(new ArrayList<>(particleFx)),
+                sd.hold);
     }
 
     private static Predicate<BlockPos> buildShowPredicate(PhantasiaScriptData.StepData sd) {
@@ -213,34 +212,18 @@ public class PhantasiaScript {
                 yield set::contains;
             }
 
-            case "parts" -> localPred(state -> {
-                if (!(state.getBlock() instanceof MetaMachineBlock mmb)) return false;
-                if (mmb.getDefinition() instanceof MultiblockMachineDefinition) return false;
-                String p = mmb.getDefinition().getId().getPath();
-                return p.contains("hatch") || p.contains("bus") || p.contains("port") || p.contains("storage") ||
-                        p.contains("input") || p.contains("output") || p.contains("muffler") ||
-                        p.contains("maintenance");
-            });
+            case "parts" -> localPred(PhantasiaMultiblockRegistry::isPartBlock);
 
-            case "controller" -> localPred(state -> state.getBlock() instanceof MetaMachineBlock mmb &&
-                    mmb.getDefinition() instanceof MultiblockMachineDefinition);
+            case "controller" -> localPred(PhantasiaMultiblockRegistry::isControllerBlock);
 
-            case "functional" -> localPred(state -> {
-                if (state.isAir()) return false;
-                return state.getBlock() instanceof MetaMachineBlock ||
-                        state.getBlock().getDescriptionId().contains("frame") ||
-                        state.getBlock().getDescriptionId().contains("gearbox");
-            });
+            case "functional" -> localPred(PhantasiaMultiblockRegistry::isFunctionalBlock);
 
             default -> {
                 // parts:keyword — single keyword match, e.g. "parts:hatch", "parts:muffler"
                 if (show.startsWith("parts:")) {
                     String keyword = show.substring(6);
-                    yield localPred(state -> {
-                        if (!(state.getBlock() instanceof MetaMachineBlock mmb)) return false;
-                        if (mmb.getDefinition() instanceof MultiblockMachineDefinition) return false;
-                        return mmb.getDefinition().getId().getPath().contains(keyword);
-                    });
+                    yield localPred(state -> PhantasiaMultiblockRegistry.isPartBlock(state)
+                            && state.getBlock().getDescriptionId().contains(keyword));
                 }
                 yield pos -> true;
             }

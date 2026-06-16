@@ -37,7 +37,7 @@ Example Description
         side = "BOTH"
     [[dependencies.${mod_id}]]
         modId = "gtceu"
-        mandatory = true
+        mandatory = false
         versionRange = "[${gtceu_version},)"
         ordering = "AFTER"
         side = "BOTH"
@@ -46,5 +46,12 @@ Example Description
     modId = "phoenixcore"
     mandatory = false
     versionRange = "[0,)"
+    ordering = "NONE"
+    side = "BOTH"
+
+    [[dependencies.${mod_id}]]
+    modId = "ars_nouveau"
+    mandatory = false
+    versionRange = "[4,)"
     ordering = "NONE"
     side = "BOTH"

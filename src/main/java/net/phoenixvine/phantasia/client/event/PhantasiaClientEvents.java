@@ -1,8 +1,5 @@
 package net.phoenixvine.phantasia.client.event;
 
-import com.gregtechceu.gtceu.api.machine.MultiblockMachineDefinition;
-import com.gregtechceu.gtceu.api.registry.GTRegistries;
-
 import com.lowdragmc.lowdraglib.utils.BlockInfo;
 
 import net.minecraft.core.BlockPos;
@@ -17,6 +14,9 @@ import net.phoenixvine.phantasia.client.screens.PhantasiaSceneScreen;
 import net.phoenixvine.phantasia.common.PhantasiaKeybind;
 import net.phoenixvine.phantasia.common.data.script.PhantasiaScriptLoader;
 import net.phoenixvine.phantasia.common.data.script.PhantasiaScripts;
+import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockDefinition;
+import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockShape;
+import net.phoenixvine.phantasia.common.multiblock.PhantasiaMultiblockRegistry;
 import net.phoenixvine.phantasia.common.world.PhantasiaDimension;
 import net.phoenixvine.phantasia.common.world.PhantasiaSlotAllocator;
 import net.phoenixvine.phantasia.common.world.PhantasiaSlotVersions;
@@ -64,6 +64,8 @@ public class PhantasiaClientEvents {
      */
     @SubscribeEvent
     public static void onLogin(ClientPlayerNetworkEvent.LoggingIn event) {
+        net.minecraft.client.Minecraft.getInstance().tell(PhantasiaWelcomeOverlay::checkFirstRun);
+
         Thread t = new Thread(() -> {
             // Small delay so the server level is fully available before we query it.
             try {
@@ -72,20 +74,19 @@ public class PhantasiaClientEvents {
                 return;
             }
 
-            for (var def : GTRegistries.MACHINES) {
+            for (IPhantasiaMultiblockDefinition def : PhantasiaMultiblockRegistry.getAllDefinitions()) {
                 if (Thread.interrupted()) return;
-                if (!(def instanceof MultiblockMachineDefinition multiDef)) continue;
 
-                ResourceLocation id = multiDef.getId();
+                ResourceLocation id = def.getId();
 
-                var shapes = multiDef.getMatchingShapes();
+                var shapes = def.getMatchingShapes();
                 if (shapes == null || shapes.isEmpty()) continue;
 
-                var shape = shapes.get(0);
+                IPhantasiaMultiblockShape shape = shapes.get(0);
                 if (shape == null) continue;
 
                 BlockPos origin = PhantasiaSlotAllocator.originFor(id);
-                var script = PhantasiaScripts.get(multiDef);
+                var script = PhantasiaScripts.get(def);
                 int shapeHash = PhantasiaSlotVersions.hashShape(shape.getBlocks());
                 int scriptHash = PhantasiaSlotVersions.hashScript(script.getSourceData());
 

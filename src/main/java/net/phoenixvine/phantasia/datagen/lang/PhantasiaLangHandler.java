@@ -51,8 +51,8 @@ public class PhantasiaLangHandler {
         provider.add("screen.phantasia.material_cost.title", "Material Cost");
         provider.add("screen.phantasia.footprint.title", "Footprint");
         provider.add("screen.phantasia.block_filter.title", "Block Filter");
-        provider.add("tooltip.phantasia.hold_to_phantasize", "\u00A76\u00A7l\u00BB \u00A7b[%s] \u00A77Hold to Phantasize");
-        provider.add("ui.phantasia.color_code_display", "\u00A7%s (\u00A7%s)");
+        provider.add("tooltip.phantasia.hold_to_phantasize", "§6§l» §b[%s§b] §7Hold to Phantasize");
+        provider.add("ui.phantasia.color_code_display", "§%s (§%s)");
         provider.add("screen.phantasia.variants.title", "Variants");
         provider.add("screen.phantasia.hide_pos.title", "Hide Positions");
         provider.add("screen.phantasia.hide_pos.hint", "x, y, z");
@@ -207,6 +207,7 @@ public class PhantasiaLangHandler {
         provider.add("screen.phantasia.script_step_item_editor.hint_ticks", "20");
         provider.add("screen.phantasia.script_step_item_editor.hint_desc", "Description shown in item popup...");
         provider.add("screen.phantasia.script_step_item_editor.hint_scene", "phantasia:scene_id (optional)");
+        provider.add("screen.phantasia.script_step_item_editor.hint_guide_id", "namespace:guide_id (optional)");
 
         // --- Screen: script_editor ---
         provider.add("screen.phantasia.script_editor.title", "Editor");

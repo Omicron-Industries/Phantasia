@@ -16,6 +16,7 @@ import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.phoenixvine.phantasia.client.screens.editors.PhantasiaGuideEditorScreen;
 import net.phoenixvine.phantasia.client.screens.editors.PhantasiaSceneEditorScreen;
+import net.phoenixvine.phantasia.client.screens.PhantasiaItemMicrosceneScreen;
 import net.phoenixvine.phantasia.common.data.guides.PhantasiaGuideData;
 import net.phoenixvine.phantasia.common.data.guides.PhantasiaGuideData.PageData;
 import net.phoenixvine.phantasia.common.data.guides.PhantasiaGuideRegistry;
@@ -332,14 +333,12 @@ public class PhantasiaGuideScreen extends PhantasiaScreen {
         // ── ADDED: Script Verification and Navigation Button Block ───────────
         if (page.linkedScriptId() != null && !page.linkedScriptId().isBlank()) {
             ResourceLocation rl = ResourceLocation.parse(page.linkedScriptId());
-            com.gregtechceu.gtceu.api.machine.MachineDefinition def = com.gregtechceu.gtceu.api.registry.GTRegistries.MACHINES
-                    .get(rl);
-
-            if (def instanceof com.gregtechceu.gtceu.api.machine.MultiblockMachineDefinition multi &&
-                    PhantasiaScripts.has(multi)) {
+            var defOpt = net.phoenixvine.phantasia.common.multiblock.PhantasiaMultiblockRegistry.resolve(rl.toString());
+            if (defOpt.isPresent() && PhantasiaScripts.has(defOpt.get())) {
+                var linkedDef = defOpt.get();
                 y = renderLinkBtn(g, mx, my, colX, y, colW,
                         "⚙ View Automated Script →",
-                        () -> Minecraft.getInstance().setScreen(new PhantasiaSceneScreen(multi, this))) + 6;
+                        () -> Minecraft.getInstance().setScreen(new PhantasiaSceneScreen(linkedDef, this))) + 6;
             }
         }
 
@@ -408,7 +407,7 @@ public class PhantasiaGuideScreen extends PhantasiaScreen {
         g.fill(pillX, pillY, pillX + pillW, pillY + 11, pillBg);
         g.drawString(font, pillTxt, pillX + 4, pillY + 2, 0xFFFFFFFF, false);
 
-        if (it.microsceneId != null && !it.microsceneId.isBlank())
+        if ((it.guideId != null && !it.guideId.isBlank()) || (it.microsceneId != null && !it.microsceneId.isBlank()))
             g.drawString(font, "▶", cx + CARD_W - 9, cy + 3, hov ? C_ACCENT() : 0x554FC3F7, false);
     }
 
@@ -524,16 +523,52 @@ public class PhantasiaGuideScreen extends PhantasiaScreen {
         g.bufferSource().endBatch();
         g.pose().popPose();
 
-        int btnW = 60, btnH = 14;
-        int bx = mxPos + (mw - btnW) / 2;
+        PhantasiaSceneData.ItemConditionData cardItem = preview3DCard.item();
+        boolean hasGuide = cardItem.guideId != null && !cardItem.guideId.isBlank();
+        boolean hasMicroscene = cardItem.microsceneId != null && !cardItem.microsceneId.isBlank();
+        boolean hasLink = hasGuide || hasMicroscene;
+
+        int btnH = 14;
         int by = myPos + mh - 24;
-        boolean hov = mx >= bx && mx < bx + btnW && my >= by && my < by + btnH;
 
-        g.fill(bx, by, bx + btnW, by + btnH, hov ? 0xBB1A2840 : 0xBB151528);
-        g.renderOutline(bx, by, btnW, btnH, 0xFF4FC3F7);
-        g.drawCenteredString(font, Component.translatable("screen.phantasia.guide.btn_close").getString(), bx + (btnW / 2), by + 3, hov ? 0xFF4FC3F7 : 0xFFDDDDDD);
+        if (hasLink) {
+            int closeBtnW = 52, linkBtnW = 72;
+            int gap = 6;
+            int totalW = closeBtnW + gap + linkBtnW;
+            int bxClose = mxPos + (mw - totalW) / 2;
+            int bxLink = bxClose + closeBtnW + gap;
 
-        btns.add(new Btn(bx, by, btnW, btnH, () -> preview3DCard = null));
+            boolean hovClose = isOver(mx, my, bxClose, by, closeBtnW, btnH);
+            g.fill(bxClose, by, bxClose + closeBtnW, by + btnH, hovClose ? 0xBB1A2840 : 0xBB151528);
+            g.renderOutline(bxClose, by, closeBtnW, btnH, 0xFF4FC3F7);
+            g.drawCenteredString(font, Component.translatable("screen.phantasia.guide.btn_close").getString(), bxClose + closeBtnW / 2, by + 3, hovClose ? 0xFF4FC3F7 : 0xFFDDDDDD);
+            btns.add(new Btn(bxClose, by, closeBtnW, btnH, () -> preview3DCard = null));
+
+            String linkLabel = hasGuide ? "▶ Guide" : "▶ Scene";
+            boolean hovLink = isOver(mx, my, bxLink, by, linkBtnW, btnH);
+            g.fill(bxLink, by, bxLink + linkBtnW, by + btnH, hovLink ? 0xBB1A2840 : 0xBB151528);
+            g.renderOutline(bxLink, by, linkBtnW, btnH, 0xFF80DEEA);
+            g.drawCenteredString(font, linkLabel, bxLink + linkBtnW / 2, by + 3, hovLink ? 0xFF80DEEA : 0xFFDDDDDD);
+            final PhantasiaSceneData.ItemConditionData fCardItem = cardItem;
+            btns.add(new Btn(bxLink, by, linkBtnW, btnH, () -> {
+                preview3DCard = null;
+                if (hasGuide) {
+                    PhantasiaGuideData guide = PhantasiaGuideRegistry.get(fCardItem.guideId);
+                    if (guide != null) Minecraft.getInstance().setScreen(new PhantasiaGuideScreen(this, guide));
+                } else {
+                    PhantasiaSceneData microscene = PhantasiaScenes.get(fCardItem.microsceneId);
+                    Minecraft.getInstance().setScreen(new PhantasiaItemMicrosceneScreen(this, fCardItem, microscene));
+                }
+            }));
+        } else {
+            int btnW = 60;
+            int bx = mxPos + (mw - btnW) / 2;
+            boolean hov = isOver(mx, my, bx, by, btnW, btnH);
+            g.fill(bx, by, bx + btnW, by + btnH, hov ? 0xBB1A2840 : 0xBB151528);
+            g.renderOutline(bx, by, btnW, btnH, 0xFF4FC3F7);
+            g.drawCenteredString(font, Component.translatable("screen.phantasia.guide.btn_close").getString(), bx + btnW / 2, by + 3, hov ? 0xFF4FC3F7 : 0xFFDDDDDD);
+            btns.add(new Btn(bx, by, btnW, btnH, () -> preview3DCard = null));
+        }
 
         g.pose().popPose();
     }

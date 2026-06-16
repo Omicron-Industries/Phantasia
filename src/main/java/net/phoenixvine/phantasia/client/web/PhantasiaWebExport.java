@@ -3,8 +3,6 @@ package net.phoenixvine.phantasia.client.web;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
-import com.gregtechceu.gtceu.api.machine.MultiblockMachineDefinition;
-import com.gregtechceu.gtceu.api.pattern.MultiblockShapeInfo;
 import com.lowdragmc.lowdraglib.utils.BlockInfo;
 
 import net.minecraft.client.Minecraft;
@@ -104,10 +102,9 @@ public class PhantasiaWebExport {
 
             JsonArray scriptsManifest = new JsonArray();
 
-            for (Map.Entry<MultiblockMachineDefinition, PhantasiaScript> entry : PhantasiaScripts.allEntries()) {
-                MultiblockMachineDefinition def = entry.getKey();
-                PhantasiaScript script          = entry.getValue();
-                ResourceLocation machineId      = def.getId();
+            for (Map.Entry<ResourceLocation, PhantasiaScript> entry : PhantasiaScripts.allEntries()) {
+                ResourceLocation machineId = entry.getKey();
+                PhantasiaScript script     = entry.getValue();
                 String safeId = machineId.getNamespace() + "/" + machineId.getPath();
 
                 try {
@@ -117,16 +114,19 @@ public class PhantasiaWebExport {
                     Files.writeString(dataFile, script.getSourceData().toJson());
 
                     // Machine pattern (first shape)
-                    List<MultiblockShapeInfo> shapes = def.getMatchingShapes();
+                    var defOpt = net.phoenixvine.phantasia.common.multiblock.PhantasiaMultiblockRegistry.resolve(machineId.toString());
                     boolean hasPattern = false;
-                    if (shapes != null && !shapes.isEmpty()) {
-                        BlockInfo[][][] raw = shapes.get(0).getBlocks();
-                        JsonArray patternBlocks = serializeRawPattern(raw, seenBlockIds);
-                        blockCount += patternBlocks.size();
-                        Path patFile = scriptPatsDir.resolve(safeId + ".json");
-                        Files.createDirectories(patFile.getParent());
-                        Files.writeString(patFile, gson.toJson(patternBlocks));
-                        hasPattern = true;
+                    if (defOpt.isPresent()) {
+                        var shapes = defOpt.get().getMatchingShapes();
+                        if (shapes != null && !shapes.isEmpty()) {
+                            BlockInfo[][][] raw = shapes.get(0).getBlocks();
+                            JsonArray patternBlocks = serializeRawPattern(raw, seenBlockIds);
+                            blockCount += patternBlocks.size();
+                            Path patFile = scriptPatsDir.resolve(safeId + ".json");
+                            Files.createDirectories(patFile.getParent());
+                            Files.writeString(patFile, gson.toJson(patternBlocks));
+                            hasPattern = true;
+                        }
                     }
 
                     JsonObject mEntry = new JsonObject();

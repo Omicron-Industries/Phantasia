@@ -16,12 +16,26 @@ import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import javax.annotation.Nullable;
 
 @OnlyIn(Dist.CLIENT)
 public class PhantasiaTrackedDummyWorld extends TrackedDummyWorld {
+
+    // ── Scene entity list ──────────────────────────────────────────────────────
+
+    private final List<Entity> sceneEntities = new ArrayList<>();
+
+    public void addSceneEntity(Entity e) { sceneEntities.add(e); }
+    public void clearSceneEntities()     { sceneEntities.clear(); }
+
+    /** Returns scene-local entities so PhantasiaWorldRenderer can render them. */
+    @Override
+    public List<Entity> getAllEntities() {
+        return Collections.unmodifiableList(sceneEntities);
+    }
 
     // ── Chunk source isolation ────────────────────────────────────────────────
 
