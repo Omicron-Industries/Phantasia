@@ -23,7 +23,6 @@ import static com.gregtechceu.gtceu.common.data.models.GTMachineModels.createWor
 import static net.minecraft.world.level.block.Blocks.*;
 import static net.phoenixvine.phantasia.compat.gtceu.PhantasiaGTCompat.PHANTASIA_REGISTRATE;
 
-
 public class PhantasiaTestMultiblocks {
 
     public static void init() {}

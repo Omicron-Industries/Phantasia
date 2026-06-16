@@ -107,10 +107,10 @@ public final class PhantasiaWelcomeOverlay {
         toastY = ty;
 
         PhantasiaTheme theme = PhantasiaTheme.current();
-        int bgColor  = withAlpha(theme.bg(),     (int)(0xDD * alpha));
-        int bdrColor = withAlpha(theme.accent(),  (int)(0xFF * alpha));
-        int txtColor = withAlpha(theme.text(),    (int)(0xFF * alpha));
-        int dimColor = withAlpha(theme.dim(),     (int)(0xAA * alpha));
+        int bgColor = withAlpha(theme.bg(), (int) (0xDD * alpha));
+        int bdrColor = withAlpha(theme.accent(), (int) (0xFF * alpha));
+        int txtColor = withAlpha(theme.text(), (int) (0xFF * alpha));
+        int dimColor = withAlpha(theme.dim(), (int) (0xAA * alpha));
 
         // Background panel
         g.fill(tx, ty, tx + TOAST_W, ty + TOAST_H, bgColor);
@@ -118,7 +118,7 @@ public final class PhantasiaWelcomeOverlay {
         g.fill(tx, ty, tx + TOAST_W, ty + 1, bdrColor);
         // Subtle bottom border
         g.fill(tx, ty + TOAST_H - 1, tx + TOAST_W, ty + TOAST_H,
-                withAlpha(theme.accent(), (int)(0x44 * alpha)));
+                withAlpha(theme.accent(), (int) (0x44 * alpha)));
 
         var font = mc.font;
         int lx = tx + 8;

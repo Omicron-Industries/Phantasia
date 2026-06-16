@@ -1,8 +1,5 @@
 package net.phoenixvine.phantasia.compat.arsnouveaucompat;
 
-import com.hollingsworth.arsnouveau.api.enchanting_apparatus.EnchantingApparatusRecipe;
-import com.hollingsworth.arsnouveau.common.crafting.recipes.ImbuementRecipe;
-import com.hollingsworth.arsnouveau.setup.registry.RecipeRegistry;
 import com.lowdragmc.lowdraglib.utils.BlockInfo;
 
 import net.minecraft.client.Minecraft;
@@ -12,13 +9,20 @@ import net.minecraft.world.item.crafting.RecipeManager;
 import net.phoenixvine.phantasia.common.multisetup.IPhantasiaMultiSetup;
 import net.phoenixvine.phantasia.common.multisetup.IPhantasiaSetupRecipe;
 
+import com.hollingsworth.arsnouveau.api.enchanting_apparatus.EnchantingApparatusRecipe;
+import com.hollingsworth.arsnouveau.common.crafting.recipes.ImbuementRecipe;
+import com.hollingsworth.arsnouveau.setup.registry.RecipeRegistry;
+
 import java.util.ArrayList;
 import java.util.List;
 
 /** Represents one Ars Nouveau machine type (Enchanting Apparatus or Imbuement Chamber). */
 public class ArsNouveauMultiSetup implements IPhantasiaMultiSetup {
 
-    public enum SetupType { ENCHANTING_APPARATUS, IMBUEMENT_CHAMBER }
+    public enum SetupType {
+        ENCHANTING_APPARATUS,
+        IMBUEMENT_CHAMBER
+    }
 
     private final SetupType type;
     private final ResourceLocation id;
@@ -37,17 +41,24 @@ public class ArsNouveauMultiSetup implements IPhantasiaMultiSetup {
         this.displayName = displayName;
     }
 
-    @Override public ResourceLocation getId() { return id; }
-    @Override public String getDisplayName() { return displayName; }
+    @Override
+    public ResourceLocation getId() {
+        return id;
+    }
+
+    @Override
+    public String getDisplayName() {
+        return displayName;
+    }
 
     @Override
     public ItemStack getIcon() {
         if (cachedIcon == null) {
             cachedIcon = switch (type) {
-                case ENCHANTING_APPARATUS ->
-                        new ItemStack(com.hollingsworth.arsnouveau.setup.registry.BlockRegistry.ENCHANTING_APP_BLOCK.get());
-                case IMBUEMENT_CHAMBER ->
-                        new ItemStack(com.hollingsworth.arsnouveau.setup.registry.BlockRegistry.IMBUEMENT_BLOCK.get());
+                case ENCHANTING_APPARATUS -> new ItemStack(
+                        com.hollingsworth.arsnouveau.setup.registry.BlockRegistry.ENCHANTING_APP_BLOCK.get());
+                case IMBUEMENT_CHAMBER -> new ItemStack(
+                        com.hollingsworth.arsnouveau.setup.registry.BlockRegistry.IMBUEMENT_BLOCK.get());
             };
         }
         return cachedIcon;
@@ -58,7 +69,7 @@ public class ArsNouveauMultiSetup implements IPhantasiaMultiSetup {
         if (cachedLayout == null) {
             cachedLayout = switch (type) {
                 case ENCHANTING_APPARATUS -> ArsNouveauLayoutBuilder.enchantingApparatusBase(8);
-                case IMBUEMENT_CHAMBER    -> ArsNouveauLayoutBuilder.imbuementChamberBase();
+                case IMBUEMENT_CHAMBER -> ArsNouveauLayoutBuilder.imbuementChamberBase();
             };
         }
         return cachedLayout;
@@ -96,8 +107,7 @@ public class ArsNouveauMultiSetup implements IPhantasiaMultiSetup {
             List<ItemStack> pedItems = r.pedestalItems.stream()
                     .map(ing -> ing.getItems().length > 0 ? ing.getItems()[0] : ItemStack.EMPTY)
                     .toList();
-            ItemStack reagent = r.reagent.getItems().length > 0
-                    ? r.reagent.getItems()[0] : ItemStack.EMPTY;
+            ItemStack reagent = r.reagent.getItems().length > 0 ? r.reagent.getItems()[0] : ItemStack.EMPTY;
 
             var result = ArsNouveauLayoutBuilder.enchantingApparatusRecipe(pedItems, reagent);
 
@@ -110,8 +120,7 @@ public class ArsNouveauMultiSetup implements IPhantasiaMultiSetup {
                     allInputs,
                     r.sourceCost,
                     result.layout(),
-                    result.itemPlacements()
-            ));
+                    result.itemPlacements()));
         });
     }
 
@@ -129,8 +138,7 @@ public class ArsNouveauMultiSetup implements IPhantasiaMultiSetup {
                     List.of(input),
                     r.source,
                     result.layout(),
-                    result.itemPlacements()
-            ));
+                    result.itemPlacements()));
         });
     }
 }

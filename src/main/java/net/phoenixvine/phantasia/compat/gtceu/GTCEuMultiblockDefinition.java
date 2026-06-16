@@ -7,15 +7,14 @@ import com.gregtechceu.gtceu.api.machine.multiblock.MultiblockControllerMachine;
 import com.gregtechceu.gtceu.api.machine.multiblock.PartAbility;
 import com.gregtechceu.gtceu.api.machine.multiblock.WorkableMultiblockMachine;
 import com.gregtechceu.gtceu.api.machine.trait.RecipeLogic;
+
 import com.lowdragmc.lowdraglib.utils.BlockInfo;
-import com.mojang.blaze3d.systems.RenderSystem;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraftforge.registries.ForgeRegistries;
 import net.phoenixvine.phantasia.client.render.PhantasiaTrackedDummyWorld;
 import net.phoenixvine.phantasia.common.data.pattern.PhantasiaLoadedPattern;
 import net.phoenixvine.phantasia.common.data.script.PhantasiaScriptData;
@@ -23,6 +22,7 @@ import net.phoenixvine.phantasia.common.data.variant.PhantasiaVariantGroup;
 import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockDefinition;
 import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockShape;
 
+import com.mojang.blaze3d.systems.RenderSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -174,23 +174,30 @@ public class GTCEuMultiblockDefinition implements IPhantasiaMultiblockDefinition
     }
 
     private static List<PhantasiaVariantGroup> detectPartAbilityGroups(
-            String machinePrefix,
-            Map<Block, List<BlockPos>> loadedBlockToWorldPos,
-            PhantasiaLoadedPattern pattern,
-            Set<String> excludeIds) {
+                                                                       String machinePrefix,
+                                                                       Map<Block, List<BlockPos>> loadedBlockToWorldPos,
+                                                                       PhantasiaLoadedPattern pattern,
+                                                                       Set<String> excludeIds) {
         List<PhantasiaVariantGroup> result = new ArrayList<>();
 
         record AbilitySpec(PartAbility ability, String id, String label,
                            PhantasiaVariantGroup.Category category, int minTier, int maxTier) {}
 
         List<AbilitySpec> specs = List.of(
-                new AbilitySpec(PartAbility.INPUT_ENERGY, "energy_hatch_in", "Energy Hatch (Input)", PhantasiaVariantGroup.Category.HATCHES_BUSES, 0, 13),
-                new AbilitySpec(PartAbility.OUTPUT_ENERGY, "energy_hatch_out", "Energy Hatch (Output)", PhantasiaVariantGroup.Category.HATCHES_BUSES, 0, 13),
-                new AbilitySpec(PartAbility.IMPORT_FLUIDS, "fluid_hatch_in", "Fluid Hatch (Input)", PhantasiaVariantGroup.Category.HATCHES_BUSES, 0, 13),
-                new AbilitySpec(PartAbility.EXPORT_FLUIDS, "fluid_hatch_out", "Fluid Hatch (Output)", PhantasiaVariantGroup.Category.HATCHES_BUSES, 0, 13),
-                new AbilitySpec(PartAbility.IMPORT_ITEMS, "item_bus_in", "Item Bus (Input)", PhantasiaVariantGroup.Category.HATCHES_BUSES, 0, 13),
-                new AbilitySpec(PartAbility.EXPORT_ITEMS, "item_bus_out", "Item Bus (Output)", PhantasiaVariantGroup.Category.HATCHES_BUSES, 0, 13),
-                new AbilitySpec(PartAbility.MUFFLER, "muffler_hatch", "Muffler Hatch", PhantasiaVariantGroup.Category.MUFFLERS, 0, 13));
+                new AbilitySpec(PartAbility.INPUT_ENERGY, "energy_hatch_in", "Energy Hatch (Input)",
+                        PhantasiaVariantGroup.Category.HATCHES_BUSES, 0, 13),
+                new AbilitySpec(PartAbility.OUTPUT_ENERGY, "energy_hatch_out", "Energy Hatch (Output)",
+                        PhantasiaVariantGroup.Category.HATCHES_BUSES, 0, 13),
+                new AbilitySpec(PartAbility.IMPORT_FLUIDS, "fluid_hatch_in", "Fluid Hatch (Input)",
+                        PhantasiaVariantGroup.Category.HATCHES_BUSES, 0, 13),
+                new AbilitySpec(PartAbility.EXPORT_FLUIDS, "fluid_hatch_out", "Fluid Hatch (Output)",
+                        PhantasiaVariantGroup.Category.HATCHES_BUSES, 0, 13),
+                new AbilitySpec(PartAbility.IMPORT_ITEMS, "item_bus_in", "Item Bus (Input)",
+                        PhantasiaVariantGroup.Category.HATCHES_BUSES, 0, 13),
+                new AbilitySpec(PartAbility.EXPORT_ITEMS, "item_bus_out", "Item Bus (Output)",
+                        PhantasiaVariantGroup.Category.HATCHES_BUSES, 0, 13),
+                new AbilitySpec(PartAbility.MUFFLER, "muffler_hatch", "Muffler Hatch",
+                        PhantasiaVariantGroup.Category.MUFFLERS, 0, 13));
 
         for (AbilitySpec spec : specs) {
             if (excludeIds.contains(spec.id())) continue;

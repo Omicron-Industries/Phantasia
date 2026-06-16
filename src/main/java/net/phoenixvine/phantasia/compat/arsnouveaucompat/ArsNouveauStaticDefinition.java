@@ -5,17 +5,17 @@ import com.lowdragmc.lowdraglib.utils.BlockInfo;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.phoenixvine.phantasia.client.render.PhantasiaTrackedDummyWorld;
 import net.phoenixvine.phantasia.common.data.script.PhantasiaScriptData;
 import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockDefinition;
 import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockShape;
 
-import net.minecraft.world.level.block.entity.BlockEntity;
-
-import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
+
+import javax.annotation.Nullable;
 
 /**
  * A static (no-recipe) multiblock definition for Ars Nouveau setups that don't
@@ -23,18 +23,21 @@ import java.util.function.Supplier;
  * All content is provided via suppliers so block/item registry access is deferred
  * until after mod init.
  *
- * <p>An optional {@link SceneTickHandler} can be supplied to drive per-tick
+ * <p>
+ * An optional {@link SceneTickHandler} can be supplied to drive per-tick
  * animations (e.g. turret recoil, rotation) without subclassing.
  */
 public class ArsNouveauStaticDefinition implements IPhantasiaMultiblockDefinition {
 
     @FunctionalInterface
     public interface SceneTickHandler {
+
         void tick(PhantasiaTrackedDummyWorld level, Map<BlockPos, BlockPos> localToWorld, int sceneTick);
     }
 
     @FunctionalInterface
     public interface ShapeLoadHandler {
+
         void onLoaded(PhantasiaTrackedDummyWorld level, Map<BlockPos, BlockPos> localToWorld);
     }
 
@@ -43,8 +46,10 @@ public class ArsNouveauStaticDefinition implements IPhantasiaMultiblockDefinitio
     private final Supplier<ItemStack> iconSupplier;
     private final Supplier<BlockInfo[][][]> layoutSupplier;
     private final Supplier<PhantasiaScriptData> scriptSupplier;
-    @Nullable private final SceneTickHandler sceneTickHandler;
-    @Nullable private ShapeLoadHandler shapeLoadHandler;
+    @Nullable
+    private final SceneTickHandler sceneTickHandler;
+    @Nullable
+    private ShapeLoadHandler shapeLoadHandler;
 
     private final List<IPhantasiaMultiblockShape> shapes;
 
@@ -53,19 +58,19 @@ public class ArsNouveauStaticDefinition implements IPhantasiaMultiblockDefinitio
     private BlockInfo[][][] cachedLayout = null;
 
     public ArsNouveauStaticDefinition(ResourceLocation id,
-                                       String displayName,
-                                       Supplier<ItemStack> iconSupplier,
-                                       Supplier<BlockInfo[][][]> layoutSupplier,
-                                       Supplier<PhantasiaScriptData> scriptSupplier) {
+                                      String displayName,
+                                      Supplier<ItemStack> iconSupplier,
+                                      Supplier<BlockInfo[][][]> layoutSupplier,
+                                      Supplier<PhantasiaScriptData> scriptSupplier) {
         this(id, displayName, iconSupplier, layoutSupplier, scriptSupplier, null);
     }
 
     public ArsNouveauStaticDefinition(ResourceLocation id,
-                                       String displayName,
-                                       Supplier<ItemStack> iconSupplier,
-                                       Supplier<BlockInfo[][][]> layoutSupplier,
-                                       Supplier<PhantasiaScriptData> scriptSupplier,
-                                       @Nullable SceneTickHandler sceneTickHandler) {
+                                      String displayName,
+                                      Supplier<ItemStack> iconSupplier,
+                                      Supplier<BlockInfo[][][]> layoutSupplier,
+                                      Supplier<PhantasiaScriptData> scriptSupplier,
+                                      @Nullable SceneTickHandler sceneTickHandler) {
         this.id = id;
         this.displayName = displayName;
         this.iconSupplier = iconSupplier;
@@ -82,10 +87,25 @@ public class ArsNouveauStaticDefinition implements IPhantasiaMultiblockDefinitio
         return this;
     }
 
-    @Override public ResourceLocation getId()                             { return id; }
-    @Override public String getDisplayName()                               { return displayName; }
-    @Override public List<IPhantasiaMultiblockShape> getMatchingShapes()  { return shapes; }
-    @Override public List<IPhantasiaMultiblockShape> getAllShapes()        { return shapes; }
+    @Override
+    public ResourceLocation getId() {
+        return id;
+    }
+
+    @Override
+    public String getDisplayName() {
+        return displayName;
+    }
+
+    @Override
+    public List<IPhantasiaMultiblockShape> getMatchingShapes() {
+        return shapes;
+    }
+
+    @Override
+    public List<IPhantasiaMultiblockShape> getAllShapes() {
+        return shapes;
+    }
 
     @Override
     public ItemStack getIcon() {
@@ -122,8 +142,8 @@ public class ArsNouveauStaticDefinition implements IPhantasiaMultiblockDefinitio
 
     @Override
     public void onSceneTick(PhantasiaTrackedDummyWorld level,
-                             Map<BlockPos, BlockPos> localToWorld,
-                             int sceneTick) {
+                            Map<BlockPos, BlockPos> localToWorld,
+                            int sceneTick) {
         if (sceneTickHandler != null) sceneTickHandler.tick(level, localToWorld, sceneTick);
     }
 }

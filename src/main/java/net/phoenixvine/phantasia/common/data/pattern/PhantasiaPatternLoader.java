@@ -2,7 +2,6 @@ package net.phoenixvine.phantasia.common.data.pattern;
 
 import com.lowdragmc.lowdraglib.utils.BlockInfo;
 
-import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.block.Blocks;
@@ -10,7 +9,6 @@ import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.phoenixvine.phantasia.client.render.PhantasiaTrackedDummyWorld;
-import net.phoenixvine.phantasia.common.data.scene.PhantasiaSceneData;
 import net.phoenixvine.phantasia.common.data.script.PhantasiaScript;
 import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockDefinition;
 import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockShape;
@@ -37,14 +35,14 @@ import java.util.function.Consumer;
  *
  * <h3>Thread safety</h3>
  * <ul>
- *   <li>{@code SHARED_LEVEL.setBlock()} / {@code setInnerBlockEntity()} are called
- *       on the loader thread. This is safe because the renderer has not yet been
- *       given a bake request — nothing reads {@code SHARED_LEVEL} until
- *       {@code onPatternLoaded} fires on the render thread and calls
- *       {@code renderer.requestBake()}.
- *   <li>Structure-forming logic (e.g. GTCEu's {@code onStructureFormed}) is always
- *       dispatched back to the render thread via {@code recordRenderCall} inside
- *       {@link IPhantasiaMultiblockDefinition#onShapeLoaded}.
+ * <li>{@code SHARED_LEVEL.setBlock()} / {@code setInnerBlockEntity()} are called
+ * on the loader thread. This is safe because the renderer has not yet been
+ * given a bake request — nothing reads {@code SHARED_LEVEL} until
+ * {@code onPatternLoaded} fires on the render thread and calls
+ * {@code renderer.requestBake()}.
+ * <li>Structure-forming logic (e.g. GTCEu's {@code onStructureFormed}) is always
+ * dispatched back to the render thread via {@code recordRenderCall} inside
+ * {@link IPhantasiaMultiblockDefinition#onShapeLoaded}.
  * </ul>
  */
 public final class PhantasiaPatternLoader {
@@ -91,21 +89,25 @@ public final class PhantasiaPatternLoader {
      * @param onLoaded    callback invoked on the render thread with the finished pattern
      */
     public static PhantasiaPatternLoader start(
-            IPhantasiaMultiblockDefinition definition,
-            int shapeIndex,
-            List<IPhantasiaMultiblockShape> shapes,
-            PhantasiaScript script,
-            PhantasiaTrackedDummyWorld sharedLevel,
-            Consumer<PhantasiaLoadedPattern> onLoaded) {
-
+                                               IPhantasiaMultiblockDefinition definition,
+                                               int shapeIndex,
+                                               List<IPhantasiaMultiblockShape> shapes,
+                                               PhantasiaScript script,
+                                               PhantasiaTrackedDummyWorld sharedLevel,
+                                               Consumer<PhantasiaLoadedPattern> onLoaded) {
         PhantasiaPatternLoader loader = new PhantasiaPatternLoader();
         loader.future = LOADER_POOL.submit(() -> loader.run(
                 definition, shapeIndex, shapes, script, sharedLevel, onLoaded));
         return loader;
     }
 
-    public boolean isDone()   { return done; }
-    public boolean isFailed() { return failed; }
+    public boolean isDone() {
+        return done;
+    }
+
+    public boolean isFailed() {
+        return failed;
+    }
 
     /** Cancel the in-progress load. Safe to call from any thread. */
     public void cancel() {
@@ -115,13 +117,12 @@ public final class PhantasiaPatternLoader {
     // ── Core load logic ───────────────────────────────────────────────────────
 
     private void run(
-            IPhantasiaMultiblockDefinition definition,
-            int shapeIndex,
-            List<IPhantasiaMultiblockShape> shapes,
-            PhantasiaScript script,
-            PhantasiaTrackedDummyWorld sharedLevel,
-            Consumer<PhantasiaLoadedPattern> onLoaded) {
-
+                     IPhantasiaMultiblockDefinition definition,
+                     int shapeIndex,
+                     List<IPhantasiaMultiblockShape> shapes,
+                     PhantasiaScript script,
+                     PhantasiaTrackedDummyWorld sharedLevel,
+                     Consumer<PhantasiaLoadedPattern> onLoaded) {
         try {
             PhantasiaLoadedPattern result = doLoad(definition, shapeIndex, shapes, script, sharedLevel);
 
@@ -140,27 +141,25 @@ public final class PhantasiaPatternLoader {
     }
 
     private PhantasiaLoadedPattern doLoad(
-            IPhantasiaMultiblockDefinition definition,
-            int shapeIndex,
-            List<IPhantasiaMultiblockShape> shapes,
-            PhantasiaScript script,
-            PhantasiaTrackedDummyWorld sharedLevel) throws InterruptedException {
-
+                                          IPhantasiaMultiblockDefinition definition,
+                                          int shapeIndex,
+                                          List<IPhantasiaMultiblockShape> shapes,
+                                          PhantasiaScript script,
+                                          PhantasiaTrackedDummyWorld sharedLevel) throws InterruptedException {
         ResourceLocation machineId = definition.getId();
-        BlockPos slotOrigin   = PhantasiaSlotAllocator.originFor(machineId);
+        BlockPos slotOrigin = PhantasiaSlotAllocator.originFor(machineId);
         BlockPos renderOrigin = PhantasiaSlotAllocator.RENDER_ORIGIN;
 
         IPhantasiaMultiblockShape shape = shapes.get(shapeIndex);
-        int shapeHash  = PhantasiaSlotVersions.hashShape(shape.getBlocks());
+        int shapeHash = PhantasiaSlotVersions.hashShape(shape.getBlocks());
         int scriptHash = PhantasiaSlotVersions.hashScript(script.getSourceData());
-        boolean warm   = PhantasiaSlotVersions.isValid(machineId, shapeHash, scriptHash, slotOrigin);
+        boolean warm = PhantasiaSlotVersions.isValid(machineId, shapeHash, scriptHash, slotOrigin);
 
         LOGGER.info("[Phantasia] {} load for {} at slot={} render={}",
                 warm ? "Warm" : "Cold", machineId, slotOrigin, renderOrigin);
 
-        PhantasiaLoadedPattern result = warm
-                ? loadWarm(shape, renderOrigin, sharedLevel, script)
-                : loadCold(definition, shape, renderOrigin, slotOrigin, sharedLevel, script);
+        PhantasiaLoadedPattern result = warm ? loadWarm(shape, renderOrigin, sharedLevel, script) :
+                loadCold(definition, shape, renderOrigin, slotOrigin, sharedLevel, script);
 
         if (!warm) {
             PhantasiaSlotVersions.put(machineId, shapeHash, scriptHash);
@@ -172,30 +171,29 @@ public final class PhantasiaPatternLoader {
     // ── Cold load ─────────────────────────────────────────────────────────────
 
     private PhantasiaLoadedPattern loadCold(
-            IPhantasiaMultiblockDefinition definition,
-            IPhantasiaMultiblockShape shape,
-            BlockPos renderOrigin,
-            BlockPos slotOrigin,
-            PhantasiaTrackedDummyWorld sharedLevel,
-            PhantasiaScript script) throws InterruptedException {
-
+                                            IPhantasiaMultiblockDefinition definition,
+                                            IPhantasiaMultiblockShape shape,
+                                            BlockPos renderOrigin,
+                                            BlockPos slotOrigin,
+                                            PhantasiaTrackedDummyWorld sharedLevel,
+                                            PhantasiaScript script) throws InterruptedException {
         phase = "Reading shape…";
 
         BlockInfo[][][] raw = shape.getBlocks();
         int sxLen = raw.length;
         int syLen = sxLen > 0 ? raw[0].length : 0;
         int szLen = sxLen > 0 && syLen > 0 ? raw[0][0].length : 0;
-        int padX  = Math.max(2, sxLen / 2 + 1);
-        int padZ  = Math.max(2, szLen / 2 + 1);
+        int padX = Math.max(2, sxLen / 2 + 1);
+        int padZ = Math.max(2, szLen / 2 + 1);
 
         int baseplateCount = (sxLen + 2 * padX + 1) * (szLen + 2 * padZ + 1);
-        int machineCount   = countNonNull(raw);
+        int machineCount = countNonNull(raw);
         blocksTotal = baseplateCount + machineCount;
 
-        Map<BlockPos, BlockInfo>  blockMap     = new HashMap<>(blocksTotal);
-        Map<BlockPos, BlockPos>   localToWorld = new HashMap<>(machineCount);
-        Set<BlockPos>             baseplatePos = new HashSet<>(baseplateCount);
-        Set<BlockPos>             bePos        = new HashSet<>();
+        Map<BlockPos, BlockInfo> blockMap = new HashMap<>(blocksTotal);
+        Map<BlockPos, BlockPos> localToWorld = new HashMap<>(machineCount);
+        Set<BlockPos> baseplatePos = new HashSet<>(baseplateCount);
+        Set<BlockPos> bePos = new HashSet<>();
 
         // ── Baseplate ─────────────────────────────────────────────────────────
         phase = "Placing baseplate…";
@@ -259,8 +257,8 @@ public final class PhantasiaPatternLoader {
         phase = "Forming structure…";
         final Map<BlockPos, BlockInfo> blockMapSnapshot = Map.copyOf(blockMap);
         final Map<BlockPos, BlockPos> localToWorldSnapshot = Map.copyOf(localToWorld);
-        RenderSystem.recordRenderCall(() ->
-                definition.onShapeLoaded(sharedLevel, renderOrigin, blockMapSnapshot, localToWorldSnapshot));
+        RenderSystem.recordRenderCall(
+                () -> definition.onShapeLoaded(sharedLevel, renderOrigin, blockMapSnapshot, localToWorldSnapshot));
 
         return buildResult(raw, blockMap, localToWorld, baseplatePos, bePos, renderOrigin, script);
     }
@@ -268,30 +266,29 @@ public final class PhantasiaPatternLoader {
     // ── Warm load ─────────────────────────────────────────────────────────────
 
     private PhantasiaLoadedPattern loadWarm(
-            IPhantasiaMultiblockShape shape,
-            BlockPos renderOrigin,
-            PhantasiaTrackedDummyWorld sharedLevel,
-            PhantasiaScript script) throws InterruptedException {
-
+                                            IPhantasiaMultiblockShape shape,
+                                            BlockPos renderOrigin,
+                                            PhantasiaTrackedDummyWorld sharedLevel,
+                                            PhantasiaScript script) throws InterruptedException {
         phase = "Reading shape…";
 
         BlockInfo[][][] raw = shape.getBlocks();
         int sxLen = raw.length;
         int syLen = sxLen > 0 ? raw[0].length : 0;
         int szLen = sxLen > 0 && syLen > 0 ? raw[0][0].length : 0;
-        int padX  = Math.max(2, sxLen / 2 + 1);
-        int padZ  = Math.max(2, szLen / 2 + 1);
+        int padX = Math.max(2, sxLen / 2 + 1);
+        int padZ = Math.max(2, szLen / 2 + 1);
 
         int baseplateCount = (sxLen + 2 * padX + 1) * (szLen + 2 * padZ + 1);
-        int machineCount   = countNonNull(raw);
+        int machineCount = countNonNull(raw);
         blocksTotal = baseplateCount + machineCount;
 
         sharedLevel.blockEntities.clear();
 
-        Map<BlockPos, BlockInfo>  blockMap     = new HashMap<>(blocksTotal);
-        Map<BlockPos, BlockPos>   localToWorld = new HashMap<>(machineCount);
-        Set<BlockPos>             baseplatePos = new HashSet<>(baseplateCount);
-        Set<BlockPos>             bePos        = new HashSet<>();
+        Map<BlockPos, BlockInfo> blockMap = new HashMap<>(blocksTotal);
+        Map<BlockPos, BlockPos> localToWorld = new HashMap<>(machineCount);
+        Set<BlockPos> baseplatePos = new HashSet<>(baseplateCount);
+        Set<BlockPos> bePos = new HashSet<>();
 
         phase = "Indexing baseplate…";
         var _baseplateState1 = net.phoenixvine.phantasia.utils.PhantasiaTheme.currentBaseplateBlockState();
@@ -341,14 +338,13 @@ public final class PhantasiaPatternLoader {
     // ── Build result ──────────────────────────────────────────────────────────
 
     private static PhantasiaLoadedPattern buildResult(
-            BlockInfo[][][] raw,
-            Map<BlockPos, BlockInfo> blockMap,
-            Map<BlockPos, BlockPos> localToWorld,
-            Set<BlockPos> baseplatePos,
-            Set<BlockPos> bePos,
-            BlockPos origin,
-            PhantasiaScript script) {
-
+                                                      BlockInfo[][][] raw,
+                                                      Map<BlockPos, BlockInfo> blockMap,
+                                                      Map<BlockPos, BlockPos> localToWorld,
+                                                      Set<BlockPos> baseplatePos,
+                                                      Set<BlockPos> bePos,
+                                                      BlockPos origin,
+                                                      PhantasiaScript script) {
         LOGGER.info("[Phantasia] PatternLoader: registered {} BEs", bePos.size());
 
         int minY = Integer.MAX_VALUE, maxY = Integer.MIN_VALUE;
@@ -356,7 +352,10 @@ public final class PhantasiaPatternLoader {
             minY = Math.min(minY, lp.getY());
             maxY = Math.max(maxY, lp.getY());
         }
-        if (minY > maxY) { minY = 0; maxY = 0; }
+        if (minY > maxY) {
+            minY = 0;
+            maxY = 0;
+        }
 
         return new PhantasiaLoadedPattern(blockMap, localToWorld, baseplatePos,
                 null, bePos, origin, minY, maxY, script);

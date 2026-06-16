@@ -34,11 +34,11 @@ public class Phantasia {
 
     // ── Chunk Generator Registration ──────────────────────────────────────────
 
-    private static final DeferredRegister<Codec<? extends ChunkGenerator>> CHUNK_GEN_CODECS =
-            DeferredRegister.create(Registries.CHUNK_GENERATOR, Phantasia.MOD_ID);
+    private static final DeferredRegister<Codec<? extends ChunkGenerator>> CHUNK_GEN_CODECS = DeferredRegister
+            .create(Registries.CHUNK_GENERATOR, Phantasia.MOD_ID);
 
-    public static final RegistryObject<Codec<PhantasiaVoidChunkGenerator>> VOID_GENERATOR =
-            CHUNK_GEN_CODECS.register("void", () -> PhantasiaVoidChunkGenerator.CODEC);
+    public static final RegistryObject<Codec<PhantasiaVoidChunkGenerator>> VOID_GENERATOR = CHUNK_GEN_CODECS
+            .register("void", () -> PhantasiaVoidChunkGenerator.CODEC);
 
     // ─────────────────────────────────────────────────────────────────────────
 

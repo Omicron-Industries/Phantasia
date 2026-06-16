@@ -1,12 +1,11 @@
 package net.phoenixvine.phantasia.client.event;
 
 import com.lowdragmc.lowdraglib.utils.BlockInfo;
-import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockShape;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
+import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockShape;
 
 import java.util.*;
 import java.util.concurrent.ExecutorService;

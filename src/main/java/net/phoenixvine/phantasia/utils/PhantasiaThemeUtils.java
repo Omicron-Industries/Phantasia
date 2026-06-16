@@ -66,7 +66,8 @@ public class PhantasiaThemeUtils {
         return PhantasiaTheme.current().panel();
     }
 
-    /** * Grabs an animated theme alert value using a custom high offset
+    /**
+     * * Grabs an animated theme alert value using a custom high offset
      * so it shifts gracefully alongside other warning/destructive elements.
      */
     public static int C_RED() {

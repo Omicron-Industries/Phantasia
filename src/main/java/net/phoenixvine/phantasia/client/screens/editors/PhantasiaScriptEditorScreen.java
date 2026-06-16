@@ -1,10 +1,8 @@
 package net.phoenixvine.phantasia.client.screens.editors;
 
-import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
-
 import com.gregtechceu.gtceu.api.block.MetaMachineBlock;
-
 import com.gregtechceu.gtceu.api.machine.MultiblockMachineDefinition;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
@@ -53,8 +51,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen {
             "Amber", "Red", "Green", "Cyan", "Purple", "White"
     };
 
-
-
     /** Two sub-rows of ~19px each, 4px padding = 42 total */
     private static final int STEP_ROW_H = 42;
     private static final int TIMELINE_H = 22;
@@ -83,7 +79,8 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen {
 
     // Show-mode tabs in row 2 (excludes parts group which opens a modal)
     private static final String[] SHOW_MODES = { "all", "layer", "layers" };
-    private static final String[] SHOW_LABELS = { "All", Component.translatable("screen.phantasia.script_editor.label_layer_filter").getString(), "Range" };
+    private static final String[] SHOW_LABELS = { "All",
+            Component.translatable("screen.phantasia.script_editor.label_layer_filter").getString(), "Range" };
 
     private String persistentExpr = "";
 
@@ -198,7 +195,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen {
 
     // ── Button registry ───────────────────────────────────────────────────────
 
-
     // ── Misc ──────────────────────────────────────────────────────────────────
     private int lastMouseX = 0;
     private int lastMouseY = 0;
@@ -302,12 +298,11 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen {
 
         // Delegate structure formation to the provider (e.g. GTCEu fires onStructureFormed)
         if (parentScene != null && pattern.controllerWorldPos != null) {
-            com.mojang.blaze3d.systems.RenderSystem.recordRenderCall(() ->
-                    parentScene.definition.onShapeLoaded(
-                            editorLevel,
-                            pattern.origin,
-                            new java.util.HashMap<>(pattern.blockMap),
-                            new java.util.HashMap<>(pattern.localToWorld)));
+            com.mojang.blaze3d.systems.RenderSystem.recordRenderCall(() -> parentScene.definition.onShapeLoaded(
+                    editorLevel,
+                    pattern.origin,
+                    new java.util.HashMap<>(pattern.blockMap),
+                    new java.util.HashMap<>(pattern.localToWorld)));
         }
     }
 
@@ -536,7 +531,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen {
         populateStartCamBoxes();
         dirty = true;
     }
-
 
     // ─────────────────────────────────────────────────────────────────────────
     // Tick
@@ -888,12 +882,12 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen {
             } catch (Exception ignored) {}
         }
 
-        if (showingCloseConfirm) renderCloseConfirmDialog(g, mx, my, this::forceClose, () -> showingCloseConfirm = false);
+        if (showingCloseConfirm)
+            renderCloseConfirmDialog(g, mx, my, this::forceClose, () -> showingCloseConfirm = false);
 
         // Floating tooltip drawn absolutely last
         renderPendingTooltip(g, mx, my);
     }
-
 
     @Override
     public void hideAllInputs() {
@@ -920,7 +914,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen {
                 "ANNOTATE \u2014 Click any block to attach a floating mistake label";
         drawBanner(g, tip, TOP_BAR_H + 4, C_DIM());
     }
-
 
     private void renderInSceneOverlays(GuiGraphics g, int mx, int my) {
         renderMistakeMarkers(g);
@@ -1023,7 +1016,8 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen {
                     pendingAnnotationLabel.isBlank() ? C_DIM() : C_TEXT(), false);
             btns.add(new Btn(px + 6, py + 4, lpW, 14, this::openAnnotationLabelInput));
             int sx = px + 6, sy = py + 22;
-            g.drawString(font, Component.translatable("screen.phantasia.script_editor.label_colour").getString(), sx, sy + 1, C_DIM(), false);
+            g.drawString(font, Component.translatable("screen.phantasia.script_editor.label_colour").getString(), sx,
+                    sy + 1, C_DIM(), false);
             sx += 44;
             for (int i = 0; i < MISTAKE_COLORS.length; i++) {
                 boolean sel = (i == selectedMistakeColor);
@@ -1041,7 +1035,8 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen {
             int btnY = py + 36;
             btn(g, mx, my, px + pw - 120, btnY, 54, 12, "\u2713 Add", C_GREEN(), this::confirmAnnotation);
             btn(g, mx, my, px + pw - 62, btnY, 54, 12, "\u2715 Cancel", C_BTN(), this::cancelAnnotation);
-            g.drawString(font, "Marking: " + pendingAnnotationLocalPos.toShortString(), px + 6, btnY + 1, C_DIM(), false);
+            g.drawString(font, "Marking: " + pendingAnnotationLocalPos.toShortString(), px + 6, btnY + 1, C_DIM(),
+                    false);
             return;
         }
         String hint = hoveredMistakeIndex >= 0 ? "Right-click marker to remove  |  Left-click block to add" :
@@ -1049,7 +1044,8 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen {
         drawBanner(g, hint, TOP_BAR_H + 4, C_WARN());
         if (mode == Mode.ANNOTATE) {
             int glx = this.width - 310, gly = this.height - BOTTOM_H + STEP_ROW_H + 4;
-            g.drawString(font, Component.translatable("screen.phantasia.script_editor.label_global_note").getString(), glx - 74, gly + 2, C_DIM(), false);
+            g.drawString(font, Component.translatable("screen.phantasia.script_editor.label_global_note").getString(),
+                    glx - 74, gly + 2, C_DIM(), false);
             boolean gnHov = isOver(mx, my, glx, gly, 220, 14);
             g.fill(glx, gly, glx + 220, gly + 14, gnHov ? C_BTN_HOV() : C_BTN());
             g.fill(glx, gly, glx + 220, gly + 1, C_WARN());
@@ -1080,7 +1076,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen {
     // ─────────────────────────────────────────────────────────────────────────
 
     private void renderTopBar(GuiGraphics g, int mx, int my) {
-
         hoveredModeBtnThisFrame = null;
         g.fill(0, 0, this.width, TOP_BAR_H, C_PANEL());
         g.fill(0, TOP_BAR_H - 1, this.width, TOP_BAR_H, C_ACCENT());
@@ -1150,7 +1145,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen {
         return x + w + 4;
     }
 
-
     // ─────────────────────────────────────────────────────────────────────────
     // Layer slider
     // ─────────────────────────────────────────────────────────────────────────
@@ -1203,8 +1197,10 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen {
         int minY = localMinY(), maxY = localMaxY();
         int range = Math.max(1, maxY - minY);
 
-        g.drawString(font, Component.translatable("screen.phantasia.script_editor.label_layer_filter").getString(), sliderX - 2, sliderY - 20, C_DIM(), false);
-        g.drawString(font, Component.translatable("screen.phantasia.script_editor.label_layer_filter2").getString(), sliderX - 2, sliderY - 11, C_DIM(), false);
+        g.drawString(font, Component.translatable("screen.phantasia.script_editor.label_layer_filter").getString(),
+                sliderX - 2, sliderY - 20, C_DIM(), false);
+        g.drawString(font, Component.translatable("screen.phantasia.script_editor.label_layer_filter2").getString(),
+                sliderX - 2, sliderY - 11, C_DIM(), false);
         g.fill(sliderX + 3, sliderY, sliderX + 7, sliderY + sliderH, 0x44FFFFFF);
         g.drawString(font, "Y=" + maxY, sliderX + 16, sliderY - 1, C_DIM(), false);
         g.drawString(font, "Y=" + minY, sliderX + 16, sliderY + sliderH - 1, C_DIM(), false);
@@ -1314,7 +1310,8 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen {
         int x = 8;
 
         // Step counter + nav
-        g.drawString(font, Component.translatable("screen.phantasia.script_editor.label_step").getString(), x, y1 - 2, 0xFF334455, false);
+        g.drawString(font, Component.translatable("screen.phantasia.script_editor.label_step").getString(), x, y1 - 2,
+                0xFF334455, false);
         String stepLbl = (selectedStep + 1) + "/" + data.getSteps().size();
         g.drawString(font, stepLbl, x, y1 + 6, C_ACCENT(), false);
         x += font.width(stepLbl) + 8;
@@ -1338,7 +1335,8 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen {
         x += 8;
 
         // Tick field
-        g.drawString(font, Component.translatable("screen.phantasia.script_editor.label_tick").getString(), x, y1 + 3, C_DIM(), false);
+        g.drawString(font, Component.translatable("screen.phantasia.script_editor.label_tick").getString(), x, y1 + 3,
+                C_DIM(), false);
         x += font.width(Component.translatable("screen.phantasia.script_editor.label_tick").getString()) + 3;
         placeBox(tickBox, x, y1, 38, 13);
         if (isOver(mx, my, x, y1, 38, 13)) pendingTooltip = "Tick this step activates at (20 ticks = 1 second)";
@@ -1382,7 +1380,8 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen {
         x += 88;
 
         if (s.working) {
-            g.drawString(font, Component.translatable("screen.phantasia.script_editor.label_recipe").getString(), x, y1 + 3, C_DIM(), false);
+            g.drawString(font, Component.translatable("screen.phantasia.script_editor.label_recipe").getString(), x,
+                    y1 + 3, C_DIM(), false);
             x += font.width(Component.translatable("screen.phantasia.script_editor.label_recipe").getString()) + 4;
             placeBox(fakeRecipeBox, x, y1, 180, 13);
             if (isOver(mx, my, x, y1, 180, 13))
@@ -1392,7 +1391,8 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen {
         // ── ROW 2: show mode · Parts… · hide controls ──────────────────────────
         int y2 = rowY + STEP_ROW_H / 2 + 5;
         x = 8;
-        g.drawString(font, Component.translatable("screen.phantasia.script_editor.label_show").getString(), x, y2 + 2, C_DIM(), false);
+        g.drawString(font, Component.translatable("screen.phantasia.script_editor.label_show").getString(), x, y2 + 2,
+                C_DIM(), false);
         x += font.width(Component.translatable("screen.phantasia.script_editor.label_show").getString()) + 4;
 
         for (int i = 0; i < SHOW_MODES.length; i++) {
@@ -1530,7 +1530,8 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen {
         int combinedW = labelW + 3 + boxW;
 
         int hideYLabelX = rx2 - combinedW;
-        g.drawString(font, Component.translatable("screen.phantasia.script_editor.label_hideY").getString(), hideYLabelX, y2 + 2, C_DIM(), false);
+        g.drawString(font, Component.translatable("screen.phantasia.script_editor.label_hideY").getString(),
+                hideYLabelX, y2 + 2, C_DIM(), false);
 
         int hideYBoxX = hideYLabelX + labelW + 3;
         placeBox(hideLayerBox, hideYBoxX, y2, boxW, 13);
@@ -1539,7 +1540,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen {
             pendingTooltip = "Hide layers by entering comma-separated Y values. (e.g. 1,2). Blank = none.";
         }
     }
-
 
     private static String showModeTooltip(String mode) {
         return switch (mode) {
@@ -1763,7 +1763,8 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen {
         x = panelX + 4;
 
         if (hasCam) {
-            g.drawString(font, Component.translatable("screen.phantasia.script_editor.label_zoom").getString(), x, r2Y + 2, C_DIM(), false);
+            g.drawString(font, Component.translatable("screen.phantasia.script_editor.label_zoom").getString(), x,
+                    r2Y + 2, C_DIM(), false);
             x += font.width(Component.translatable("screen.phantasia.script_editor.label_zoom").getString()) + 3;
             placeBox(camZoomBox, x, r2Y, 40, 12);
             if (isOver(mx, my, x, r2Y, 40, 12))
@@ -1788,13 +1789,15 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen {
             x += ltW + 6;
 
             if (lt != LerpType.SNAP) {
-                g.drawString(font, Component.translatable("screen.phantasia.script_editor.label_over").getString(), x, r2Y + 2, C_DIM(), false);
+                g.drawString(font, Component.translatable("screen.phantasia.script_editor.label_over").getString(), x,
+                        r2Y + 2, C_DIM(), false);
                 x += font.width(Component.translatable("screen.phantasia.script_editor.label_over").getString()) + 3;
                 placeBox(lerpTicksBox, x, r2Y, 34, 12);
                 if (isOver(mx, my, x, r2Y, 34, 12))
                     pendingTooltip = "Camera transition duration in ticks (20 ticks = 1 second)";
                 x += 38;
-                g.drawString(font, Component.translatable("screen.phantasia.script_editor.label_ticks").getString(), x, r2Y + 2, C_DIM(), false);
+                g.drawString(font, Component.translatable("screen.phantasia.script_editor.label_ticks").getString(), x,
+                        r2Y + 2, C_DIM(), false);
             }
         }
     }
@@ -1834,7 +1837,8 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen {
         g.fill(mdx + mw - 1, mdy, mdx + mw, mdy + mh, 0x44FFFFFF);
         g.fill(mdx, mdy + mh - 1, mdx + mw, mdy + mh, 0x44FFFFFF);
 
-        g.drawString(font, Component.translatable("screen.phantasia.script_editor.label_parts_filter").getString(), mdx + 10, mdy + 7, C_ACCENT(), false);
+        g.drawString(font, Component.translatable("screen.phantasia.script_editor.label_parts_filter").getString(),
+                mdx + 10, mdy + 7, C_ACCENT(), false);
 
         // Close button
         boolean xHov = isOver(mx, my, mdx + mw - 18, mdy + 4, 14, 14);
@@ -1846,7 +1850,8 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen {
         PhantasiaScriptData.StepData s = step();
 
         // ── Quick-select chips ────────────────────────────────────────────────
-        g.drawString(font, Component.translatable("screen.phantasia.script_editor.label_quick_select").getString(), mdx + 10, mdy + 22, C_DIM(), false);
+        g.drawString(font, Component.translatable("screen.phantasia.script_editor.label_quick_select").getString(),
+                mdx + 10, mdy + 22, C_DIM(), false);
         int cx = mdx + 10, cy = mdy + 32;
         int rowMax = mdx + mw - 10;
 
@@ -1911,8 +1916,10 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen {
 
         // ── Custom expression input ───────────────────────────────────────────
         g.fill(mdx + 8, cy - 1, mdx + mw - 8, cy + 27, 0x22FFFFFF);
-        g.drawString(font, Component.translatable("screen.phantasia.script_editor.label_custom_expr").getString(), mdx + 12, cy + 3, C_DIM(), false);
-        int exprX = mdx + 12 + font.width(Component.translatable("screen.phantasia.script_editor.label_custom_expr").getString()) + 6;
+        g.drawString(font, Component.translatable("screen.phantasia.script_editor.label_custom_expr").getString(),
+                mdx + 12, cy + 3, C_DIM(), false);
+        int exprX = mdx + 12 +
+                font.width(Component.translatable("screen.phantasia.script_editor.label_custom_expr").getString()) + 6;
         int exprW = mdx + mw - 8 - exprX - 6;
         placeBox(partsExprBox, exprX, cy, exprW, 13);
         // inside renderPartsModal()
@@ -1927,7 +1934,8 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen {
         // ── Clear / show all ─────────────────────────────────────────────────
         boolean clrHov = isOver(mx, my, mdx + 8, cy + 2, mw - 16, 14);
         g.fill(mdx + 8, cy + 2, mdx + mw - 8, cy + 16, clrHov ? C_BTN_HOV() : C_BTN());
-        g.drawString(font, "\u2715  Clear \u2014 show all blocks", mdx + 14, cy + 5, clrHov ? C_ACCENT() : C_DIM(), false);
+        g.drawString(font, "\u2715  Clear \u2014 show all blocks", mdx + 14, cy + 5, clrHov ? C_ACCENT() : C_DIM(),
+                false);
         if (clrHov) pendingTooltip = "Reset to showing every block in this step";
         btns.add(new Btn(mdx + 8, cy + 2, mw - 16, 14, () -> {
             checkpoint();
@@ -2029,9 +2037,11 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen {
         g.drawString(font, "\u25C4 \u25BA", margin - 24, midY - 4, C_DIM(), false);
 
         // Duration box
-        int durLabelW = font.width(Component.translatable("screen.phantasia.script_editor.label_total").getString()) + 4;
+        int durLabelW = font.width(Component.translatable("screen.phantasia.script_editor.label_total").getString()) +
+                4;
         int durX = this.width - 4 - 46 - durLabelW;
-        g.drawString(font, Component.translatable("screen.phantasia.script_editor.label_total").getString(), durX, midY - 4, C_DIM(), false);
+        g.drawString(font, Component.translatable("screen.phantasia.script_editor.label_total").getString(), durX,
+                midY - 4, C_DIM(), false);
         if (isOver(mx, my, durX, tlY, durLabelW + 50, TIMELINE_H))
             pendingTooltip = "Override total script length in ticks. Blank = auto (last step tick + 60).";
         placeBox(scriptDurationBox, durX + durLabelW, tlY + 5, 46, 12);
@@ -2054,7 +2064,8 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen {
         boolean hasSC = sc != null;
         int row1 = py + 6;
         int x = px + 6;
-        g.drawString(font, Component.translatable("screen.phantasia.script_editor.label_start_cam").getString(), x, row1 - 1, C_ACCENT(), false);
+        g.drawString(font, Component.translatable("screen.phantasia.script_editor.label_start_cam").getString(), x,
+                row1 - 1, C_ACCENT(), false);
         x += font.width(Component.translatable("screen.phantasia.script_editor.label_start_cam").getString()) + 10;
         x = scField(g, mx, my, x, row1, "Yaw", scYawBox, "Yaw of initial camera (degrees). Blank = face machine.",
                 hasSC);
@@ -2064,7 +2075,8 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen {
                 hasSC);
         int row2 = py + 26;
         x = px + 6;
-        g.drawString(font, Component.translatable("screen.phantasia.script_editor.label_target_offset").getString(), x, row2 + 2, C_DIM(), false);
+        g.drawString(font, Component.translatable("screen.phantasia.script_editor.label_target_offset").getString(), x,
+                row2 + 2, C_DIM(), false);
         x += font.width(Component.translatable("screen.phantasia.script_editor.label_target_offset").getString()) + 6;
         x = scField(g, mx, my, x, row2, "X", scOffsetXBox, "Look-at offset X axis (world units).", hasSC);
         x = scField(g, mx, my, x, row2, "Y", scOffsetYBox, "Look-at offset Y axis (positive = up).", hasSC);
@@ -2819,13 +2831,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen {
     }
 
     /** Small button with a tooltip that sets {@link #pendingTooltip} on hover. */
-
-
-
-
-
-
-
 
     private static List<int[]> parsePosList(String raw) {
         List<int[]> r = new ArrayList<>();

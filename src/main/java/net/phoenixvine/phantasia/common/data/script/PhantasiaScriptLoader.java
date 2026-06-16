@@ -49,8 +49,8 @@ public class PhantasiaScriptLoader {
             PhantasiaScripts.register(def, PhantasiaScript.fromData(data));
             log("Saved and hot-reloaded script for " + machineId);
         } else {
-            logErr("Saved script for " + machineId + " but could not resolve definition — "
-                    + "it will load on next reload.");
+            logErr("Saved script for " + machineId + " but could not resolve definition — " +
+                    "it will load on next reload.");
         }
     }
 
@@ -154,9 +154,9 @@ public class PhantasiaScriptLoader {
 
             IPhantasiaMultiblockDefinition def = resolveDefinition(data.getMachine());
             if (def == null) {
-                logErr("No multiblock definition found for \"" + data.getMachine()
-                        + "\" (from " + path.getFileName() + ") — script will not apply. "
-                        + "Check the machine ID, or call /phantasia reload after world load.");
+                logErr("No multiblock definition found for \"" + data.getMachine() + "\" (from " + path.getFileName() +
+                        ") — script will not apply. " +
+                        "Check the machine ID, or call /phantasia reload after world load.");
                 return false;
             }
 

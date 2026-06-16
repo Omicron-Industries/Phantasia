@@ -1,7 +1,5 @@
 package net.phoenixvine.phantasia.client.screens.editors;
 
-import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
-
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
@@ -33,8 +31,6 @@ import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
 
 @OnlyIn(Dist.CLIENT)
 public class PhantasiaGuideEditorScreen extends Screen {
-
-
 
     private static final int TOP_H = 22;
     private static final int ROW_H = 18;
@@ -416,15 +412,22 @@ public class PhantasiaGuideEditorScreen extends Screen {
         g.fill(0, 0, width, TOP_H, C_BAR());
         g.fill(0, TOP_H - 1, width, TOP_H, C_ACCENT());
 
-        topBtn(g, mx, my, 4, Component.translatable("screen.phantasia.guide_editor.btn_back").getString(), this::onClose);
+        topBtn(g, mx, my, 4, Component.translatable("screen.phantasia.guide_editor.btn_back").getString(),
+                this::onClose);
 
-        g.drawString(font, Component.translatable("screen.phantasia.guide_editor.label_title").getString(), 4 + font.width(Component.translatable("screen.phantasia.guide_editor.btn_back").getString()) + 18, (TOP_H - 8) / 2, C_DIM(), false);
-        int titleX = 4 + font.width(Component.translatable("screen.phantasia.guide_editor.btn_back").getString()) + 18 + font.width(Component.translatable("screen.phantasia.guide_editor.label_title").getString()) + 4;
+        g.drawString(font, Component.translatable("screen.phantasia.guide_editor.label_title").getString(),
+                4 + font.width(Component.translatable("screen.phantasia.guide_editor.btn_back").getString()) + 18,
+                (TOP_H - 8) / 2, C_DIM(), false);
+        int titleX = 4 + font.width(Component.translatable("screen.phantasia.guide_editor.btn_back").getString()) + 18 +
+                font.width(Component.translatable("screen.phantasia.guide_editor.label_title").getString()) + 4;
         placeBox(titleBox, titleX, 4, 160, 13);
 
         int iconX = titleX + 164;
-        g.drawString(font, Component.translatable("screen.phantasia.guide_editor.label_icon").getString(), iconX, (TOP_H - 8) / 2, C_DIM(), false);
-        placeBox(iconItemBox, iconX + font.width(Component.translatable("screen.phantasia.guide_editor.label_icon").getString()) + 4, 4, 120, 13);
+        g.drawString(font, Component.translatable("screen.phantasia.guide_editor.label_icon").getString(), iconX,
+                (TOP_H - 8) / 2, C_DIM(), false);
+        placeBox(iconItemBox,
+                iconX + font.width(Component.translatable("screen.phantasia.guide_editor.label_icon").getString()) + 4,
+                4, 120, 13);
 
         int rx = width - 4;
         rx = topBtnR(g, mx, my, rx, dirty ? "💾 Save*" : "💾 Save", this::save);
@@ -449,7 +452,8 @@ public class PhantasiaGuideEditorScreen extends Screen {
         g.fill(previewW - 1, TOP_H, previewW, height, C_ACCENT());
 
         if (data.pages.isEmpty()) {
-            g.drawCenteredString(font, Component.translatable("screen.phantasia.guide_editor.no_pages").getString(), previewW / 2, height / 2, C_DIM());
+            g.drawCenteredString(font, Component.translatable("screen.phantasia.guide_editor.no_pages").getString(),
+                    previewW / 2, height / 2, C_DIM());
             return;
         }
 
@@ -466,7 +470,8 @@ public class PhantasiaGuideEditorScreen extends Screen {
 
         g.fill(colX - 4, y, colX + colW + 4, y + hlBoxHeight, hlBoxBg);
         g.renderOutline(colX - 4, y, colW + 8, hlBoxHeight, hlFocused ? C_ACCENT() : 0xFF223544);
-        g.drawString(font, Component.translatable("screen.phantasia.guide_editor.headline_editor_label").getString(), colX, y + 2, C_DIM(), false);
+        g.drawString(font, Component.translatable("screen.phantasia.guide_editor.headline_editor_label").getString(),
+                colX, y + 2, C_DIM(), false);
 
         int hlRenderY = y + 14;
         g.enableScissor(colX - 2, y, colX + colW + 2, y + hlBoxHeight);
@@ -520,7 +525,8 @@ public class PhantasiaGuideEditorScreen extends Screen {
 
         g.fill(colX - 4, y, colX + colW + 4, y + bodyAreaHeight, bodyBoxBg);
         g.renderOutline(colX - 4, y, colW + 8, bodyAreaHeight, bodyFocused ? C_GREEN() : 0xFF1B2B24);
-        g.drawString(font, Component.translatable("screen.phantasia.guide_editor.body_editor_label").getString(), colX, y + 3, C_DIM(), false);
+        g.drawString(font, Component.translatable("screen.phantasia.guide_editor.body_editor_label").getString(), colX,
+                y + 3, C_DIM(), false);
 
         int bodyRenderY = y + 15;
         g.enableScissor(colX - 2, y, colX + colW + 2, y + bodyAreaHeight);
@@ -630,11 +636,13 @@ public class PhantasiaGuideEditorScreen extends Screen {
         int y = TOP_H + 4;
 
         g.fill(px, y, width, y + 14, C_BAR());
-        g.drawString(font, Component.translatable("screen.phantasia.guide_editor.section_pages").getString(), px + 6, y + 3, C_ACCENT(), false);
+        g.drawString(font, Component.translatable("screen.phantasia.guide_editor.section_pages").getString(), px + 6,
+                y + 3, C_ACCENT(), false);
         int addW = font.width(Component.translatable("screen.phantasia.guide_editor.btn_add_page").getString()) + 8;
         boolean addHov = over(mx, my, width - addW - 4, y + 2, addW, 12);
         g.fill(width - addW - 4, y + 2, width - 4, y + 14, addHov ? C_BTN_HOV() : C_BTN());
-        g.drawString(font, Component.translatable("screen.phantasia.guide_editor.btn_add_page").getString(), width - addW - 1, y + 4, addHov ? C_ACCENT() : C_DIM(), false);
+        g.drawString(font, Component.translatable("screen.phantasia.guide_editor.btn_add_page").getString(),
+                width - addW - 1, y + 4, addHov ? C_ACCENT() : C_DIM(), false);
         btns.add(new Btn(width - addW - 4, y + 2, addW, 12, this::addPage));
         y += 16;
 
@@ -677,7 +685,8 @@ public class PhantasiaGuideEditorScreen extends Screen {
         int addItemW = font.width(Component.translatable("screen.phantasia.guide_editor.btn_add_item").getString()) + 8;
         boolean aiHov = over(mx, my, width - addItemW - 4, y - 1, addItemW, 12);
         g.fill(width - addItemW - 4, y - 1, width - 4, y + 11, aiHov ? C_BTN_HOV() : C_BTN());
-        g.drawString(font, Component.translatable("screen.phantasia.guide_editor.btn_add_item").getString(), width - addItemW - 1, y + 1, aiHov ? C_ACCENT() : C_DIM(), false);
+        g.drawString(font, Component.translatable("screen.phantasia.guide_editor.btn_add_item").getString(),
+                width - addItemW - 1, y + 1, aiHov ? C_ACCENT() : C_DIM(), false);
         btns.add(new Btn(width - addItemW - 4, y - 1, addItemW, 12, this::addItem));
         y += font.lineHeight + 3;
 
@@ -721,21 +730,37 @@ public class PhantasiaGuideEditorScreen extends Screen {
         y += itemBoxAreaH + 4; // Shift static elements down below the clipping boundaries
 
         // ── ITEM CONFIGURATION FORM FIELD INTERFACES ──
-        g.drawString(font, Component.translatable("screen.phantasia.guide_editor.label_item_id").getString(), px + 4, y, C_DIM(), false);
-        placeBox(itemIdBox, px + 4 + font.width(Component.translatable("screen.phantasia.guide_editor.label_item_id").getString()) + 3, y - 1, rightWidth - 8 - font.width(Component.translatable("screen.phantasia.guide_editor.label_item_id").getString()) - 3,
+        g.drawString(font, Component.translatable("screen.phantasia.guide_editor.label_item_id").getString(), px + 4, y,
+                C_DIM(), false);
+        placeBox(itemIdBox, px + 4 +
+                font.width(Component.translatable("screen.phantasia.guide_editor.label_item_id").getString()) + 3,
+                y - 1,
+                rightWidth - 8 -
+                        font.width(Component.translatable("screen.phantasia.guide_editor.label_item_id").getString()) -
+                        3,
                 12);
         y += 14;
 
-        g.drawString(font, Component.translatable("screen.phantasia.guide_editor.label_label").getString(), px + 4, y, C_DIM(), false);
-        placeBox(itemLabelBox, px + 4 + font.width(Component.translatable("screen.phantasia.guide_editor.label_label").getString()) + 3, y - 1, 100, 12);
+        g.drawString(font, Component.translatable("screen.phantasia.guide_editor.label_label").getString(), px + 4, y,
+                C_DIM(), false);
+        placeBox(
+                itemLabelBox, px + 4 +
+                        font.width(Component.translatable("screen.phantasia.guide_editor.label_label").getString()) + 3,
+                y - 1, 100, 12);
         y += 14;
 
-        g.drawString(font, Component.translatable("screen.phantasia.guide_editor.label_count").getString(), px + 4, y, C_DIM(), false);
-        placeBox(itemCountBox, px + 4 + font.width(Component.translatable("screen.phantasia.guide_editor.label_count").getString()) + 3, y - 1, 36, 12);
+        g.drawString(font, Component.translatable("screen.phantasia.guide_editor.label_count").getString(), px + 4, y,
+                C_DIM(), false);
+        placeBox(
+                itemCountBox, px + 4 +
+                        font.width(Component.translatable("screen.phantasia.guide_editor.label_count").getString()) + 3,
+                y - 1, 36, 12);
         y += 14;
 
-        g.drawString(font, Component.translatable("screen.phantasia.guide_editor.label_type").getString(), px + 4, y, C_DIM(), false);
-        int tx = px + 4 + font.width(Component.translatable("screen.phantasia.guide_editor.label_type").getString()) + 4;
+        g.drawString(font, Component.translatable("screen.phantasia.guide_editor.label_type").getString(), px + 4, y,
+                C_DIM(), false);
+        int tx = px + 4 + font.width(Component.translatable("screen.phantasia.guide_editor.label_type").getString()) +
+                4;
         for (String t : new String[] { "input", "output", "catalyst" }) {
             int tw = font.width(t) + 8;
             boolean tsel = t.equals(itemTypeSelected);
@@ -752,7 +777,8 @@ public class PhantasiaGuideEditorScreen extends Screen {
         int apW = font.width(Component.translatable("screen.phantasia.guide_editor.btn_apply_item").getString()) + 10;
         boolean apHov = over(mx, my, px + 4, y, apW, 13);
         g.fill(px + 4, y, px + 4 + apW, y + 13, apHov ? C_BTN_HOV() : C_BTN());
-        g.drawString(font, Component.translatable("screen.phantasia.guide_editor.btn_apply_item").getString(), px + 8, y + 3, apHov ? C_ACCENT() : C_TEXT(), false);
+        g.drawString(font, Component.translatable("screen.phantasia.guide_editor.btn_apply_item").getString(), px + 8,
+                y + 3, apHov ? C_ACCENT() : C_TEXT(), false);
         btns.add(new Btn(px + 4, y, apW, 13, this::applyItemEdit));
         y += 18;
 
@@ -807,7 +833,8 @@ public class PhantasiaGuideEditorScreen extends Screen {
         g.drawCenteredString(font, scriptBtnLabel, px + rightWidth / 2, y + 3, slkHov ? C_ACCENT() : C_TEXT());
 
         btns.add(new Btn(px + 4, y, rightWidth - 8, 14, () -> {
-            List<String> scriptIds = net.phoenixvine.phantasia.common.multiblock.PhantasiaMultiblockRegistry.getAllDefinitions().stream()
+            List<String> scriptIds = net.phoenixvine.phantasia.common.multiblock.PhantasiaMultiblockRegistry
+                    .getAllDefinitions().stream()
                     .filter(def -> PhantasiaScripts.has(def))
                     .map(def -> def.getId().toString())
                     .toList();
@@ -829,7 +856,8 @@ public class PhantasiaGuideEditorScreen extends Screen {
                 String tid = data.tooltipItems.get(i);
                 boolean tiHov = over(mx, my, px + 4, y, rightWidth - 26, 12);
                 g.fill(px + 4, y, width - 22, y + 12, tiHov ? C_BTN_HOV() : C_BTN());
-                String tidTrunc = font.width(tid) > rightWidth - 34 ? font.plainSubstrByWidth(tid, rightWidth - 34) + "…" : tid;
+                String tidTrunc = font.width(tid) > rightWidth - 34 ?
+                        font.plainSubstrByWidth(tid, rightWidth - 34) + "…" : tid;
                 g.drawString(font, tidTrunc, px + 7, y + 2, C_TEXT(), false);
                 boolean tiDelHov = over(mx, my, width - 20, y, 16, 12);
                 g.fill(width - 20, y, width - 4, y + 12, tiDelHov ? 0xBB3A0A0A : C_BTN());
@@ -1127,7 +1155,8 @@ public class PhantasiaGuideEditorScreen extends Screen {
             boolean backHov = mx > 10 && mx < 10 + btnW && my > 10 && my < 24;
             g.fill(10, 10, 10 + btnW, 24, backHov ? 0xBB1A2840 : 0xBB151528);
             if (backHov) g.fill(10, 10, 10 + btnW, 11, 0xFF4FC3F7);
-            g.drawString(font, Component.translatable("screen.phantasia.guide_editor.btn_back").getString(), 15, 13, backHov ? 0xFF4FC3F7 : 0xFFDDDDDD, false);
+            g.drawString(font, Component.translatable("screen.phantasia.guide_editor.btn_back").getString(), 15, 13,
+                    backHov ? 0xFF4FC3F7 : 0xFFDDDDDD, false);
 
             g.drawCenteredString(font, this.titleText, width / 2, 16, 0xFF4FC3F7);
 
@@ -1146,7 +1175,8 @@ public class PhantasiaGuideEditorScreen extends Screen {
         public boolean mouseClicked(double mx, double my, int btn) {
             if (btn == 0) {
                 // Handle header Back button interaction execution
-                int btnW = font.width(Component.translatable("screen.phantasia.guide_editor.btn_back").getString()) + 10;
+                int btnW = font.width(Component.translatable("screen.phantasia.guide_editor.btn_back").getString()) +
+                        10;
                 if (mx > 10 && mx < 10 + btnW && my > 10 && my < 24) {
                     Minecraft.getInstance().setScreen(parent);
                     return true;

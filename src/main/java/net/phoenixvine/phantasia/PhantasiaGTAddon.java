@@ -5,8 +5,8 @@ import com.gregtechceu.gtceu.api.addon.IGTAddon;
 import com.gregtechceu.gtceu.api.registry.registrate.GTRegistrate;
 
 import net.minecraft.data.recipes.FinishedRecipe;
-import net.phoenixvine.phantasia.compat.gtceu.PhantasiaGTCompat;
 import net.phoenixvine.phantasia.common.PhantasiaTestingRecipes;
+import net.phoenixvine.phantasia.compat.gtceu.PhantasiaGTCompat;
 
 import java.util.function.Consumer;
 
@@ -41,5 +41,4 @@ public class PhantasiaGTAddon implements IGTAddon {
     public void registerElements() {
         // CustomElements.init();
     }
-
 }

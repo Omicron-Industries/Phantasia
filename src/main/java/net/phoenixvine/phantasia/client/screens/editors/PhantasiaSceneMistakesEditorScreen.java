@@ -1,7 +1,5 @@
 package net.phoenixvine.phantasia.client.screens.editors;
 
-import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
-
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
@@ -78,7 +76,6 @@ public class PhantasiaSceneMistakesEditorScreen extends PhantasiaScreen {
 
     // ── Button list ───────────────────────────────────────────────────────────
 
-
     // ─────────────────────────────────────────────────────────────────────────
 
     public PhantasiaSceneMistakesEditorScreen(PhantasiaSceneEditorScreen parent,
@@ -117,7 +114,6 @@ public class PhantasiaSceneMistakesEditorScreen extends PhantasiaScreen {
 
         hideAll();
     }
-
 
     // ─────────────────────────────────────────────────────────────────────────
     // Render
@@ -169,7 +165,9 @@ public class PhantasiaSceneMistakesEditorScreen extends PhantasiaScreen {
         }
 
         if (data.mistakes.isEmpty()) {
-            g.drawCenteredString(font, Component.translatable("screen.phantasia.scene_mistakes_editor.empty").getString(), width / 2, cy + 8, C_DIM());
+            g.drawCenteredString(font,
+                    Component.translatable("screen.phantasia.scene_mistakes_editor.empty").getString(), width / 2,
+                    cy + 8, C_DIM());
             cy += 22;
         }
 
@@ -179,12 +177,17 @@ public class PhantasiaSceneMistakesEditorScreen extends PhantasiaScreen {
         cy += 8;
 
         // ── Add-new form ──────────────────────────────────────────────────────
-        g.drawString(font, Component.translatable("screen.phantasia.scene_mistakes_editor.btn_new").getString(), px + 4, cy, C_ACCENT(), false);
+        g.drawString(font, Component.translatable("screen.phantasia.scene_mistakes_editor.btn_new").getString(), px + 4,
+                cy, C_ACCENT(), false);
         cy += 12;
 
         // Severity selector
-        g.drawString(font, Component.translatable("screen.phantasia.scene_mistakes_editor.label_severity").getString(), px + 4, cy + 2, C_DIM(), false);
-        int sbx = px + 4 + font.width(Component.translatable("screen.phantasia.scene_mistakes_editor.label_severity").getString()) + 4;
+        g.drawString(font, Component.translatable("screen.phantasia.scene_mistakes_editor.label_severity").getString(),
+                px + 4, cy + 2, C_DIM(), false);
+        int sbx = px + 4 +
+                font.width(
+                        Component.translatable("screen.phantasia.scene_mistakes_editor.label_severity").getString()) +
+                4;
         for (int si = 0; si < SEVERITIES.length; si++) {
             String sv = SEVERITIES[si];
             String svl = SEVERITY_LABELS[si];
@@ -202,18 +205,32 @@ public class PhantasiaSceneMistakesEditorScreen extends PhantasiaScreen {
         cy += 16;
 
         // ID field
-        g.drawString(font, Component.translatable("screen.phantasia.scene_mistakes_editor.label_id").getString(), px + 4, cy + 2, C_DIM(), false);
-        place(editIdBox, px + 4 + font.width(Component.translatable("screen.phantasia.scene_mistakes_editor.label_id").getString()) + 4, cy, 160, 12);
+        g.drawString(font, Component.translatable("screen.phantasia.scene_mistakes_editor.label_id").getString(),
+                px + 4, cy + 2, C_DIM(), false);
+        place(editIdBox,
+                px + 4 + font.width(
+                        Component.translatable("screen.phantasia.scene_mistakes_editor.label_id").getString()) + 4,
+                cy, 160, 12);
         cy += 16;
 
         // Description field
-        g.drawString(font, Component.translatable("screen.phantasia.scene_mistakes_editor.label_desc").getString(), px + 4, cy + 2, C_DIM(), false);
-        place(editDescBox, px + 4 + font.width(Component.translatable("screen.phantasia.scene_mistakes_editor.label_desc").getString()) + 4, cy, pw - 12 - font.width(Component.translatable("screen.phantasia.scene_mistakes_editor.label_desc").getString()), 12);
+        g.drawString(font, Component.translatable("screen.phantasia.scene_mistakes_editor.label_desc").getString(),
+                px + 4, cy + 2, C_DIM(), false);
+        place(editDescBox,
+                px + 4 + font.width(
+                        Component.translatable("screen.phantasia.scene_mistakes_editor.label_desc").getString()) + 4,
+                cy,
+                pw - 12 - font
+                        .width(Component.translatable("screen.phantasia.scene_mistakes_editor.label_desc").getString()),
+                12);
         cy += 16;
 
         // Placements field
-        g.drawString(font, Component.translatable("screen.phantasia.scene_mistakes_editor.label_placements").getString(), px + 4, cy + 2, C_DIM(), false);
-        int plLblW = font.width(Component.translatable("screen.phantasia.scene_mistakes_editor.label_placements").getString()) + 4;
+        g.drawString(font,
+                Component.translatable("screen.phantasia.scene_mistakes_editor.label_placements").getString(), px + 4,
+                cy + 2, C_DIM(), false);
+        int plLblW = font.width(
+                Component.translatable("screen.phantasia.scene_mistakes_editor.label_placements").getString()) + 4;
         place(editPlacementsBox, px + 4 + plLblW, cy, 120, 12);
 
         // Placement index reference
@@ -341,18 +358,35 @@ public class PhantasiaSceneMistakesEditorScreen extends PhantasiaScreen {
         cy += 16;
 
         // ID field
-        g.drawString(font, Component.translatable("screen.phantasia.scene_mistakes_editor.label_id").getString(), px + 8, cy + 2, C_DIM(), false);
-        place(editIdBox, px + 8 + font.width(Component.translatable("screen.phantasia.scene_mistakes_editor.label_id").getString()) + 4, cy, 160, 12);
+        g.drawString(font, Component.translatable("screen.phantasia.scene_mistakes_editor.label_id").getString(),
+                px + 8, cy + 2, C_DIM(), false);
+        place(editIdBox,
+                px + 8 + font.width(
+                        Component.translatable("screen.phantasia.scene_mistakes_editor.label_id").getString()) + 4,
+                cy, 160, 12);
         cy += 16;
 
         // Description field
-        g.drawString(font, Component.translatable("screen.phantasia.scene_mistakes_editor.label_desc").getString(), px + 8, cy + 2, C_DIM(), false);
-        place(editDescBox, px + 8 + font.width(Component.translatable("screen.phantasia.scene_mistakes_editor.label_desc").getString()) + 4, cy, pw - 20 - font.width(Component.translatable("screen.phantasia.scene_mistakes_editor.label_desc").getString()), 12);
+        g.drawString(font, Component.translatable("screen.phantasia.scene_mistakes_editor.label_desc").getString(),
+                px + 8, cy + 2, C_DIM(), false);
+        place(editDescBox,
+                px + 8 + font.width(
+                        Component.translatable("screen.phantasia.scene_mistakes_editor.label_desc").getString()) + 4,
+                cy,
+                pw - 20 - font
+                        .width(Component.translatable("screen.phantasia.scene_mistakes_editor.label_desc").getString()),
+                12);
         cy += 16;
 
         // Placements
-        g.drawString(font, Component.translatable("screen.phantasia.scene_mistakes_editor.label_placements").getString(), px + 8, cy + 2, C_DIM(), false);
-        place(editPlacementsBox, px + 8 + font.width(Component.translatable("screen.phantasia.scene_mistakes_editor.label_placements").getString()) + 4, cy, 120, 12);
+        g.drawString(font,
+                Component.translatable("screen.phantasia.scene_mistakes_editor.label_placements").getString(), px + 8,
+                cy + 2, C_DIM(), false);
+        place(editPlacementsBox,
+                px + 8 + font.width(
+                        Component.translatable("screen.phantasia.scene_mistakes_editor.label_placements").getString()) +
+                        4,
+                cy, 120, 12);
         cy += 16;
 
         // Apply button
@@ -393,7 +427,8 @@ public class PhantasiaSceneMistakesEditorScreen extends PhantasiaScreen {
         }
         for (PhantasiaSceneData.SceneMistakeData m : data.mistakes) {
             if (id.equals(m.id)) {
-                addError = Component.translatable("screen.phantasia.scene_mistakes_editor.err_duplicate_id").getString() + ": " + id;
+                addError = Component.translatable("screen.phantasia.scene_mistakes_editor.err_duplicate_id")
+                        .getString() + ": " + id;
                 return;
             }
         }
@@ -497,9 +532,6 @@ public class PhantasiaSceneMistakesEditorScreen extends PhantasiaScreen {
         box.visible = true;
         box.active = true;
     }
-
-
-
 
     private static int severityColor(String severity) {
         if (severity == null) return SEVERITY_COLORS[1];

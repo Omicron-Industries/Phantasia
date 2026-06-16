@@ -1,8 +1,5 @@
 package net.phoenixvine.phantasia.client.web;
 
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
 import com.lowdragmc.lowdraglib.utils.BlockInfo;
 
 import net.minecraft.client.Minecraft;
@@ -22,11 +19,14 @@ import net.phoenixvine.phantasia.common.data.scene.PhantasiaScenes;
 import net.phoenixvine.phantasia.common.data.script.PhantasiaScript;
 import net.phoenixvine.phantasia.common.data.script.PhantasiaScripts;
 
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -42,7 +42,7 @@ public class PhantasiaWebExport {
 
         // ── Scenes ─────────────────────────────────────────────────────────────
         try {
-            Path scenesDir   = docsDir.resolve("data/scenes");
+            Path scenesDir = docsDir.resolve("data/scenes");
             Path patternsDir = docsDir.resolve("data/patterns");
             Files.createDirectories(scenesDir);
             Files.createDirectories(patternsDir);
@@ -83,7 +83,8 @@ public class PhantasiaWebExport {
                     manifest.add(entry);
                     sceneCount++;
                 } catch (Exception e) {
-                    errors.append("Error exporting scene ").append(scene.id).append(": ").append(e.getMessage()).append("\n");
+                    errors.append("Error exporting scene ").append(scene.id).append(": ").append(e.getMessage())
+                            .append("\n");
                 }
             }
 
@@ -95,8 +96,8 @@ public class PhantasiaWebExport {
 
         // ── Scripts ────────────────────────────────────────────────────────────
         try {
-            Path scriptDataDir  = docsDir.resolve("data/script-data");
-            Path scriptPatsDir  = docsDir.resolve("data/script-patterns");
+            Path scriptDataDir = docsDir.resolve("data/script-data");
+            Path scriptPatsDir = docsDir.resolve("data/script-patterns");
             Files.createDirectories(scriptDataDir);
             Files.createDirectories(scriptPatsDir);
 
@@ -104,7 +105,7 @@ public class PhantasiaWebExport {
 
             for (Map.Entry<ResourceLocation, PhantasiaScript> entry : PhantasiaScripts.allEntries()) {
                 ResourceLocation machineId = entry.getKey();
-                PhantasiaScript script     = entry.getValue();
+                PhantasiaScript script = entry.getValue();
                 String safeId = machineId.getNamespace() + "/" + machineId.getPath();
 
                 try {
@@ -114,7 +115,8 @@ public class PhantasiaWebExport {
                     Files.writeString(dataFile, script.getSourceData().toJson());
 
                     // Machine pattern (first shape)
-                    var defOpt = net.phoenixvine.phantasia.common.multiblock.PhantasiaMultiblockRegistry.resolve(machineId.toString());
+                    var defOpt = net.phoenixvine.phantasia.common.multiblock.PhantasiaMultiblockRegistry
+                            .resolve(machineId.toString());
                     boolean hasPattern = false;
                     if (defOpt.isPresent()) {
                         var shapes = defOpt.get().getMatchingShapes();
@@ -138,7 +140,8 @@ public class PhantasiaWebExport {
                     scriptsManifest.add(mEntry);
                     scriptCount++;
                 } catch (Exception e) {
-                    errors.append("Error exporting script ").append(machineId).append(": ").append(e.getMessage()).append("\n");
+                    errors.append("Error exporting script ").append(machineId).append(": ").append(e.getMessage())
+                            .append("\n");
                 }
             }
 
@@ -172,7 +175,8 @@ public class PhantasiaWebExport {
                     guidesManifest.add(gEntry);
                     guideCount++;
                 } catch (Exception e) {
-                    errors.append("Error exporting guide ").append(guide.id).append(": ").append(e.getMessage()).append("\n");
+                    errors.append("Error exporting guide ").append(guide.id).append(": ").append(e.getMessage())
+                            .append("\n");
                 }
             }
 
@@ -195,7 +199,7 @@ public class PhantasiaWebExport {
     // ── Synthetic blockstates for blocks missing from extracted JAR assets ────────
 
     private static void exportSyntheticBlockstates(Set<String> blockIds, Path docsDir,
-                                                    com.google.gson.Gson gson, StringBuilder errors) throws IOException {
+                                                   com.google.gson.Gson gson, StringBuilder errors) throws IOException {
         Path assetsBase = docsDir.resolve("assets/mc/assets");
         Minecraft mc = Minecraft.getInstance();
 
@@ -249,7 +253,7 @@ public class PhantasiaWebExport {
         JsonArray blocks = new JsonArray();
 
         for (Map.Entry<BlockPos, BlockInfo> e : pattern.mergedBlockMap.entrySet()) {
-            BlockPos pos  = e.getKey();
+            BlockPos pos = e.getKey();
             BlockInfo info = e.getValue();
             BlockState state = info.getBlockState();
             if (state == null || state.isAir()) continue;
@@ -335,7 +339,13 @@ public class PhantasiaWebExport {
     }
 
     public record ExportResult(int scenes, int scripts, int guides, int blocks, String errors) {
-        public boolean hasErrors() { return !errors.isBlank(); }
-        public boolean success()   { return scenes > 0 || scripts > 0 || guides > 0; }
+
+        public boolean hasErrors() {
+            return !errors.isBlank();
+        }
+
+        public boolean success() {
+            return scenes > 0 || scripts > 0 || guides > 0;
+        }
     }
 }

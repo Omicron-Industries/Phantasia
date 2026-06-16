@@ -1,7 +1,5 @@
 package net.phoenixvine.phantasia.client.screens;
 
-import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
-
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
@@ -20,6 +18,8 @@ import net.phoenixvine.phantasia.common.data.scene.PhantasiaSceneData;
 import org.lwjgl.glfw.GLFW;
 
 import javax.annotation.Nullable;
+
+import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
 
 /**
  * PhantasiaItemMicrosceneScreen
@@ -69,7 +69,6 @@ public class PhantasiaItemMicrosceneScreen extends PhantasiaScreen {
     private int stepIndex = 0;
 
     // ── Btn list ──────────────────────────────────────────────────────────────
-
 
     // ─────────────────────────────────────────────────────────────────────────
 
@@ -306,7 +305,8 @@ public class PhantasiaItemMicrosceneScreen extends PhantasiaScreen {
             }
         } else {
             g.fill(ix, descStartY - 4, ix + iw, descStartY - 3, 0x22FFFFFF);
-            g.drawString(font, Component.translatable("screen.phantasia.item_microscene.no_description").getString(), ix, descStartY, C_DIM(), false);
+            g.drawString(font, Component.translatable("screen.phantasia.item_microscene.no_description").getString(),
+                    ix, descStartY, C_DIM(), false);
         }
 
         // ── Close button ──────────────────────────────────────────────────────
@@ -359,7 +359,6 @@ public class PhantasiaItemMicrosceneScreen extends PhantasiaScreen {
     private void goBack() {
         Minecraft.getInstance().setScreen(parent);
     }
-
 
     @Nullable
     private static net.minecraft.world.item.Item resolveItem(String id) {

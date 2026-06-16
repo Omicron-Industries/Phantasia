@@ -1,6 +1,5 @@
 package net.phoenixvine.phantasia.compat.arsnouveaucompat;
 
-
 import com.lowdragmc.lowdraglib.utils.BlockInfo;
 
 import net.minecraft.core.BlockPos;
@@ -8,12 +7,11 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Blocks;
 
 import com.hollingsworth.arsnouveau.common.block.RitualBrazierBlock;
+import com.hollingsworth.arsnouveau.setup.registry.BlockRegistry;
 
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-
-import com.hollingsworth.arsnouveau.setup.registry.BlockRegistry;
 
 /**
  * Builds BlockInfo[][][] layouts and item placement maps for Ars Nouveau setups.
@@ -23,14 +21,14 @@ final class ArsNouveauLayoutBuilder {
 
     // Cardinal and diagonal pedestal offsets from center (same Y)
     private static final int[][] PEDESTAL_OFFSETS_4 = {
-            {-2, 0,  0}, { 2, 0,  0},
-            { 0, 0, -2}, { 0, 0,  2}
+            { -2, 0, 0 }, { 2, 0, 0 },
+            { 0, 0, -2 }, { 0, 0, 2 }
     };
     private static final int[][] PEDESTAL_OFFSETS_8 = {
-            {-2, 0,  0}, { 2, 0,  0},
-            { 0, 0, -2}, { 0, 0,  2},
-            {-2, 0, -2}, {-2, 0,  2},
-            { 2, 0, -2}, { 2, 0,  2}
+            { -2, 0, 0 }, { 2, 0, 0 },
+            { 0, 0, -2 }, { 0, 0, 2 },
+            { -2, 0, -2 }, { -2, 0, 2 },
+            { 2, 0, -2 }, { 2, 0, 2 }
     };
 
     private static final int CX = 2, CY = 1, CZ = 2;
@@ -41,7 +39,7 @@ final class ArsNouveauLayoutBuilder {
     /** Base Enchanting Apparatus layout — apparatus on Arcane Core + up to 8 empty pedestals. */
     static BlockInfo[][][] enchantingApparatusBase(int pedestalCount) {
         BlockInfo[][][] grid = emptyGrid();
-        grid[CX][CY][CZ]   = BlockInfo.fromBlock(BlockRegistry.ARCANE_CORE_BLOCK.get());
+        grid[CX][CY][CZ] = BlockInfo.fromBlock(BlockRegistry.ARCANE_CORE_BLOCK.get());
         grid[CX][APP_Y][CZ] = BlockInfo.fromBlock(BlockRegistry.ENCHANTING_APP_BLOCK.get());
 
         int[][] offsets = pedestalCount <= 4 ? PEDESTAL_OFFSETS_4 : PEDESTAL_OFFSETS_8;
@@ -60,8 +58,7 @@ final class ArsNouveauLayoutBuilder {
      * Returns a pair: [0] = BlockInfo grid, [1] = Map<BlockPos, ItemStack>.
      */
     static LayoutResult enchantingApparatusRecipe(
-            List<ItemStack> pedestalItems, ItemStack reagent) {
-
+                                                  List<ItemStack> pedestalItems, ItemStack reagent) {
         int count = pedestalItems.size();
         BlockInfo[][][] grid = enchantingApparatusBase(count);
 
@@ -117,10 +114,10 @@ final class ArsNouveauLayoutBuilder {
         BlockInfo[][][] grid = emptyGrid();
         grid[CX][CY][CZ] = BlockInfo.fromBlock(BlockRegistry.WIXIE_CAULDRON.get());
         // Adjacent pedestals (1 block away on same Y)
-        grid[CX - 1][CY][CZ]     = BlockInfo.fromBlock(BlockRegistry.ARCANE_PEDESTAL.get());
-        grid[CX + 1][CY][CZ]     = BlockInfo.fromBlock(BlockRegistry.ARCANE_PEDESTAL.get());
-        grid[CX][CY][CZ - 1]     = BlockInfo.fromBlock(BlockRegistry.ARCANE_PEDESTAL.get());
-        grid[CX][CY][CZ + 1]     = BlockInfo.fromBlock(BlockRegistry.ARCANE_PEDESTAL.get());
+        grid[CX - 1][CY][CZ] = BlockInfo.fromBlock(BlockRegistry.ARCANE_PEDESTAL.get());
+        grid[CX + 1][CY][CZ] = BlockInfo.fromBlock(BlockRegistry.ARCANE_PEDESTAL.get());
+        grid[CX][CY][CZ - 1] = BlockInfo.fromBlock(BlockRegistry.ARCANE_PEDESTAL.get());
+        grid[CX][CY][CZ + 1] = BlockInfo.fromBlock(BlockRegistry.ARCANE_PEDESTAL.get());
         // Source Jars at the 4 cardinals (2 out)
         for (int[] off : PEDESTAL_OFFSETS_4) {
             grid[CX + off[0]][CY][CZ + off[2]] = BlockInfo.fromBlock(BlockRegistry.SOURCE_JAR.get());
@@ -163,11 +160,11 @@ final class ArsNouveauLayoutBuilder {
         // Whirlisprig Flower at centre (the charm is used on any flower, represented here)
         grid[CX][CY][CZ] = BlockInfo.fromBlock(BlockRegistry.WHIRLISPRIG_FLOWER.get());
         // Archwood log to show it generates wood; flowers for mood diversity
-        grid[CX - 2][CY][CZ]     = BlockInfo.fromBlock(Blocks.OAK_LOG);
-        grid[CX + 2][CY][CZ]     = BlockInfo.fromBlock(Blocks.DANDELION);
-        grid[CX][CY][CZ - 2]     = BlockInfo.fromBlock(Blocks.POPPY);
+        grid[CX - 2][CY][CZ] = BlockInfo.fromBlock(Blocks.OAK_LOG);
+        grid[CX + 2][CY][CZ] = BlockInfo.fromBlock(Blocks.DANDELION);
+        grid[CX][CY][CZ - 2] = BlockInfo.fromBlock(Blocks.POPPY);
         // Chest beside the Whirlisprig — required for it to output items
-        grid[CX][CY][CZ + 1]     = BlockInfo.fromBlock(Blocks.CHEST);
+        grid[CX][CY][CZ + 1] = BlockInfo.fromBlock(Blocks.CHEST);
         // Source Jar for source supply
         grid[CX + 2][CY][CZ + 2] = BlockInfo.fromBlock(BlockRegistry.SOURCE_JAR.get());
         return grid;
@@ -184,12 +181,12 @@ final class ArsNouveauLayoutBuilder {
                 grid[x][0][z] = BlockInfo.fromBlock(Blocks.GRASS_BLOCK);
         // Starbuncle sits on the ground, represented by the Archwood chest below it
         // for clarity — actually place the archwood chest arrangement
-        grid[CX][CY][CZ]         = BlockInfo.fromBlock(BlockRegistry.ARCHWOOD_CHEST.get());
-        grid[CX - 2][CY][CZ]     = BlockInfo.fromBlock(BlockRegistry.ARCHWOOD_CHEST.get());
-        grid[CX + 2][CY][CZ]     = BlockInfo.fromBlock(BlockRegistry.ARCHWOOD_CHEST.get());
-        grid[CX][CY][CZ - 2]     = BlockInfo.fromBlock(BlockRegistry.ARCHWOOD_CHEST.get());
+        grid[CX][CY][CZ] = BlockInfo.fromBlock(BlockRegistry.ARCHWOOD_CHEST.get());
+        grid[CX - 2][CY][CZ] = BlockInfo.fromBlock(BlockRegistry.ARCHWOOD_CHEST.get());
+        grid[CX + 2][CY][CZ] = BlockInfo.fromBlock(BlockRegistry.ARCHWOOD_CHEST.get());
+        grid[CX][CY][CZ - 2] = BlockInfo.fromBlock(BlockRegistry.ARCHWOOD_CHEST.get());
         // Source Berry Bush the Starbuncle can auto-harvest
-        grid[CX][CY][CZ + 2]     = BlockInfo.fromBlock(BlockRegistry.SOURCEBERRY_BUSH.get());
+        grid[CX][CY][CZ + 2] = BlockInfo.fromBlock(BlockRegistry.SOURCEBERRY_BUSH.get());
         return grid;
     }
 

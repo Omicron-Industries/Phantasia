@@ -1,12 +1,7 @@
 package net.phoenixvine.phantasia.compat.arsnouveaucompat;
 
-import com.hollingsworth.arsnouveau.api.source.AbstractSourceMachine;
-import com.hollingsworth.arsnouveau.common.block.tile.EnchantingApparatusTile;
-import com.hollingsworth.arsnouveau.common.block.tile.ImbuementTile;
-import com.hollingsworth.arsnouveau.common.block.tile.SingleItemTile;
-import com.hollingsworth.arsnouveau.common.block.tile.SourceJarTile;
-import com.hollingsworth.arsnouveau.setup.registry.SoundRegistry;
 import com.lowdragmc.lowdraglib.utils.BlockInfo;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.core.BlockPos;
@@ -21,10 +16,17 @@ import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockShape;
 import net.phoenixvine.phantasia.common.multisetup.IPhantasiaMultiSetup;
 import net.phoenixvine.phantasia.common.multisetup.IPhantasiaSetupRecipe;
 
-import javax.annotation.Nullable;
+import com.hollingsworth.arsnouveau.common.block.tile.EnchantingApparatusTile;
+import com.hollingsworth.arsnouveau.common.block.tile.ImbuementTile;
+import com.hollingsworth.arsnouveau.common.block.tile.SingleItemTile;
+import com.hollingsworth.arsnouveau.common.block.tile.SourceJarTile;
+import com.hollingsworth.arsnouveau.setup.registry.SoundRegistry;
+
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+
+import javax.annotation.Nullable;
 
 /**
  * Bridges an {@link IPhantasiaMultiSetup} into the multiblock definition/script
@@ -34,15 +36,15 @@ public class ArsNouveauSetupDefinition implements IPhantasiaMultiblockDefinition
 
     // Source jar drain cycle
     private static final int SOURCE_CYCLE_TICKS = 120;
-    private static final int SOURCE_DRAIN_RATE  = 8;
-    private static final int SOURCE_JAR_MAX     = 10_000;
+    private static final int SOURCE_DRAIN_RATE = 8;
+    private static final int SOURCE_JAR_MAX = 10_000;
 
     // Sound repeat interval (~4 s)
     private static final int SOUND_REPEAT_TICKS = 80;
 
     // Crafting animation durations (ticks), matching AN's internal values
-    private static final int APPARATUS_CRAFT_TICKS  = EnchantingApparatusTile.craftingLength; // 210
-    private static final int IMBUEMENT_CRAFT_TICKS  = 100; // ImbuementTile.craftTicks initial value
+    private static final int APPARATUS_CRAFT_TICKS = EnchantingApparatusTile.craftingLength; // 210
+    private static final int IMBUEMENT_CRAFT_TICKS = 100; // ImbuementTile.craftTicks initial value
 
     private final IPhantasiaMultiSetup setup;
     private final List<IPhantasiaMultiblockShape> shapes;
@@ -56,11 +58,30 @@ public class ArsNouveauSetupDefinition implements IPhantasiaMultiblockDefinition
         this.shapes = List.of(shape);
     }
 
-    @Override public ResourceLocation getId()        { return setup.getId(); }
-    @Override public String getDisplayName()          { return setup.getDisplayName(); }
-    @Override public ItemStack getIcon()              { return setup.getIcon(); }
-    @Override public List<IPhantasiaMultiblockShape> getMatchingShapes() { return shapes; }
-    @Override public List<IPhantasiaMultiblockShape> getAllShapes()       { return shapes; }
+    @Override
+    public ResourceLocation getId() {
+        return setup.getId();
+    }
+
+    @Override
+    public String getDisplayName() {
+        return setup.getDisplayName();
+    }
+
+    @Override
+    public ItemStack getIcon() {
+        return setup.getIcon();
+    }
+
+    @Override
+    public List<IPhantasiaMultiblockShape> getMatchingShapes() {
+        return shapes;
+    }
+
+    @Override
+    public List<IPhantasiaMultiblockShape> getAllShapes() {
+        return shapes;
+    }
 
     // ── shape loaded ───────────────────────────────────────────────────────────
 
@@ -73,7 +94,7 @@ public class ArsNouveauSetupDefinition implements IPhantasiaMultiblockDefinition
 
         String preferredPath = switch (setup.getId().getPath()) {
             case "enchanting_apparatus" -> "magebloom_seed";
-            case "imbuement_chamber"    -> "source_gem";
+            case "imbuement_chamber" -> "source_gem";
             default -> null;
         };
         IPhantasiaSetupRecipe recipe = preferredRecipe(recipes, preferredPath);
@@ -168,9 +189,7 @@ public class ArsNouveauSetupDefinition implements IPhantasiaMultiblockDefinition
             holdStartSceneTick = sceneTick;
         }
 
-        int duration = holdId.equals("an_crafting_apparatus")
-                ? APPARATUS_CRAFT_TICKS
-                : IMBUEMENT_CRAFT_TICKS;
+        int duration = holdId.equals("an_crafting_apparatus") ? APPARATUS_CRAFT_TICKS : IMBUEMENT_CRAFT_TICKS;
 
         boolean done = (sceneTick - holdStartSceneTick) >= duration;
         if (done) holdStartSceneTick = -1; // reset so the hold can be re-used if script loops
@@ -204,7 +223,7 @@ public class ArsNouveauSetupDefinition implements IPhantasiaMultiblockDefinition
     public PhantasiaScriptData getDefaultScriptData() {
         String id = setup.getId().toString();
         if (id.equals("ars_nouveau:enchanting_apparatus")) return buildApparatusScript();
-        if (id.equals("ars_nouveau:imbuement_chamber"))    return buildImbuementScript();
+        if (id.equals("ars_nouveau:imbuement_chamber")) return buildImbuementScript();
         return null;
     }
 
@@ -212,164 +231,166 @@ public class ArsNouveauSetupDefinition implements IPhantasiaMultiblockDefinition
         // Layout: Arcane Core at (2,1,2); apparatus at (2,2,2); cardinal pedestals at y=1;
         // diagonal pedestals at corners y=1; stone floor at y=0.
         // Items are placed on all tiles in onShapeLoaded — revealing a pedestal shows its item.
-        return PhantasiaScriptData.fromJson("""
-                {
-                  "machine": "ars_nouveau:enchanting_apparatus",
-                  "startCamera": { "yaw": -135.0, "pitch": -25.0, "zoom": 3.0 },
-                  "steps": [
-                    {
-                      "tick": 0,
-                      "caption": "The Enchanting Apparatus crafts magical items using Source. It requires an Arcane Core block directly underneath.",
-                      "show": "pos",
-                      "positions": [[2,1,2],[2,2,2]],
-                      "camera": { "yaw": -135.0, "pitch": -25.0, "zoom": 3.0, "lerpType": "SNAP", "lerpTicks": 0 }
-                    },
-                    {
-                      "tick": 50,
-                      "caption": "Add Arcane Pedestals at the cardinal positions and place an ingredient on each.",
-                      "show": "pos",
-                      "positions": [[2,1,2],[2,2,2],[0,1,2]],
-                      "camera": { "yaw": -135.0, "pitch": -35.0, "zoom": 3.5, "lerpType": "EASE", "lerpTicks": 12 }
-                    },
-                    {
-                      "tick": 80,
-                      "show": "pos",
-                      "positions": [[2,1,2],[2,2,2],[0,1,2],[4,1,2]],
-                      "camera": { "yaw": -120.0, "pitch": -38.0, "zoom": 3.8, "lerpType": "EASE", "lerpTicks": 10 }
-                    },
-                    {
-                      "tick": 110,
-                      "show": "pos",
-                      "positions": [[2,1,2],[2,2,2],[0,1,2],[4,1,2],[2,1,0]],
-                      "camera": { "yaw": -140.0, "pitch": -40.0, "zoom": 4.0, "lerpType": "EASE", "lerpTicks": 10 }
-                    },
-                    {
-                      "tick": 140,
-                      "caption": "For recipes that need more than 4 ingredients, add pedestals at the diagonal corners — up to 8 total.",
-                      "show": "pos",
-                      "positions": [[2,1,2],[2,2,2],[0,1,2],[4,1,2],[2,1,0],[2,1,4]],
-                      "camera": { "yaw": -150.0, "pitch": -42.0, "zoom": 4.2, "lerpType": "EASE", "lerpTicks": 10 }
-                    },
-                    {
-                      "tick": 165,
-                      "show": "pos",
-                      "positions": [[2,1,2],[2,2,2],[0,1,2],[4,1,2],[2,1,0],[2,1,4],[0,1,0]],
-                      "camera": { "yaw": -155.0, "pitch": -44.0, "zoom": 4.4, "lerpType": "EASE", "lerpTicks": 8 }
-                    },
-                    {
-                      "tick": 185,
-                      "show": "pos",
-                      "positions": [[2,1,2],[2,2,2],[0,1,2],[4,1,2],[2,1,0],[2,1,4],[0,1,0],[0,1,4]],
-                      "camera": { "yaw": -160.0, "pitch": -46.0, "zoom": 4.6, "lerpType": "EASE", "lerpTicks": 8 }
-                    },
-                    {
-                      "tick": 205,
-                      "show": "pos",
-                      "positions": [[2,1,2],[2,2,2],[0,1,2],[4,1,2],[2,1,0],[2,1,4],[0,1,0],[0,1,4],[4,1,0]],
-                      "camera": { "yaw": -162.0, "pitch": -48.0, "zoom": 4.7, "lerpType": "EASE", "lerpTicks": 8 }
-                    },
-                    {
-                      "tick": 225,
-                      "show": "pos",
-                      "positions": [[2,1,2],[2,2,2],[0,1,2],[4,1,2],[2,1,0],[2,1,4],[0,1,0],[0,1,4],[4,1,0],[4,1,4]],
-                      "camera": { "yaw": -165.0, "pitch": -50.0, "zoom": 4.8, "lerpType": "EASE", "lerpTicks": 8 }
-                    },
-                    {
-                      "tick": 270,
-                      "caption": "Place the reagent in the Apparatus, then right-click to begin. Source is consumed from nearby Source Jars.",
-                      "show": "all",
-                      "camera": { "yaw": -145.0, "pitch": -48.0, "zoom": 5.0, "lerpType": "EASE", "lerpTicks": 20 }
-                    },
-                    {
-                      "tick": 330,
-                      "caption": "Crafting in progress — the Apparatus draws Source and the pedestals glow as the recipe runs.",
-                      "show": "all",
-                      "hold": "an_crafting_apparatus",
-                      "camera": { "yaw": -145.0, "pitch": -48.0, "zoom": 5.0, "lerpType": "SNAP", "lerpTicks": 0 }
-                    },
-                    {
-                      "tick": 331,
-                      "caption": "Recipe complete! The reagent is consumed and the output appears in the Apparatus.",
-                      "show": "all",
-                      "camera": { "yaw": -135.0, "pitch": -30.0, "zoom": 3.5, "lerpType": "EASE", "lerpTicks": 20 }
-                    }
-                  ],
-                  "globalMistakes": [
-                    "A nearby Source Jar with enough Source is required — the recipe will not start without it.",
-                    "Arcane Pedestals must be within 3 blocks of the Apparatus on the same Y level."
-                  ],
-                  "mistakes": [],
-                  "optionalGroups": []
-                }
-                """);
+        return PhantasiaScriptData.fromJson(
+                """
+                        {
+                          "machine": "ars_nouveau:enchanting_apparatus",
+                          "startCamera": { "yaw": -135.0, "pitch": -25.0, "zoom": 3.0 },
+                          "steps": [
+                            {
+                              "tick": 0,
+                              "caption": "The Enchanting Apparatus crafts magical items using Source. It requires an Arcane Core block directly underneath.",
+                              "show": "pos",
+                              "positions": [[2,1,2],[2,2,2]],
+                              "camera": { "yaw": -135.0, "pitch": -25.0, "zoom": 3.0, "lerpType": "SNAP", "lerpTicks": 0 }
+                            },
+                            {
+                              "tick": 50,
+                              "caption": "Add Arcane Pedestals at the cardinal positions and place an ingredient on each.",
+                              "show": "pos",
+                              "positions": [[2,1,2],[2,2,2],[0,1,2]],
+                              "camera": { "yaw": -135.0, "pitch": -35.0, "zoom": 3.5, "lerpType": "EASE", "lerpTicks": 12 }
+                            },
+                            {
+                              "tick": 80,
+                              "show": "pos",
+                              "positions": [[2,1,2],[2,2,2],[0,1,2],[4,1,2]],
+                              "camera": { "yaw": -120.0, "pitch": -38.0, "zoom": 3.8, "lerpType": "EASE", "lerpTicks": 10 }
+                            },
+                            {
+                              "tick": 110,
+                              "show": "pos",
+                              "positions": [[2,1,2],[2,2,2],[0,1,2],[4,1,2],[2,1,0]],
+                              "camera": { "yaw": -140.0, "pitch": -40.0, "zoom": 4.0, "lerpType": "EASE", "lerpTicks": 10 }
+                            },
+                            {
+                              "tick": 140,
+                              "caption": "For recipes that need more than 4 ingredients, add pedestals at the diagonal corners — up to 8 total.",
+                              "show": "pos",
+                              "positions": [[2,1,2],[2,2,2],[0,1,2],[4,1,2],[2,1,0],[2,1,4]],
+                              "camera": { "yaw": -150.0, "pitch": -42.0, "zoom": 4.2, "lerpType": "EASE", "lerpTicks": 10 }
+                            },
+                            {
+                              "tick": 165,
+                              "show": "pos",
+                              "positions": [[2,1,2],[2,2,2],[0,1,2],[4,1,2],[2,1,0],[2,1,4],[0,1,0]],
+                              "camera": { "yaw": -155.0, "pitch": -44.0, "zoom": 4.4, "lerpType": "EASE", "lerpTicks": 8 }
+                            },
+                            {
+                              "tick": 185,
+                              "show": "pos",
+                              "positions": [[2,1,2],[2,2,2],[0,1,2],[4,1,2],[2,1,0],[2,1,4],[0,1,0],[0,1,4]],
+                              "camera": { "yaw": -160.0, "pitch": -46.0, "zoom": 4.6, "lerpType": "EASE", "lerpTicks": 8 }
+                            },
+                            {
+                              "tick": 205,
+                              "show": "pos",
+                              "positions": [[2,1,2],[2,2,2],[0,1,2],[4,1,2],[2,1,0],[2,1,4],[0,1,0],[0,1,4],[4,1,0]],
+                              "camera": { "yaw": -162.0, "pitch": -48.0, "zoom": 4.7, "lerpType": "EASE", "lerpTicks": 8 }
+                            },
+                            {
+                              "tick": 225,
+                              "show": "pos",
+                              "positions": [[2,1,2],[2,2,2],[0,1,2],[4,1,2],[2,1,0],[2,1,4],[0,1,0],[0,1,4],[4,1,0],[4,1,4]],
+                              "camera": { "yaw": -165.0, "pitch": -50.0, "zoom": 4.8, "lerpType": "EASE", "lerpTicks": 8 }
+                            },
+                            {
+                              "tick": 270,
+                              "caption": "Place the reagent in the Apparatus, then right-click to begin. Source is consumed from nearby Source Jars.",
+                              "show": "all",
+                              "camera": { "yaw": -145.0, "pitch": -48.0, "zoom": 5.0, "lerpType": "EASE", "lerpTicks": 20 }
+                            },
+                            {
+                              "tick": 330,
+                              "caption": "Crafting in progress — the Apparatus draws Source and the pedestals glow as the recipe runs.",
+                              "show": "all",
+                              "hold": "an_crafting_apparatus",
+                              "camera": { "yaw": -145.0, "pitch": -48.0, "zoom": 5.0, "lerpType": "SNAP", "lerpTicks": 0 }
+                            },
+                            {
+                              "tick": 331,
+                              "caption": "Recipe complete! The reagent is consumed and the output appears in the Apparatus.",
+                              "show": "all",
+                              "camera": { "yaw": -135.0, "pitch": -30.0, "zoom": 3.5, "lerpType": "EASE", "lerpTicks": 20 }
+                            }
+                          ],
+                          "globalMistakes": [
+                            "A nearby Source Jar with enough Source is required — the recipe will not start without it.",
+                            "Arcane Pedestals must be within 3 blocks of the Apparatus on the same Y level."
+                          ],
+                          "mistakes": [],
+                          "optionalGroups": []
+                        }
+                        """);
     }
 
     private static PhantasiaScriptData buildImbuementScript() {
         // Layout: chamber at (2,1,2); Source Jars at cardinal offsets (y=1); stone floor at y=0.
-        return PhantasiaScriptData.fromJson("""
-                {
-                  "machine": "ars_nouveau:imbuement_chamber",
-                  "startCamera": { "yaw": -135.0, "pitch": -25.0, "zoom": 3.0 },
-                  "steps": [
-                    {
-                      "tick": 0,
-                      "caption": "The Imbuement Chamber imbues items with magical properties by consuming Source from nearby Source Jars.",
-                      "show": "pos",
-                      "positions": [[2,1,2]],
-                      "camera": { "yaw": -135.0, "pitch": -25.0, "zoom": 3.0, "lerpType": "SNAP", "lerpTicks": 0 }
-                    },
-                    {
-                      "tick": 60,
-                      "caption": "Place Source Jars at all 4 cardinal positions and fill them with Source before starting.",
-                      "show": "pos",
-                      "positions": [[2,1,2],[0,1,2]],
-                      "camera": { "yaw": -135.0, "pitch": -38.0, "zoom": 3.8, "lerpType": "EASE", "lerpTicks": 12 }
-                    },
-                    {
-                      "tick": 90,
-                      "show": "pos",
-                      "positions": [[2,1,2],[0,1,2],[4,1,2]],
-                      "camera": { "yaw": -145.0, "pitch": -40.0, "zoom": 4.0, "lerpType": "EASE", "lerpTicks": 10 }
-                    },
-                    {
-                      "tick": 120,
-                      "show": "pos",
-                      "positions": [[2,1,2],[0,1,2],[4,1,2],[2,1,0]],
-                      "camera": { "yaw": -150.0, "pitch": -43.0, "zoom": 4.2, "lerpType": "EASE", "lerpTicks": 10 }
-                    },
-                    {
-                      "tick": 150,
-                      "show": "pos",
-                      "positions": [[2,1,2],[0,1,2],[4,1,2],[2,1,0],[2,1,4]],
-                      "camera": { "yaw": -155.0, "pitch": -45.0, "zoom": 4.5, "lerpType": "EASE", "lerpTicks": 10 }
-                    },
-                    {
-                      "tick": 200,
-                      "caption": "Drop the item to imbue inside the Chamber. Source drains from the jars as the process runs.",
-                      "show": "all",
-                      "camera": { "yaw": -145.0, "pitch": -45.0, "zoom": 4.8, "lerpType": "EASE", "lerpTicks": 18 }
-                    },
-                    {
-                      "tick": 260,
-                      "caption": "Imbuing in progress — Source flows into the Chamber as it transforms the item.",
-                      "show": "all",
-                      "hold": "an_crafting_imbuement",
-                      "camera": { "yaw": -145.0, "pitch": -45.0, "zoom": 4.8, "lerpType": "SNAP", "lerpTicks": 0 }
-                    },
-                    {
-                      "tick": 261,
-                      "caption": "Imbuement complete! The transformed item can now be collected from the Chamber.",
-                      "show": "all",
-                      "camera": { "yaw": -135.0, "pitch": -28.0, "zoom": 3.5, "lerpType": "EASE", "lerpTicks": 20 }
-                    }
-                  ],
-                  "globalMistakes": [
-                    "Source Jars must contain enough Source to complete the recipe before it will begin.",
-                    "Source Jars must be at the 4 cardinal positions within 3 blocks of the Chamber."
-                  ],
-                  "mistakes": [],
-                  "optionalGroups": []
-                }
-                """);
+        return PhantasiaScriptData.fromJson(
+                """
+                        {
+                          "machine": "ars_nouveau:imbuement_chamber",
+                          "startCamera": { "yaw": -135.0, "pitch": -25.0, "zoom": 3.0 },
+                          "steps": [
+                            {
+                              "tick": 0,
+                              "caption": "The Imbuement Chamber imbues items with magical properties by consuming Source from nearby Source Jars.",
+                              "show": "pos",
+                              "positions": [[2,1,2]],
+                              "camera": { "yaw": -135.0, "pitch": -25.0, "zoom": 3.0, "lerpType": "SNAP", "lerpTicks": 0 }
+                            },
+                            {
+                              "tick": 60,
+                              "caption": "Place Source Jars at all 4 cardinal positions and fill them with Source before starting.",
+                              "show": "pos",
+                              "positions": [[2,1,2],[0,1,2]],
+                              "camera": { "yaw": -135.0, "pitch": -38.0, "zoom": 3.8, "lerpType": "EASE", "lerpTicks": 12 }
+                            },
+                            {
+                              "tick": 90,
+                              "show": "pos",
+                              "positions": [[2,1,2],[0,1,2],[4,1,2]],
+                              "camera": { "yaw": -145.0, "pitch": -40.0, "zoom": 4.0, "lerpType": "EASE", "lerpTicks": 10 }
+                            },
+                            {
+                              "tick": 120,
+                              "show": "pos",
+                              "positions": [[2,1,2],[0,1,2],[4,1,2],[2,1,0]],
+                              "camera": { "yaw": -150.0, "pitch": -43.0, "zoom": 4.2, "lerpType": "EASE", "lerpTicks": 10 }
+                            },
+                            {
+                              "tick": 150,
+                              "show": "pos",
+                              "positions": [[2,1,2],[0,1,2],[4,1,2],[2,1,0],[2,1,4]],
+                              "camera": { "yaw": -155.0, "pitch": -45.0, "zoom": 4.5, "lerpType": "EASE", "lerpTicks": 10 }
+                            },
+                            {
+                              "tick": 200,
+                              "caption": "Drop the item to imbue inside the Chamber. Source drains from the jars as the process runs.",
+                              "show": "all",
+                              "camera": { "yaw": -145.0, "pitch": -45.0, "zoom": 4.8, "lerpType": "EASE", "lerpTicks": 18 }
+                            },
+                            {
+                              "tick": 260,
+                              "caption": "Imbuing in progress — Source flows into the Chamber as it transforms the item.",
+                              "show": "all",
+                              "hold": "an_crafting_imbuement",
+                              "camera": { "yaw": -145.0, "pitch": -45.0, "zoom": 4.8, "lerpType": "SNAP", "lerpTicks": 0 }
+                            },
+                            {
+                              "tick": 261,
+                              "caption": "Imbuement complete! The transformed item can now be collected from the Chamber.",
+                              "show": "all",
+                              "camera": { "yaw": -135.0, "pitch": -28.0, "zoom": 3.5, "lerpType": "EASE", "lerpTicks": 20 }
+                            }
+                          ],
+                          "globalMistakes": [
+                            "Source Jars must contain enough Source to complete the recipe before it will begin.",
+                            "Source Jars must be at the 4 cardinal positions within 3 blocks of the Chamber."
+                          ],
+                          "mistakes": [],
+                          "optionalGroups": []
+                        }
+                        """);
     }
 }

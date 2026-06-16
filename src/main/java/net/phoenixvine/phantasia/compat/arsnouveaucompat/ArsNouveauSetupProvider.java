@@ -16,21 +16,22 @@ public class ArsNouveauSetupProvider implements IPhantasiaMultiSetupProvider {
                 new ArsNouveauMultiSetup(
                         ArsNouveauMultiSetup.SetupType.ENCHANTING_APPARATUS,
                         new ResourceLocation("ars_nouveau", "enchanting_apparatus"),
-                        "Enchanting Apparatus"
-                ),
+                        "Enchanting Apparatus"),
                 new ArsNouveauMultiSetup(
                         ArsNouveauMultiSetup.SetupType.IMBUEMENT_CHAMBER,
                         new ResourceLocation("ars_nouveau", "imbuement_chamber"),
-                        "Imbuement Chamber"
-                )
-        );
+                        "Imbuement Chamber"));
     }
 
     @Override
-    public String getModId() { return "ars_nouveau"; }
+    public String getModId() {
+        return "ars_nouveau";
+    }
 
     @Override
-    public boolean isAvailable() { return true; }
+    public boolean isAvailable() {
+        return true;
+    }
 
     @Override
     public List<IPhantasiaMultiSetup> getAllSetups() {

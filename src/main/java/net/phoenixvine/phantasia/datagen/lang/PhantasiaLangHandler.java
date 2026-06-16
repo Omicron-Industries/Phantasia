@@ -94,8 +94,10 @@ public class PhantasiaLangHandler {
         provider.add("screen.phantasia.guide_editor.btn_apply_item", "✓ Apply Item");
         provider.add("screen.phantasia.guide_editor.btn_back", "← Back");
         provider.add("screen.phantasia.guide_editor.no_pages", "No pages yet — add one →");
-        provider.add("screen.phantasia.guide_editor.headline_editor_label", "Headline Editor (& codes will remain as text):");
-        provider.add("screen.phantasia.guide_editor.body_editor_label", "Body Multiline Editor (Auto Wrapping Engine Active):");
+        provider.add("screen.phantasia.guide_editor.headline_editor_label",
+                "Headline Editor (& codes will remain as text):");
+        provider.add("screen.phantasia.guide_editor.body_editor_label",
+                "Body Multiline Editor (Auto Wrapping Engine Active):");
         provider.add("screen.phantasia.guide_editor.items_config", "Items Configuration");
         provider.add("screen.phantasia.guide_editor.hint_icon_item", "icon item id");
         provider.add("screen.phantasia.guide_editor.hint_item_id", "item id (e.g. gtceu:iron_ingot)");
@@ -183,7 +185,8 @@ public class PhantasiaLangHandler {
         provider.add("screen.phantasia.scene_editor.val_ticks", "ticks");
         provider.add("screen.phantasia.scene_editor.val_override", "◆ override");
         provider.add("screen.phantasia.scene_editor.btn_clear_cam", "✕ Clear");
-        provider.add("screen.phantasia.scene_editor.no_cam_override", "No camera override on this step — click Capture Cam to add one.");
+        provider.add("screen.phantasia.scene_editor.no_cam_override",
+                "No camera override on this step — click Capture Cam to add one.");
         provider.add("screen.phantasia.scene_editor.hint_caption", "Caption for this step...");
         provider.add("screen.phantasia.scene_editor.hint_desc", "Guide description (shown in Guide view)...");
         provider.add("screen.phantasia.scene_editor.hint_lerp_ticks", "20");
@@ -232,7 +235,8 @@ public class PhantasiaLangHandler {
         provider.add("screen.phantasia.script_editor.btn_start_cam", "⊙ Start Cam");
         provider.add("screen.phantasia.script_editor.btn_clear_cam", "✕ Clear");
         provider.add("screen.phantasia.script_editor.btn_clear_all", "✕  Clear — show all blocks");
-        provider.add("screen.phantasia.script_editor.no_cam_override", "No camera override on this step — click Capture Cam to add one.");
+        provider.add("screen.phantasia.script_editor.no_cam_override",
+                "No camera override on this step — click Capture Cam to add one.");
         provider.add("screen.phantasia.script_editor.hint_hide_layer", "e.g. 1,2");
         provider.add("screen.phantasia.script_editor.hint_recipe", "gtceu:fusion/recipe_name");
         provider.add("screen.phantasia.script_editor.hint_lerp_ticks", "20");
@@ -282,7 +286,7 @@ public class PhantasiaLangHandler {
         provider.add("role.phantasia.neutron_moderator", "NEUTRON MODERATOR");
         provider.add("role.phantasia.breeder_blanket", "BREEDER BLANKET");
 
-// Tooltip formatting bits
+        // Tooltip formatting bits
         provider.add("spec.phantasia.unit.hu_per_tick", "%s HU/t");
         provider.add("spec.phantasia.unit.hu_per_tick_negative", "-%s HU/t");
         provider.add("spec.phantasia.unit.mb_per_tick", "%s mB/t");

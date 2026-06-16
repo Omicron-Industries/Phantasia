@@ -1,7 +1,5 @@
 package net.phoenixvine.phantasia.client.screens.editors;
 
-import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
-
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
@@ -63,7 +61,6 @@ public class PhantasiaScriptStepItemEditorScreen extends PhantasiaScreen {
 
     // ── Btn ───────────────────────────────────────────────────────────────────
 
-
     // ─────────────────────────────────────────────────────────────────────────
 
     public PhantasiaScriptStepItemEditorScreen(PhantasiaScriptEditorScreen parent,
@@ -123,7 +120,6 @@ public class PhantasiaScriptStepItemEditorScreen extends PhantasiaScreen {
 
         hideAll();
     }
-
 
     // ─────────────────────────────────────────────────────────────────────────
     // Render
@@ -191,7 +187,8 @@ public class PhantasiaScriptStepItemEditorScreen extends PhantasiaScreen {
 
         // ── Existing items ────────────────────────────────────────────────────
         if (s.items.isEmpty()) {
-            g.drawString(font, Component.translatable("screen.phantasia.script_step_item_editor.empty").getString(), px + 10, cy + 2, C_DIM(), false);
+            g.drawString(font, Component.translatable("screen.phantasia.script_step_item_editor.empty").getString(),
+                    px + 10, cy + 2, C_DIM(), false);
             cy += 14;
         }
 
@@ -205,7 +202,9 @@ public class PhantasiaScriptStepItemEditorScreen extends PhantasiaScreen {
         cy += 8;
 
         // ── Add item form ─────────────────────────────────────────────────────
-        g.drawString(font, Component.translatable("screen.phantasia.script_step_item_editor.btn_add_section").getString(), px + 8, cy, C_ACCENT(), false);
+        g.drawString(font,
+                Component.translatable("screen.phantasia.script_step_item_editor.btn_add_section").getString(), px + 8,
+                cy, C_ACCENT(), false);
         cy += 12;
 
         // Type selector
@@ -230,18 +229,30 @@ public class PhantasiaScriptStepItemEditorScreen extends PhantasiaScreen {
         cy = labeledBox(g, "Item:", px, cy, pw, itemIdBox);
 
         // Count + Label
-        g.drawString(font, Component.translatable("screen.phantasia.script_step_item_editor.label_count").getString(), px + 8, cy + 2, C_DIM(), false);
-        int cntX = px + 8 + font.width(Component.translatable("screen.phantasia.script_step_item_editor.label_count").getString()) + 4;
+        g.drawString(font, Component.translatable("screen.phantasia.script_step_item_editor.label_count").getString(),
+                px + 8, cy + 2, C_DIM(), false);
+        int cntX = px + 8 +
+                font.width(Component.translatable("screen.phantasia.script_step_item_editor.label_count").getString()) +
+                4;
         place(itemCountBox, cntX, cy, 34, 12);
         int lblX = cntX + 38;
-        g.drawString(font, Component.translatable("screen.phantasia.script_step_item_editor.label_label").getString(), lblX, cy + 2, C_DIM(), false);
-        place(itemLabelBox, lblX + font.width(Component.translatable("screen.phantasia.script_step_item_editor.label_label").getString()) + 4, cy,
-                pw - (lblX - px) - font.width(Component.translatable("screen.phantasia.script_step_item_editor.label_label").getString()) - 8, 12);
+        g.drawString(font, Component.translatable("screen.phantasia.script_step_item_editor.label_label").getString(),
+                lblX, cy + 2, C_DIM(), false);
+        place(itemLabelBox,
+                lblX + font.width(
+                        Component.translatable("screen.phantasia.script_step_item_editor.label_label").getString()) + 4,
+                cy,
+                pw - (lblX - px) - font.width(
+                        Component.translatable("screen.phantasia.script_step_item_editor.label_label").getString()) - 8,
+                12);
         cy += 16;
 
         // Track
-        g.drawString(font, Component.translatable("screen.phantasia.script_step_item_editor.label_track").getString(), px + 8, cy + 2, C_DIM(), false);
-        int tbx = px + 8 + font.width(Component.translatable("screen.phantasia.script_step_item_editor.label_track").getString()) + 4;
+        g.drawString(font, Component.translatable("screen.phantasia.script_step_item_editor.label_track").getString(),
+                px + 8, cy + 2, C_DIM(), false);
+        int tbx = px + 8 +
+                font.width(Component.translatable("screen.phantasia.script_step_item_editor.label_track").getString()) +
+                4;
         for (int ti = 0; ti < TRACKS.length; ti++) {
             String t = TRACKS[ti];
             String tl = TRACK_LABELS[ti];
@@ -256,8 +267,12 @@ public class PhantasiaScriptStepItemEditorScreen extends PhantasiaScreen {
             tbx += tw + 2;
         }
         if (!"none".equals(newItemTrack)) {
-            g.drawString(font, Component.translatable("screen.phantasia.script_step_item_editor.label_ticks").getString(), tbx + 2, cy + 2, C_DIM(), false);
-            place(itemDurationBox, tbx + font.width(Component.translatable("screen.phantasia.script_step_item_editor.label_ticks").getString()) + 6, cy, 34, 12);
+            g.drawString(font,
+                    Component.translatable("screen.phantasia.script_step_item_editor.label_ticks").getString(), tbx + 2,
+                    cy + 2, C_DIM(), false);
+            place(itemDurationBox, tbx + font.width(
+                    Component.translatable("screen.phantasia.script_step_item_editor.label_ticks").getString()) + 6, cy,
+                    34, 12);
         } else {
             itemDurationBox.visible = false;
         }
@@ -374,18 +389,31 @@ public class PhantasiaScriptStepItemEditorScreen extends PhantasiaScreen {
 
             cy = labeledBox(g, "Item:", px, cy, pw, itemIdBox);
 
-            g.drawString(font, Component.translatable("screen.phantasia.script_step_item_editor.label_count").getString(), px + 8, cy + 2, C_DIM(), false);
-            int cntX = px + 8 + font.width(Component.translatable("screen.phantasia.script_step_item_editor.label_count").getString()) + 4;
+            g.drawString(font,
+                    Component.translatable("screen.phantasia.script_step_item_editor.label_count").getString(), px + 8,
+                    cy + 2, C_DIM(), false);
+            int cntX = px + 8 + font.width(
+                    Component.translatable("screen.phantasia.script_step_item_editor.label_count").getString()) + 4;
             place(itemCountBox, cntX, cy, 34, 12);
             int lbx = cntX + 38;
-            g.drawString(font, Component.translatable("screen.phantasia.script_step_item_editor.label_label").getString(), lbx, cy + 2, C_DIM(), false);
-            place(itemLabelBox, lbx + font.width(Component.translatable("screen.phantasia.script_step_item_editor.label_label").getString()) + 4, cy,
-                    pw - (lbx - px) - font.width(Component.translatable("screen.phantasia.script_step_item_editor.label_label").getString()) - 8, 12);
+            g.drawString(font,
+                    Component.translatable("screen.phantasia.script_step_item_editor.label_label").getString(), lbx,
+                    cy + 2, C_DIM(), false);
+            place(itemLabelBox,
+                    lbx + font.width(Component.translatable("screen.phantasia.script_step_item_editor.label_label")
+                            .getString()) + 4,
+                    cy,
+                    pw - (lbx - px) - font.width(Component
+                            .translatable("screen.phantasia.script_step_item_editor.label_label").getString()) - 8,
+                    12);
             cy += 16;
 
             // Track row
-            g.drawString(font, Component.translatable("screen.phantasia.script_step_item_editor.label_track").getString(), px + 8, cy + 2, C_DIM(), false);
-            int tbx = px + 8 + font.width(Component.translatable("screen.phantasia.script_step_item_editor.label_track").getString()) + 4;
+            g.drawString(font,
+                    Component.translatable("screen.phantasia.script_step_item_editor.label_track").getString(), px + 8,
+                    cy + 2, C_DIM(), false);
+            int tbx = px + 8 + font.width(
+                    Component.translatable("screen.phantasia.script_step_item_editor.label_track").getString()) + 4;
             for (int ti = 0; ti < TRACKS.length; ti++) {
                 String t = TRACKS[ti];
                 String tl = TRACK_LABELS[ti];
@@ -405,8 +433,12 @@ public class PhantasiaScriptStepItemEditorScreen extends PhantasiaScreen {
             }
             boolean hasTrack = it.track != null && !"none".equals(it.track);
             if (hasTrack) {
-                g.drawString(font, Component.translatable("screen.phantasia.script_step_item_editor.label_ticks").getString(), tbx + 2, cy + 2, C_DIM(), false);
-                place(itemDurationBox, tbx + font.width(Component.translatable("screen.phantasia.script_step_item_editor.label_ticks").getString()) + 6, cy, 34, 12);
+                g.drawString(font,
+                        Component.translatable("screen.phantasia.script_step_item_editor.label_ticks").getString(),
+                        tbx + 2, cy + 2, C_DIM(), false);
+                place(itemDurationBox, tbx + font.width(
+                        Component.translatable("screen.phantasia.script_step_item_editor.label_ticks").getString()) + 6,
+                        cy, 34, 12);
             } else {
                 itemDurationBox.visible = false;
             }
@@ -562,7 +594,4 @@ public class PhantasiaScriptStepItemEditorScreen extends PhantasiaScreen {
         box.visible = true;
         box.active = true;
     }
-
-
-
 }

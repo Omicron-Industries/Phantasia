@@ -1,7 +1,5 @@
 package net.phoenixvine.phantasia.client.screens;
 
-import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
-
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
@@ -15,12 +13,12 @@ import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.phoenixvine.phantasia.client.screens.editors.PhantasiaGuideEditorScreen;
+import net.phoenixvine.phantasia.client.tutorial.PhantasiaTutorials;
+import net.phoenixvine.phantasia.client.tutorial.TutorialSequence;
 import net.phoenixvine.phantasia.common.data.guides.PhantasiaGuideData;
 import net.phoenixvine.phantasia.common.data.guides.PhantasiaGuideRegistry;
 import net.phoenixvine.phantasia.common.data.scene.PhantasiaSceneData;
 import net.phoenixvine.phantasia.common.data.scene.PhantasiaScenes;
-import net.phoenixvine.phantasia.client.tutorial.PhantasiaTutorials;
-import net.phoenixvine.phantasia.client.tutorial.TutorialSequence;
 import net.phoenixvine.phantasia.common.data.script.PhantasiaScript;
 import net.phoenixvine.phantasia.common.data.script.PhantasiaScripts;
 import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockDefinition;
@@ -28,6 +26,8 @@ import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockDefinitio
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+
+import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
 
 /**
  * PhantasiaSceneSelectionScreen
@@ -95,8 +95,10 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
         int searchY = HEADER_H + 4;
 
         // Initialize Minecraft's built-in text field widget
-        this.searchBox = new EditBox(this.font, searchX, searchY, totalGridW, 16, Component.translatable("screen.phantasia.scene_selection.search_box"));
-        this.searchBox.setHint(Component.translatable("screen.phantasia.scene_selection.search_hint").withStyle(style -> style.withColor(0xFF888888)));
+        this.searchBox = new EditBox(this.font, searchX, searchY, totalGridW, 16,
+                Component.translatable("screen.phantasia.scene_selection.search_box"));
+        this.searchBox.setHint(Component.translatable("screen.phantasia.scene_selection.search_hint")
+                .withStyle(style -> style.withColor(0xFF888888)));
         this.searchBox.setBordered(true);
         this.searchBox.setMaxLength(32);
 
@@ -188,7 +190,8 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
         g.fill(0, 0, this.width, HEADER_H, 0xCC0A0A14);
         g.fill(0, HEADER_H - 2, this.width, HEADER_H, C_ACCENT());
         g.drawCenteredString(font, "\u2736 Phantasia", this.width / 2, 8, C_ACCENT());
-        g.drawCenteredString(font, Component.translatable("screen.phantasia.scene_selection.subtitle").getString(), this.width / 2, 20, C_DIM());
+        g.drawCenteredString(font, Component.translatable("screen.phantasia.scene_selection.subtitle").getString(),
+                this.width / 2, 20, C_DIM());
 
         // Tab row
         int tabY = 32;
@@ -220,7 +223,9 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
         hoveredCard = -1;
 
         if (filteredScenes.isEmpty()) {
-            g.drawCenteredString(font, Component.translatable("screen.phantasia.scene_selection.no_results").getString(), this.width / 2, startY + 20, C_DIM());
+            g.drawCenteredString(font,
+                    Component.translatable("screen.phantasia.scene_selection.no_results").getString(), this.width / 2,
+                    startY + 20, C_DIM());
             return;
         }
 
@@ -291,7 +296,8 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
             String steps = script.getSteps().size() + " steps";
             g.drawString(font, steps, cx + 4, cy + CARD_H - 10, C_DIM(), false);
         } else {
-            g.drawString(font, Component.translatable("screen.phantasia.scene_selection.no_script").getString(), cx + 4, cy + CARD_H - 10, C_DIM(), false);
+            g.drawString(font, Component.translatable("screen.phantasia.scene_selection.no_script").getString(), cx + 4,
+                    cy + CARD_H - 10, C_DIM(), false);
         }
     }
 
@@ -344,7 +350,8 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
             g.fill(cx, cy + CARD_H - 1, cx + CARD_W, cy + CARD_H, C_ACCENT());
         }
         g.drawCenteredString(font, "+", cx + CARD_W / 2, cy + 28, hov ? C_ACCENT() : C_DIM());
-        g.drawCenteredString(font, Component.translatable("screen.phantasia.scene_selection.btn_new_scene").getString(), cx + CARD_W / 2, cy + CARD_H - 20, hov ? C_ACCENT() : C_DIM());
+        g.drawCenteredString(font, Component.translatable("screen.phantasia.scene_selection.btn_new_scene").getString(),
+                cx + CARD_W / 2, cy + CARD_H - 20, hov ? C_ACCENT() : C_DIM());
     }
 
     private void renderSceneCard(GuiGraphics g, int mx, int my,
@@ -402,7 +409,7 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
         boolean hasGuide = scene.steps != null && scene.steps.stream()
                 .anyMatch(s -> (s.caption != null && !s.caption.isBlank()) ||
                         (s.description != null && !s.description.isBlank()) || (s.showItems && scene.placements.stream()
-                        .anyMatch(p -> !p.items.isEmpty())));
+                                .anyMatch(p -> !p.items.isEmpty())));
 
         int btnY = cy + CARD_H - 12;
         int btnH = 11;
@@ -412,16 +419,19 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
         int viewX = cx + 3;
         boolean viewHov = isOver(mx, my, viewX, btnY, viewW, btnH);
 
-        // CHANGED: Button background states dynamically sample cardBg and panel transparency configurations instead of static dark blues
+        // CHANGED: Button background states dynamically sample cardBg and panel transparency configurations instead of
+        // static dark blues
         int viewIdleBg = (0x44 << 24) | (C_PANEL() & 0x00FFFFFF);
         g.fill(viewX, btnY, viewX + viewW, btnY + btnH, viewHov ? C_BTN_HOV() : (hov ? cardBg : viewIdleBg));
         if (viewHov) g.fill(viewX, btnY, viewX + viewW, btnY + 1, C_ACCENT());
-        g.drawString(font, Component.translatable("screen.phantasia.scene_selection.btn_view").getString(), viewX + 3, btnY + 2,
+        g.drawString(font, Component.translatable("screen.phantasia.scene_selection.btn_view").getString(), viewX + 3,
+                btnY + 2,
                 viewHov ? C_ACCENT() : (hov ? C_TEXT() : C_DIM()), false);
 
         // Guide Button
         if (hasGuide) {
-            int guideW = font.width(Component.translatable("screen.phantasia.scene_selection.btn_read").getString()) + 6;
+            int guideW = font.width(Component.translatable("screen.phantasia.scene_selection.btn_read").getString()) +
+                    6;
             int guideX = cx + CARD_W - 3 - guideW;
             boolean guideHov = isOver(mx, my, guideX, btnY, guideW, btnH);
 
@@ -429,11 +439,11 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
             int guideIdleBg = (0x44 << 24) | (C_PANEL() & 0x00FFFFFF);
             g.fill(guideX, btnY, guideX + guideW, btnY + btnH, guideHov ? C_BTN_HOV() : (hov ? cardBg : guideIdleBg));
             if (guideHov) g.fill(guideX, btnY, guideX + guideW, btnY + 1, C_ACCENT());
-            g.drawString(font, Component.translatable("screen.phantasia.scene_selection.btn_read").getString(), guideX + 3, btnY + 2,
+            g.drawString(font, Component.translatable("screen.phantasia.scene_selection.btn_read").getString(),
+                    guideX + 3, btnY + 2,
                     guideHov ? C_ACCENT() : (hov ? C_TEXT() : C_DIM()), false);
         }
     }
-
 
     // ── Guide cards (Guides tab) ───────────────────────────────────────────────
 
@@ -466,13 +476,17 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
                 g.fill(cx, cy + CARD_H - 1, cx + CARD_W, cy + CARD_H, C_ACCENT());
             }
             g.drawCenteredString(font, "+", cx + CARD_W / 2, cy + 24, hov ? C_ACCENT() : C_DIM());
-            g.drawCenteredString(font, Component.translatable("screen.phantasia.scene_selection.btn_new_guide").getString(), cx + CARD_W / 2, cy + CARD_H - 22,
+            g.drawCenteredString(font,
+                    Component.translatable("screen.phantasia.scene_selection.btn_new_guide").getString(),
+                    cx + CARD_W / 2, cy + CARD_H - 22,
                     hov ? C_ACCENT() : C_DIM());
         }
 
         if (filteredGuides.isEmpty()) {
-            g.drawCenteredString(font, Component.translatable("screen.phantasia.scene_selection.no_guides").getString(), this.width / 2, startY + 30, C_DIM());
-            g.drawCenteredString(font, Component.translatable("screen.phantasia.scene_selection.no_guides_hint").getString(),
+            g.drawCenteredString(font, Component.translatable("screen.phantasia.scene_selection.no_guides").getString(),
+                    this.width / 2, startY + 30, C_DIM());
+            g.drawCenteredString(font,
+                    Component.translatable("screen.phantasia.scene_selection.no_guides_hint").getString(),
                     this.width / 2, startY + 44, C_DIM());
         }
 
@@ -653,7 +667,9 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
             if (hoveredCard == -2) {
                 // New Guide — open editor with a blank guide
                 PhantasiaGuideData blank = PhantasiaGuideData.blank(
-                        "phantasia:new_guide_" + System.currentTimeMillis(), Component.translatable("screen.phantasia.scene_selection.btn_new_guide").getString(), "minecraft:book");
+                        "phantasia:new_guide_" + System.currentTimeMillis(),
+                        Component.translatable("screen.phantasia.scene_selection.btn_new_guide").getString(),
+                        "minecraft:book");
                 Minecraft.getInstance().setScreen(new PhantasiaGuideEditorScreen(this, blank));
                 return true;
             }
@@ -711,7 +727,8 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
                                 (s.showItems && scene.placements.stream()
                                         .anyMatch(p -> !p.items.isEmpty())));
                 if (hasGuide) {
-                    int guideW = font.width(Component.translatable("screen.phantasia.scene_selection.btn_read").getString()) + 6;
+                    int guideW = font
+                            .width(Component.translatable("screen.phantasia.scene_selection.btn_read").getString()) + 6;
                     int guideX = cx + CARD_W - 3 - guideW;
                     if (isOver((int) mx, (int) my, guideX, btnY, guideW, btnH)) {
                         Minecraft.getInstance().setScreen(new PhantasiaGuideScreen(this, scene));
@@ -776,15 +793,15 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
 
     private void renderTutorialCards(GuiGraphics g, int mx, int my) {
         List<TutorialSequence> tutorials = PhantasiaTutorials.ALL;
-        int totalW  = COLS * CARD_W + (COLS - 1) * CARD_PAD;
-        int startX  = (this.width - totalW) / 2;
-        int startY  = HEADER_H + SEARCH_H + 6;
+        int totalW = COLS * CARD_W + (COLS - 1) * CARD_PAD;
+        int startX = (this.width - totalW) / 2;
+        int startY = HEADER_H + SEARCH_H + 6;
         int maxRows = visibleRows();
         hoveredCard = -1;
 
         // Section labels
         boolean playerSectionDrawn = false;
-        boolean devSectionDrawn    = false;
+        boolean devSectionDrawn = false;
 
         int visIdx = 0;
         for (int i = 0; i < tutorials.size(); i++) {
@@ -799,13 +816,15 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
                 if (isPlayer && !playerSectionDrawn) {
                     playerSectionDrawn = true;
                     if (row >= 0 && row < maxRows) {
-                        g.drawString(font, "For Players", startX, startY + row * (CARD_H + CARD_PAD) - 12, C_ACCENT(), false);
+                        g.drawString(font, "For Players", startX, startY + row * (CARD_H + CARD_PAD) - 12, C_ACCENT(),
+                                false);
                     }
                 }
                 if (!isPlayer && !devSectionDrawn) {
                     devSectionDrawn = true;
                     if (row >= 0 && row < maxRows) {
-                        g.drawString(font, "For Pack Authors", startX, startY + row * (CARD_H + CARD_PAD) - 12, C_DIM(), false);
+                        g.drawString(font, "For Pack Authors", startX, startY + row * (CARD_H + CARD_PAD) - 12, C_DIM(),
+                                false);
                     }
                 }
             }
@@ -839,8 +858,8 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
             // Description (wrapped to 2 lines)
             String desc = seq.description != null ? seq.description : "";
             int maxDescW = CARD_W - 8;
-            java.util.List<net.minecraft.util.FormattedCharSequence> lines =
-                    font.split(Component.literal(desc), maxDescW);
+            java.util.List<net.minecraft.util.FormattedCharSequence> lines = font.split(Component.literal(desc),
+                    maxDescW);
             int ty = cy + 20;
             for (int li = 0; li < Math.min(lines.size(), 3); li++) {
                 g.drawString(font, lines.get(li), cx + 4, ty + li * 10, C_DIM(), false);

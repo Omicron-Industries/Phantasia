@@ -1,7 +1,5 @@
 package net.phoenixvine.phantasia.client.screens.subscreen;
 
-import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
-
 import net.minecraft.SharedConstants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -30,8 +28,6 @@ import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
  */
 @OnlyIn(Dist.CLIENT)
 public class PhantasiaTextInputScreen extends Screen {
-
-
 
     // Standard Minecraft Formats: 0-9, a-f, and r (Reset)
     private static final char[] COLOR_CODES = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd',
@@ -118,7 +114,9 @@ public class PhantasiaTextInputScreen extends Screen {
             g.renderOutline(cx, pickerY, size, size, hov ? C_ACCENT() : 0xFF444444);
 
             if (hov) {
-                g.renderTooltip(font, Component.translatable("ui.phantasia.color_code_display", COLOR_CODES[i], COLOR_CODES[i]), mx, my);
+                g.renderTooltip(font,
+                        Component.translatable("ui.phantasia.color_code_display", COLOR_CODES[i], COLOR_CODES[i]), mx,
+                        my);
             }
         }
     }

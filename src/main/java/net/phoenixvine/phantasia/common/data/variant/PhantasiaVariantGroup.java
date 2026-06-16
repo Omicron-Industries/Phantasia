@@ -145,9 +145,9 @@ public final class PhantasiaVariantGroup {
      * contributed via {@link IPhantasiaMultiblockDefinition#detectProviderVariants}.
      */
     public static List<PhantasiaVariantGroup> compile(
-            PhantasiaScriptData data,
-            IPhantasiaMultiblockDefinition definition,
-            PhantasiaLoadedPattern pattern) {
+                                                      PhantasiaScriptData data,
+                                                      IPhantasiaMultiblockDefinition definition,
+                                                      PhantasiaLoadedPattern pattern) {
         List<PhantasiaVariantGroup> result = new ArrayList<>();
         Set<String> explicitIds = new HashSet<>();
 
@@ -166,16 +166,16 @@ public final class PhantasiaVariantGroup {
         try {
             result.addAll(definition.detectProviderVariants(data, pattern, machinePrefix, explicitIds));
         } catch (Exception e) {
-            System.err.println("[Phantasia] WARNING: provider variant detection failed for "
-                    + definition.getId() + ": " + e.getMessage());
+            System.err.println("[Phantasia] WARNING: provider variant detection failed for " + definition.getId() +
+                    ": " + e.getMessage());
         }
 
         // 3. Generic optional block detection — scans all shapes for positional variation
         try {
             result.addAll(detectOptionalBlocks(machinePrefix, definition.getAllShapes(), pattern, explicitIds));
         } catch (Exception e) {
-            System.err.println("[Phantasia] WARNING: optional block detection failed for "
-                    + definition.getId() + ": " + e.getMessage());
+            System.err.println("[Phantasia] WARNING: optional block detection failed for " + definition.getId() + ": " +
+                    e.getMessage());
         }
 
         return Collections.unmodifiableList(result);
@@ -186,9 +186,9 @@ public final class PhantasiaVariantGroup {
     // ─────────────────────────────────────────────────────────────────────────
 
     private static PhantasiaVariantGroup compileManual(
-            String machinePrefix,
-            PhantasiaScriptData.OptionalGroupData ogd,
-            PhantasiaLoadedPattern pattern) {
+                                                       String machinePrefix,
+                                                       PhantasiaScriptData.OptionalGroupData ogd,
+                                                       PhantasiaLoadedPattern pattern) {
         BlockState primary = resolveBlock(ogd.getPrimaryBlock());
         BlockState fallback = resolveBlock(ogd.getFallbackBlock());
         if (primary == null || fallback == null) return null;
@@ -217,11 +217,10 @@ public final class PhantasiaVariantGroup {
     // ─────────────────────────────────────────────────────────────────────────
 
     public static List<PhantasiaVariantGroup> detectOptionalBlocks(
-            String machinePrefix,
-            List<IPhantasiaMultiblockShape> allShapes,
-            PhantasiaLoadedPattern pattern,
-            Set<String> excludeIds) {
-
+                                                                   String machinePrefix,
+                                                                   List<IPhantasiaMultiblockShape> allShapes,
+                                                                   PhantasiaLoadedPattern pattern,
+                                                                   Set<String> excludeIds) {
         Map<BlockPos, Set<Block>> localPosToAllBlocks = new HashMap<>();
         Map<Block, List<BlockPos>> loadedShapeBlockToWorldPos = new HashMap<>();
 
@@ -312,8 +311,8 @@ public final class PhantasiaVariantGroup {
                 BlockPos world = pattern.localToWorld.get(local);
                 if (world == null) continue;
                 BlockInfo info = pattern.blockMap.get(world);
-                Block loadedBlock = (info != null && !info.getBlockState().isAir())
-                        ? info.getBlockState().getBlock() : null;
+                Block loadedBlock = (info != null && !info.getBlockState().isAir()) ? info.getBlockState().getBlock() :
+                        null;
                 int baseIdx = 1;
                 if (loadedBlock != null) {
                     for (int i = 0; i < sortedBlocks.size(); i++) {
@@ -355,8 +354,8 @@ public final class PhantasiaVariantGroup {
     }
 
     private static boolean isMachineBlock(Block b) {
-        return PhantasiaMultiblockRegistry.isControllerBlock(b.defaultBlockState())
-                || PhantasiaMultiblockRegistry.isPartBlock(b.defaultBlockState());
+        return PhantasiaMultiblockRegistry.isControllerBlock(b.defaultBlockState()) ||
+                PhantasiaMultiblockRegistry.isPartBlock(b.defaultBlockState());
     }
 
     public static String blockDisplayName(BlockState state) {

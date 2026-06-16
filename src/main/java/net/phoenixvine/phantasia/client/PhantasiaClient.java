@@ -60,18 +60,23 @@ public class PhantasiaClient {
                                         Minecraft.getInstance().tell(() -> {
                                             var player = Minecraft.getInstance().player;
                                             if (player == null) return;
-                                            player.sendSystemMessage(Component.literal("[Phantasia] Starting web export..."));
+                                            player.sendSystemMessage(
+                                                    Component.literal("[Phantasia] Starting web export..."));
                                             try {
                                                 var docsDir = FMLPaths.GAMEDIR.get().getParent().resolve("docs");
                                                 var result = PhantasiaWebExport.export(docsDir);
                                                 player.sendSystemMessage(Component.literal(
-                                                        "[Phantasia] Export complete: " + result.scenes() + " scenes, " +
-                                                        result.scripts() + " scripts, " + result.guides() + " guides, " +
-                                                        result.blocks() + " blocks → " + docsDir));
+                                                        "[Phantasia] Export complete: " + result.scenes() +
+                                                                " scenes, " +
+                                                                result.scripts() + " scripts, " + result.guides() +
+                                                                " guides, " +
+                                                                result.blocks() + " blocks → " + docsDir));
                                                 if (result.hasErrors())
-                                                    player.sendSystemMessage(Component.literal("[Phantasia] Warnings: " + result.errors()));
+                                                    player.sendSystemMessage(Component
+                                                            .literal("[Phantasia] Warnings: " + result.errors()));
                                             } catch (Exception e) {
-                                                player.sendSystemMessage(Component.literal("[Phantasia] Export failed: " + e.getMessage()));
+                                                player.sendSystemMessage(Component
+                                                        .literal("[Phantasia] Export failed: " + e.getMessage()));
                                                 Phantasia.LOGGER.error("[Phantasia] webexport failed", e);
                                             }
                                         });

@@ -222,8 +222,8 @@ public class PhantasiaScript {
                 // parts:keyword — single keyword match, e.g. "parts:hatch", "parts:muffler"
                 if (show.startsWith("parts:")) {
                     String keyword = show.substring(6);
-                    yield localPred(state -> PhantasiaMultiblockRegistry.isPartBlock(state)
-                            && state.getBlock().getDescriptionId().contains(keyword));
+                    yield localPred(state -> PhantasiaMultiblockRegistry.isPartBlock(state) &&
+                            state.getBlock().getDescriptionId().contains(keyword));
                 }
                 yield pos -> true;
             }

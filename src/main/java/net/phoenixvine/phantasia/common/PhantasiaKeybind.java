@@ -21,9 +21,9 @@ import net.phoenixvine.phantasia.client.keybind.PhoenixKeybinds;
 import net.phoenixvine.phantasia.client.screens.PhantasiaContextualSelectionScreen;
 import net.phoenixvine.phantasia.client.screens.PhantasiaSceneScreen;
 import net.phoenixvine.phantasia.client.screens.PhantasiaSceneSelectionScreen;
-import net.phoenixvine.phantasia.configs.PhantasiaConfigs;
 import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockDefinition;
 import net.phoenixvine.phantasia.common.multiblock.PhantasiaMultiblockRegistry;
+import net.phoenixvine.phantasia.configs.PhantasiaConfigs;
 
 import com.mojang.blaze3d.platform.InputConstants;
 
@@ -177,9 +177,11 @@ public class PhantasiaKeybind {
             if (hasScript) {
                 mc.setScreen(new PhantasiaSceneScreen(defToOpen, null));
             } else if (!matchingScenes.isEmpty()) {
-                mc.setScreen(new net.phoenixvine.phantasia.client.screens.PhantasiaSceneViewerScreen(null, matchingScenes.get(0)));
+                mc.setScreen(new net.phoenixvine.phantasia.client.screens.PhantasiaSceneViewerScreen(null,
+                        matchingScenes.get(0)));
             } else {
-                mc.setScreen(new net.phoenixvine.phantasia.client.screens.PhantasiaGuideScreen(null, matchingGuides.get(0)));
+                mc.setScreen(
+                        new net.phoenixvine.phantasia.client.screens.PhantasiaGuideScreen(null, matchingGuides.get(0)));
             }
         } else if (totalMatches > 1) {
             mc.setScreen(new PhantasiaContextualSelectionScreen(defToOpen, matchingScenes, matchingGuides, hasScript));
@@ -202,9 +204,11 @@ public class PhantasiaKeybind {
         int totalMatches = matchingScenes.size() + matchingGuides.size();
         if (totalMatches == 1) {
             if (!matchingScenes.isEmpty()) {
-                mc.setScreen(new net.phoenixvine.phantasia.client.screens.PhantasiaSceneViewerScreen(null, matchingScenes.get(0)));
+                mc.setScreen(new net.phoenixvine.phantasia.client.screens.PhantasiaSceneViewerScreen(null,
+                        matchingScenes.get(0)));
             } else {
-                mc.setScreen(new net.phoenixvine.phantasia.client.screens.PhantasiaGuideScreen(null, matchingGuides.get(0)));
+                mc.setScreen(
+                        new net.phoenixvine.phantasia.client.screens.PhantasiaGuideScreen(null, matchingGuides.get(0)));
             }
         } else if (totalMatches > 1) {
             mc.setScreen(new PhantasiaContextualSelectionScreen(null, matchingScenes, matchingGuides, false));

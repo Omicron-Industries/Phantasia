@@ -38,8 +38,6 @@ public class PhantasiaConfigs {
         @Configurable.Comment("Ticks required to hold the key to open the menu (20 ticks = 1 second).")
         public int activationTicks = 20;
 
-
-
         @Configurable
         @Configurable.Comment("The block ID used for the baseplate/floor in the scene preview.")
         public String baseplateBlock = "minecraft:deepslate_bricks";

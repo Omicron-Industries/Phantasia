@@ -1,7 +1,5 @@
 package net.phoenixvine.phantasia.client.screens.editors;
 
-import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
-
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
@@ -199,7 +197,6 @@ public class PhantasiaPlacementEditorScreen extends PhantasiaScreen {
         return b;
     }
 
-
     // ─────────────────────────────────────────────────────────────────────────
     // Render
     // ─────────────────────────────────────────────────────────────────────────
@@ -242,7 +239,6 @@ public class PhantasiaPlacementEditorScreen extends PhantasiaScreen {
         rx = topBtn(g, mx, my, rx, "\u2190 Back", C_BTN(), "Return to the scene editor", this::goBack);
     }
 
-
     // ── Main panel ────────────────────────────────────────────────────────────
 
     private void renderPanel(GuiGraphics g, int mx, int my) {
@@ -268,7 +264,8 @@ public class PhantasiaPlacementEditorScreen extends PhantasiaScreen {
 
         // ── Machine ID ───────────────────────────────────────────────────────
         cy += 8;
-        drawIfVisible(g, Component.translatable("screen.phantasia.placement_editor.label_machine_id").getString(), px + 8, cy + 2, C_DIM(), clipTop, clipBottom);
+        drawIfVisible(g, Component.translatable("screen.phantasia.placement_editor.label_machine_id").getString(),
+                px + 8, cy + 2, C_DIM(), clipTop, clipBottom);
         cy += 12;
 
         if (inClip(cy, clipTop, clipBottom)) {
@@ -286,15 +283,21 @@ public class PhantasiaPlacementEditorScreen extends PhantasiaScreen {
 
         // Offset
         if (inClip(cy, clipTop, clipBottom)) {
-            g.drawString(font, Component.translatable("screen.phantasia.placement_editor.label_offset").getString(), px + 8, cy + 2, C_DIM(), false);
-            int ox = px + 8 + font.width(Component.translatable("screen.phantasia.placement_editor.label_offset").getString()) + 4;
-            g.drawString(font, Component.translatable("screen.phantasia.placement_editor.label_x").getString(), ox, cy + 2, C_DIM(), false);
+            g.drawString(font, Component.translatable("screen.phantasia.placement_editor.label_offset").getString(),
+                    px + 8, cy + 2, C_DIM(), false);
+            int ox = px + 8 +
+                    font.width(Component.translatable("screen.phantasia.placement_editor.label_offset").getString()) +
+                    4;
+            g.drawString(font, Component.translatable("screen.phantasia.placement_editor.label_x").getString(), ox,
+                    cy + 2, C_DIM(), false);
             place(offsetXBox, ox + 8, cy, 34, 12);
             ox += 46;
-            g.drawString(font, Component.translatable("screen.phantasia.placement_editor.label_y").getString(), ox, cy + 2, C_DIM(), false);
+            g.drawString(font, Component.translatable("screen.phantasia.placement_editor.label_y").getString(), ox,
+                    cy + 2, C_DIM(), false);
             place(offsetYBox, ox + 8, cy, 34, 12);
             ox += 46;
-            g.drawString(font, Component.translatable("screen.phantasia.placement_editor.label_z").getString(), ox, cy + 2, C_DIM(), false);
+            g.drawString(font, Component.translatable("screen.phantasia.placement_editor.label_z").getString(), ox,
+                    cy + 2, C_DIM(), false);
             place(offsetZBox, ox + 8, cy, 34, 12);
             ox += 46;
             boolean offHov = isOver(mx, my, ox, cy, 50, 12);
@@ -313,7 +316,8 @@ public class PhantasiaPlacementEditorScreen extends PhantasiaScreen {
         // ── Recipe item conditions ────────────────────────────────────────────
         drawIfVisible(g, "Recipe Item Conditions", px + 8, cy + 2, C_ACCENT(), clipTop, clipBottom);
         cy += 12;
-        drawIfVisible(g, "(displayed in scene viewer alongside this machine)", px + 8, cy, C_DIM(), clipTop, clipBottom);
+        drawIfVisible(g, "(displayed in scene viewer alongside this machine)", px + 8, cy, C_DIM(), clipTop,
+                clipBottom);
         cy += 14;
 
         PhantasiaSceneData.PlacementData p = pd();
@@ -357,8 +361,14 @@ public class PhantasiaPlacementEditorScreen extends PhantasiaScreen {
 
         // Item ID row
         if (inClip(cy, clipTop, clipBottom)) {
-            g.drawString(font, Component.translatable("screen.phantasia.placement_editor.label_item").getString(), px + 8, cy + 2, C_DIM(), false);
-            place(addItemIdBox, px + 8 + font.width(Component.translatable("screen.phantasia.placement_editor.label_item").getString()) + 4, cy, pw - 20 - font.width(Component.translatable("screen.phantasia.placement_editor.label_item").getString()) - 4, 12);
+            g.drawString(font, Component.translatable("screen.phantasia.placement_editor.label_item").getString(),
+                    px + 8, cy + 2, C_DIM(), false);
+            place(addItemIdBox, px + 8 +
+                    font.width(Component.translatable("screen.phantasia.placement_editor.label_item").getString()) + 4,
+                    cy,
+                    pw - 20 - font.width(
+                            Component.translatable("screen.phantasia.placement_editor.label_item").getString()) - 4,
+                    12);
             if (isOver(mx, my, px + 8, cy, pw - 16, 12))
                 pendingTooltip = "Namespaced item ID (e.g. minecraft:iron_ingot)";
         }
@@ -366,12 +376,22 @@ public class PhantasiaPlacementEditorScreen extends PhantasiaScreen {
 
         // Count + Label row
         if (inClip(cy, clipTop, clipBottom)) {
-            g.drawString(font, Component.translatable("screen.phantasia.placement_editor.label_count").getString(), px + 8, cy + 2, C_DIM(), false);
-            int cntX = px + 8 + font.width(Component.translatable("screen.phantasia.placement_editor.label_count").getString()) + 4;
+            g.drawString(font, Component.translatable("screen.phantasia.placement_editor.label_count").getString(),
+                    px + 8, cy + 2, C_DIM(), false);
+            int cntX = px + 8 +
+                    font.width(Component.translatable("screen.phantasia.placement_editor.label_count").getString()) + 4;
             place(addItemCountBox, cntX, cy, 34, 12);
             int lblX = cntX + 38;
-            g.drawString(font, Component.translatable("screen.phantasia.placement_editor.label_label").getString(), lblX, cy + 2, C_DIM(), false);
-            place(addItemLabelBox, lblX + font.width(Component.translatable("screen.phantasia.placement_editor.label_label").getString()) + 4, cy, pw - (lblX - px) - font.width(Component.translatable("screen.phantasia.placement_editor.label_label").getString()) - 8,
+            g.drawString(font, Component.translatable("screen.phantasia.placement_editor.label_label").getString(),
+                    lblX, cy + 2, C_DIM(), false);
+            place(addItemLabelBox,
+                    lblX + font.width(
+                            Component.translatable("screen.phantasia.placement_editor.label_label").getString()) + 4,
+                    cy,
+                    pw - (lblX - px) -
+                            font.width(Component.translatable("screen.phantasia.placement_editor.label_label")
+                                    .getString()) -
+                            8,
                     12);
             if (isOver(mx, my, px + 8, cy, pw - 16, 12))
                 pendingTooltip = "Optional display label (leave blank to auto-generate from item name)";
@@ -380,8 +400,10 @@ public class PhantasiaPlacementEditorScreen extends PhantasiaScreen {
 
         // Track selector
         if (inClip(cy, clipTop, clipBottom)) {
-            g.drawString(font, Component.translatable("screen.phantasia.placement_editor.label_track").getString(), px + 8, cy + 2, C_DIM(), false);
-            int tbx = px + 8 + font.width(Component.translatable("screen.phantasia.placement_editor.label_track").getString()) + 4;
+            g.drawString(font, Component.translatable("screen.phantasia.placement_editor.label_track").getString(),
+                    px + 8, cy + 2, C_DIM(), false);
+            int tbx = px + 8 +
+                    font.width(Component.translatable("screen.phantasia.placement_editor.label_track").getString()) + 4;
             for (int ti = 0; ti < TRACKS.length; ti++) {
                 String t = TRACKS[ti], tl = TRACK_LABELS[ti];
                 int tw = font.width(tl) + 8;
@@ -395,8 +417,13 @@ public class PhantasiaPlacementEditorScreen extends PhantasiaScreen {
                 tbx += tw + 2;
             }
             if (!"none".equals(newItemTrack)) {
-                g.drawString(font, Component.translatable("screen.phantasia.placement_editor.label_ticks").getString(), tbx + 2, cy + 2, C_DIM(), false);
-                place(addItemDurationBox, tbx + font.width(Component.translatable("screen.phantasia.placement_editor.label_ticks").getString()) + 6, cy, 34, 12);
+                g.drawString(font, Component.translatable("screen.phantasia.placement_editor.label_ticks").getString(),
+                        tbx + 2, cy + 2, C_DIM(), false);
+                place(addItemDurationBox,
+                        tbx + font.width(
+                                Component.translatable("screen.phantasia.placement_editor.label_ticks").getString()) +
+                                6,
+                        cy, 34, 12);
             } else {
                 addItemDurationBox.visible = false;
             }
@@ -405,15 +432,28 @@ public class PhantasiaPlacementEditorScreen extends PhantasiaScreen {
 
         // Description
         if (inClip(cy, clipTop, clipBottom)) {
-            g.drawString(font, Component.translatable("screen.phantasia.placement_editor.label_desc").getString(), px + 8, cy + 2, C_DIM(), false);
-            place(addItemDescBox, px + 8 + font.width(Component.translatable("screen.phantasia.placement_editor.label_desc").getString()) + 4, cy, pw - 20 - font.width(Component.translatable("screen.phantasia.placement_editor.label_desc").getString()) - 4, 12);
+            g.drawString(font, Component.translatable("screen.phantasia.placement_editor.label_desc").getString(),
+                    px + 8, cy + 2, C_DIM(), false);
+            place(addItemDescBox, px + 8 +
+                    font.width(Component.translatable("screen.phantasia.placement_editor.label_desc").getString()) + 4,
+                    cy,
+                    pw - 20 - font.width(
+                            Component.translatable("screen.phantasia.placement_editor.label_desc").getString()) - 4,
+                    12);
         }
         cy += 16;
 
         // Microscene ID
         if (inClip(cy, clipTop, clipBottom)) {
-            g.drawString(font, Component.translatable("screen.phantasia.placement_editor.label_scene").getString(), px + 8, cy + 2, C_DIM(), false);
-            place(addItemMicrosceneBox, px + 8 + font.width(Component.translatable("screen.phantasia.placement_editor.label_scene").getString()) + 4, cy, pw - 20 - font.width(Component.translatable("screen.phantasia.placement_editor.label_scene").getString()) - 4, 12);
+            g.drawString(font, Component.translatable("screen.phantasia.placement_editor.label_scene").getString(),
+                    px + 8, cy + 2, C_DIM(), false);
+            place(addItemMicrosceneBox,
+                    px + 8 + font.width(
+                            Component.translatable("screen.phantasia.placement_editor.label_scene").getString()) + 4,
+                    cy,
+                    pw - 20 - font.width(
+                            Component.translatable("screen.phantasia.placement_editor.label_scene").getString()) - 4,
+                    12);
             if (isOver(mx, my, px + 8, cy, pw - 16, 12))
                 pendingTooltip = "Optional microscene ID to open when the player clicks this item";
         }
@@ -563,27 +603,45 @@ public class PhantasiaPlacementEditorScreen extends PhantasiaScreen {
 
         // Item ID
         if (inClip(cy, clipTop, clipBottom)) {
-            g.drawString(font, Component.translatable("screen.phantasia.placement_editor.label_item").getString(), px + 8, cy + 2, C_DIM(), false);
-            place(editItemIdBox, px + 8 + font.width(Component.translatable("screen.phantasia.placement_editor.label_item").getString()) + 4, cy, pw - 20 - font.width(Component.translatable("screen.phantasia.placement_editor.label_item").getString()) - 4, 12);
+            g.drawString(font, Component.translatable("screen.phantasia.placement_editor.label_item").getString(),
+                    px + 8, cy + 2, C_DIM(), false);
+            place(editItemIdBox, px + 8 +
+                    font.width(Component.translatable("screen.phantasia.placement_editor.label_item").getString()) + 4,
+                    cy,
+                    pw - 20 - font.width(
+                            Component.translatable("screen.phantasia.placement_editor.label_item").getString()) - 4,
+                    12);
         }
         cy += 16;
 
         // Count + Label
         if (inClip(cy, clipTop, clipBottom)) {
-            g.drawString(font, Component.translatable("screen.phantasia.placement_editor.label_count").getString(), px + 8, cy + 2, C_DIM(), false);
-            int cntX = px + 8 + font.width(Component.translatable("screen.phantasia.placement_editor.label_count").getString()) + 4;
+            g.drawString(font, Component.translatable("screen.phantasia.placement_editor.label_count").getString(),
+                    px + 8, cy + 2, C_DIM(), false);
+            int cntX = px + 8 +
+                    font.width(Component.translatable("screen.phantasia.placement_editor.label_count").getString()) + 4;
             place(editItemCountBox, cntX, cy, 34, 12);
             int lblX = cntX + 38;
-            g.drawString(font, Component.translatable("screen.phantasia.placement_editor.label_label").getString(), lblX, cy + 2, C_DIM(), false);
-            place(editItemLabelBox, lblX + font.width(Component.translatable("screen.phantasia.placement_editor.label_label").getString()) + 4, cy, pw - (lblX - px) - font.width(Component.translatable("screen.phantasia.placement_editor.label_label").getString()) - 8,
+            g.drawString(font, Component.translatable("screen.phantasia.placement_editor.label_label").getString(),
+                    lblX, cy + 2, C_DIM(), false);
+            place(editItemLabelBox,
+                    lblX + font.width(
+                            Component.translatable("screen.phantasia.placement_editor.label_label").getString()) + 4,
+                    cy,
+                    pw - (lblX - px) -
+                            font.width(Component.translatable("screen.phantasia.placement_editor.label_label")
+                                    .getString()) -
+                            8,
                     12);
         }
         cy += 16;
 
         // Track selector
         if (inClip(cy, clipTop, clipBottom)) {
-            g.drawString(font, Component.translatable("screen.phantasia.placement_editor.label_track").getString(), px + 8, cy + 2, C_DIM(), false);
-            int tbx = px + 8 + font.width(Component.translatable("screen.phantasia.placement_editor.label_track").getString()) + 4;
+            g.drawString(font, Component.translatable("screen.phantasia.placement_editor.label_track").getString(),
+                    px + 8, cy + 2, C_DIM(), false);
+            int tbx = px + 8 +
+                    font.width(Component.translatable("screen.phantasia.placement_editor.label_track").getString()) + 4;
             for (int ti = 0; ti < TRACKS.length; ti++) {
                 String t = TRACKS[ti], tl = TRACK_LABELS[ti];
                 int tw = font.width(tl) + 8;
@@ -602,8 +660,13 @@ public class PhantasiaPlacementEditorScreen extends PhantasiaScreen {
             }
             boolean hasTrack = item.track != null && !"none".equals(item.track);
             if (hasTrack) {
-                g.drawString(font, Component.translatable("screen.phantasia.placement_editor.label_ticks").getString(), tbx + 2, cy + 2, C_DIM(), false);
-                place(editItemDurationBox, tbx + font.width(Component.translatable("screen.phantasia.placement_editor.label_ticks").getString()) + 6, cy, 34, 12);
+                g.drawString(font, Component.translatable("screen.phantasia.placement_editor.label_ticks").getString(),
+                        tbx + 2, cy + 2, C_DIM(), false);
+                place(editItemDurationBox,
+                        tbx + font.width(
+                                Component.translatable("screen.phantasia.placement_editor.label_ticks").getString()) +
+                                6,
+                        cy, 34, 12);
             } else {
                 editItemDurationBox.visible = false;
             }
@@ -612,15 +675,28 @@ public class PhantasiaPlacementEditorScreen extends PhantasiaScreen {
 
         // Description
         if (inClip(cy, clipTop, clipBottom)) {
-            g.drawString(font, Component.translatable("screen.phantasia.placement_editor.label_desc").getString(), px + 8, cy + 2, C_DIM(), false);
-            place(editItemDescBox, px + 8 + font.width(Component.translatable("screen.phantasia.placement_editor.label_desc").getString()) + 4, cy, pw - 20 - font.width(Component.translatable("screen.phantasia.placement_editor.label_desc").getString()) - 4, 12);
+            g.drawString(font, Component.translatable("screen.phantasia.placement_editor.label_desc").getString(),
+                    px + 8, cy + 2, C_DIM(), false);
+            place(editItemDescBox, px + 8 +
+                    font.width(Component.translatable("screen.phantasia.placement_editor.label_desc").getString()) + 4,
+                    cy,
+                    pw - 20 - font.width(
+                            Component.translatable("screen.phantasia.placement_editor.label_desc").getString()) - 4,
+                    12);
         }
         cy += 16;
 
         // Microscene ID
         if (inClip(cy, clipTop, clipBottom)) {
-            g.drawString(font, Component.translatable("screen.phantasia.placement_editor.label_scene").getString(), px + 8, cy + 2, C_DIM(), false);
-            place(editItemMicrosceneBox, px + 8 + font.width(Component.translatable("screen.phantasia.placement_editor.label_scene").getString()) + 4, cy, pw - 20 - font.width(Component.translatable("screen.phantasia.placement_editor.label_scene").getString()) - 4, 12);
+            g.drawString(font, Component.translatable("screen.phantasia.placement_editor.label_scene").getString(),
+                    px + 8, cy + 2, C_DIM(), false);
+            place(editItemMicrosceneBox,
+                    px + 8 + font.width(
+                            Component.translatable("screen.phantasia.placement_editor.label_scene").getString()) + 4,
+                    cy,
+                    pw - 20 - font.width(
+                            Component.translatable("screen.phantasia.placement_editor.label_scene").getString()) - 4,
+                    12);
         }
         cy += 16;
 
@@ -803,8 +879,4 @@ public class PhantasiaPlacementEditorScreen extends PhantasiaScreen {
         if (inClip(y, clipTop, clipBottom))
             g.drawString(font, text, x, y, color, false);
     }
-
-
-
-
 }

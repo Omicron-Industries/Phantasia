@@ -1,13 +1,14 @@
 package net.phoenixvine.phantasia.common.data.variant;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.reflect.TypeToken;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.fml.loading.FMLPaths;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.reflect.TypeToken;
 
 import java.io.Reader;
 import java.io.Writer;
@@ -52,7 +53,8 @@ public final class PhantasiaVariantState {
 
     // ── State ─────────────────────────────────────────────────────────────────
 
-    /** * prefixedGroupId → currently selected option index.
+    /**
+     * * prefixedGroupId → currently selected option index.
      * Persistent cache of the user's preferences across all machines.
      */
     private final Map<String, Integer> selections = new LinkedHashMap<>();
@@ -72,7 +74,7 @@ public final class PhantasiaVariantState {
     private void loadSelections() {
         if (Files.exists(CONFIG_PATH)) {
             try (Reader reader = Files.newBufferedReader(CONFIG_PATH)) {
-                Type type = new TypeToken<Map<String, Integer>>(){}.getType();
+                Type type = new TypeToken<Map<String, Integer>>() {}.getType();
                 Map<String, Integer> loaded = GSON.fromJson(reader, type);
                 if (loaded != null) {
                     this.selections.putAll(loaded);
@@ -186,8 +188,8 @@ public final class PhantasiaVariantState {
 
     @SuppressWarnings("unchecked")
     private static <T extends Comparable<T>> BlockState copyProperty(
-            BlockState target, BlockState source,
-            net.minecraft.world.level.block.state.properties.Property<T> prop) {
+                                                                     BlockState target, BlockState source,
+                                                                     net.minecraft.world.level.block.state.properties.Property<T> prop) {
         try {
             net.minecraft.world.level.block.state.properties.Property<T> targetProp = (net.minecraft.world.level.block.state.properties.Property<T>) target
                     .getBlock().getStateDefinition().getProperty(prop.getName());

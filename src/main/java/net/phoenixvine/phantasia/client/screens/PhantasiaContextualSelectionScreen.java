@@ -1,21 +1,18 @@
 package net.phoenixvine.phantasia.client.screens;
 
-
-
-import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
-
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 import net.phoenixvine.phantasia.common.data.guides.PhantasiaGuideData;
 import net.phoenixvine.phantasia.common.data.scene.PhantasiaSceneData;
 import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockDefinition;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
 
 @OnlyIn(Dist.CLIENT)
 public class PhantasiaContextualSelectionScreen extends PhantasiaScreen {
@@ -33,7 +30,12 @@ public class PhantasiaContextualSelectionScreen extends PhantasiaScreen {
     private static final int CARD_PAD = 12;
     private int hoveredIndex = -1;
 
-    private enum ItemType { SCRIPT, SCENE, GUIDE }
+    private enum ItemType {
+        SCRIPT,
+        SCENE,
+        GUIDE
+    }
+
     private record ContextItem(ItemType type, Object data) {}
 
     public PhantasiaContextualSelectionScreen(IPhantasiaMultiblockDefinition definition,
@@ -65,11 +67,13 @@ public class PhantasiaContextualSelectionScreen extends PhantasiaScreen {
         if (definition != null) {
             name = definition.getDisplayName();
             if (name == null || name.isEmpty()) {
-                name = org.apache.commons.lang3.text.WordUtils.capitalizeFully(definition.getId().getPath().replace('_', ' '));
+                name = org.apache.commons.lang3.text.WordUtils
+                        .capitalizeFully(definition.getId().getPath().replace('_', ' '));
             }
         }
         if (!name.isEmpty()) g.drawCenteredString(font, name, this.width / 2, this.height / 2 - 70, C_ACCENT());
-        g.drawCenteredString(font, Component.translatable("screen.phantasia.context_selection.subtitle").getString(), this.width / 2, this.height / 2 - 58, C_DIM());
+        g.drawCenteredString(font, Component.translatable("screen.phantasia.context_selection.subtitle").getString(),
+                this.width / 2, this.height / 2 - 58, C_DIM());
 
         // Center card grid bounds
         int totalW = items.size() * CARD_W + (items.size() - 1) * CARD_PAD;
@@ -128,18 +132,22 @@ public class PhantasiaContextualSelectionScreen extends PhantasiaScreen {
             case SCENE -> {
                 PhantasiaSceneData scene = (PhantasiaSceneData) item.data();
                 String res = scene.iconItem != null ? scene.iconItem : "minecraft:chest";
-                var rl = res.contains(":") ? new net.minecraft.resources.ResourceLocation(res) : new net.minecraft.resources.ResourceLocation("minecraft", res);
+                var rl = res.contains(":") ? new net.minecraft.resources.ResourceLocation(res) :
+                        new net.minecraft.resources.ResourceLocation("minecraft", res);
                 var resolvedItem = net.minecraftforge.registries.ForgeRegistries.ITEMS.getValue(rl);
-                g.renderItem(new net.minecraft.world.item.ItemStack(resolvedItem != null ? resolvedItem : net.minecraft.world.item.Items.CHEST), 0, 0);
+                g.renderItem(new net.minecraft.world.item.ItemStack(
+                        resolvedItem != null ? resolvedItem : net.minecraft.world.item.Items.CHEST), 0, 0);
                 cardTitle = scene.name != null && !scene.name.isBlank() ? scene.name : "Custom Scene";
                 badgeLabel = "🎬 Scene";
             }
             case GUIDE -> {
                 PhantasiaGuideData guide = (PhantasiaGuideData) item.data();
                 String res = guide.iconItem != null ? guide.iconItem : "minecraft:book";
-                var rl = res.contains(":") ? new net.minecraft.resources.ResourceLocation(res) : new net.minecraft.resources.ResourceLocation("minecraft", res);
+                var rl = res.contains(":") ? new net.minecraft.resources.ResourceLocation(res) :
+                        new net.minecraft.resources.ResourceLocation("minecraft", res);
                 var resolvedItem = net.minecraftforge.registries.ForgeRegistries.ITEMS.getValue(rl);
-                g.renderItem(new net.minecraft.world.item.ItemStack(resolvedItem != null ? resolvedItem : net.minecraft.world.item.Items.BOOK), 0, 0);
+                g.renderItem(new net.minecraft.world.item.ItemStack(
+                        resolvedItem != null ? resolvedItem : net.minecraft.world.item.Items.BOOK), 0, 0);
                 cardTitle = guide.title != null && !guide.title.isBlank() ? guide.title : "Manual Guide";
                 badgeLabel = "📖 Manual";
             }

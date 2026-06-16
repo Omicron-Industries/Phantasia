@@ -3,7 +3,6 @@ package net.phoenixvine.phantasia.client.tutorial;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.phoenixvine.phantasia.client.screens.PhantasiaSceneSelectionScreen;
@@ -38,20 +37,23 @@ public final class PhantasiaTutorials {
             scripts(),
             scenes(),
             devGuides(),
-            devScripts()
-    );
+            devScripts());
 
     // ── Scale helper ──────────────────────────────────────────────────────────
 
-    @FunctionalInterface private interface DrawTask { void run(GuiGraphics g, Font f, PhantasiaTheme t, int tick); }
+    @FunctionalInterface
+    private interface DrawTask {
+
+        void run(GuiGraphics g, Font f, PhantasiaTheme t, int tick);
+    }
 
     private static TutorialSlide.MockRenderer mock(DrawTask task) {
         return (g, mx, my, mw, mh, tick) -> {
             Font f = Minecraft.getInstance().font;
             PhantasiaTheme t = PhantasiaTheme.current();
             float s = Math.min(mw / (float) VW, mh / (float) VH);
-            int ox = mx + (mw - (int)(VW * s)) / 2;
-            int oy = my + (mh - (int)(VH * s)) / 2;
+            int ox = mx + (mw - (int) (VW * s)) / 2;
+            int oy = my + (mh - (int) (VH * s)) / 2;
             g.pose().pushPose();
             g.pose().translate(ox, oy, 0);
             g.pose().scale(s, s, 1f);
@@ -65,10 +67,10 @@ public final class PhantasiaTutorials {
     // SEARCH_H=24, FOOTER_H=30
 
     private static final int SEL_HEADER_H = 52;
-    private static final int SEL_CARD_W   = 104;
-    private static final int SEL_CARD_H   = 86;
+    private static final int SEL_CARD_W = 104;
+    private static final int SEL_CARD_H = 86;
     private static final int SEL_CARD_PAD = 8;
-    private static final int SEL_GRID_W   = 3 * SEL_CARD_W + 2 * SEL_CARD_PAD; // 328
+    private static final int SEL_GRID_W = 3 * SEL_CARD_W + 2 * SEL_CARD_PAD; // 328
 
     private static void drawSelectionScreen(GuiGraphics g, Font f, PhantasiaTheme t, int tick, int activeTab) {
         int gridX = (VW - SEL_GRID_W) / 2;
@@ -83,7 +85,7 @@ public final class PhantasiaTutorials {
         g.drawCenteredString(f, "Multiblock machines, scenes, and guides", VW / 2, 20, C_DIM());
 
         // Tabs — mirror real tab layout (tabY=32)
-        String[] tabLabels = {"Multiblocks", "Scenes", "Guides", "Tutorials"};
+        String[] tabLabels = { "Multiblocks", "Scenes", "Guides", "Tutorials" };
         int tx = gridX;
         for (int i = 0; i < tabLabels.length; i++) {
             int tw = f.width(tabLabels[i]) + 16;
@@ -97,9 +99,9 @@ public final class PhantasiaTutorials {
         // Search box (at HEADER_H + 4)
         int searchY = SEL_HEADER_H + 4;
         g.fill(gridX, searchY, gridX + SEL_GRID_W, searchY + 16, 0xFF0A0A14);
-        g.fill(gridX, searchY,     gridX + SEL_GRID_W, searchY + 1,  0xFF333355);
+        g.fill(gridX, searchY, gridX + SEL_GRID_W, searchY + 1, 0xFF333355);
         g.fill(gridX, searchY + 15, gridX + SEL_GRID_W, searchY + 16, 0xFF333355);
-        g.fill(gridX, searchY,     gridX + 1,           searchY + 16, 0xFF333355);
+        g.fill(gridX, searchY, gridX + 1, searchY + 16, 0xFF333355);
         g.fill(gridX + SEL_GRID_W - 1, searchY, gridX + SEL_GRID_W, searchY + 16, 0xFF333355);
         g.drawString(f, "Search...", gridX + 4, searchY + 4, 0xFF888888, false);
 
@@ -120,9 +122,9 @@ public final class PhantasiaTutorials {
         var machines = PhantasiaSceneSelectionScreen.PHANTASIA_SCENES;
 
         // Fallback names if machines haven't loaded yet
-        String[] fallbackNames  = {"Electric Blast Furnace", "Chemical Reactor", "Macerator",
-                                   "Large Boiler", "Pyrolyse Oven", "Large Turbine"};
-        boolean[] fallbackSteps = {true, true, false, true, false, false};
+        String[] fallbackNames = { "Electric Blast Furnace", "Chemical Reactor", "Macerator",
+                "Large Boiler", "Pyrolyse Oven", "Large Turbine" };
+        boolean[] fallbackSteps = { true, true, false, true, false, false };
 
         for (int i = 0; i < 6; i++) {
             int col = i % 3, row = i / 3;
@@ -152,18 +154,14 @@ public final class PhantasiaTutorials {
             // Machine name
             String name = (i < machines.size()) ? machines.get(i).getDisplayName() : fallbackNames[i];
             if (name == null || name.isEmpty()) {
-                name = (i < machines.size())
-                        ? machines.get(i).getId().getPath().replace('_', ' ')
-                        : fallbackNames[i];
+                name = (i < machines.size()) ? machines.get(i).getId().getPath().replace('_', ' ') : fallbackNames[i];
             }
             if (f.width(name) > SEL_CARD_W - 8)
                 name = f.plainSubstrByWidth(name, SEL_CARD_W - 8 - f.width("...")) + "...";
             g.drawString(f, name, cx + 4, cy + SEL_CARD_H - 22, C_TEXT(), false);
 
             // Green dot + step count
-            boolean hasScript = (i < machines.size())
-                    ? PhantasiaScripts.has(machines.get(i))
-                    : fallbackSteps[i];
+            boolean hasScript = (i < machines.size()) ? PhantasiaScripts.has(machines.get(i)) : fallbackSteps[i];
             if (hasScript) {
                 g.fill(cx + SEL_CARD_W - 8, cy + 4, cx + SEL_CARD_W - 4, cy + 8, C_GREEN());
                 String steps;
@@ -179,8 +177,8 @@ public final class PhantasiaTutorials {
 
     private static void drawGuideCardsSelection(GuiGraphics g, Font f, PhantasiaTheme t, int gridX, int startY) {
         var guides = PhantasiaGuideRegistry.all().stream().limit(6).toList();
-        String[] fallbackTitles = {"Getting Started", "Ore Processing", "Power Setup",
-                                   "EBF Basics", "Recipe Tips", "Material Guide"};
+        String[] fallbackTitles = { "Getting Started", "Ore Processing", "Power Setup",
+                "EBF Basics", "Recipe Tips", "Material Guide" };
         for (int i = 0; i < 6; i++) {
             int col = i % 3, row = i / 3;
             int cx = gridX + col * (SEL_CARD_W + SEL_CARD_PAD);
@@ -202,7 +200,8 @@ public final class PhantasiaTutorials {
         // Section label — mirrors renderTutorialCards() section headers
         g.drawString(f, "For Players", gridX, startY, C_ACCENT(), false);
         startY += 12;
-        String[][] playerTuts = {{"Getting Started", "Overview"}, {"Understanding Guides", "Guides"}, {"Understanding Scripts", "Scripts"}};
+        String[][] playerTuts = { { "Getting Started", "Overview" }, { "Understanding Guides", "Guides" },
+                { "Understanding Scripts", "Scripts" } };
         for (int i = 0; i < 3; i++) {
             int cx = gridX + i * (SEL_CARD_W + SEL_CARD_PAD);
             g.fill(cx, startY, cx + SEL_CARD_W, startY + SEL_CARD_H, (0xBB << 24) | (C_PANEL() & 0x00FFFFFF));
@@ -253,7 +252,7 @@ public final class PhantasiaTutorials {
             g.pose().scale(1.5f, 1.5f, 1f);
             g.drawString(f, headline, 0, 0, 0xFFEEEEFF, false);
             g.pose().popPose();
-            y += (int)(f.lineHeight * 1.5f) + 6;
+            y += (int) (f.lineHeight * 1.5f) + 6;
         } else {
             g.fill(colX, y, colX + colW, y + 1, 0x334FC3F7);
             y += 8;
@@ -382,7 +381,7 @@ public final class PhantasiaTutorials {
         g.fill(previewW, TOP_H, VW, VH, C_BG());
 
         g.drawString(f, "Pages", rpx, TOP_H + 6, C_ACCENT(), false);
-        String[] pages = {"Page 1", "Page 2", "Page 3"};
+        String[] pages = { "Page 1", "Page 2", "Page 3" };
         for (int i = 0; i < pages.length; i++) {
             int py = TOP_H + 18 + i * 18;
             boolean sel = i == (tick / 80) % 3;
@@ -442,7 +441,7 @@ public final class PhantasiaTutorials {
         }
         // Highlight pulsing selection on active blocks
         float pulse = 0.5f + 0.5f * (float) Math.sin(tick * 0.12f);
-        int highlightAlpha = (int)(80 * pulse);
+        int highlightAlpha = (int) (80 * pulse);
         int selBx = bx - (selectedStep % 3) * 8 + 8;
         int selBy = by + (selectedStep % 3) * 9;
         for (int bcol = 0; bcol < 3; bcol++) {
@@ -456,7 +455,7 @@ public final class PhantasiaTutorials {
         g.fill(camPanX, camPanY, vpW - 4, camPanY + 52, 0xCC0B0B18);
         g.fill(camPanX, camPanY, vpW - 4, camPanY + 1, C_ACCENT());
         g.drawString(f, "Camera", camPanX + 4, camPanY + 4, C_DIM(), false);
-        String[] camFields = {"Yaw: -135°", "Pitch: -30°", "Zoom: 40.0"};
+        String[] camFields = { "Yaw: -135°", "Pitch: -30°", "Zoom: 40.0" };
         for (int ci = 0; ci < 3; ci++) {
             g.drawString(f, camFields[ci], camPanX + 4, camPanY + 14 + ci * 11, C_TEXT(), false);
         }
@@ -526,7 +525,7 @@ public final class PhantasiaTutorials {
         // Fake isometric EBF — 5×5×5 blocks rotating slowly
         int cx = VW / 2 - 30, cy = VH / 2 - 20;
         float angle = (tick % 240) / 240f * 2f * (float) Math.PI;
-        int cosA = (int)(Math.cos(angle) * 10);
+        int cosA = (int) (Math.cos(angle) * 10);
         for (int layer = 0; layer < 4; layer++) {
             for (int br = 0; br < 4; br++) {
                 for (int bc = 0; bc < 4; bc++) {
@@ -554,7 +553,8 @@ public final class PhantasiaTutorials {
         g.fill(0, capY, VW - 18, VH, 0xCC080810);
         g.fill(0, capY, VW - 18, capY + 1, 0x33FFFFFF);
         g.drawString(f, machineName, 10, capY + 6, C_ACCENT(), false);
-        g.drawString(f, "Heating Coils — Place GregTech coil blocks in the center ring.", 10, capY + 18, C_TEXT(), false);
+        g.drawString(f, "Heating Coils — Place GregTech coil blocks in the center ring.", 10, capY + 18, C_TEXT(),
+                false);
 
         // Bottom timeline (thin, inside caption strip)
         int tlY = VH - 10;
@@ -576,8 +576,7 @@ public final class PhantasiaTutorials {
 
     private static final List<String> EBF_STEPS = List.of(
             "Introduction", "Foundation Layer", "Casing Walls",
-            "Heating Coils", "Muffler & Maintenance", "Energy Hatch", "Item I/O", "Complete"
-    );
+            "Heating Coils", "Muffler & Maintenance", "Energy Hatch", "Item I/O", "Complete");
 
     // ── Getting Started ───────────────────────────────────────────────────────
 
@@ -589,16 +588,15 @@ public final class PhantasiaTutorials {
                 List.of(
                         TutorialSlide.of("Welcome to Phantasia",
                                 "Phantasia is an interactive guide system built into this modpack.\n\n" +
-                                "It provides 3D machine previews, step-by-step assembly walkthroughs,\n" +
-                                "and rich reference pages — all without leaving the game.")
-                                .mock(mock((g, f, t, tick) ->
-                                        drawSelectionScreen(g, f, t, tick, 0)))
+                                        "It provides 3D machine previews, step-by-step assembly walkthroughs,\n" +
+                                        "and rich reference pages — all without leaving the game.")
+                                .mock(mock((g, f, t, tick) -> drawSelectionScreen(g, f, t, tick, 0)))
                                 .build(),
 
                         TutorialSlide.of("Hold [P] Near a Machine",
                                 "Point at any multiblock machine in the world and hold the P key.\n" +
-                                "A progress bar appears at the bottom of your screen.\n\n" +
-                                "Keep holding until it fills — the viewer opens automatically.")
+                                        "A progress bar appears at the bottom of your screen.\n\n" +
+                                        "Keep holding until it fills — the viewer opens automatically.")
                                 .mock(mock((g, f, t, tick) -> {
                                     // World scene with hold-bar overlay at bottom
                                     g.fill(0, 0, VW, VH, 0xFF060C14);
@@ -634,7 +632,8 @@ public final class PhantasiaTutorials {
                                     g.drawString(f, "[P] Hold to Phantasize", barX + 8, barY + 5, C_TEXT(), false);
                                     // Progress bar
                                     g.fill(barX + 8, barY + 18, barX + barW - 8, barY + 24, 0x33FFFFFF);
-                                    g.fill(barX + 8, barY + 18, barX + 8 + (int)((barW - 16) * pct), barY + 24, C_PROG());
+                                    g.fill(barX + 8, barY + 18, barX + 8 + (int) ((barW - 16) * pct), barY + 24,
+                                            C_PROG());
                                 }))
                                 .cursor(0.5f, 0.4f, 20, 80, false)
                                 .highlight(0.14f, 0.76f, 0.72f, 0.18f, "Hold progress bar")
@@ -642,9 +641,9 @@ public final class PhantasiaTutorials {
 
                         TutorialSlide.of("Browse Everything with /phantasia",
                                 "Type /phantasia to open a searchable list of every multiblock,\n" +
-                                "scene layout, and guide in this pack.\n\n" +
-                                "Use it any time — you don't need to be near a machine.\n" +
-                                "The Tutorials tab is also right here.")
+                                        "scene layout, and guide in this pack.\n\n" +
+                                        "Use it any time — you don't need to be near a machine.\n" +
+                                        "The Tutorials tab is also right here.")
                                 .mock(mock((g, f, t, tick) -> {
                                     int tab = (tick / 80) % 4;
                                     drawSelectionScreen(g, f, t, tick, tab);
@@ -658,15 +657,13 @@ public final class PhantasiaTutorials {
 
                         TutorialSlide.of("You're Ready!",
                                 "That's all you need to know as a player.\n\n" +
-                                "Open the other tabs in Tutorials for deeper dives into\n" +
-                                "guides, scripts, and scenes.\n" +
-                                "Pack authors can check the dev tutorials for more.")
+                                        "Open the other tabs in Tutorials for deeper dives into\n" +
+                                        "guides, scripts, and scenes.\n" +
+                                        "Pack authors can check the dev tutorials for more.")
                                 .mock(mock((g, f, t, tick) -> {
                                     drawSelectionScreen(g, f, t, tick, 3);
                                 }))
-                                .build()
-                )
-        );
+                                .build()));
     }
 
     // ── Understanding Guides ──────────────────────────────────────────────────
@@ -679,39 +676,38 @@ public final class PhantasiaTutorials {
                 List.of(
                         TutorialSlide.of("What is a Guide?",
                                 "A guide is a text-and-item reference document — like a recipe card\n" +
-                                "or lore page. It can have multiple pages you scroll through.\n\n" +
-                                "Find guides in /phantasia under the Guides tab.")
-                                .mock(mock((g, f, t, tick) ->
-                                        drawSelectionScreen(g, f, t, tick, 2)))
+                                        "or lore page. It can have multiple pages you scroll through.\n\n" +
+                                        "Find guides in /phantasia under the Guides tab.")
+                                .mock(mock((g, f, t, tick) -> drawSelectionScreen(g, f, t, tick, 2)))
                                 .highlight(0.56f, 0.10f, 0.20f, 0.09f, "Guides tab")
                                 .build(),
 
                         TutorialSlide.of("Reading a Guide",
                                 "Each page has an optional headline, body text, and an item grid.\n\n" +
-                                "The item grid shows ingredients, outputs, or catalysts.\n" +
-                                "Use the navigation buttons at the bottom to flip pages.")
-                                .mock(mock((g, f, t, tick) ->
-                                        drawGuideScreen(g, f, t,
-                                                "Ore Processing Guide",
-                                                "What Goes In?",
-                                                "Raw iron ore enters the Electric Blast Furnace\nalong with a limestone flux to produce iron ingots.\n\nThe EBF requires a heating coil tier of at least\nCupronickel for basic iron smelting.",
-                                                0, 4)))
+                                        "The item grid shows ingredients, outputs, or catalysts.\n" +
+                                        "Use the navigation buttons at the bottom to flip pages.")
+                                .mock(mock((g, f, t, tick) -> drawGuideScreen(g, f, t,
+                                        "Ore Processing Guide",
+                                        "What Goes In?",
+                                        "Raw iron ore enters the Electric Blast Furnace\nalong with a limestone flux to produce iron ingots.\n\nThe EBF requires a heating coil tier of at least\nCupronickel for basic iron smelting.",
+                                        0, 4)))
                                 .cursor(0.77f, 0.93f, 25, 40, true)
                                 .highlight(0.0f, 0.86f, 1.0f, 0.14f, "Navigation bar")
                                 .build(),
 
                         TutorialSlide.of("Pages and Navigation",
                                 "Use the Next/Prev buttons at the bottom of the guide or press\n" +
-                                "the arrow keys to navigate between pages.\n\n" +
-                                "Press ESC to close and return to the selection screen.")
+                                        "the arrow keys to navigate between pages.\n\n" +
+                                        "Press ESC to close and return to the selection screen.")
                                 .mock(mock((g, f, t, tick) -> {
                                     int page = (tick / 80) % 4;
-                                    String[] headlines = {"What Goes In?", "Energy Requirements", "Output Products", "Advanced Tips"};
+                                    String[] headlines = { "What Goes In?", "Energy Requirements", "Output Products",
+                                            "Advanced Tips" };
                                     String[] bodies = {
-                                        "Raw iron ore + limestone flux in the EBF.",
-                                        "Requires at least 128 EU/t at LV tier.",
-                                        "2x Iron Ingots per ore. Scale up with coil tier.",
-                                        "Use magnetic coils for Steel and higher metals."
+                                            "Raw iron ore + limestone flux in the EBF.",
+                                            "Requires at least 128 EU/t at LV tier.",
+                                            "2x Iron Ingots per ore. Scale up with coil tier.",
+                                            "Use magnetic coils for Steel and higher metals."
                                     };
                                     drawGuideScreen(g, f, t, "Ore Processing Guide",
                                             headlines[page], bodies[page], page, 4);
@@ -724,22 +720,19 @@ public final class PhantasiaTutorials {
 
                         TutorialSlide.of("Cross-Links",
                                 "Guide pages can link to other guides, to scene layouts, or to\n" +
-                                "machine scripts. Clicking a link opens that content directly.\n\n" +
-                                "This lets pack authors build a flowing documentation flow\n" +
-                                "from overview → details → assembly.")
-                                .mock(mock((g, f, t, tick) ->
-                                        drawGuideScreen(g, f, t,
-                                                "EBF Basics",
-                                                "Next Steps",
-                                                "Now that you understand the inputs and outputs,\nyou're ready to build the machine.\n\n" +
+                                        "machine scripts. Clicking a link opens that content directly.\n\n" +
+                                        "This lets pack authors build a flowing documentation flow\n" +
+                                        "from overview → details → assembly.")
+                                .mock(mock((g, f, t, tick) -> drawGuideScreen(g, f, t,
+                                        "EBF Basics",
+                                        "Next Steps",
+                                        "Now that you understand the inputs and outputs,\nyou're ready to build the machine.\n\n" +
                                                 "Continue Reading →\n► View Automated Script →",
-                                                3, 4)))
+                                        3, 4)))
                                 .cursor(0.5f, 0.65f, 20, 30, true)
                                 .cursor(0.5f, 0.73f, 15, 30, true)
                                 .highlight(0.12f, 0.62f, 0.76f, 0.16f, "Cross-link buttons")
-                                .build()
-                )
-        );
+                                .build()));
     }
 
     // ── Understanding Scripts ─────────────────────────────────────────────────
@@ -752,20 +745,20 @@ public final class PhantasiaTutorials {
                 List.of(
                         TutorialSlide.of("What is a Script?",
                                 "A script is a step-by-step 3D walkthrough for a single multiblock.\n\n" +
-                                "It loads the machine into a virtual world preview, then walks you\n" +
-                                "through each layer with camera movements and instructions.\n\n" +
-                                "Open one from /phantasia → Multiblocks.")
-                                .mock(mock((g, f, t, tick) ->
-                                        drawScriptEditor(g, f, t, "Electric Blast Furnace", 0, EBF_STEPS, tick)))
+                                        "It loads the machine into a virtual world preview, then walks you\n" +
+                                        "through each layer with camera movements and instructions.\n\n" +
+                                        "Open one from /phantasia → Multiblocks.")
+                                .mock(mock((g, f, t, tick) -> drawScriptEditor(g, f, t, "Electric Blast Furnace", 0,
+                                        EBF_STEPS, tick)))
                                 .highlight(0.0f, 0.0f, 0.69f, 0.79f, "3D viewport")
                                 .highlight(0.69f, 0.0f, 0.31f, 0.79f, "Step list")
                                 .build(),
 
                         TutorialSlide.of("Following the Steps",
                                 "Each step focuses the camera on a specific part of the machine.\n" +
-                                "The current step is highlighted on the left panel.\n\n" +
-                                "Press Space or click Next to advance through the walkthrough.\n" +
-                                "The machine in the preview updates to match each step.")
+                                        "The current step is highlighted on the left panel.\n\n" +
+                                        "Press Space or click Next to advance through the walkthrough.\n" +
+                                        "The machine in the preview updates to match each step.")
                                 .mock(mock((g, f, t, tick) -> {
                                     int step = (tick / 60) % EBF_STEPS.size();
                                     drawScriptEditor(g, f, t, "Electric Blast Furnace", step, EBF_STEPS, tick);
@@ -778,17 +771,15 @@ public final class PhantasiaTutorials {
 
                         TutorialSlide.of("Variants",
                                 "Scripts detect optional blocks in the machine and expose them\n" +
-                                "as variant toggles in the panel on the right side.\n\n" +
-                                "For the EBF these include coil tier, hatch tier, and\n" +
-                                "optional fusion glass. Your selections persist across sessions.")
+                                        "as variant toggles in the panel on the right side.\n\n" +
+                                        "For the EBF these include coil tier, hatch tier, and\n" +
+                                        "optional fusion glass. Your selections persist across sessions.")
                                 .mock(mock((g, f, t, tick) -> {
                                     // Show the scene viewer (right panel open with variants)
                                     drawSceneViewer(g, f, t, "Electric Blast Furnace", tick);
                                 }))
                                 .highlight(0.87f, 0.0f, 0.13f, 1.0f, "Right panel")
-                                .build()
-                )
-        );
+                                .build()));
     }
 
     // ── Understanding Scenes ──────────────────────────────────────────────────
@@ -801,21 +792,21 @@ public final class PhantasiaTutorials {
                 List.of(
                         TutorialSlide.of("What is a Scene?",
                                 "A scene places multiple machines together at offsets from a\n" +
-                                "shared origin — like a factory floor layout.\n\n" +
-                                "Each machine is controlled independently but shown together\n" +
-                                "in the same 3D preview world.")
-                                .mock(mock((g, f, t, tick) ->
-                                        drawSceneViewer(g, f, t, "Ore Processing Line", tick)))
+                                        "shared origin — like a factory floor layout.\n\n" +
+                                        "Each machine is controlled independently but shown together\n" +
+                                        "in the same 3D preview world.")
+                                .mock(mock((g, f, t, tick) -> drawSceneViewer(g, f, t, "Ore Processing Line", tick)))
                                 .build(),
 
                         TutorialSlide.of("Scene Steps",
                                 "Scene steps walk you through the full multi-machine layout.\n\n" +
-                                "Each step can show specific machines and hide others so you\n" +
-                                "focus on one part of the production chain at a time.")
+                                        "Each step can show specific machines and hide others so you\n" +
+                                        "focus on one part of the production chain at a time.")
                                 .mock(mock((g, f, t, tick) -> {
                                     int step = (tick / 70) % 6;
                                     drawScriptEditor(g, f, t, "Ore Processing Line", step,
-                                            List.of("Overview", "EBF Setup", "Chem Reactor", "Macerators", "Power I/O", "Finished"),
+                                            List.of("Overview", "EBF Setup", "Chem Reactor", "Macerators", "Power I/O",
+                                                    "Finished"),
                                             tick);
                                 }))
                                 .cursor(0.85f, 0.25f, 20, 50, true)
@@ -825,21 +816,18 @@ public final class PhantasiaTutorials {
 
                         TutorialSlide.of("Mistakes",
                                 "Scenes can include layout validation hints called Mistakes.\n\n" +
-                                "Each mistake has a severity (Info / Warning / Error) and appears\n" +
-                                "in the guide view for the scene — helping players avoid common\n" +
-                                "assembly errors before they make them.")
-                                .mock(mock((g, f, t, tick) ->
-                                        drawGuideScreen(g, f, t,
-                                                "Ore Processing Line",
-                                                "Layout Notes",
-                                                "ℹ Optimal spacing between EBF and Chem Reactor: 4 blocks\n" +
+                                        "Each mistake has a severity (Info / Warning / Error) and appears\n" +
+                                        "in the guide view for the scene — helping players avoid common\n" +
+                                        "assembly errors before they make them.")
+                                .mock(mock((g, f, t, tick) -> drawGuideScreen(g, f, t,
+                                        "Ore Processing Line",
+                                        "Layout Notes",
+                                        "ℹ Optimal spacing between EBF and Chem Reactor: 4 blocks\n" +
                                                 "⚠ Coolant pipe required on Chemical Reactor south face\n" +
                                                 "✖ Power distribution overflow if EBF and Turbine share bus",
-                                                2, 5)))
+                                        2, 5)))
                                 .highlight(0.0f, 0.45f, 1.0f, 0.35f, "Mistake banners")
-                                .build()
-                )
-        );
+                                .build()));
     }
 
     // ── Dev: Creating Guides ──────────────────────────────────────────────────
@@ -852,25 +840,23 @@ public final class PhantasiaTutorials {
                 List.of(
                         TutorialSlide.of("Opening the Guide Editor",
                                 "Go to /phantasia → Guides tab → click the '+ New Guide' card.\n\n" +
-                                "The editor opens with a blank guide ready to fill in.\n" +
-                                "Give it a unique ID (e.g. yourmod:my_guide), a title, and an icon.")
-                                .mock(mock((g, f, t, tick) ->
-                                        drawSelectionScreen(g, f, t, tick, 2)))
+                                        "The editor opens with a blank guide ready to fill in.\n" +
+                                        "Give it a unique ID (e.g. yourmod:my_guide), a title, and an icon.")
+                                .mock(mock((g, f, t, tick) -> drawSelectionScreen(g, f, t, tick, 2)))
                                 .cursor(0.17f, 0.58f, 30, 50, true)
                                 .highlight(0.04f, 0.52f, 0.34f, 0.40f, "+ New Guide card")
                                 .build(),
 
                         TutorialSlide.of("The Guide Editor",
                                 "The left panel is your writing area.\n\n" +
-                                "Type a Headline (shown large at the top of the page) and\n" +
-                                "Body Text below it. Pages are listed in the right panel.\n" +
-                                "Click '+ Add Page' to add more pages.")
-                                .mock(mock((g, f, t, tick) ->
-                                        drawGuideEditor(g, f, t,
-                                                "Ore Processing Guide",
-                                                "What Goes In?",
-                                                "Raw iron ore enters the Electric Blast Furnace\nalong with a limestone flux.\n\nCoil tier must be at least Cupronickel.",
-                                                tick)))
+                                        "Type a Headline (shown large at the top of the page) and\n" +
+                                        "Body Text below it. Pages are listed in the right panel.\n" +
+                                        "Click '+ Add Page' to add more pages.")
+                                .mock(mock((g, f, t, tick) -> drawGuideEditor(g, f, t,
+                                        "Ore Processing Guide",
+                                        "What Goes In?",
+                                        "Raw iron ore enters the Electric Blast Furnace\nalong with a limestone flux.\n\nCoil tier must be at least Cupronickel.",
+                                        tick)))
                                 .cursor(0.35f, 0.37f, 20, 40, true)
                                 .cursor(0.35f, 0.65f, 15, 40, true)
                                 .highlight(0.0f, 0.25f, 0.54f, 0.14f, "Headline editor")
@@ -879,15 +865,14 @@ public final class PhantasiaTutorials {
 
                         TutorialSlide.of("Managing Pages",
                                 "Click a page in the right panel list to select and edit it.\n" +
-                                "Click '+ Add Page' to create a new blank page.\n\n" +
-                                "Use Ctrl+S or the Save button to write the guide to disk.\n" +
-                                "It immediately appears in /phantasia for all players.")
-                                .mock(mock((g, f, t, tick) ->
-                                        drawGuideEditor(g, f, t,
-                                                "Ore Processing Guide",
-                                                "Energy Requirements",
-                                                "The EBF requires at least 128 EU/t at LV tier.\nHigher coil tiers unlock hotter temperatures\nfor producing Steel, Aluminium, and beyond.",
-                                                tick)))
+                                        "Click '+ Add Page' to create a new blank page.\n\n" +
+                                        "Use Ctrl+S or the Save button to write the guide to disk.\n" +
+                                        "It immediately appears in /phantasia for all players.")
+                                .mock(mock((g, f, t, tick) -> drawGuideEditor(g, f, t,
+                                        "Ore Processing Guide",
+                                        "Energy Requirements",
+                                        "The EBF requires at least 128 EU/t at LV tier.\nHigher coil tiers unlock hotter temperatures\nfor producing Steel, Aluminium, and beyond.",
+                                        tick)))
                                 .cursor(0.65f, 0.38f, 20, 30, true)
                                 .cursor(0.65f, 0.56f, 15, 30, true)
                                 .cursor(0.72f, 0.88f, 20, 40, true)
@@ -896,9 +881,9 @@ public final class PhantasiaTutorials {
 
                         TutorialSlide.of("Preview and Save",
                                 "Click '▶ Preview' to open the guide reader and see exactly\n" +
-                                "what players will see — including cross-links and item cards.\n\n" +
-                                "Click '💾 Save' to write to disk immediately.\n" +
-                                "The guide reloads for all players without a restart.")
+                                        "what players will see — including cross-links and item cards.\n\n" +
+                                        "Click '💾 Save' to write to disk immediately.\n" +
+                                        "The guide reloads for all players without a restart.")
                                 .mock(mock((g, f, t, tick) -> {
                                     boolean inPreview = (tick / 80) % 2 == 1;
                                     if (inPreview) {
@@ -909,16 +894,15 @@ public final class PhantasiaTutorials {
                                     } else {
                                         drawGuideEditor(g, f, t, "Ore Processing Guide",
                                                 "What Goes In?",
-                                                "Raw iron ore + limestone flux in the EBF.\nCoil tier: at least Cupronickel.", tick);
+                                                "Raw iron ore + limestone flux in the EBF.\nCoil tier: at least Cupronickel.",
+                                                tick);
                                     }
                                 }))
                                 .cursor(0.83f, 0.06f, 20, 50, true)
                                 .cursor(0.5f, 0.5f, 20, 60, false)
                                 .cursor(0.91f, 0.06f, 20, 50, true)
                                 .highlight(0.76f, 0.02f, 0.24f, 0.10f, "Preview & Save")
-                                .build()
-                )
-        );
+                                .build()));
     }
 
     // ── Dev: Writing Scripts ──────────────────────────────────────────────────
@@ -931,23 +915,21 @@ public final class PhantasiaTutorials {
                 List.of(
                         TutorialSlide.of("Opening the Script Editor",
                                 "Go to /phantasia → Multiblocks tab, find your machine (e.g.\n" +
-                                "Electric Blast Furnace), and click to open the viewer.\n\n" +
-                                "The script editor icon is in the right panel. A blank script\n" +
-                                "is created for you if none exists yet.")
-                                .mock(mock((g, f, t, tick) ->
-                                        drawSelectionScreen(g, f, t, tick, 0)))
+                                        "Electric Blast Furnace), and click to open the viewer.\n\n" +
+                                        "The script editor icon is in the right panel. A blank script\n" +
+                                        "is created for you if none exists yet.")
+                                .mock(mock((g, f, t, tick) -> drawSelectionScreen(g, f, t, tick, 0)))
                                 .cursor(0.17f, 0.58f, 25, 50, true)
                                 .highlight(0.04f, 0.52f, 0.34f, 0.40f, "Open EBF card")
                                 .build(),
 
                         TutorialSlide.of("Adding Steps",
                                 "Click '+ Add Step' at the bottom of the step list.\n\n" +
-                                "Each step has a caption (the text shown to the player),\n" +
-                                "a show mode (All / Layer / Range / Parts), and an optional\n" +
-                                "camera animation. The EBF script uses one step per layer.")
-                                .mock(mock((g, f, t, tick) ->
-                                        drawScriptEditor(g, f, t, "Electric Blast Furnace",
-                                                (tick / 50) % EBF_STEPS.size(), EBF_STEPS, tick)))
+                                        "Each step has a caption (the text shown to the player),\n" +
+                                        "a show mode (All / Layer / Range / Parts), and an optional\n" +
+                                        "camera animation. The EBF script uses one step per layer.")
+                                .mock(mock((g, f, t, tick) -> drawScriptEditor(g, f, t, "Electric Blast Furnace",
+                                        (tick / 50) % EBF_STEPS.size(), EBF_STEPS, tick)))
                                 .cursor(0.83f, 0.90f, 25, 40, true)
                                 .cursor(0.83f, 0.25f, 20, 40, true)
                                 .highlight(0.69f, 0.84f, 0.31f, 0.12f, "+ Add Step")
@@ -955,11 +937,11 @@ public final class PhantasiaTutorials {
 
                         TutorialSlide.of("Setting the Camera",
                                 "For each step, set the camera's yaw, pitch, and zoom in the\n" +
-                                "floating Camera panel (top-right of the 3D viewport).\n\n" +
-                                "Set Lerp Type to SPRING for natural camera movement between\n" +
-                                "steps, and Lerp Ticks to 20–30 for smooth transitions.")
-                                .mock(mock((g, f, t, tick) ->
-                                        drawScriptEditor(g, f, t, "Electric Blast Furnace", 2, EBF_STEPS, tick)))
+                                        "floating Camera panel (top-right of the 3D viewport).\n\n" +
+                                        "Set Lerp Type to SPRING for natural camera movement between\n" +
+                                        "steps, and Lerp Ticks to 20–30 for smooth transitions.")
+                                .mock(mock((g, f, t, tick) -> drawScriptEditor(g, f, t, "Electric Blast Furnace", 2,
+                                        EBF_STEPS, tick)))
                                 .cursor(0.61f, 0.13f, 20, 30, false)
                                 .cursor(0.61f, 0.20f, 10, 25, false)
                                 .cursor(0.61f, 0.27f, 10, 25, false)
@@ -968,17 +950,15 @@ public final class PhantasiaTutorials {
 
                         TutorialSlide.of("Save and Test",
                                 "Click 'Save Script' (bottom-right of editor) to write to disk.\n\n" +
-                                "Then press [P] while looking at the real machine in the world\n" +
-                                "to run your script live — no restart needed.\n\n" +
-                                "Iterate fast: save → test in world → come back and tweak.")
+                                        "Then press [P] while looking at the real machine in the world\n" +
+                                        "to run your script live — no restart needed.\n\n" +
+                                        "Iterate fast: save → test in world → come back and tweak.")
                                 .mock(mock((g, f, t, tick) -> {
                                     int step = (tick / 40) % EBF_STEPS.size();
                                     drawScriptEditor(g, f, t, "Electric Blast Furnace", step, EBF_STEPS, tick);
                                 }))
                                 .cursor(0.87f, 0.90f, 20, 40, true)
                                 .highlight(0.72f, 0.86f, 0.28f, 0.10f, "Save Script")
-                                .build()
-                )
-        );
+                                .build()));
     }
 }

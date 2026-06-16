@@ -1,7 +1,5 @@
 package net.phoenixvine.phantasia.client.screens;
 
-import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
-
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
@@ -16,7 +14,6 @@ import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.phoenixvine.phantasia.client.screens.editors.PhantasiaGuideEditorScreen;
 import net.phoenixvine.phantasia.client.screens.editors.PhantasiaSceneEditorScreen;
-import net.phoenixvine.phantasia.client.screens.PhantasiaItemMicrosceneScreen;
 import net.phoenixvine.phantasia.common.data.guides.PhantasiaGuideData;
 import net.phoenixvine.phantasia.common.data.guides.PhantasiaGuideData.PageData;
 import net.phoenixvine.phantasia.common.data.guides.PhantasiaGuideRegistry;
@@ -25,6 +22,8 @@ import net.phoenixvine.phantasia.common.data.scene.PhantasiaScenes;
 import net.phoenixvine.phantasia.common.data.script.PhantasiaScripts;
 
 import java.util.*;
+
+import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
 
 /**
  * PhantasiaGuideScreen — GuideME-style reader.
@@ -81,8 +80,6 @@ public class PhantasiaGuideScreen extends PhantasiaScreen {
     private int pageIndex = 0;
     private int scrollY = 0;
     private int lastContentH = 0;
-
-
 
     public PhantasiaGuideScreen(Screen parent, PhantasiaGuideData guide) {
         super(Component.literal(guide.title));
@@ -275,7 +272,8 @@ public class PhantasiaGuideScreen extends PhantasiaScreen {
         if (!page.cards().isEmpty()) {
             g.fill(colX, y, colX + colW, y + 1, C_RULE);
             y += 6;
-            g.drawString(font, Component.translatable("screen.phantasia.guide.label_items").getString(), colX, y, C_DIM(), false);
+            g.drawString(font, Component.translatable("screen.phantasia.guide.label_items").getString(), colX, y,
+                    C_DIM(), false);
             y += font.lineHeight + 6;
 
             int perRow = Math.max(1, (colW + CARD_GAP) / (CARD_W + CARD_GAP));
@@ -464,7 +462,8 @@ public class PhantasiaGuideScreen extends PhantasiaScreen {
         boolean hov = enabled && isOver(mx, my, x, y, w, h);
         g.fill(x, y, x + w, y + h, hov ? C_BTN_HOV() : (enabled ? C_BTN() : 0x33111128));
         if (hov) g.fill(x, y, x + w, y + 1, C_ACCENT());
-        g.drawCenteredString(font, label, x + w / 2, y + (h - 8) / 2, hov ? C_ACCENT() : (enabled ? C_TEXT() : C_DIM()));
+        g.drawCenteredString(font, label, x + w / 2, y + (h - 8) / 2,
+                hov ? C_ACCENT() : (enabled ? C_TEXT() : C_DIM()));
         if (enabled) btns.add(new Btn(x, y, w, h, action));
     }
 
@@ -541,7 +540,8 @@ public class PhantasiaGuideScreen extends PhantasiaScreen {
             boolean hovClose = isOver(mx, my, bxClose, by, closeBtnW, btnH);
             g.fill(bxClose, by, bxClose + closeBtnW, by + btnH, hovClose ? 0xBB1A2840 : 0xBB151528);
             g.renderOutline(bxClose, by, closeBtnW, btnH, 0xFF4FC3F7);
-            g.drawCenteredString(font, Component.translatable("screen.phantasia.guide.btn_close").getString(), bxClose + closeBtnW / 2, by + 3, hovClose ? 0xFF4FC3F7 : 0xFFDDDDDD);
+            g.drawCenteredString(font, Component.translatable("screen.phantasia.guide.btn_close").getString(),
+                    bxClose + closeBtnW / 2, by + 3, hovClose ? 0xFF4FC3F7 : 0xFFDDDDDD);
             btns.add(new Btn(bxClose, by, closeBtnW, btnH, () -> preview3DCard = null));
 
             String linkLabel = hasGuide ? "▶ Guide" : "▶ Scene";
@@ -566,7 +566,8 @@ public class PhantasiaGuideScreen extends PhantasiaScreen {
             boolean hov = isOver(mx, my, bx, by, btnW, btnH);
             g.fill(bx, by, bx + btnW, by + btnH, hov ? 0xBB1A2840 : 0xBB151528);
             g.renderOutline(bx, by, btnW, btnH, 0xFF4FC3F7);
-            g.drawCenteredString(font, Component.translatable("screen.phantasia.guide.btn_close").getString(), bx + btnW / 2, by + 3, hov ? 0xFF4FC3F7 : 0xFFDDDDDD);
+            g.drawCenteredString(font, Component.translatable("screen.phantasia.guide.btn_close").getString(),
+                    bx + btnW / 2, by + 3, hov ? 0xFF4FC3F7 : 0xFFDDDDDD);
             btns.add(new Btn(bx, by, btnW, btnH, () -> preview3DCard = null));
         }
 
@@ -685,8 +686,6 @@ public class PhantasiaGuideScreen extends PhantasiaScreen {
     private static ItemStack resolveStack(CardEntry ce) {
         return ce == null ? ItemStack.EMPTY : resolveStack(ce.item());
     }
-
-
 
     private void topBtnLeft(GuiGraphics g, int mx, int my, int x, String label, Runnable action) {
         int bw = font.width(label) + 12;

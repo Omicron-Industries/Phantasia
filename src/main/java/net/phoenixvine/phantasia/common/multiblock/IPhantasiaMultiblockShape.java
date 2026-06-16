@@ -7,6 +7,7 @@ import com.lowdragmc.lowdraglib.utils.BlockInfo;
  * GTCEu wraps {@code MultiblockShapeInfo} here; other mods provide their own impl.
  */
 public interface IPhantasiaMultiblockShape {
+
     /** Raw block grid for this shape: [x][y][z]. Null entries are air. */
     BlockInfo[][][] getBlocks();
 }

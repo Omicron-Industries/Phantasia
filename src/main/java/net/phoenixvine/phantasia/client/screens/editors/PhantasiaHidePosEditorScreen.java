@@ -1,7 +1,5 @@
 package net.phoenixvine.phantasia.client.screens.editors;
 
-import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
-
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
@@ -36,8 +34,6 @@ import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
  */
 @OnlyIn(Dist.CLIENT)
 public class PhantasiaHidePosEditorScreen extends Screen {
-
-
 
     private static final int TOP_BAR_H = 22;
     private static final int BOTTOM_H = 36;
@@ -193,7 +189,8 @@ public class PhantasiaHidePosEditorScreen extends Screen {
             g.fill(doneX, 3, doneX + doneW, 4, C_ACCENT());
             g.fill(doneX, TOP_BAR_H - 4, doneX + doneW, TOP_BAR_H - 3, C_ACCENT());
         }
-        g.drawString(font, Component.translatable("screen.phantasia.hide_pos_editor.btn_done").getString(), doneX + 6, (TOP_BAR_H - 8) / 2, doneHov ? C_GREEN() : C_TEXT(), false);
+        g.drawString(font, Component.translatable("screen.phantasia.hide_pos_editor.btn_done").getString(), doneX + 6,
+                (TOP_BAR_H - 8) / 2, doneHov ? C_GREEN() : C_TEXT(), false);
         btns.add(new Btn(doneX, 3, doneW, TOP_BAR_H - 6, this::close));
 
         // Clear all button
@@ -201,7 +198,8 @@ public class PhantasiaHidePosEditorScreen extends Screen {
         int clrX = doneX - 4 - clrW;
         boolean clrHov = isOver(mx, my, clrX, 3, clrW, TOP_BAR_H - 6);
         g.fill(clrX, 3, clrX + clrW, TOP_BAR_H - 3, clrHov ? C_BTN_HOV() : C_BTN());
-        g.drawString(font, Component.translatable("screen.phantasia.hide_pos_editor.btn_clear").getString(), clrX + 6, (TOP_BAR_H - 8) / 2, clrHov ? C_RED() : C_TEXT(), false);
+        g.drawString(font, Component.translatable("screen.phantasia.hide_pos_editor.btn_clear").getString(), clrX + 6,
+                (TOP_BAR_H - 8) / 2, clrHov ? C_RED() : C_TEXT(), false);
         btns.add(new Btn(clrX, 3, clrW, TOP_BAR_H - 6, () -> {
             parent.checkpoint();
             step().hidePositions.clear();
@@ -211,9 +209,12 @@ public class PhantasiaHidePosEditorScreen extends Screen {
 
         // Hint: click block in viewport to hide it
         if (hoveredViewportPos != null) {
-            g.drawString(font, Component.translatable("screen.phantasia.hide_pos_editor.hint_click").getString(), 8, (TOP_BAR_H - 8) / 2, C_DIM(), false);
+            g.drawString(font, Component.translatable("screen.phantasia.hide_pos_editor.hint_click").getString(), 8,
+                    (TOP_BAR_H - 8) / 2, C_DIM(), false);
         } else {
-            g.drawString(font, Component.translatable("screen.phantasia.hide_pos_editor.hint_click_verbose").getString(), 8, (TOP_BAR_H - 8) / 2, C_DIM(), false);
+            g.drawString(font,
+                    Component.translatable("screen.phantasia.hide_pos_editor.hint_click_verbose").getString(), 8,
+                    (TOP_BAR_H - 8) / 2, C_DIM(), false);
         }
     }
 
@@ -226,7 +227,8 @@ public class PhantasiaHidePosEditorScreen extends Screen {
 
         // Panel header
         g.fill(px, TOP_BAR_H, this.width, TOP_BAR_H + 14, C_BAR());
-        g.drawString(font, Component.translatable("screen.phantasia.hide_pos_editor.section_positions").getString(), px + 6, TOP_BAR_H + 3, C_ACCENT(), false);
+        g.drawString(font, Component.translatable("screen.phantasia.hide_pos_editor.section_positions").getString(),
+                px + 6, TOP_BAR_H + 3, C_ACCENT(), false);
 
         renderList(g, mx, my, px);
         renderBottomStrip(g, mx, my, px);
@@ -247,7 +249,8 @@ public class PhantasiaHidePosEditorScreen extends Screen {
         if (positions.isEmpty()) {
             g.drawCenteredString(font, Component.translatable("screen.phantasia.hide_pos_editor.empty").getString(),
                     px + PANEL_W / 2, listTop + listH / 2 - 4, C_DIM());
-            g.drawCenteredString(font, Component.translatable("screen.phantasia.hide_pos_editor.empty_hint").getString(),
+            g.drawCenteredString(font,
+                    Component.translatable("screen.phantasia.hide_pos_editor.empty_hint").getString(),
                     px + PANEL_W / 2, listTop + listH / 2 + 6, C_DIM());
             return;
         }
@@ -315,14 +318,16 @@ public class PhantasiaHidePosEditorScreen extends Screen {
         g.fill(px, barY, px + 1, this.height, C_ACCENT());
         g.fill(px + 1, barY, this.width, barY + 1, 0x33FFFFFF);
 
-        g.drawString(font, Component.translatable("screen.phantasia.hide_pos_editor.label_add").getString(), px + 6, barY + 11, C_DIM(), false);
+        g.drawString(font, Component.translatable("screen.phantasia.hide_pos_editor.label_add").getString(), px + 6,
+                barY + 11, C_DIM(), false);
         // addBox is positioned in init; just draw the Add button beside it
         int addBtnX = this.width - PANEL_W + 4 + (PANEL_W - 60) + 4;
         boolean addHov = isOver(mx, my, addBtnX, barY + 8, 44, 16);
         g.fill(addBtnX, barY + 8, addBtnX + 44, barY + 24,
                 addHov ? C_BTN_HOV() : C_BTN());
         if (addHov) g.fill(addBtnX, barY + 8, addBtnX + 44, barY + 9, C_ACCENT());
-        g.drawCenteredString(font, Component.translatable("screen.phantasia.hide_pos_editor.btn_add").getString(), addBtnX + 22, barY + 11,
+        g.drawCenteredString(font, Component.translatable("screen.phantasia.hide_pos_editor.btn_add").getString(),
+                addBtnX + 22, barY + 11,
                 addHov ? C_ACCENT() : C_TEXT());
         btns.add(new Btn(addBtnX, barY + 8, 44, 16, this::tryAdd));
 
@@ -428,7 +433,8 @@ public class PhantasiaHidePosEditorScreen extends Screen {
 
             for (int[] p : step().hidePositions)
                 if (p.length >= 3 && p[0] == x && p[1] == y && p[2] == z) {
-                    addError = Component.translatable("screen.phantasia.hide_pos_editor.err_already_hidden").getString();
+                    addError = Component.translatable("screen.phantasia.hide_pos_editor.err_already_hidden")
+                            .getString();
                     return;
                 }
 

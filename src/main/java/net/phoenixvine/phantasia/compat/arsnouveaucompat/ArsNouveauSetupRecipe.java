@@ -21,12 +21,12 @@ public class ArsNouveauSetupRecipe implements IPhantasiaSetupRecipe {
     private final Map<BlockPos, ItemStack> itemPlacements;
 
     public ArsNouveauSetupRecipe(
-            ResourceLocation id,
-            ItemStack output,
-            List<ItemStack> inputs,
-            int sourceCost,
-            BlockInfo[][][] layout,
-            Map<BlockPos, ItemStack> itemPlacements) {
+                                 ResourceLocation id,
+                                 ItemStack output,
+                                 List<ItemStack> inputs,
+                                 int sourceCost,
+                                 BlockInfo[][][] layout,
+                                 Map<BlockPos, ItemStack> itemPlacements) {
         this.id = id;
         this.output = output;
         this.inputs = inputs;
@@ -35,10 +35,33 @@ public class ArsNouveauSetupRecipe implements IPhantasiaSetupRecipe {
         this.itemPlacements = itemPlacements;
     }
 
-    @Override public ResourceLocation getId() { return id; }
-    @Override public ItemStack getOutput() { return output; }
-    @Override public List<ItemStack> getInputItems() { return inputs; }
-    @Override public Map<BlockPos, ItemStack> getItemPlacements() { return itemPlacements; }
-    @Override public BlockInfo[][][] getLayout() { return layout; }
-    @Override public int getSourceCost() { return sourceCost; }
+    @Override
+    public ResourceLocation getId() {
+        return id;
+    }
+
+    @Override
+    public ItemStack getOutput() {
+        return output;
+    }
+
+    @Override
+    public List<ItemStack> getInputItems() {
+        return inputs;
+    }
+
+    @Override
+    public Map<BlockPos, ItemStack> getItemPlacements() {
+        return itemPlacements;
+    }
+
+    @Override
+    public BlockInfo[][][] getLayout() {
+        return layout;
+    }
+
+    @Override
+    public int getSourceCost() {
+        return sourceCost;
+    }
 }

@@ -1,7 +1,5 @@
 package net.phoenixvine.phantasia.client.screens.editors;
 
-import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
-
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
@@ -11,12 +9,16 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
 import net.phoenixvine.phantasia.utils.PhantasiaTheme;
 import net.phoenixvine.phantasia.utils.PhantasiaThemeUtils;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Stack;
 
+import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
+
 public class PhantasiaThemeEditorScreen extends Screen {
+
     private final Screen parent;
     private final List<EditBoxWrapper> editBoxes = new ArrayList<>();
     private final List<CategoryHeader> categories = new ArrayList<>();
@@ -28,15 +30,20 @@ public class PhantasiaThemeEditorScreen extends Screen {
     private final List<String> pendingDeletions = new ArrayList<>();
 
     // ── UX Preservation Records & Undo Stack ──
-    private enum UndoType { COLOR_EDIT, THEME_DELETE }
-    private record ThemeSnapshot(String bg, String panel, String accent, String btn, String btnHov, String text, String dim, String prog, String hilight, String baseplateBlock, String name) {}
+    private enum UndoType {
+        COLOR_EDIT,
+        THEME_DELETE
+    }
+
+    private record ThemeSnapshot(String bg, String panel, String accent, String btn, String btnHov, String text,
+                                 String dim, String prog, String hilight, String baseplateBlock, String name) {}
+
     private record CategoryHeader(String title, int x, int y) {}
 
     private record UndoEntry(
-            UndoType type,
-            ThemeSnapshot colorSnapshot,
-            String deletedName
-    ) {}
+                             UndoType type,
+                             ThemeSnapshot colorSnapshot,
+                             String deletedName) {}
 
     private final Stack<UndoEntry> undoStack = new Stack<>();
     private ThemeSnapshot savedSnapshot;
@@ -74,11 +81,15 @@ public class PhantasiaThemeEditorScreen extends Screen {
         int startY = 38;
         int rowHeight = (this.height > 360) ? 20 : 17;
 
-        categories.add(new CategoryHeader("■ Base Layers", startX + 5, startY)); startY += 12;
-        addSettingField("BG Color", active.bg, startX, startY, sidebarWidth - 75); startY += rowHeight;
-        addSettingField("Panel Color", active.panel, startX, startY, sidebarWidth - 75); startY += rowHeight;
+        categories.add(new CategoryHeader("■ Base Layers", startX + 5, startY));
+        startY += 12;
+        addSettingField("BG Color", active.bg, startX, startY, sidebarWidth - 75);
+        startY += rowHeight;
+        addSettingField("Panel Color", active.panel, startX, startY, sidebarWidth - 75);
+        startY += rowHeight;
 
-        baseplateBox = new EditBox(this.font, startX + 65, startY, sidebarWidth - 75, 16, Component.literal("Baseplate"));
+        baseplateBox = new EditBox(this.font, startX + 65, startY, sidebarWidth - 75, 16,
+                Component.literal("Baseplate"));
         baseplateBox.setMaxLength(128);
         baseplateBox.setValue(active.baseplateBlock != null ? active.baseplateBlock : "minecraft:deepslate_bricks");
         baseplateBox.setHint(Component.literal("e.g. minecraft:stone_bricks"));
@@ -90,21 +101,31 @@ public class PhantasiaThemeEditorScreen extends Screen {
         this.addWidget(baseplateBox);
         startY += rowHeight + 6;
 
-        categories.add(new CategoryHeader("■ Typography System", startX + 5, startY)); startY += 12;
-        addSettingField("Text Color", active.text, startX, startY, sidebarWidth - 75); startY += rowHeight;
-        addSettingField("Dim Color", active.dim, startX, startY, sidebarWidth - 75); startY += rowHeight + 6;
+        categories.add(new CategoryHeader("■ Typography System", startX + 5, startY));
+        startY += 12;
+        addSettingField("Text Color", active.text, startX, startY, sidebarWidth - 75);
+        startY += rowHeight;
+        addSettingField("Dim Color", active.dim, startX, startY, sidebarWidth - 75);
+        startY += rowHeight + 6;
 
-        categories.add(new CategoryHeader("■ Accent & Buttons", startX + 5, startY)); startY += 12;
-        addSettingField("Accent", active.accent, startX, startY, sidebarWidth - 75); startY += rowHeight;
-        addSettingField("Btn Color", active.btn, startX, startY, sidebarWidth - 75); startY += rowHeight;
-        addSettingField("Btn Hover", active.btnHov, startX, startY, sidebarWidth - 75); startY += rowHeight + 6;
+        categories.add(new CategoryHeader("■ Accent & Buttons", startX + 5, startY));
+        startY += 12;
+        addSettingField("Accent", active.accent, startX, startY, sidebarWidth - 75);
+        startY += rowHeight;
+        addSettingField("Btn Color", active.btn, startX, startY, sidebarWidth - 75);
+        startY += rowHeight;
+        addSettingField("Btn Hover", active.btnHov, startX, startY, sidebarWidth - 75);
+        startY += rowHeight + 6;
 
-        categories.add(new CategoryHeader("■ Feedback Indicators", startX + 5, startY)); startY += 12;
-        addSettingField("Progress", active.prog, startX, startY, sidebarWidth - 75); startY += rowHeight;
+        categories.add(new CategoryHeader("■ Feedback Indicators", startX + 5, startY));
+        startY += 12;
+        addSettingField("Progress", active.prog, startX, startY, sidebarWidth - 75);
+        startY += rowHeight;
         addSettingField("Highlight", active.hilight, startX, startY, sidebarWidth - 75);
 
         int controlY = Math.max(startY + 22, this.height - 65);
-        this.nameInput = new EditBox(this.font, this.width - sidebarWidth + 10, controlY, sidebarWidth - 20, 16, Component.literal(Component.translatable("screen.phantasia.theme_editor.label_theme_id").getString()));
+        this.nameInput = new EditBox(this.font, this.width - sidebarWidth + 10, controlY, sidebarWidth - 20, 16,
+                Component.literal(Component.translatable("screen.phantasia.theme_editor.label_theme_id").getString()));
         this.nameInput.setValue(currentName);
         this.nameInput.setResponder(str -> confirmWarningActive = false);
         this.addWidget(this.nameInput);
@@ -112,20 +133,22 @@ public class PhantasiaThemeEditorScreen extends Screen {
         int btnW = sidebarWidth - 20;
         int btnX = this.width - sidebarWidth + 10;
 
-        this.addRenderableWidget(Button.builder(Component.translatable("screen.phantasia.theme_editor.btn_save"), b -> triggerSaveAction())
+        this.addRenderableWidget(Button
+                .builder(Component.translatable("screen.phantasia.theme_editor.btn_save"), b -> triggerSaveAction())
                 .bounds(btnX, controlY + 20, btnW, 18).build());
 
-        this.addRenderableWidget(Button.builder(Component.literal(Component.translatable("screen.phantasia.theme_editor.btn_exit").getString()), b -> {
-            if (hasUnsavedChanges()) {
-                if (!confirmWarningActive || !"EXIT".equals(pendingAction)) {
-                    confirmWarningActive = true;
-                    pendingAction = "EXIT";
-                    return;
-                }
-                restoreSnapshot(savedSnapshot);
-            }
-            this.onClose(); // Route exit cleanly through lifecycle cleanup
-        }).bounds(btnX, controlY + 40, btnW, 18).build());
+        this.addRenderableWidget(Button.builder(
+                Component.literal(Component.translatable("screen.phantasia.theme_editor.btn_exit").getString()), b -> {
+                    if (hasUnsavedChanges()) {
+                        if (!confirmWarningActive || !"EXIT".equals(pendingAction)) {
+                            confirmWarningActive = true;
+                            pendingAction = "EXIT";
+                            return;
+                        }
+                        restoreSnapshot(savedSnapshot);
+                    }
+                    this.onClose(); // Route exit cleanly through lifecycle cleanup
+                }).bounds(btnX, controlY + 40, btnW, 18).build());
     }
 
     private void addSettingField(String label, PhantasiaTheme.ThemeColor target, int x, int y, int boxWidth) {
@@ -169,8 +192,7 @@ public class PhantasiaThemeEditorScreen extends Screen {
                     getBoxValue("Progress", active.prog.hex),
                     active.warn.hex,
                     getBoxValue("Highlight", active.hilight.hex),
-                    baseplateBox != null ? baseplateBox.getValue().trim() : active.baseplateBlock
-            );
+                    baseplateBox != null ? baseplateBox.getValue().trim() : active.baseplateBlock);
 
             // If user overwrites a theme they previously marked for deletion, drop it from staging
             pendingDeletions.remove(themeId);
@@ -200,8 +222,10 @@ public class PhantasiaThemeEditorScreen extends Screen {
     }
 
     private void pushUndoSnapshot() {
-        ThemeSnapshot current = createSnapshotInline(PhantasiaTheme.current(), nameInput != null ? nameInput.getValue() : PhantasiaTheme.getActiveName());
-        if (undoStack.isEmpty() || undoStack.peek().colorSnapshot == null || !undoStack.peek().colorSnapshot.equals(current)) {
+        ThemeSnapshot current = createSnapshotInline(PhantasiaTheme.current(),
+                nameInput != null ? nameInput.getValue() : PhantasiaTheme.getActiveName());
+        if (undoStack.isEmpty() || undoStack.peek().colorSnapshot == null ||
+                !undoStack.peek().colorSnapshot.equals(current)) {
             undoStack.push(new UndoEntry(UndoType.COLOR_EDIT, current, null));
             if (undoStack.size() > 50) {
                 undoStack.remove(0);
@@ -249,12 +273,14 @@ public class PhantasiaThemeEditorScreen extends Screen {
 
     private boolean hasUnsavedChanges() {
         if (savedSnapshot == null) return false;
-        ThemeSnapshot current = createSnapshotInline(PhantasiaTheme.current(), nameInput != null ? nameInput.getValue() : PhantasiaTheme.getActiveName());
+        ThemeSnapshot current = createSnapshotInline(PhantasiaTheme.current(),
+                nameInput != null ? nameInput.getValue() : PhantasiaTheme.getActiveName());
         return !savedSnapshot.equals(current);
     }
 
     private ThemeSnapshot createSnapshotInline(PhantasiaTheme theme, String currentName) {
-        return new ThemeSnapshot(theme.bg.hex, theme.panel.hex, theme.accent.hex, theme.btn.hex, theme.btnHov.hex, theme.text.hex, theme.dim.hex, theme.prog.hex, theme.hilight.hex, theme.baseplateBlock, currentName);
+        return new ThemeSnapshot(theme.bg.hex, theme.panel.hex, theme.accent.hex, theme.btn.hex, theme.btnHov.hex,
+                theme.text.hex, theme.dim.hex, theme.prog.hex, theme.hilight.hex, theme.baseplateBlock, currentName);
     }
 
     private void restoreSnapshot(ThemeSnapshot target) {
@@ -288,16 +314,21 @@ public class PhantasiaThemeEditorScreen extends Screen {
 
         g.fill(0, 0, this.width, this.height, PhantasiaThemeUtils.C_BG());
         g.fill(this.width - sidebarWidth, 0, this.width, this.height, PhantasiaThemeUtils.C_PANEL());
-        PhantasiaThemeUtils.drawBorderRect(g, this.width - sidebarWidth, 0, 1, this.height, PhantasiaThemeUtils.C_BORDER());
+        PhantasiaThemeUtils.drawBorderRect(g, this.width - sidebarWidth, 0, 1, this.height,
+                PhantasiaThemeUtils.C_BORDER());
 
-        g.drawString(this.font, "🎨 Theme Options", this.width - sidebarWidth + 10, 10, PhantasiaThemeUtils.C_ACCENT(), false);
+        g.drawString(this.font, "🎨 Theme Options", this.width - sidebarWidth + 10, 10, PhantasiaThemeUtils.C_ACCENT(),
+                false);
 
         if (confirmWarningActive) {
-            g.drawString(this.font, "⚠ Click again to lose modifications!", this.width - sidebarWidth + 10, 22, PhantasiaThemeUtils.C_WARN(), false);
+            g.drawString(this.font, "⚠ Click again to lose modifications!", this.width - sidebarWidth + 10, 22,
+                    PhantasiaThemeUtils.C_WARN(), false);
         } else if (hasUnsavedChanges()) {
-            g.drawString(this.font, "● Active: " + PhantasiaTheme.getActiveName() + " (Unsaved)", this.width - sidebarWidth + 10, 22, PhantasiaThemeUtils.C_WARN(), false);
+            g.drawString(this.font, "● Active: " + PhantasiaTheme.getActiveName() + " (Unsaved)",
+                    this.width - sidebarWidth + 10, 22, PhantasiaThemeUtils.C_WARN(), false);
         } else {
-            g.drawString(this.font, "○ Active: " + PhantasiaTheme.getActiveName(), this.width - sidebarWidth + 10, 22, PhantasiaThemeUtils.C_TEXT(), false);
+            g.drawString(this.font, "○ Active: " + PhantasiaTheme.getActiveName(), this.width - sidebarWidth + 10, 22,
+                    PhantasiaThemeUtils.C_TEXT(), false);
         }
 
         for (CategoryHeader header : categories) {
@@ -305,11 +336,13 @@ public class PhantasiaThemeEditorScreen extends Screen {
         }
 
         for (EditBoxWrapper wrapper : editBoxes) {
-            g.drawString(this.font, wrapper.label, wrapper.box.getX() - 62, wrapper.box.getY() + 4, PhantasiaThemeUtils.C_TEXT(), false);
+            g.drawString(this.font, wrapper.label, wrapper.box.getX() - 62, wrapper.box.getY() + 4,
+                    PhantasiaThemeUtils.C_TEXT(), false);
             wrapper.box.render(g, mouseX, mouseY, partialTicks);
         }
         if (baseplateBox != null) {
-            g.drawString(this.font, "Baseplate", baseplateBox.getX() - 62, baseplateBox.getY() + 4, PhantasiaThemeUtils.C_TEXT(), false);
+            g.drawString(this.font, "Baseplate", baseplateBox.getX() - 62, baseplateBox.getY() + 4,
+                    PhantasiaThemeUtils.C_TEXT(), false);
             baseplateBox.render(g, mouseX, mouseY, partialTicks);
         }
         this.nameInput.render(g, mouseX, mouseY, partialTicks);
@@ -324,7 +357,8 @@ public class PhantasiaThemeEditorScreen extends Screen {
 
         String animText = "✨ Animations: NONE, TRANSPARENT, RAINBOW, PASTEL_RAINBOW, GALAXY, AURORA, MAGMA";
         int availableTextWidth = leftW - 20;
-        List<net.minecraft.util.FormattedCharSequence> lines = this.font.split(Component.literal(animText), availableTextWidth);
+        List<net.minecraft.util.FormattedCharSequence> lines = this.font.split(Component.literal(animText),
+                availableTextWidth);
 
         int animY = 12;
         for (net.minecraft.util.FormattedCharSequence line : lines) {
@@ -338,7 +372,8 @@ public class PhantasiaThemeEditorScreen extends Screen {
         PhantasiaThemeUtils.drawBorderRect(g, 15, pTop, leftW - 15, pHeight, PhantasiaThemeUtils.C_BORDER());
 
         g.drawString(this.font, "📊 Active System Context Panel", 25, pTop + 8, PhantasiaThemeUtils.C_TEXT(), false);
-        g.drawString(this.font, "Secondary descriptive line text goes here...", 25, pTop + 22, PhantasiaThemeUtils.C_DIM(), false);
+        g.drawString(this.font, "Secondary descriptive line text goes here...", 25, pTop + 22,
+                PhantasiaThemeUtils.C_DIM(), false);
 
         int barW = leftW - 40;
         int barY = pTop + pHeight - 18;
@@ -357,14 +392,18 @@ public class PhantasiaThemeEditorScreen extends Screen {
 
         if (singleBtnW > 10) {
             boolean hovBtn1 = mouseX >= 15 && mouseX <= 15 + singleBtnW && mouseY >= btnY && mouseY <= btnY + 20;
-            PhantasiaThemeUtils.drawThemedBtn(g, this.font, 15, btnY, singleBtnW, 20, "Button", hovBtn1, PhantasiaThemeUtils.C_BTN());
+            PhantasiaThemeUtils.drawThemedBtn(g, this.font, 15, btnY, singleBtnW, 20, "Button", hovBtn1,
+                    PhantasiaThemeUtils.C_BTN());
 
-            boolean hovBtn2 = mouseX >= 25 + singleBtnW && mouseX <= 25 + (singleBtnW * 2) && mouseY >= btnY && mouseY <= btnY + 20;
-            PhantasiaThemeUtils.drawIconBtn(g, this.font, 25 + singleBtnW, btnY, singleBtnW, 20, "⭐", "Icon", hovBtn2, PhantasiaThemeUtils.C_BTN());
+            boolean hovBtn2 = mouseX >= 25 + singleBtnW && mouseX <= 25 + (singleBtnW * 2) && mouseY >= btnY &&
+                    mouseY <= btnY + 20;
+            PhantasiaThemeUtils.drawIconBtn(g, this.font, 25 + singleBtnW, btnY, singleBtnW, 20, "⭐", "Icon", hovBtn2,
+                    PhantasiaThemeUtils.C_BTN());
         }
 
         int listTitleY = btnY + 28;
-        g.drawString(this.font, "📁 Available Themes (Click to Swap)", 15, listTitleY, PhantasiaThemeUtils.C_TEXT(), false);
+        g.drawString(this.font, "📁 Available Themes (Click to Swap)", 15, listTitleY, PhantasiaThemeUtils.C_TEXT(),
+                false);
 
         int itemY = listTitleY + 14;
         List<String> registryNames = getVisibleRegistryNames(); // Dynamic filtered state view
@@ -378,8 +417,10 @@ public class PhantasiaThemeEditorScreen extends Screen {
             boolean isSelected = registeredName.equals(PhantasiaTheme.getActiveName());
             boolean isHovered = mouseX >= 15 && mouseX <= leftW && mouseY >= itemY && mouseY <= itemY + 14;
 
-            int displayColor = isSelected ? PhantasiaThemeUtils.C_HILIGHT() : (isHovered ? PhantasiaThemeUtils.C_ACCENT() : PhantasiaThemeUtils.C_TEXT());
-            g.fill(15, itemY, leftW, itemY + 14, isSelected ? PhantasiaThemeUtils.C_BTN_ACT() : (isHovered ? PhantasiaThemeUtils.C_BTN_HOV() : PhantasiaThemeUtils.C_PANEL()));
+            int displayColor = isSelected ? PhantasiaThemeUtils.C_HILIGHT() :
+                    (isHovered ? PhantasiaThemeUtils.C_ACCENT() : PhantasiaThemeUtils.C_TEXT());
+            g.fill(15, itemY, leftW, itemY + 14, isSelected ? PhantasiaThemeUtils.C_BTN_ACT() :
+                    (isHovered ? PhantasiaThemeUtils.C_BTN_HOV() : PhantasiaThemeUtils.C_PANEL()));
             PhantasiaThemeUtils.drawBorderRect(g, 15, itemY, leftW - 15, 14, PhantasiaThemeUtils.C_BORDER());
 
             g.drawString(this.font, (isSelected ? "● " : "○ ") + registeredName, 22, itemY + 3, displayColor, false);

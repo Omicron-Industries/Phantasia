@@ -1,7 +1,5 @@
 package net.phoenixvine.phantasia.client.screens;
 
-import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
-
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
@@ -46,8 +44,6 @@ import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
 @OnlyIn(Dist.CLIENT)
 public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
 
-
-
     private static final int TIMELINE_H = 24;
 
     private static final float CAM_ORBIT = 0.45f;
@@ -79,7 +75,6 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
     private BlockPos hoveredPos = null;
 
     // ── Button registry ───────────────────────────────────────────────────────
-
 
     // ─────────────────────────────────────────────────────────────────────────
     public PhantasiaSceneViewerScreen(Screen parent, PhantasiaSceneData data) {
@@ -540,7 +535,6 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
-
 
     private static String formatTicks(int t) {
         return String.format("%d.%02ds", t / 20, (t % 20) * 5);

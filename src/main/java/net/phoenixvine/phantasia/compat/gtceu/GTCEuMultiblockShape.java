@@ -1,7 +1,9 @@
 package net.phoenixvine.phantasia.compat.gtceu;
 
 import com.gregtechceu.gtceu.api.pattern.MultiblockShapeInfo;
+
 import com.lowdragmc.lowdraglib.utils.BlockInfo;
+
 import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockShape;
 
 /** Wraps GTCEu's {@link MultiblockShapeInfo} as an {@link IPhantasiaMultiblockShape}. */

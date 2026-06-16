@@ -1,7 +1,5 @@
 package net.phoenixvine.phantasia.client.screens.editors;
 
-import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
-
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
@@ -39,7 +37,8 @@ import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
  * operates on {@link PhantasiaSceneData} instead of per-machine script data.
  *
  * Key differences from the machine editor:
- * - A Component.translatable("screen.phantasia.scene_editor.section_placements").getString() side panel (toggle with ⊞ button in top bar) for adding,
+ * - A Component.translatable("screen.phantasia.scene_editor.section_placements").getString() side panel (toggle with ⊞
+ * button in top bar) for adding,
  * removing, and repositioning machine placements.
  * - Per-placement visibility overrides in the step row, shown when a placement
  * is selected in the placements panel.
@@ -129,9 +128,7 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
     private EditBox sceneNameBox;
     private EditBox tooltipItemBox;
 
-
     private int lastMX, lastMY;
-
 
     // ── Item panel hover state ─────────────────────────────────────────────────
     private int hoveredItemPlacement = -1;
@@ -368,7 +365,6 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         return b;
     }
 
-
     // ─────────────────────────────────────────────────────────────────────────
     // Tick
     // ─────────────────────────────────────────────────────────────────────────
@@ -444,7 +440,8 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
 
         super.render(g, mx, my, partial);
 
-        if (showingCloseConfirm) renderCloseConfirmDialog(g, mx, my, this::forceClose, () -> showingCloseConfirm = false);
+        if (showingCloseConfirm)
+            renderCloseConfirmDialog(g, mx, my, this::forceClose, () -> showingCloseConfirm = false);
 
         // Floating tooltip — drawn absolutely last so it is always on top
         renderPendingTooltip(g, mx, my);
@@ -503,8 +500,6 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
             g.drawString(font, dot, rx, (TOP_BAR_H - 8) / 2, C_WARN(), false);
         }
     }
-
-
 
     // ── Camera panel (floating overlay above step row) ────────────────────────
 
@@ -573,7 +568,8 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         x = panelX + 4;
 
         if (hasCam) {
-            g.drawString(font, Component.translatable("screen.phantasia.scene_editor.label_zoom").getString(), x, r2Y + 2, C_DIM(), false);
+            g.drawString(font, Component.translatable("screen.phantasia.scene_editor.label_zoom").getString(), x,
+                    r2Y + 2, C_DIM(), false);
             x += font.width(Component.translatable("screen.phantasia.scene_editor.label_zoom").getString()) + 3;
             placeBox(camZoomBox, x, r2Y, 40, 12);
             if (isOver(mx, my, x, r2Y, 40, 12))
@@ -597,13 +593,15 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
             x += ltW + 6;
 
             if (lt != LerpType.SNAP) {
-                g.drawString(font, Component.translatable("screen.phantasia.scene_editor.val_over").getString(), x, r2Y + 2, C_DIM(), false);
+                g.drawString(font, Component.translatable("screen.phantasia.scene_editor.val_over").getString(), x,
+                        r2Y + 2, C_DIM(), false);
                 x += font.width(Component.translatable("screen.phantasia.scene_editor.val_over").getString()) + 3;
                 placeBox(lerpTicksBox, x, r2Y, 34, 12);
                 if (isOver(mx, my, x, r2Y, 34, 12))
                     pendingTooltip = "Camera transition duration in ticks (20 ticks = 1 second)";
                 x += 38;
-                g.drawString(font, Component.translatable("screen.phantasia.scene_editor.val_ticks").getString(), x, r2Y + 2, C_DIM(), false);
+                g.drawString(font, Component.translatable("screen.phantasia.scene_editor.val_ticks").getString(), x,
+                        r2Y + 2, C_DIM(), false);
             }
         }
     }
@@ -620,17 +618,28 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
 
         // Header
         g.fill(px, py, px + pw, py + 14, C_BAR());
-        g.drawString(font, Component.translatable("screen.phantasia.scene_editor.section_placements").getString(), px + 6, py + 3, C_ACCENT(), false);
+        g.drawString(font, Component.translatable("screen.phantasia.scene_editor.section_placements").getString(),
+                px + 6, py + 3, C_ACCENT(), false);
 
         // Scene name field
-        g.drawString(font, Component.translatable("screen.phantasia.scene_editor.label_name").getString(), px + 6, py + 18, C_DIM(), false);
-        placeBox(sceneNameBox, px + 6 + font.width(Component.translatable("screen.phantasia.scene_editor.label_name").getString()) + 3, py + 16, pw - 20 - font.width(Component.translatable("screen.phantasia.scene_editor.label_name").getString()), 12);
+        g.drawString(font, Component.translatable("screen.phantasia.scene_editor.label_name").getString(), px + 6,
+                py + 18, C_DIM(), false);
+        placeBox(sceneNameBox,
+                px + 6 + font.width(Component.translatable("screen.phantasia.scene_editor.label_name").getString()) + 3,
+                py + 16,
+                pw - 20 - font.width(Component.translatable("screen.phantasia.scene_editor.label_name").getString()),
+                12);
         sceneNameBox.visible = true;
         sceneNameBox.active = true;
 
         // Icon field
-        g.drawString(font, Component.translatable("screen.phantasia.scene_editor.label_icon").getString(), px + 6, py + 34, C_DIM(), false);
-        placeBox(sceneIconBox, px + 6 + font.width(Component.translatable("screen.phantasia.scene_editor.label_icon").getString()) + 3, py + 32, pw - 20 - font.width(Component.translatable("screen.phantasia.scene_editor.label_icon").getString()), 12);
+        g.drawString(font, Component.translatable("screen.phantasia.scene_editor.label_icon").getString(), px + 6,
+                py + 34, C_DIM(), false);
+        placeBox(sceneIconBox,
+                px + 6 + font.width(Component.translatable("screen.phantasia.scene_editor.label_icon").getString()) + 3,
+                py + 32,
+                pw - 20 - font.width(Component.translatable("screen.phantasia.scene_editor.label_icon").getString()),
+                12);
         sceneIconBox.visible = true;
         sceneIconBox.active = true;
 
@@ -638,7 +647,8 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         int tiY = py + 48;
         g.fill(px + 4, tiY, px + pw - 4, tiY + 1, 0x22FFFFFF);
         tiY += 4;
-        g.drawString(font, "Tooltip Items (" + (data.tooltipItems != null ? data.tooltipItems.size() : 0) + "):", px + 6, tiY, C_DIM(), false);
+        g.drawString(font, "Tooltip Items (" + (data.tooltipItems != null ? data.tooltipItems.size() : 0) + "):",
+                px + 6, tiY, C_DIM(), false);
         tiY += font.lineHeight + 2;
 
         if (data.tooltipItems != null) {
@@ -736,7 +746,8 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         int formY = listY + 4;
         if (formY + 54 <= clipMaxY) {
             g.fill(px + 2, formY - 2, px + pw - 2, Math.min(formY + 54, clipMaxY), 0x220A0A20);
-            g.drawString(font, Component.translatable("screen.phantasia.scene_editor.label_add_machine").getString(), px + 6, formY, C_DIM(), false);
+            g.drawString(font, Component.translatable("screen.phantasia.scene_editor.label_add_machine").getString(),
+                    px + 6, formY, C_DIM(), false);
             formY += 10;
 
             if (formY + 12 <= clipMaxY) {
@@ -782,14 +793,17 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
             // Show mode buttons
             String curShow = ov != null && ov.show != null ? ov.show : "(global)";
             if (ovY + 12 <= clipMaxY) {
-                g.drawString(font, Component.translatable("screen.phantasia.scene_editor.label_show").getString(), px + 6, ovY + 2, C_DIM(), false);
-                int bx = px + 6 + font.width(Component.translatable("screen.phantasia.scene_editor.label_show").getString()) + 3;
+                g.drawString(font, Component.translatable("screen.phantasia.scene_editor.label_show").getString(),
+                        px + 6, ovY + 2, C_DIM(), false);
+                int bx = px + 6 +
+                        font.width(Component.translatable("screen.phantasia.scene_editor.label_show").getString()) + 3;
 
                 boolean gHov = isOver(mx, my, bx, ovY, 40, 12);
                 boolean gSel = (ov == null || ov.show == null);
                 g.fill(bx, ovY, bx + 40, ovY + 12, gSel ? C_BTN_ACT() : (gHov ? C_BTN_HOV() : C_BTN()));
                 if (gSel) g.fill(bx, ovY, bx + 40, ovY + 1, C_DIM());
-                g.drawString(font, Component.translatable("screen.phantasia.scene_editor.val_global").getString(), bx + 4, ovY + 2, gSel ? C_DIM() : C_TEXT(), false);
+                g.drawString(font, Component.translatable("screen.phantasia.scene_editor.val_global").getString(),
+                        bx + 4, ovY + 2, gSel ? C_DIM() : C_TEXT(), false);
                 if (gHov) pendingTooltip = "Use the global step show mode for this placement";
                 btns.add(new Btn(bx, ovY, 40, 12, () -> {
                     checkpoint();
@@ -823,8 +837,12 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
 
             // Layer field
             if (ov != null && ("layer".equals(ov.show) || "layers".equals(ov.show)) && ovY + 12 <= clipMaxY) {
-                g.drawString(font, Component.translatable("screen.phantasia.scene_editor.label_layer").getString(), px + 6, ovY + 2, C_DIM(), false);
-                placeBox(ovLayerBox, px + 6 + font.width(Component.translatable("screen.phantasia.scene_editor.label_layer").getString()) + 3, ovY, 28, 12);
+                g.drawString(font, Component.translatable("screen.phantasia.scene_editor.label_layer").getString(),
+                        px + 6, ovY + 2, C_DIM(), false);
+                placeBox(ovLayerBox,
+                        px + 6 + font.width(
+                                Component.translatable("screen.phantasia.scene_editor.label_layer").getString()) + 3,
+                        ovY, 28, 12);
                 ovLayerBox.visible = true;
                 ovLayerBox.active = true;
                 ovY += 16;
@@ -832,8 +850,14 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
 
             // HidePos
             if (ovY + 12 <= clipMaxY) {
-                g.drawString(font, Component.translatable("screen.phantasia.scene_editor.label_hidepos").getString(), px + 6, ovY + 2, C_DIM(), false);
-                placeBox(ovHidePosBox, px + 6 + font.width(Component.translatable("screen.phantasia.scene_editor.label_hidepos").getString()) + 3, ovY, pw - 14 - font.width(Component.translatable("screen.phantasia.scene_editor.label_hidepos").getString()), 12);
+                g.drawString(font, Component.translatable("screen.phantasia.scene_editor.label_hidepos").getString(),
+                        px + 6, ovY + 2, C_DIM(), false);
+                placeBox(ovHidePosBox,
+                        px + 6 + font.width(
+                                Component.translatable("screen.phantasia.scene_editor.label_hidepos").getString()) + 3,
+                        ovY, pw - 14 - font.width(
+                                Component.translatable("screen.phantasia.scene_editor.label_hidepos").getString()),
+                        12);
                 ovHidePosBox.visible = true;
                 ovHidePosBox.active = true;
                 if (isOver(mx, my, px + 6, ovY, pw - 12, 12))
@@ -843,10 +867,14 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
 
             // Working state
             if (ovY + 12 <= clipMaxY) {
-                g.drawString(font, Component.translatable("screen.phantasia.scene_editor.label_working").getString(), px + 6, ovY + 2, C_DIM(), false);
-                int wbx = px + 6 + font.width(Component.translatable("screen.phantasia.scene_editor.label_working").getString()) + 4;
+                g.drawString(font, Component.translatable("screen.phantasia.scene_editor.label_working").getString(),
+                        px + 6, ovY + 2, C_DIM(), false);
+                int wbx = px + 6 +
+                        font.width(Component.translatable("screen.phantasia.scene_editor.label_working").getString()) +
+                        4;
                 Boolean curWorking = ov != null ? ov.machineWorking : null;
-                String[] wLabels = { Component.translatable("screen.phantasia.scene_editor.val_global").getString(), "Idle", "Working" };
+                String[] wLabels = { Component.translatable("screen.phantasia.scene_editor.val_global").getString(),
+                        "Idle", "Working" };
                 Boolean[] wVals = { null, false, true };
                 int[] wCols = { 0xFF334455, 0xFF445566, 0xFF1A7040 };
                 for (int wi = 0; wi < wLabels.length; wi++) {
@@ -878,8 +906,14 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
 
             // Fake recipe ID
             if (ovY + 12 <= clipMaxY) {
-                g.drawString(font, Component.translatable("screen.phantasia.scene_editor.label_recipe").getString(), px + 6, ovY + 2, C_DIM(), false);
-                placeBox(ovFakeRecipeBox, px + 6 + font.width(Component.translatable("screen.phantasia.scene_editor.label_recipe").getString()) + 3, ovY, pw - 14 - font.width(Component.translatable("screen.phantasia.scene_editor.label_recipe").getString()), 12);
+                g.drawString(font, Component.translatable("screen.phantasia.scene_editor.label_recipe").getString(),
+                        px + 6, ovY + 2, C_DIM(), false);
+                placeBox(ovFakeRecipeBox,
+                        px + 6 + font.width(
+                                Component.translatable("screen.phantasia.scene_editor.label_recipe").getString()) + 3,
+                        ovY, pw - 14 - font.width(
+                                Component.translatable("screen.phantasia.scene_editor.label_recipe").getString()),
+                        12);
                 ovFakeRecipeBox.visible = true;
                 ovFakeRecipeBox.active = true;
                 if (isOver(mx, my, px + 6, ovY, pw - 12, 12))
@@ -889,8 +923,17 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
 
             // Particle effects
             if (ovY + 12 <= clipMaxY) {
-                g.drawString(font, Component.translatable("screen.phantasia.scene_editor.label_particles").getString(), px + 6, ovY + 2, C_DIM(), false);
-                placeBox(ovParticleBox, px + 6 + font.width(Component.translatable("screen.phantasia.scene_editor.label_particles").getString()) + 3, ovY, pw - 14 - font.width(Component.translatable("screen.phantasia.scene_editor.label_particles").getString()),
+                g.drawString(font, Component.translatable("screen.phantasia.scene_editor.label_particles").getString(),
+                        px + 6, ovY + 2, C_DIM(), false);
+                placeBox(
+                        ovParticleBox, px + 6 +
+                                font.width(Component
+                                        .translatable("screen.phantasia.scene_editor.label_particles").getString()) +
+                                3,
+                        ovY,
+                        pw - 14 -
+                                font.width(Component.translatable("screen.phantasia.scene_editor.label_particles")
+                                        .getString()),
                         12);
                 ovParticleBox.visible = true;
                 ovParticleBox.active = true;
@@ -950,8 +993,6 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         }
     }
 
-
-
     private static String showModeTooltip(String mode) {
         return switch (mode) {
             case "all" -> "Show every block in the structure";
@@ -974,7 +1015,8 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         int x = 8;
 
         // Step nav
-        g.drawString(font, Component.translatable("screen.phantasia.scene_editor.label_step").getString(), x, y1 - 2, 0xFF334455, false);
+        g.drawString(font, Component.translatable("screen.phantasia.scene_editor.label_step").getString(), x, y1 - 2,
+                0xFF334455, false);
         String stepLbl = (selectedStep + 1) + "/" + data.steps.size();
         g.drawString(font, stepLbl, x, y1 + 6, C_ACCENT(), false);
         x += font.width(stepLbl) + 8;
@@ -998,7 +1040,8 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         x += 8;
 
         // Tick
-        g.drawString(font, Component.translatable("screen.phantasia.scene_editor.label_tick").getString(), x, y1 + 3, C_DIM(), false);
+        g.drawString(font, Component.translatable("screen.phantasia.scene_editor.label_tick").getString(), x, y1 + 3,
+                C_DIM(), false);
         x += font.width(Component.translatable("screen.phantasia.scene_editor.label_tick").getString()) + 3;
         placeBox(tickBox, x, y1, 38, 13);
         if (isOver(mx, my, x, y1, 38, 13)) pendingTooltip = "Tick this step activates at (20 ticks = 1 second)";
@@ -1044,7 +1087,8 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         int y2 = rowY + 27;
         x = 8;
 
-        g.drawString(font, Component.translatable("screen.phantasia.scene_editor.label_global").getString(), x, y2 + 2, C_DIM(), false);
+        g.drawString(font, Component.translatable("screen.phantasia.scene_editor.label_global").getString(), x, y2 + 2,
+                C_DIM(), false);
         x += font.width(Component.translatable("screen.phantasia.scene_editor.label_global").getString()) + 4;
 
         for (int i = 0; i < SHOW_MODES.length; i++) {
@@ -1076,9 +1120,13 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         // Description box — right portion of row 2
         int descX = this.width / 2;
         int descW = this.width - descX - 12;
-        g.drawString(font, Component.translatable("screen.phantasia.scene_editor.label_desc").getString(), descX, y2 + 2, C_DIM(), false);
-        int dboxX = descX + font.width(Component.translatable("screen.phantasia.scene_editor.label_desc").getString()) + 4;
-        placeBox(descriptionBox, dboxX, y2, descW - font.width(Component.translatable("screen.phantasia.scene_editor.label_desc").getString()) - 4, 12);
+        g.drawString(font, Component.translatable("screen.phantasia.scene_editor.label_desc").getString(), descX,
+                y2 + 2, C_DIM(), false);
+        int dboxX = descX + font.width(Component.translatable("screen.phantasia.scene_editor.label_desc").getString()) +
+                4;
+        placeBox(descriptionBox, dboxX, y2,
+                descW - font.width(Component.translatable("screen.phantasia.scene_editor.label_desc").getString()) - 4,
+                12);
         if (isOver(mx, my, dboxX, y2, descW, 12))
             pendingTooltip = "Guide description body text shown to the viewer during this step";
     }
@@ -1191,7 +1239,8 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         int total2 = computeTotalTicks();
         int durLabelW = font.width(Component.translatable("screen.phantasia.scene_editor.label_total").getString()) + 4;
         int durX = this.width - 4 - font.width(String.valueOf(total2)) - 10 - durLabelW;
-        g.drawString(font, Component.translatable("screen.phantasia.scene_editor.label_total").getString(), durX, midY - 4, C_DIM(), false);
+        g.drawString(font, Component.translatable("screen.phantasia.scene_editor.label_total").getString(), durX,
+                midY - 4, C_DIM(), false);
         g.drawString(font, String.valueOf(total2) + "t", durX + durLabelW, midY - 4, C_ACCENT(), false);
         if (isOver(mx, my, durX, tlY, durLabelW + 50, TIMELINE_H))
             pendingTooltip = "Total scene length = last step tick + 60 ticks";
@@ -1350,7 +1399,6 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
     }
 
     // ── Confirm dialog ────────────────────────────────────────────────────────
-
 
     @Override
     public boolean mouseClicked(double mx, double my, int btn) {
@@ -1734,20 +1782,6 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
             }
         }
     }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     private static List<int[]> parsePosList(String raw) {
         List<int[]> r = new ArrayList<>();

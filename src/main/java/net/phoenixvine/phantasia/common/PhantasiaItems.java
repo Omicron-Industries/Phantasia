@@ -12,12 +12,10 @@ public final class PhantasiaItems {
 
     private PhantasiaItems() {}
 
-    public static final DeferredRegister<Item> ITEMS =
-            DeferredRegister.create(ForgeRegistries.ITEMS, Phantasia.MOD_ID);
+    public static final DeferredRegister<Item> ITEMS = DeferredRegister.create(ForgeRegistries.ITEMS, Phantasia.MOD_ID);
 
-    public static final RegistryObject<PhantasiaManualItem> PHANTASIA_MANUAL =
-            ITEMS.register("phantasia_manual",
-                    () -> new PhantasiaManualItem(new Item.Properties().stacksTo(1)));
+    public static final RegistryObject<PhantasiaManualItem> PHANTASIA_MANUAL = ITEMS.register("phantasia_manual",
+            () -> new PhantasiaManualItem(new Item.Properties().stacksTo(1)));
 
     public static void register(IEventBus bus) {
         ITEMS.register(bus);

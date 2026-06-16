@@ -28,8 +28,13 @@ public class PhantasiaTrackedDummyWorld extends TrackedDummyWorld {
 
     private final List<Entity> sceneEntities = new ArrayList<>();
 
-    public void addSceneEntity(Entity e) { sceneEntities.add(e); }
-    public void clearSceneEntities()     { sceneEntities.clear(); }
+    public void addSceneEntity(Entity e) {
+        sceneEntities.add(e);
+    }
+
+    public void clearSceneEntities() {
+        sceneEntities.clear();
+    }
 
     /** Returns scene-local entities so PhantasiaWorldRenderer can render them. */
     @Override

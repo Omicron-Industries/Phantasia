@@ -211,8 +211,7 @@ public final class PhantasiaWorldRenderer {
     public volatile int streamChunksReady = 0;
 
     /** Pending chunk VBO arrays waiting to be added to streamChunks. */
-    private final java.util.concurrent.ConcurrentLinkedQueue<VertexBuffer[]> pendingChunkUploads =
-            new java.util.concurrent.ConcurrentLinkedQueue<>();
+    private final java.util.concurrent.ConcurrentLinkedQueue<VertexBuffer[]> pendingChunkUploads = new java.util.concurrent.ConcurrentLinkedQueue<>();
 
     // ── Layers ────────────────────────────────────────────────────────────────
 
@@ -271,9 +270,11 @@ public final class PhantasiaWorldRenderer {
     private final Map<BlockPos, List<RenderType>> blockLayers = new HashMap<>();
     private boolean hasTransitions = false;
 
-    /** Positions in the current front[] VBO that are no longer in targetVisible.
+    /**
+     * Positions in the current front[] VBO that are no longer in targetVisible.
      * Rendered at alpha=0 each frame to immediately hide them without waiting for
-     * the rebake to complete. Cleared on swapFullBuffers(). */
+     * the rebake to complete. Cleared on swapFullBuffers().
+     */
     private final Set<BlockPos> suppressedPositions = new HashSet<>();
     private final Map<BlockPos, List<RenderType>> suppressedLayers = new HashMap<>();
 
@@ -985,7 +986,10 @@ public final class PhantasiaWorldRenderer {
                     RenderType layer = LAYERS.get(i);
                     List<BlockPos> solid = solidBuckets.getOrDefault(layer, List.of());
                     List<BlockPos> fluid = fluidBuckets.getOrDefault(layer, List.of());
-                    if (solid.isEmpty() && fluid.isEmpty()) { baked[i] = null; continue; }
+                    if (solid.isEmpty() && fluid.isEmpty()) {
+                        baked[i] = null;
+                        continue;
+                    }
                     baked[i] = bakeLayerToBuffer(brd, random, layer, solid, fluid, animatedBack);
                 }
             } finally {
@@ -1020,12 +1024,14 @@ public final class PhantasiaWorldRenderer {
     /**
      * Streaming bake for patterns larger than {@link #STREAMING_THRESHOLD} blocks.
      *
-     * <p>Splits {@code snapshot} into {@link #STREAMING_CHUNK_SIZE}-block batches.
+     * <p>
+     * Splits {@code snapshot} into {@link #STREAMING_CHUNK_SIZE}-block batches.
      * Each completed batch is uploaded into a fresh {@code VertexBuffer[]} set and
      * added to {@link #streamChunks}, which {@link #drawVBOs()} draws every frame.
      * The scene is immediately visible and the multiblock materializes in real time.
      *
-     * <p>After all chunks finish, a normal consolidating full bake is dispatched so
+     * <p>
+     * After all chunks finish, a normal consolidating full bake is dispatched so
      * that the final state lives in {@code front[]} and all chunk VBOs are released.
      */
     private void scheduleStreamingBake(Set<BlockPos> snapshot) {
@@ -1080,7 +1086,10 @@ public final class PhantasiaWorldRenderer {
                             RenderType layer = LAYERS.get(i);
                             List<BlockPos> solid = solidBuckets.getOrDefault(layer, List.of());
                             List<BlockPos> fluid = fluidBuckets.getOrDefault(layer, List.of());
-                            if (solid.isEmpty() && fluid.isEmpty()) { baked[i] = null; continue; }
+                            if (solid.isEmpty() && fluid.isEmpty()) {
+                                baked[i] = null;
+                                continue;
+                            }
                             baked[i] = bakeLayerToBuffer(brd, random, layer, solid, fluid, animatedBack);
                         }
                     } finally {
@@ -1145,7 +1154,10 @@ public final class PhantasiaWorldRenderer {
                     RenderType layer = LAYERS.get(i);
                     List<BlockPos> solid = solidB.getOrDefault(layer, List.of());
                     List<BlockPos> fluid = fluidB.getOrDefault(layer, List.of());
-                    if (solid.isEmpty() && fluid.isEmpty()) { finalBaked[i] = null; continue; }
+                    if (solid.isEmpty() && fluid.isEmpty()) {
+                        finalBaked[i] = null;
+                        continue;
+                    }
                     finalBaked[i] = bakeLayerToBuffer(brd, random, layer, solid, fluid, animatedBack2);
                 }
             } finally {
@@ -1207,7 +1219,10 @@ public final class PhantasiaWorldRenderer {
                     RenderType layer = LAYERS.get(i);
                     List<BlockPos> solid = solidBuckets.getOrDefault(layer, List.of());
                     List<BlockPos> fluid = fluidBuckets.getOrDefault(layer, List.of());
-                    if (solid.isEmpty() && fluid.isEmpty()) { baked[i] = null; continue; }
+                    if (solid.isEmpty() && fluid.isEmpty()) {
+                        baked[i] = null;
+                        continue;
+                    }
                     baked[i] = bakeLayerToBuffer(brd, random, layer, solid, fluid, animatedBack);
                 }
             } finally {
@@ -1417,8 +1432,8 @@ public final class PhantasiaWorldRenderer {
             int readyChunks = streamChunksReady;
             for (int c = 0; c < readyChunks && c < streamChunks.size(); c++) {
                 VertexBuffer[] chunkVBOs = streamChunks.get(c);
-                if (chunkVBOs != null && chunkVBOs[i] != null
-                        && !chunkVBOs[i].isInvalid() && chunkVBOs[i].getFormat() != null) {
+                if (chunkVBOs != null && chunkVBOs[i] != null && !chunkVBOs[i].isInvalid() &&
+                        chunkVBOs[i].getFormat() != null) {
                     chunkVBOs[i].bind();
                     chunkVBOs[i].draw();
                 }

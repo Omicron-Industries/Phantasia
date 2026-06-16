@@ -1,7 +1,5 @@
 package net.phoenixvine.phantasia.client.screens;
 
-import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
-
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
@@ -27,8 +25,6 @@ import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
  */
 @OnlyIn(Dist.CLIENT)
 public class PhantasiaSceneCreateScreen extends Screen {
-
-
 
     private final Screen parent;
     private EditBox idBox;
@@ -77,11 +73,15 @@ public class PhantasiaSceneCreateScreen extends Screen {
         g.fill(px, py, px + pw, py + ph, C_PANEL());
         g.fill(px, py, px + pw, py + 1, C_ACCENT());
 
-        g.drawCenteredString(font, Component.translatable("screen.phantasia.scene_create.title").getString(), px + pw / 2, py + 4, C_ACCENT());
+        g.drawCenteredString(font, Component.translatable("screen.phantasia.scene_create.title").getString(),
+                px + pw / 2, py + 4, C_ACCENT());
 
-        g.drawString(font, Component.translatable("screen.phantasia.scene_create.label_id").getString(), px + 6, py + 19, C_DIM(), false);
-        g.drawString(font, Component.translatable("screen.phantasia.scene_create.label_name").getString(), px + 6, py + 39, C_DIM(), false);
-        g.drawString(font, Component.translatable("screen.phantasia.scene_create.label_icon").getString(), px + 6, py + 59, C_DIM(), false);
+        g.drawString(font, Component.translatable("screen.phantasia.scene_create.label_id").getString(), px + 6,
+                py + 19, C_DIM(), false);
+        g.drawString(font, Component.translatable("screen.phantasia.scene_create.label_name").getString(), px + 6,
+                py + 39, C_DIM(), false);
+        g.drawString(font, Component.translatable("screen.phantasia.scene_create.label_icon").getString(), px + 6,
+                py + 59, C_DIM(), false);
 
         super.render(g, mx, my, partial);
 
@@ -89,8 +89,10 @@ public class PhantasiaSceneCreateScreen extends Screen {
             g.drawCenteredString(font, errorMsg, px + pw / 2, py + 76, C_WARN());
 
         int btnY = py + ph - 22;
-        drawBtn(g, mx, my, px + pw / 2 - 118, btnY, 110, 14, Component.translatable("screen.phantasia.scene_create.btn_create").getString(), C_GREEN());
-        drawBtn(g, mx, my, px + pw / 2 + 8, btnY, 110, 14, Component.translatable("screen.phantasia.scene_create.btn_cancel").getString(), C_BTN());
+        drawBtn(g, mx, my, px + pw / 2 - 118, btnY, 110, 14,
+                Component.translatable("screen.phantasia.scene_create.btn_create").getString(), C_GREEN());
+        drawBtn(g, mx, my, px + pw / 2 + 8, btnY, 110, 14,
+                Component.translatable("screen.phantasia.scene_create.btn_cancel").getString(), C_BTN());
     }
 
     private void drawBtn(GuiGraphics g, int mx, int my, int x, int y, int w, int h, String label, int col) {

@@ -1,7 +1,5 @@
 package net.phoenixvine.phantasia.client.screens.subscreen;
 
-import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
-
 import com.gregtechceu.gtceu.api.block.MetaMachineBlock;
 
 import net.minecraft.client.Minecraft;
@@ -38,7 +36,6 @@ import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
  */
 @OnlyIn(Dist.CLIENT)
 public class PhantasiaBlockFilterScreen extends Screen {
-
 
     private enum Tab {
         FILTER,
@@ -200,7 +197,8 @@ public class PhantasiaBlockFilterScreen extends Screen {
             boolean showM = parent instanceof PhantasiaSceneScreen pss && pss.showMistakes;
             boolean hov = isOver(mx, my, x, y, bw, 18);
 
-            drawThemedBtn(g, font, x, y, bw, 18, (showM ? "✓ " : "  ") + "Show Common Mistakes", hov, showM ? C_BTN_ACT() : C_BTN());
+            drawThemedBtn(g, font, x, y, bw, 18, (showM ? "✓ " : "  ") + "Show Common Mistakes", hov,
+                    showM ? C_BTN_ACT() : C_BTN());
             y += 22;
         }
 

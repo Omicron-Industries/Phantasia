@@ -10,12 +10,12 @@ import net.phoenixvine.phantasia.common.data.pattern.PhantasiaLoadedPattern;
 import net.phoenixvine.phantasia.common.data.script.PhantasiaScriptData;
 import net.phoenixvine.phantasia.common.data.variant.PhantasiaVariantGroup;
 
-import javax.annotation.Nullable;
-
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
+import javax.annotation.Nullable;
 
 /**
  * Mod-agnostic representation of a multiblock machine definition.
@@ -68,7 +68,8 @@ public interface IPhantasiaMultiblockDefinition {
      * Return {@code true} to keep the playback tick pinned to that step;
      * return {@code false} to release the hold and let playback resume.
      *
-     * <p>The first call for a given hold is the trigger — use it to start
+     * <p>
+     * The first call for a given hold is the trigger — use it to start
      * animations or record the start time.
      *
      * @param holdId    the value of the step's {@code "hold"} field

@@ -1,7 +1,5 @@
 package net.phoenixvine.phantasia.client.screens.subscreen;
 
-import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
-
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
@@ -144,7 +142,8 @@ public class PhantasiaFootprintScreen extends Screen {
 
         g.fill(0, 0, this.width, 23, 0xCC0A0A14);
         g.fill(0, 22, this.width, 23, C_ACCENT());
-        String title = "Footprint  —  Layer Y = " + currentLayerY() + "  (" + (layerIndex + 1) + " / " + layers.size() + ")";
+        String title = "Footprint  —  Layer Y = " + currentLayerY() + "  (" + (layerIndex + 1) + " / " + layers.size() +
+                ")";
         g.drawCenteredString(font, title, (this.width - PANEL_W) / 2, 7, C_ACCENT());
 
         hoveredLocal = screenToLocal(mx, my);
@@ -254,7 +253,8 @@ public class PhantasiaFootprintScreen extends Screen {
         g.drawString(font, "Layer (Y):", px + 10, y, C_DIM(), false);
         y += 11;
         drawThemedBtn(g, font, px + 8, y, hw, 15, "\u25BC Prev", isOver(mx, my, px + 8, y, hw, 15), C_BTN());
-        drawThemedBtn(g, font, px + 10 + hw, y, hw, 15, "Next \u25B2", isOver(mx, my, px + 10 + hw, y, hw, 15), C_BTN());
+        drawThemedBtn(g, font, px + 10 + hw, y, hw, 15, "Next \u25B2", isOver(mx, my, px + 10 + hw, y, hw, 15),
+                C_BTN());
         y += 19;
 
         // Layer pills
@@ -294,9 +294,11 @@ public class PhantasiaFootprintScreen extends Screen {
                     if (!bs.isAir()) {
                         g.drawString(font, "Inspecting:", px + 10, y, C_ACCENT(), false);
                         y += 11;
-                        g.drawString(font, trunc(bs.getBlock().getName().getString(), PANEL_W - 18), px + 10, y, C_TEXT(), false);
+                        g.drawString(font, trunc(bs.getBlock().getName().getString(), PANEL_W - 18), px + 10, y,
+                                C_TEXT(), false);
                         y += 10;
-                        g.drawString(font, "X=" + inspectedLocal.getX() + " Z=" + inspectedLocal.getZ(), px + 10, y, C_DIM(), false);
+                        g.drawString(font, "X=" + inspectedLocal.getX() + " Z=" + inspectedLocal.getZ(), px + 10, y,
+                                C_DIM(), false);
                         y += 10;
                         if (pattern.hasBlockEntity(wp)) {
                             g.drawString(font, "\u26A1 Block Entity", px + 10, y, C_WARN(), false);
@@ -458,11 +460,9 @@ public class PhantasiaFootprintScreen extends Screen {
 
                             if (!manager.getRecipesByOutput(emiStack).isEmpty()) {
                                 dev.emi.emi.api.EmiApi.displayRecipes(emiStack);
-                            }
-                            else if (!manager.getRecipesByInput(emiStack).isEmpty()) {
+                            } else if (!manager.getRecipesByInput(emiStack).isEmpty()) {
                                 dev.emi.emi.api.EmiApi.displayUses(emiStack);
-                            }
-                            else {
+                            } else {
                                 dev.emi.emi.api.EmiApi.displayRecipes(emiStack);
                             }
                         }

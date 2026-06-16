@@ -1,7 +1,5 @@
 package net.phoenixvine.phantasia.client.screens;
 
-import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
-
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
@@ -36,8 +34,6 @@ public abstract class PhantasiaScreen extends Screen {
 
     /** Top bar height — consistent across all editors. */
     public static final int TOP_BAR_H = 22;
-
-
 
     // ── Button list ───────────────────────────────────────────────────────────
 
@@ -169,7 +165,8 @@ public abstract class PhantasiaScreen extends Screen {
         g.fill(dx, dy, dx + dw, dy + dh, C_PANEL());
         g.fill(dx, dy, dx + dw, dy + 1, C_WARN());
         g.drawCenteredString(font, "Unsaved changes \u2014 discard and close?", dx + dw / 2, dy + 10, C_WARN());
-        g.drawCenteredString(font, Component.translatable("screen.phantasia.editor.close_confirm_body").getString(), dx + dw / 2, dy + 22, C_DIM());
+        g.drawCenteredString(font, Component.translatable("screen.phantasia.editor.close_confirm_body").getString(),
+                dx + dw / 2, dy + 22, C_DIM());
         int btnY = dy + dh - 20;
         btn(g, mx, my, dx + dw / 2 - 118, btnY, 110, 14, "\u2715 Discard & Close", C_RED(), onDiscard);
         btn(g, mx, my, dx + dw / 2 + 8, btnY, 110, 14, "\u21A9 Keep Editing", C_BTN(), onKeep);

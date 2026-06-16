@@ -1,7 +1,5 @@
 package net.phoenixvine.phantasia.client.screens.subscreen;
 
-import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
-
 import com.lowdragmc.lowdraglib.utils.BlockInfo;
 
 import net.minecraft.Util;
@@ -29,8 +27,6 @@ import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
 
 @OnlyIn(Dist.CLIENT)
 public class PhantasiaMaterialCostScreen extends Screen {
-
-
 
     private static final int ROW_H = 22;
     private static final int HEADER_H = 50;

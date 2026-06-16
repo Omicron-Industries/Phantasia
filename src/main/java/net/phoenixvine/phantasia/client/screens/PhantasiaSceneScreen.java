@@ -1,11 +1,5 @@
 package net.phoenixvine.phantasia.client.screens;
 
-import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
-
-import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockDefinition;
-import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockShape;
-import net.phoenixvine.phantasia.common.multiblock.PhantasiaMultiblockRegistry;
-
 import com.lowdragmc.lowdraglib.utils.BlockInfo;
 
 import net.minecraft.client.Minecraft;
@@ -15,7 +9,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -32,9 +25,9 @@ import net.phoenixvine.phantasia.client.render.PhantasiaTrackedDummyWorld;
 import net.phoenixvine.phantasia.client.render.PhantasiaWorldRenderer;
 import net.phoenixvine.phantasia.client.screens.editors.PhantasiaScriptEditorScreen;
 import net.phoenixvine.phantasia.client.screens.subscreen.*;
-import net.phoenixvine.phantasia.common.data.pattern.PhantasiaLoadedPattern;
 import net.phoenixvine.phantasia.common.data.guides.PhantasiaGuideData;
 import net.phoenixvine.phantasia.common.data.guides.PhantasiaGuideRegistry;
+import net.phoenixvine.phantasia.common.data.pattern.PhantasiaLoadedPattern;
 import net.phoenixvine.phantasia.common.data.scene.PhantasiaSceneData;
 import net.phoenixvine.phantasia.common.data.scene.PhantasiaScenes;
 import net.phoenixvine.phantasia.common.data.script.PhantasiaScript;
@@ -42,6 +35,9 @@ import net.phoenixvine.phantasia.common.data.script.PhantasiaScriptData;
 import net.phoenixvine.phantasia.common.data.script.PhantasiaScripts;
 import net.phoenixvine.phantasia.common.data.variant.PhantasiaVariantGroup;
 import net.phoenixvine.phantasia.common.data.variant.PhantasiaVariantState;
+import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockDefinition;
+import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockShape;
+import net.phoenixvine.phantasia.common.multiblock.PhantasiaMultiblockRegistry;
 import net.phoenixvine.phantasia.common.world.PhantasiaDimension;
 import net.phoenixvine.phantasia.common.world.PhantasiaSlotAllocator;
 import net.phoenixvine.phantasia.common.world.PhantasiaSlotVersions;
@@ -446,8 +442,8 @@ public class PhantasiaSceneScreen extends Screen {
 
         PhantasiaLoadedPattern result = finalisePattern(raw, blockMap, localToWorld, baseplatePos, bePos,
                 controllerWP, renderOrigin);
-        RenderSystem.recordRenderCall(() ->
-                definition.onShapeLoaded(SHARED_LEVEL, renderOrigin, new HashMap<>(blockMap), new HashMap<>(localToWorld)));
+        RenderSystem.recordRenderCall(() -> definition.onShapeLoaded(SHARED_LEVEL, renderOrigin,
+                new HashMap<>(blockMap), new HashMap<>(localToWorld)));
         return result;
     }
 
@@ -506,8 +502,8 @@ public class PhantasiaSceneScreen extends Screen {
 
         PhantasiaLoadedPattern result = finalisePattern(raw, blockMap, localToWorld, baseplatePos, bePos,
                 controllerWP, renderOrigin);
-        RenderSystem.recordRenderCall(() ->
-                definition.onShapeLoaded(SHARED_LEVEL, renderOrigin, new HashMap<>(blockMap), new HashMap<>(localToWorld)));
+        RenderSystem.recordRenderCall(() -> definition.onShapeLoaded(SHARED_LEVEL, renderOrigin,
+                new HashMap<>(blockMap), new HashMap<>(localToWorld)));
         return result;
     }
 

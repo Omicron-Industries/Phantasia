@@ -5,12 +5,12 @@ import com.gregtechceu.gtceu.api.item.MetaMachineItem;
 import com.gregtechceu.gtceu.api.machine.MachineDefinition;
 import com.gregtechceu.gtceu.api.machine.MultiblockMachineDefinition;
 import com.gregtechceu.gtceu.api.registry.GTRegistries;
+
 import com.lowdragmc.lowdraglib.utils.BlockInfo;
 
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraftforge.registries.ForgeRegistries;
 import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockDefinition;
 import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockProvider;
 
@@ -37,9 +37,8 @@ public class GTCEuMultiblockProvider implements IPhantasiaMultiblockProvider {
     @Override
     public Optional<IPhantasiaMultiblockDefinition> resolve(String machineId) {
         try {
-            ResourceLocation rl = machineId.contains(":")
-                    ? new ResourceLocation(machineId)
-                    : new ResourceLocation("gtceu", machineId);
+            ResourceLocation rl = machineId.contains(":") ? new ResourceLocation(machineId) :
+                    new ResourceLocation("gtceu", machineId);
             MachineDefinition def = GTRegistries.MACHINES.get(rl);
             if (def instanceof MultiblockMachineDefinition multi) {
                 return Optional.of(cache.computeIfAbsent(rl, k -> new GTCEuMultiblockDefinition(multi)));
@@ -51,9 +50,7 @@ public class GTCEuMultiblockProvider implements IPhantasiaMultiblockProvider {
     @Override
     public Optional<BlockInfo> resolveBlock(String id) {
         try {
-            ResourceLocation rl = id.contains(":")
-                    ? new ResourceLocation(id)
-                    : new ResourceLocation("gtceu", id);
+            ResourceLocation rl = id.contains(":") ? new ResourceLocation(id) : new ResourceLocation("gtceu", id);
             MachineDefinition def = GTRegistries.MACHINES.get(rl);
             if (def != null) {
                 var block = def.getBlock();
@@ -86,8 +83,8 @@ public class GTCEuMultiblockProvider implements IPhantasiaMultiblockProvider {
 
     @Override
     public boolean isControllerBlock(BlockState state) {
-        return state.getBlock() instanceof MetaMachineBlock mmb
-                && mmb.getDefinition() instanceof MultiblockMachineDefinition;
+        return state.getBlock() instanceof MetaMachineBlock mmb &&
+                mmb.getDefinition() instanceof MultiblockMachineDefinition;
     }
 
     @Override
@@ -95,9 +92,9 @@ public class GTCEuMultiblockProvider implements IPhantasiaMultiblockProvider {
         if (!(state.getBlock() instanceof MetaMachineBlock mmb)) return false;
         if (mmb.getDefinition() instanceof MultiblockMachineDefinition) return false;
         String path = mmb.getDefinition().getId().getPath();
-        return path.contains("hatch") || path.contains("bus") || path.contains("port")
-                || path.contains("storage") || path.contains("input") || path.contains("output")
-                || path.contains("muffler") || path.contains("maintenance");
+        return path.contains("hatch") || path.contains("bus") || path.contains("port") || path.contains("storage") ||
+                path.contains("input") || path.contains("output") || path.contains("muffler") ||
+                path.contains("maintenance");
     }
 
     /** Resolve a looked-at block to its multiblock definition, if it's a GT controller. */
@@ -110,8 +107,7 @@ public class GTCEuMultiblockProvider implements IPhantasiaMultiblockProvider {
     @Override
     public boolean isFunctionalBlock(BlockState state) {
         if (state.isAir()) return false;
-        return state.getBlock() instanceof MetaMachineBlock
-                || state.getBlock().getDescriptionId().contains("frame")
-                || state.getBlock().getDescriptionId().contains("gearbox");
+        return state.getBlock() instanceof MetaMachineBlock || state.getBlock().getDescriptionId().contains("frame") ||
+                state.getBlock().getDescriptionId().contains("gearbox");
     }
 }
