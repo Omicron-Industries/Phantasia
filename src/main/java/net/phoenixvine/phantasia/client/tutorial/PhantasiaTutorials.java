@@ -635,7 +635,7 @@ public final class PhantasiaTutorials {
                                     g.fill(barX + 8, barY + 18, barX + 8 + (int) ((barW - 16) * pct), barY + 24,
                                             C_PROG());
                                 }))
-                                .cursor(0.5f, 0.4f, 20, 80, false)
+                                .cursor(0.46f, 0.4f, 20, 80, false)
                                 .highlight(0.14f, 0.76f, 0.72f, 0.18f, "Hold progress bar")
                                 .build(),
 
@@ -648,10 +648,10 @@ public final class PhantasiaTutorials {
                                     int tab = (tick / 80) % 4;
                                     drawSelectionScreen(g, f, t, tick, tab);
                                 }))
-                                .cursor(0.22f, 0.14f, 20, 40, true)
-                                .cursor(0.39f, 0.14f, 15, 40, true)
-                                .cursor(0.56f, 0.14f, 15, 40, true)
-                                .cursor(0.73f, 0.14f, 15, 40, true)
+                                .cursor(0.18f, 0.14f, 20, 40, true)
+                                .cursor(0.35f, 0.14f, 15, 40, true)
+                                .cursor(0.52f, 0.14f, 15, 40, true)
+                                .cursor(0.69f, 0.14f, 15, 40, true)
                                 .highlight(0.16f, 0.10f, 0.70f, 0.09f, "Tab bar")
                                 .build(),
 
@@ -691,7 +691,7 @@ public final class PhantasiaTutorials {
                                         "What Goes In?",
                                         "Raw iron ore enters the Electric Blast Furnace\nalong with a limestone flux to produce iron ingots.\n\nThe EBF requires a heating coil tier of at least\nCupronickel for basic iron smelting.",
                                         0, 4)))
-                                .cursor(0.77f, 0.93f, 25, 40, true)
+                                .cursor(0.73f, 0.93f, 25, 40, true)
                                 .highlight(0.0f, 0.86f, 1.0f, 0.14f, "Navigation bar")
                                 .build(),
 
@@ -712,10 +712,10 @@ public final class PhantasiaTutorials {
                                     drawGuideScreen(g, f, t, "Ore Processing Guide",
                                             headlines[page], bodies[page], page, 4);
                                 }))
-                                .cursor(0.77f, 0.93f, 20, 50, true)
-                                .cursor(0.77f, 0.93f, 0, 60, false)
-                                .cursor(0.77f, 0.93f, 10, 50, true)
-                                .cursor(0.77f, 0.93f, 0, 60, false)
+                                .cursor(0.73f, 0.93f, 20, 50, true)
+                                .cursor(0.73f, 0.93f, 0, 60, false)
+                                .cursor(0.73f, 0.93f, 10, 50, true)
+                                .cursor(0.73f, 0.93f, 0, 60, false)
                                 .build(),
 
                         TutorialSlide.of("Cross-Links",
@@ -729,8 +729,8 @@ public final class PhantasiaTutorials {
                                         "Now that you understand the inputs and outputs,\nyou're ready to build the machine.\n\n" +
                                                 "Continue Reading →\n► View Automated Script →",
                                         3, 4)))
-                                .cursor(0.5f, 0.65f, 20, 30, true)
-                                .cursor(0.5f, 0.73f, 15, 30, true)
+                                .cursor(0.46f, 0.65f, 20, 30, true)
+                                .cursor(0.46f, 0.73f, 15, 30, true)
                                 .highlight(0.12f, 0.62f, 0.76f, 0.16f, "Cross-link buttons")
                                 .build()));
     }
@@ -763,9 +763,9 @@ public final class PhantasiaTutorials {
                                     int step = (tick / 60) % EBF_STEPS.size();
                                     drawScriptEditor(g, f, t, "Electric Blast Furnace", step, EBF_STEPS, tick);
                                 }))
-                                .cursor(0.85f, 0.30f, 20, 40, true)
-                                .cursor(0.85f, 0.48f, 15, 40, true)
-                                .cursor(0.85f, 0.66f, 15, 40, true)
+                                .cursor(0.81f, 0.30f, 20, 40, true)
+                                .cursor(0.81f, 0.48f, 15, 40, true)
+                                .cursor(0.81f, 0.66f, 15, 40, true)
                                 .highlight(0.69f, 0.0f, 0.31f, 0.79f, "Active step")
                                 .build(),
 
@@ -809,8 +809,8 @@ public final class PhantasiaTutorials {
                                                     "Finished"),
                                             tick);
                                 }))
-                                .cursor(0.85f, 0.25f, 20, 50, true)
-                                .cursor(0.85f, 0.43f, 15, 50, true)
+                                .cursor(0.81f, 0.25f, 20, 50, true)
+                                .cursor(0.81f, 0.43f, 15, 50, true)
                                 .highlight(0.69f, 0.0f, 0.31f, 0.79f, "Scene steps")
                                 .build(),
 
@@ -843,7 +843,7 @@ public final class PhantasiaTutorials {
                                         "The editor opens with a blank guide ready to fill in.\n" +
                                         "Give it a unique ID (e.g. yourmod:my_guide), a title, and an icon.")
                                 .mock(mock((g, f, t, tick) -> drawSelectionScreen(g, f, t, tick, 2)))
-                                .cursor(0.17f, 0.58f, 30, 50, true)
+                                .cursor(0.13f, 0.58f, 30, 50, true)
                                 .highlight(0.04f, 0.52f, 0.34f, 0.40f, "+ New Guide card")
                                 .build(),
 
@@ -857,8 +857,8 @@ public final class PhantasiaTutorials {
                                         "What Goes In?",
                                         "Raw iron ore enters the Electric Blast Furnace\nalong with a limestone flux.\n\nCoil tier must be at least Cupronickel.",
                                         tick)))
-                                .cursor(0.35f, 0.37f, 20, 40, true)
-                                .cursor(0.35f, 0.65f, 15, 40, true)
+                                .cursor(0.31f, 0.37f, 20, 40, true)
+                                .cursor(0.31f, 0.65f, 15, 40, true)
                                 .highlight(0.0f, 0.25f, 0.54f, 0.14f, "Headline editor")
                                 .highlight(0.0f, 0.42f, 0.54f, 0.42f, "Body text editor")
                                 .build(),
@@ -873,9 +873,9 @@ public final class PhantasiaTutorials {
                                         "Energy Requirements",
                                         "The EBF requires at least 128 EU/t at LV tier.\nHigher coil tiers unlock hotter temperatures\nfor producing Steel, Aluminium, and beyond.",
                                         tick)))
-                                .cursor(0.65f, 0.38f, 20, 30, true)
-                                .cursor(0.65f, 0.56f, 15, 30, true)
-                                .cursor(0.72f, 0.88f, 20, 40, true)
+                                .cursor(0.61f, 0.38f, 20, 30, true)
+                                .cursor(0.61f, 0.56f, 15, 30, true)
+                                .cursor(0.68f, 0.88f, 20, 40, true)
                                 .highlight(0.54f, 0.28f, 0.46f, 0.62f, "Page list + Add Page")
                                 .build(),
 
@@ -898,9 +898,9 @@ public final class PhantasiaTutorials {
                                                 tick);
                                     }
                                 }))
-                                .cursor(0.83f, 0.06f, 20, 50, true)
-                                .cursor(0.5f, 0.5f, 20, 60, false)
-                                .cursor(0.91f, 0.06f, 20, 50, true)
+                                .cursor(0.79f, 0.06f, 20, 50, true)
+                                .cursor(0.46f, 0.5f, 20, 60, false)
+                                .cursor(0.87f, 0.06f, 20, 50, true)
                                 .highlight(0.76f, 0.02f, 0.24f, 0.10f, "Preview & Save")
                                 .build()));
     }
@@ -919,7 +919,7 @@ public final class PhantasiaTutorials {
                                         "The script editor icon is in the right panel. A blank script\n" +
                                         "is created for you if none exists yet.")
                                 .mock(mock((g, f, t, tick) -> drawSelectionScreen(g, f, t, tick, 0)))
-                                .cursor(0.17f, 0.58f, 25, 50, true)
+                                .cursor(0.13f, 0.58f, 25, 50, true)
                                 .highlight(0.04f, 0.52f, 0.34f, 0.40f, "Open EBF card")
                                 .build(),
 
@@ -930,8 +930,8 @@ public final class PhantasiaTutorials {
                                         "camera animation. The EBF script uses one step per layer.")
                                 .mock(mock((g, f, t, tick) -> drawScriptEditor(g, f, t, "Electric Blast Furnace",
                                         (tick / 50) % EBF_STEPS.size(), EBF_STEPS, tick)))
-                                .cursor(0.83f, 0.90f, 25, 40, true)
-                                .cursor(0.83f, 0.25f, 20, 40, true)
+                                .cursor(0.79f, 0.90f, 25, 40, true)
+                                .cursor(0.79f, 0.25f, 20, 40, true)
                                 .highlight(0.69f, 0.84f, 0.31f, 0.12f, "+ Add Step")
                                 .build(),
 
@@ -942,9 +942,9 @@ public final class PhantasiaTutorials {
                                         "steps, and Lerp Ticks to 20–30 for smooth transitions.")
                                 .mock(mock((g, f, t, tick) -> drawScriptEditor(g, f, t, "Electric Blast Furnace", 2,
                                         EBF_STEPS, tick)))
-                                .cursor(0.61f, 0.13f, 20, 30, false)
-                                .cursor(0.61f, 0.20f, 10, 25, false)
-                                .cursor(0.61f, 0.27f, 10, 25, false)
+                                .cursor(0.57f, 0.13f, 20, 30, false)
+                                .cursor(0.57f, 0.20f, 10, 25, false)
+                                .cursor(0.57f, 0.27f, 10, 25, false)
                                 .highlight(0.52f, 0.04f, 0.27f, 0.24f, "Camera panel")
                                 .build(),
 
@@ -957,7 +957,7 @@ public final class PhantasiaTutorials {
                                     int step = (tick / 40) % EBF_STEPS.size();
                                     drawScriptEditor(g, f, t, "Electric Blast Furnace", step, EBF_STEPS, tick);
                                 }))
-                                .cursor(0.87f, 0.90f, 20, 40, true)
+                                .cursor(0.83f, 0.90f, 20, 40, true)
                                 .highlight(0.72f, 0.86f, 0.28f, 0.10f, "Save Script")
                                 .build()));
     }

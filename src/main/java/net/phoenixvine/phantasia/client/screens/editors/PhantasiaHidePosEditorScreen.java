@@ -13,7 +13,8 @@ import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.phoenixvine.phantasia.client.camera.CameraView;
 import net.phoenixvine.phantasia.client.camera.PhantasiaCamera;
-import net.phoenixvine.phantasia.common.data.script.PhantasiaScriptData;
+import net.phoenixvine.phantasia.client.render.PhantasiaTrackedDummyWorld;
+import net.phoenixvine.phantasia.client.render.PhantasiaWorldRenderer;
 
 import org.joml.Vector3f;
 import org.lwjgl.glfw.GLFW;
@@ -40,10 +41,8 @@ public class PhantasiaHidePosEditorScreen extends Screen {
     private static final int ROW_H = 20;
     private static final int PANEL_W = 260; // right panel width
 
-    // ── References ────────────────────────────────────────────────────────────
-    private final PhantasiaScriptEditorScreen parent;
-    private final PhantasiaScriptData data;
-    private final int stepIndex;
+    // ── Context (abstracts script-editor vs scene-placement-editor parent) ───────
+    private final PhantasiaHidePosContext ctx;
 
     // ── Camera (own, so we don't disturb parent camera) ───────────────────────
     private PhantasiaCamera camera;
@@ -56,6 +55,9 @@ public class PhantasiaHidePosEditorScreen extends Screen {
     private int[] hoveredListPos = null;
     /** World-space pos hovered in the viewport (for click-to-add), or null. */
     private BlockPos hoveredViewportPos = null;
+
+    // ── Preview toggle (scene placement pos mode only) ───────────────────────
+    private boolean previewMode = false;
 
     // ── Scroll ────────────────────────────────────────────────────────────────
     private int scrollOffset = 0;
@@ -75,19 +77,9 @@ public class PhantasiaHidePosEditorScreen extends Screen {
     private final List<Btn> btns = new ArrayList<>();
 
     // ─────────────────────────────────────────────────────────────────────────
-    public PhantasiaHidePosEditorScreen(PhantasiaScriptEditorScreen parent,
-                                        PhantasiaScriptData data,
-                                        int stepIndex) {
+    public PhantasiaHidePosEditorScreen(PhantasiaHidePosContext ctx) {
         super(Component.translatable("screen.phantasia.hide_pos_editor.title"));
-        this.parent = parent;
-        this.data = data;
-        this.stepIndex = stepIndex;
-    }
-
-    private PhantasiaScriptData.StepData step() {
-        List<PhantasiaScriptData.StepData> steps = data.getSteps();
-        if (stepIndex >= 0 && stepIndex < steps.size()) return steps.get(stepIndex);
-        return new PhantasiaScriptData.StepData();
+        this.ctx = ctx;
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -98,9 +90,12 @@ public class PhantasiaHidePosEditorScreen extends Screen {
     protected void init() {
         super.init();
 
+        // Let the context show all blocks for picking (scene placement "pos" mode needs this)
+        ctx.showAllForPickingMode();
+
         // Clone the parent camera so we start at the same view angle
-        if (camera == null && parent.camera != null) {
-            PhantasiaCamera pc = parent.camera;
+        if (camera == null && ctx.getParentCamera() != null) {
+            PhantasiaCamera pc = ctx.getParentCamera();
             camera = new PhantasiaCamera(pc.getYaw(), pc.getPitch(), pc.getZoom(),
                     pc.getTargetX(), pc.getTargetY(), pc.getTargetZ());
         } else if (camera == null) {
@@ -143,20 +138,21 @@ public class PhantasiaHidePosEditorScreen extends Screen {
         int viewH = this.height - TOP_BAR_H;
 
         // ── 3-D Viewport ──────────────────────────────────────────────────────
-        if (parent.renderer != null && camera != null) {
+        PhantasiaWorldRenderer rend = ctx.getRenderer();
+        if (rend != null && camera != null) {
             // Pass mouse only when cursor is in the viewport area
             int vmx = (mx < viewW) ? mx : -1;
             int vmy = (my > TOP_BAR_H) ? my : -1;
-            parent.renderer.setMousePos(vmx, vmy);
+            rend.setMousePos(vmx, vmy);
             CameraView view = camera.getView(partial);
-            parent.renderer.render(view, 0, TOP_BAR_H, viewW, viewH);
+            rend.render(view, 0, TOP_BAR_H, viewW, viewH);
 
             // Pick hovered viewport block (only if cursor is in viewport)
             if (mx < viewW && my > TOP_BAR_H) {
-                BlockHitResult hit = parent.renderer.getLastHitResult();
+                BlockHitResult hit = rend.getLastHitResult();
                 if (hit != null && hit.getType() == HitResult.Type.BLOCK) {
                     BlockPos wp = hit.getBlockPos();
-                    if (parent.renderer.isVisible(wp)) {
+                    if (rend.isVisible(wp)) {
                         hoveredViewportPos = wp;
                     }
                 }
@@ -177,7 +173,7 @@ public class PhantasiaHidePosEditorScreen extends Screen {
         g.fill(0, TOP_BAR_H - 1, this.width, TOP_BAR_H, C_ACCENT());
 
         g.drawCenteredString(font,
-                "Hide Positions — Step " + (stepIndex + 1) + "  (" + step().hidePositions.size() + " hidden)",
+                "Hide Positions — " + ctx.getHidePosLabel() + "  (" + ctx.getHidePositions().size() + " hidden)",
                 (this.width - PANEL_W) / 2, (TOP_BAR_H - 8) / 2, C_ACCENT());
 
         // Done button
@@ -201,10 +197,25 @@ public class PhantasiaHidePosEditorScreen extends Screen {
         g.drawString(font, Component.translatable("screen.phantasia.hide_pos_editor.btn_clear").getString(), clrX + 6,
                 (TOP_BAR_H - 8) / 2, clrHov ? C_RED() : C_TEXT(), false);
         btns.add(new Btn(clrX, 3, clrW, TOP_BAR_H - 6, () -> {
-            parent.checkpoint();
-            step().hidePositions.clear();
-            parent.dirty = true;
-            parent.rebuildVisibility();
+            previewMode = false;
+            ctx.checkpoint();
+            ctx.getHidePositions().clear();
+            ctx.markDirty();
+            ctx.showAllForPickingMode();
+        }));
+
+        // Preview toggle (shows pos-filtered result vs all-blocks pick mode)
+        String prevLabel = previewMode ? "◉ Preview" : "○ Preview";
+        int prevW = font.width(prevLabel) + 10;
+        int prevX = clrX - 4 - prevW;
+        boolean prevHov = isOver(mx, my, prevX, 3, prevW, TOP_BAR_H - 6);
+        g.fill(prevX, 3, prevX + prevW, TOP_BAR_H - 3, previewMode ? C_BTN_ACT() : (prevHov ? C_BTN_HOV() : C_BTN()));
+        if (previewMode) g.fill(prevX, 3, prevX + prevW, 4, C_ACCENT());
+        g.drawString(font, prevLabel, prevX + 5, (TOP_BAR_H - 8) / 2, previewMode ? C_ACCENT() : C_TEXT(), false);
+        btns.add(new Btn(prevX, 3, prevW, TOP_BAR_H - 6, () -> {
+            previewMode = !previewMode;
+            if (previewMode) ctx.previewVisibility();
+            else ctx.showAllForPickingMode();
         }));
 
         // Hint: click block in viewport to hide it
@@ -235,7 +246,7 @@ public class PhantasiaHidePosEditorScreen extends Screen {
     }
 
     private void renderList(GuiGraphics g, int mx, int my, int px) {
-        List<int[]> positions = step().hidePositions;
+        List<int[]> positions = ctx.getHidePositions();
 
         int listTop = TOP_BAR_H + 16;
         int listBottom = this.height - BOTTOM_H - 2;
@@ -300,12 +311,14 @@ public class PhantasiaHidePosEditorScreen extends Screen {
                     rbHov ? C_RED() : C_DIM());
             final int fi = i;
             btns.add(new Btn(rbx, ry + 3, 16, ROW_H - 6, () -> {
-                parent.checkpoint();
-                if (fi >= 0 && fi < step().hidePositions.size()) {
-                    step().hidePositions.remove(fi);
-                    parent.dirty = true;
-                    parent.rebuildVisibility();
-                    if (scrollOffset > 0 && scrollOffset >= step().hidePositions.size())
+                previewMode = false;
+                ctx.checkpoint();
+                List<int[]> hp = ctx.getHidePositions();
+                if (fi >= 0 && fi < hp.size()) {
+                    hp.remove(fi);
+                    ctx.markDirty();
+                    ctx.showAllForPickingMode();
+                    if (scrollOffset > 0 && scrollOffset >= hp.size())
                         scrollOffset--;
                 }
             }));
@@ -350,8 +363,8 @@ public class PhantasiaHidePosEditorScreen extends Screen {
             int[] local = worldToLocal(hoveredViewportPos);
             String blockName = "";
             try {
-                BlockState bs = parent.editorLevel != null ? parent.editorLevel.getBlockState(hoveredViewportPos) :
-                        null;
+                PhantasiaTrackedDummyWorld lvl = ctx.getEditorLevel();
+                BlockState bs = lvl != null ? lvl.getBlockState(hoveredViewportPos) : null;
                 if (bs != null && !bs.isAir()) blockName = bs.getBlock().getName().getString();
             } catch (Exception ignored) {}
 
@@ -392,11 +405,12 @@ public class PhantasiaHidePosEditorScreen extends Screen {
     // ─────────────────────────────────────────────────────────────────────────
 
     private String lookupBlockName(int[] localXYZ) {
-        if (parent.editorLevel == null || parent.pattern == null) return null;
         try {
-            BlockPos world = parent.pattern.toWorld(new BlockPos(localXYZ[0], localXYZ[1], localXYZ[2]));
+            BlockPos world = ctx.localToWorld(localXYZ);
             if (world == null) return null;
-            BlockState state = parent.editorLevel.getBlockState(world);
+            PhantasiaTrackedDummyWorld lvl = ctx.getEditorLevel();
+            if (lvl == null) return null;
+            BlockState state = lvl.getBlockState(world);
             if (state == null || state.isAir()) return null;
             return state.getBlock().getName().getString();
         } catch (Exception e) {
@@ -405,13 +419,7 @@ public class PhantasiaHidePosEditorScreen extends Screen {
     }
 
     private int[] worldToLocal(BlockPos world) {
-        if (parent.pattern == null) return null;
-        try {
-            BlockPos local = parent.pattern.toLocal(world);
-            return local != null ? new int[] { local.getX(), local.getY(), local.getZ() } : null;
-        } catch (Exception e) {
-            return null;
-        }
+        return ctx.worldToLocal(world);
     }
 
     private void tryAdd() {
@@ -431,48 +439,50 @@ public class PhantasiaHidePosEditorScreen extends Screen {
             int y = Integer.parseInt(parts[1].trim());
             int z = Integer.parseInt(parts[2].trim());
 
-            for (int[] p : step().hidePositions)
+            List<int[]> positions = ctx.getHidePositions();
+            for (int[] p : positions)
                 if (p.length >= 3 && p[0] == x && p[1] == y && p[2] == z) {
                     addError = Component.translatable("screen.phantasia.hide_pos_editor.err_already_hidden")
                             .getString();
                     return;
                 }
 
-            parent.checkpoint();
-            step().hidePositions.add(new int[] { x, y, z });
-            parent.dirty = true;
-            parent.rebuildVisibility();
+            ctx.checkpoint();
+            positions.add(new int[] { x, y, z });
+            ctx.markDirty();
+            ctx.rebuildVisibility();
             addBox.setValue("");
 
             int listH = this.height - BOTTOM_H - 2 - (TOP_BAR_H + 16);
             int visRows = listH / ROW_H;
-            scrollOffset = Math.max(0, step().hidePositions.size() - visRows);
+            scrollOffset = Math.max(0, positions.size() - visRows);
         } catch (NumberFormatException e) {
             addError = Component.translatable("screen.phantasia.hide_pos_editor.err_invalid_number").getString();
         }
     }
 
     private void tryAddWorldPos(BlockPos world) {
-        if (parent.pattern == null) return;
         int[] local = worldToLocal(world);
         if (local == null) return;
 
-        for (int[] p : step().hidePositions)
+        List<int[]> positions = ctx.getHidePositions();
+        for (int[] p : positions)
             if (p.length >= 3 && p[0] == local[0] && p[1] == local[1] && p[2] == local[2])
-                return; // already hidden
+                return; // already in list
 
-        parent.checkpoint();
-        step().hidePositions.add(local);
-        parent.dirty = true;
-        parent.rebuildVisibility();
+        previewMode = false; // exit preview so all blocks stay clickable after add
+        ctx.checkpoint();
+        positions.add(local);
+        ctx.markDirty();
+        ctx.rebuildVisibility();
 
         int listH = this.height - BOTTOM_H - 2 - (TOP_BAR_H + 16);
         int visRows = listH / ROW_H;
-        scrollOffset = Math.max(0, step().hidePositions.size() - visRows);
+        scrollOffset = Math.max(0, positions.size() - visRows);
     }
 
     private void close() {
-        Minecraft.getInstance().setScreen(parent);
+        Minecraft.getInstance().setScreen(ctx.returnScreen());
     }
 
     private boolean isOver(int mx, int my, int x, int y, int w, int h) {

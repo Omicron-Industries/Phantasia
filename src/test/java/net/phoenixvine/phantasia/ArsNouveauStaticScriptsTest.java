@@ -61,9 +61,11 @@ class ArsNouveauStaticScriptsTest {
             for (ItemConditionData item : step.items) {
                 assertFalse(item.item.isBlank(),
                         entry.name() + " step[" + i + "] has an item with empty item ID");
-                assertNotEquals(item.guideId, item.microsceneId,
-                        entry.name() + " step[" + i +
-                                "] guideId and microsceneId are identical — likely a copy-paste error");
+                if (item.guideId != null || item.microsceneId != null) {
+                    assertNotEquals(item.guideId, item.microsceneId,
+                            entry.name() + " step[" + i +
+                                    "] guideId and microsceneId are identical — likely a copy-paste error");
+                }
             }
         }
     }

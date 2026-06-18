@@ -20,6 +20,8 @@ public class PhantasiaTutorialScreen extends PhantasiaScreen {
     private static final int HEADER_H = 28;
     private static final int TEXT_H = 110;  // bottom panel
     private static final int MOCK_PAD = 10;
+    private static final int VW = 480;      // Virtual Width matching mock screen space
+    private static final int VH = 300;      // Virtual Height matching mock screen space
 
     // ── State ─────────────────────────────────────────────────────────────────
     private final Screen parent;
@@ -31,6 +33,7 @@ public class PhantasiaTutorialScreen extends PhantasiaScreen {
 
     // Cursor animation
     private float cursorX = 0.5f, cursorY = 0.5f; // relative 0-1 within mock area
+    private float startX = 0.5f, startY = 0.5f;   // stable leg-start coordinates
     private int waypointIdx = 0;
     private int waypointTicksIn = 0; // ticks spent in current waypoint phase
 
@@ -123,6 +126,8 @@ public class PhantasiaTutorialScreen extends PhantasiaScreen {
         textDone = false;
         cursorX = 0.5f;
         cursorY = 0.5f;
+        startX = 0.5f;
+        startY = 0.5f;
         waypointIdx = 0;
         waypointTicksIn = 0;
         clickFlashTick = -1;
@@ -176,18 +181,25 @@ public class PhantasiaTutorialScreen extends PhantasiaScreen {
 
         // Cursor waypoints
         List<TutorialSlide.CursorWaypoint> path = slide.cursor;
-        if (!path.isEmpty() && waypointIdx < path.size()) {
+        if (!path.isEmpty()) {
+            // Loop back around infinitely when the path finishes
+            if (waypointIdx >= path.size()) {
+                waypointIdx = 0;
+                waypointTicksIn = 0;
+                startX = cursorX;
+                startY = cursorY;
+            }
+
             TutorialSlide.CursorWaypoint wp = path.get(waypointIdx);
             waypointTicksIn++;
 
             if (waypointTicksIn <= wp.travelTicks()) {
-                // Lerp towards waypoint
+                // Lerp towards waypoint using unmutated start coordinates
                 float t = (float) waypointTicksIn / Math.max(1, wp.travelTicks());
                 t = t < 0.5f ? 2 * t * t : 1 - (float) Math.pow(-2 * t + 2, 2) / 2; // ease in-out
-                float prevX = waypointIdx > 0 ? path.get(waypointIdx - 1).relX() : cursorX;
-                float prevY = waypointIdx > 0 ? path.get(waypointIdx - 1).relY() : cursorY;
-                cursorX = prevX + (wp.relX() - prevX) * t;
-                cursorY = prevY + (wp.relY() - prevY) * t;
+
+                cursorX = startX + (wp.relX() - startX) * t;
+                cursorY = startY + (wp.relY() - startY) * t;
             } else {
                 // Dwelling
                 cursorX = wp.relX();
@@ -197,6 +209,8 @@ public class PhantasiaTutorialScreen extends PhantasiaScreen {
                 if (dwellTick >= wp.dwellTicks()) {
                     waypointIdx++;
                     waypointTicksIn = 0;
+                    startX = cursorX; // Establish current position as next leg's starting baseline
+                    startY = cursorY;
                 }
             }
         }
@@ -241,15 +255,22 @@ public class PhantasiaTutorialScreen extends PhantasiaScreen {
         // Dim overlay over entire mock area
         g.fill(mx, my, mx + mw, my + mh, 0x88000000);
 
+        // Compute aspect ratio letterbox scale dimensions to precisely track mock internal offsets
+        float s = Math.min(mw / (float) VW, mh / (float) VH);
+        int actualW = (int) (VW * s);
+        int actualH = (int) (VH * s);
+        int ox = mx + (mw - actualW) / 2;
+        int oy = my + (mh - actualH) / 2;
+
         float pulse = (float) (Math.sin(animTick * 0.10) * 0.3 + 0.7);
         int borderA = (int) (0xFF * pulse);
         int borderColor = (borderA << 24) | (C_ACCENT() & 0xFFFFFF);
 
         for (TutorialSlide.Highlight h : slide.highlights) {
-            int hx = mx + (int) (h.relX() * mw);
-            int hy = my + (int) (h.relY() * mh);
-            int hw = (int) (h.relW() * mw);
-            int hh = (int) (h.relH() * mh);
+            int hx = ox + (int) (h.relX() * actualW);
+            int hy = oy + (int) (h.relY() * actualH);
+            int hw = (int) (h.relW() * actualW);
+            int hh = (int) (h.relH() * actualH);
 
             // Re-render mock clipped to highlighted rect (removes dim)
             if (slide.mock != null) {
@@ -279,8 +300,15 @@ public class PhantasiaTutorialScreen extends PhantasiaScreen {
         TutorialSlide slide = currentSlide();
         if (slide.cursor.isEmpty()) return;
 
-        int cx = mx + (int) (cursorX * mw);
-        int cy = my + (int) (cursorY * mh);
+        // Compute aspect ratio letterbox scale dimensions to precisely track mock internal offsets
+        float s = Math.min(mw / (float) VW, mh / (float) VH);
+        int actualW = (int) (VW * s);
+        int actualH = (int) (VH * s);
+        int ox = mx + (mw - actualW) / 2;
+        int oy = my + (mh - actualH) / 2;
+
+        int cx = ox + (int) (cursorX * actualW);
+        int cy = oy + (int) (cursorY * actualH);
 
         // Click flash ring
         if (clickFlashTick >= 0) {

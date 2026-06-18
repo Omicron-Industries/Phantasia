@@ -92,6 +92,17 @@ public interface IPhantasiaMultiblockDefinition {
     }
 
     /**
+     * Translates a layer count (1-based, as written in the script) to a shape index.
+     * Default: shape index = layerCount - 1, clamped to the valid range.
+     * Override for definitions where the mapping is non-trivial.
+     */
+    default int getShapeIndexForLayerCount(int layerCount) {
+        int idx = layerCount - 1;
+        int max = Math.max(0, getMatchingShapes().size() - 1);
+        return Math.max(0, Math.min(idx, max));
+    }
+
+    /**
      * Provider-specific variant group detection (e.g. PartAbility tier groups for GTCEu).
      * Called by {@link net.phoenixvine.phantasia.common.data.variant.PhantasiaVariantGroup#compile}
      * after manual groups are compiled. Default: no additional groups.

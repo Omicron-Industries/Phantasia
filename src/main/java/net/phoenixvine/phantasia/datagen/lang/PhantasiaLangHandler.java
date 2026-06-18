@@ -9,6 +9,9 @@ public class PhantasiaLangHandler {
         provider.add("key.categories.phantasia", "Phantasia");
         provider.add("key.phantasia.phantasia_menu", "Open Phantasia Menu");
 
+        // Items
+        provider.add("item.phantasia.phantasia_manual", "Phantasia Manual");
+
         // --- Screen: Block Inspector ---
         provider.add("screen.phantasia.block_inspector.title", "Block Inspector");
         provider.add("screen.phantasia.block_inspector.header", "TECHNICAL BLOCK INSPECTOR");

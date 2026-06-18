@@ -372,7 +372,7 @@ public class PhantasiaScenePattern {
         return switch (show == null ? "all" : show.toLowerCase(java.util.Locale.ROOT)) {
             case "layer" -> y == layer;
             case "layers" -> y >= layerMin && y <= layerMax;
-            case "pos" -> posListContains(positions, x, y, z);
+            case "pos" -> !posListContains(positions, x, y, z);
             default -> true; // "all" and anything unrecognised
         };
     }

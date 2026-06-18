@@ -147,6 +147,7 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
         PhantasiaSceneData.StepData step = activeStep();
         Set<BlockPos> visible = pattern.computeVisible(step != null ? step : allStep(), data);
         renderer.setVisible(visible != null ? visible : Set.of());
+        renderer.requestBake();
     }
 
     private PhantasiaSceneData.StepData activeStep() {
@@ -353,6 +354,18 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
                 spdHov ? C_ACCENT() : C_DIM(), false);
         btns.add(new Btn(spdX, tlY + 4, spdW, TIMELINE_H - 8,
                 () -> speed = speed == 1f ? 2f : speed == 2f ? 0.5f : 1f));
+
+        // Camera lock
+        boolean lk = camera != null && camera.isLocked();
+        String lkLbl = lk ? "🔒" : "🔓";
+        int lkX = spdX + spdW + 4;
+        int lkW = font.width(lkLbl) + 8;
+        boolean lkHov = isOver(mx, my, lkX, tlY + 4, lkW, TIMELINE_H - 8);
+        g.fill(lkX, tlY + 4, lkX + lkW, tlY + TIMELINE_H - 4, lk ? C_BTN_ACT() : (lkHov ? C_BTN_HOV() : C_BTN()));
+        if (lk) g.fill(lkX, tlY + 4, lkX + lkW, tlY + 5, C_ACCENT());
+        g.drawString(font, lkLbl, lkX + 4, tlY + (TIMELINE_H - 8) / 2 + 2, lk ? C_ACCENT() : C_DIM(), false);
+        if (lkHov) pendingTooltip = lk ? "Camera locked — click to allow free orbit" : "Camera free — click to lock";
+        btns.add(new Btn(lkX, tlY + 4, lkW, TIMELINE_H - 8, () -> { if (camera != null) camera.toggleLocked(); }));
 
         // Track
         g.fill(tx, midY - 1, tx + tw, midY + 1, 0xFF1A2C3C);

@@ -9,6 +9,7 @@ import net.phoenixvine.phantasia.common.data.script.PhantasiaScript;
 
 import lombok.Getter;
 
+import javax.annotation.Nullable;
 import java.util.*;
 
 public class PhantasiaLoadedPattern {
@@ -32,6 +33,13 @@ public class PhantasiaLoadedPattern {
     @Getter
     public final PhantasiaScript script;
 
+    /**
+     * Optional task to run on the render thread after world writes complete (cold loads only).
+     * Used to call definition.onShapeLoaded() after SHARED_LEVEL has been populated.
+     */
+    @Nullable
+    public final Runnable postWriteTask;
+
     public PhantasiaLoadedPattern(
                                   Map<BlockPos, BlockInfo> blockMap,
                                   Map<BlockPos, BlockPos> localToWorld,
@@ -41,6 +49,20 @@ public class PhantasiaLoadedPattern {
                                   BlockPos origin,
                                   int minY, int maxY,
                                   PhantasiaScript script) {
+        this(blockMap, localToWorld, baseplatePositions, controllerWorldPos,
+                blockEntityWorldPos, origin, minY, maxY, script, null);
+    }
+
+    public PhantasiaLoadedPattern(
+                                  Map<BlockPos, BlockInfo> blockMap,
+                                  Map<BlockPos, BlockPos> localToWorld,
+                                  Set<BlockPos> baseplatePositions,
+                                  BlockPos controllerWorldPos,
+                                  Set<BlockPos> blockEntityWorldPos,
+                                  BlockPos origin,
+                                  int minY, int maxY,
+                                  PhantasiaScript script,
+                                  @Nullable Runnable postWriteTask) {
         this.blockMap = new HashMap<>(blockMap);
         this.localToWorld = Map.copyOf(localToWorld);
         this.baseplatePositions = Set.copyOf(baseplatePositions);
@@ -50,6 +72,7 @@ public class PhantasiaLoadedPattern {
         this.minY = minY;
         this.maxY = maxY;
         this.script = script;
+        this.postWriteTask = postWriteTask;
 
         Map<BlockPos, BlockPos> rev = new HashMap<>();
         for (Map.Entry<BlockPos, BlockPos> e : localToWorld.entrySet()) rev.put(e.getValue(), e.getKey());

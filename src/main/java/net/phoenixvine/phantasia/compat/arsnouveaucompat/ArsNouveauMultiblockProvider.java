@@ -145,13 +145,27 @@ public class ArsNouveauMultiblockProvider implements IPhantasiaMultiblockProvide
                 ArsNouveauStaticScripts::wixieCauldron,
                 sourceConsumerHandler()));
 
+        // ── Bookwyrm ───────────────────────────────────────────────────────────
+        list.add(new ArsNouveauStaticDefinition(
+                new ResourceLocation("ars_nouveau", "bookwyrm"),
+                "Bookwyrm",
+                () -> new ItemStack(ItemsRegistry.BOOKWYRM_CHARM.get()),
+                ArsNouveauLayoutBuilder::bookwyrmBase,
+                ArsNouveauStaticScripts::bookwyrm,
+                bookwyrmShuttleHandler())
+                .withShapeLoadHandler(
+                        (level, l2w) -> spawnEntity(level, l2w,
+                                ModEntities.ENTITY_BOOKWYRM_TYPE.get().create(level))));
+
         // ── Summoning setups ───────────────────────────────────────────────────
         list.add(new ArsNouveauStaticDefinition(
                 new ResourceLocation("ars_nouveau", "drygmy"),
                 "Drygmy",
                 () -> new ItemStack(ItemsRegistry.DRYGMY_CHARM.get()),
                 ArsNouveauLayoutBuilder::drygmyBase,
-                ArsNouveauStaticScripts::drygmy).withShapeLoadHandler(
+                ArsNouveauStaticScripts::drygmy,
+                mobWalkTickHandler(1.2, 0.022))
+                .withShapeLoadHandler(
                         (level, l2w) -> spawnEntity(level, l2w,
                                 ModEntities.ENTITY_DRYGMY.get().create(level))));
         list.add(new ArsNouveauStaticDefinition(
@@ -159,7 +173,9 @@ public class ArsNouveauMultiblockProvider implements IPhantasiaMultiblockProvide
                 "Whirlisprig",
                 () -> new ItemStack(ItemsRegistry.WHIRLISPRIG_CHARM.get()),
                 ArsNouveauLayoutBuilder::whirlisprigBase,
-                ArsNouveauStaticScripts::whirlisprig).withShapeLoadHandler(
+                ArsNouveauStaticScripts::whirlisprig,
+                mobWalkTickHandler(1.4, 0.030))
+                .withShapeLoadHandler(
                         (level, l2w) -> spawnEntity(level, l2w,
                                 ModEntities.WHIRLISPRIG_TYPE.get().create(level))));
         list.add(new ArsNouveauStaticDefinition(
@@ -167,7 +183,9 @@ public class ArsNouveauMultiblockProvider implements IPhantasiaMultiblockProvide
                 "Starbuncle",
                 () -> new ItemStack(ItemsRegistry.STARBUNCLE_CHARM.get()),
                 ArsNouveauLayoutBuilder::starbuncleBase,
-                ArsNouveauStaticScripts::starbuncle).withShapeLoadHandler(
+                ArsNouveauStaticScripts::starbuncle,
+                mobWalkTickHandler(1.1, 0.025))
+                .withShapeLoadHandler(
                         (level, l2w) -> spawnEntity(level, l2w,
                                 ModEntities.STARBUNCLE_TYPE.get().create(level))));
 
@@ -254,6 +272,125 @@ public class ArsNouveauMultiblockProvider implements IPhantasiaMultiblockProvide
                     turret.rotationX = turret.neededRotationX;
                     break;
                 }
+            }
+        };
+    }
+
+    /**
+     * Walks a single scene entity in a circle around the scene center.
+     * {@code radius} is in blocks, {@code speed} is radians per tick (~0.02 = one lap in ~5 seconds).
+     * xOld/zOld and yRotO are updated before each move so the renderer interpolates smoothly.
+     */
+    private static ArsNouveauStaticDefinition.SceneTickHandler mobWalkTickHandler(double radius, double speed) {
+        return (level, localToWorld, sceneTick) -> {
+            var entities = new java.util.ArrayList<>(level.getAllEntities());
+            if (entities.isEmpty()) return;
+            net.minecraft.world.entity.Entity entity = entities.get(0);
+
+            // Compute the walk center from the first block in the world map
+            // (spawnEntity placed the mob at worldCenter + 0.5, + 1.0 y)
+            // We store center as the mob's spawn base, derived from localToWorld (2,1,2)
+            BlockPos centerLocal = new BlockPos(2, 1, 2);
+            BlockPos worldCenter = localToWorld.get(centerLocal);
+            if (worldCenter == null) {
+                if (localToWorld.isEmpty()) return;
+                worldCenter = localToWorld.values().iterator().next();
+            }
+            double cx = worldCenter.getX() + 0.5;
+            double cz = worldCenter.getZ() + 0.5;
+            double groundY = worldCenter.getY() + 1.0;
+
+            double angle = sceneTick * speed;
+            double newX = cx + radius * Math.cos(angle);
+            double newZ = cz + radius * Math.sin(angle);
+
+            // Save previous position for interpolation
+            // Capture all interpolation anchors BEFORE making any change.
+            entity.xOld = entity.getX();
+            entity.yOld = entity.getY();
+            entity.zOld = entity.getZ();
+            entity.yRotO = entity.getYRot();
+            if (entity instanceof net.minecraft.world.entity.LivingEntity living0) {
+                living0.yHeadRotO = living0.getYHeadRot();
+                living0.yBodyRotO = living0.yBodyRot;
+            }
+
+            entity.setPos(newX, groundY, newZ);
+
+            // Face the direction of movement (tangent = angle + 90°)
+            float yaw = (float) Math.toDegrees(angle + Math.PI / 2.0);
+            entity.setYRot(yaw);
+            if (entity instanceof net.minecraft.world.entity.LivingEntity living) {
+                living.setYHeadRot(yaw);
+                living.yBodyRot = yaw;
+            }
+        };
+    }
+
+    /**
+     * Animates the bookwyrm entity shuttling back and forth between the Storage
+     * Lectern (local 2,1,2) and the chest at (0,1,2), hovering slightly above each.
+     * Period: 120 ticks — 20 idle at lectern, 40 travel, 20 idle at chest, 40 return.
+     */
+    private static ArsNouveauStaticDefinition.SceneTickHandler bookwyrmShuttleHandler() {
+        return (level, localToWorld, sceneTick) -> {
+            var entities = new java.util.ArrayList<>(level.getAllEntities());
+            if (entities.isEmpty()) return;
+            net.minecraft.world.entity.Entity entity = entities.get(0);
+
+            BlockPos lecternLocal = new BlockPos(2, 1, 2);
+            BlockPos chestLocal = new BlockPos(0, 1, 2);
+            BlockPos wLectern = localToWorld.get(lecternLocal);
+            BlockPos wChest = localToWorld.get(chestLocal);
+            if (wLectern == null || wChest == null) return;
+
+            double hoverY = 1.2; // hover height above block top
+            double ax = wLectern.getX() + 0.5, az = wLectern.getZ() + 0.5;
+            double bx = wChest.getX() + 0.5, bz = wChest.getZ() + 0.5;
+            double groundY = wLectern.getY();
+
+            // Phase within the 120-tick cycle
+            int period = 120;
+            int phase = (int) (sceneTick % period);
+            // 0-19: idle at lectern; 20-59: travel to chest; 60-79: idle at chest; 80-119: return
+            double t;
+            double entityX, entityZ, yaw;
+            if (phase < 20) {
+                entityX = ax;
+                entityZ = az;
+                yaw = (float) Math.toDegrees(Math.atan2(bz - az, bx - ax));
+            } else if (phase < 60) {
+                t = (phase - 20) / 40.0;
+                t = t * t * (3 - 2 * t); // smoothstep
+                entityX = ax + (bx - ax) * t;
+                entityZ = az + (bz - az) * t;
+                yaw = (float) Math.toDegrees(Math.atan2(bz - az, bx - ax));
+            } else if (phase < 80) {
+                entityX = bx;
+                entityZ = bz;
+                yaw = (float) Math.toDegrees(Math.atan2(az - bz, ax - bx));
+            } else {
+                t = (phase - 80) / 40.0;
+                t = t * t * (3 - 2 * t); // smoothstep
+                entityX = bx + (ax - bx) * t;
+                entityZ = bz + (az - bz) * t;
+                yaw = (float) Math.toDegrees(Math.atan2(az - bz, ax - bx));
+            }
+
+            entity.xOld = entity.getX();
+            entity.yOld = entity.getY();
+            entity.zOld = entity.getZ();
+            entity.yRotO = entity.getYRot();
+            if (entity instanceof net.minecraft.world.entity.LivingEntity living) {
+                living.yHeadRotO = living.getYHeadRot();
+                living.yBodyRotO = living.yBodyRot;
+            }
+
+            entity.setPos(entityX, groundY + hoverY, entityZ);
+            entity.setYRot((float) yaw);
+            if (entity instanceof net.minecraft.world.entity.LivingEntity living) {
+                living.setYHeadRot((float) yaw);
+                living.yBodyRot = (float) yaw;
             }
         };
     }

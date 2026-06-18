@@ -18,19 +18,60 @@ public final class TutorialSlide {
         void render(GuiGraphics g, int mx, int my, int mw, int mh, int tick);
     }
 
-    /** A position (relative 0-1 within the mock area) the cursor visits. */
+    /** A position (relative 0-1 within the virtual space) the cursor visits. */
     public record CursorWaypoint(
                                  float relX, float relY,
                                  int travelTicks,   // ticks to lerp from previous waypoint
                                  int dwellTicks,    // ticks to hold here before moving on
                                  boolean click      // play click animation while dwelling
-    ) {}
+    ) {
 
-    /** A rectangle (relative 0-1) to spotlight/highlight on the mock. */
+        /** Computes the absolute screen X coordinate for the cursor. */
+        public int getScreenX(int mx, int mw, int mh, int vw, int vh) {
+            float s = Math.min(mw / (float) vw, mh / (float) vh);
+            int ox = mx + (mw - (int) (vw * s)) / 2;
+            return ox + (int) (relX * vw * s);
+        }
+
+        /** Computes the absolute screen Y coordinate for the cursor. */
+        public int getScreenY(int my, int mw, int mh, int vw, int vh) {
+            float s = Math.min(mw / (float) vw, mh / (float) vh);
+            int oy = my + (mh - (int) (vh * s)) / 2;
+            return oy + (int) (relY * vh * s);
+        }
+    }
+
+    /** A rectangle (relative 0-1 within the virtual space) to spotlight/highlight on the mock. */
     public record Highlight(float relX, float relY, float relW, float relH, @Nullable String label) {
 
         public Highlight(float rx, float ry, float rw, float rh) {
             this(rx, ry, rw, rh, null);
+        }
+
+        /** Computes the absolute screen X coordinate for the highlight box. */
+        public int getScreenX(int mx, int mw, int mh, int vw, int vh) {
+            float s = Math.min(mw / (float) vw, mh / (float) vh);
+            int ox = mx + (mw - (int) (vw * s)) / 2;
+            return ox + (int) (relX * vw * s);
+        }
+
+        /** Computes the absolute screen Y coordinate for the highlight box. */
+        public int getScreenY(int my, int mw, int mh, int vw, int vh) {
+            float s = Math.min(mw / (float) vw, mh / (float) vh);
+            int oy = my + (mh - (int) (vh * s)) / 2;
+            return oy + (int) (relY * vh * s);
+        }
+
+        /** Computes the absolute screen width for the highlight box. */
+        public int getScreenW(int mw, int mh, int vw, int vh) {
+            float s = Math.min(mw / (float) vw, mh / (float) vh);
+            return (int) (relW * vw * s);
+        }
+
+        /** Computes the absolute screen height for the highlight box. */
+        public int getScreenH(int mw, int mh, int vw, int vh) {
+            float s = Math.min(mw / (float) vw, mh / (float) vh);
+            return (int) (relH * vh * s);
         }
     }
 

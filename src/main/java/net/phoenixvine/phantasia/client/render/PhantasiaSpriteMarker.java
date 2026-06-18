@@ -131,13 +131,11 @@ public final class PhantasiaSpriteMarker {
 
             @SuppressWarnings("unchecked")
             Map<?, TextureAtlasSprite> sprites = (Map<?, TextureAtlasSprite>) spritesField.get(atlas);
-            for (TextureAtlasSprite sprite : sprites.values()) {
-                try {
-                    if (EmbeddiumCompat.hasAnimation(sprite)) {
-                        out.add(sprite);
-                    }
-                } catch (Exception ignored) {}
-            }
+            // Mark ALL sprites, not just hasAnimation() ones. Some mods (GTCEu coils, firebox
+            // casings) use custom animation drivers that Embeddium tracks separately and that
+            // hasAnimation() doesn't report. The cost is just a flag write per sprite (~10k
+            // entries in a full atlas, <0.1ms), far cheaper than missing animations.
+            out.addAll(sprites.values());
         } catch (Exception ignored) {}
     }
 

@@ -1,5 +1,6 @@
 {
   "block.phantasia.synchronized_chimera_core": "ǝɹoƆ ɐɹǝɯıɥƆ pǝzıuoɹɥɔuʎS",
+  "item.phantasia.phantasia_manual": "ןɐnuɐW ɐısɐʇuɐɥԀ",
   "key.categories.phantasia": "ɐısɐʇuɐɥԀ",
   "key.phantasia.phantasia_menu": "nuǝW ɐısɐʇuɐɥԀ uǝdO",
   "role.phantasia.breeder_blanket": "⟘ƎʞNⱯꞀᗺ ᴚƎᗡƎƎᴚᗺ",
@@ -202,6 +203,7 @@
   "screen.phantasia.script_step_item_editor.btn_apply_close": "ǝsoןɔ & ʎןddⱯ ✓",
   "screen.phantasia.script_step_item_editor.empty": "˙ʇǝʎ dǝʇs sıɥʇ uo sɯǝʇı oN",
   "screen.phantasia.script_step_item_editor.hint_desc": "˙˙˙dndod ɯǝʇı uı uʍoɥs uoıʇdıɹɔsǝᗡ",
+  "screen.phantasia.script_step_item_editor.hint_guide_id": ")ןɐuoıʇdo( pı‾ǝpınb:ǝɔɐdsǝɯɐu",
   "screen.phantasia.script_step_item_editor.hint_item_id": "pı‾ɯǝʇı:ǝɔɐdsǝɯɐu",
   "screen.phantasia.script_step_item_editor.hint_label_auto": "oʇnɐ",
   "screen.phantasia.script_step_item_editor.hint_scene": ")ןɐuoıʇdo( pı‾ǝuǝɔs:ɐısɐʇuɐɥd",

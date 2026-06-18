@@ -6,6 +6,7 @@ import com.gregtechceu.gtceu.api.machine.MultiblockMachineDefinition;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
@@ -34,12 +35,12 @@ import org.lwjgl.glfw.GLFW;
 
 import java.util.*;
 
-import static net.phoenixvine.phantasia.client.screens.PhantasiaSceneScreen.CAM_PAN_SPEED;
+import static net.phoenixvine.phantasia.client.screens.PhantasiaSceneScreen.CAM_PAN_ZOOM_SCALE;
 import static net.phoenixvine.phantasia.client.screens.PhantasiaSceneScreen.SHARED_LEVEL;
 import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
 
 @OnlyIn(Dist.CLIENT)
-public class PhantasiaScriptEditorScreen extends PhantasiaScreen {
+public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements PhantasiaHidePosContext {
 
     // ── Theme ─────────────────────────────────────────────────────────────────
 
@@ -111,14 +112,25 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen {
     // ── Data ──────────────────────────────────────────────────────────────────
     private final PhantasiaSceneScreen parentScene;
     private final String machineId;
-    PhantasiaScriptData data;
-    boolean dirty = false;
+    protected PhantasiaScriptData data;
+    public boolean dirty = false;
     private int selectedStep = 0;
 
     // ── Own 3D world ──────────────────────────────────────────────────────────
     PhantasiaWorldRenderer renderer;
     PhantasiaTrackedDummyWorld editorLevel;
     PhantasiaLoadedPattern pattern;
+
+    /** Pre-computed block registry identifiers — avoids repeated registry lookups during filter eval. */
+    private Map<BlockPos, String> blockIdentifierCache = new HashMap<>();
+    /** Cached Y-bounds of the pattern so localMinY/localMaxY don't iterate every frame. */
+    private int cachedLocalMinY = 0, cachedLocalMaxY = 0;
+    /** Ticks remaining until a deferred rebuildVisibility() fires; 0 = none pending. */
+    private int rebuildCooldown = 0;
+    /** True when any call this tick has requested a visibility rebuild. Fires once in tick(). */
+    private boolean rebuildPending = false;
+    /** True while the parts-filter editbox had focus last tick; used to detect focus-lost. */
+    private boolean partsBoxWasFocused = false;
 
     // ── Camera ────────────────────────────────────────────────────────────────
     PhantasiaCamera camera;
@@ -176,6 +188,7 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen {
 
     // ── Inputs ────────────────────────────────────────────────────────────────
     private EditBox tickBox;
+    private EditBox layerCountBox;
     private EditBox hideLayerBox;
     private EditBox hidePosBox;
     private EditBox fakeRecipeBox;
@@ -218,6 +231,10 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen {
         ensureOneStep();
     }
 
+    protected Screen createItemEditorScreen(int stepIndex) {
+        return new PhantasiaScriptStepItemEditorScreen(this, data, stepIndex);
+    }
+
     private void ensureOneStep() {
         if (data.getSteps().isEmpty()) {
             PhantasiaScriptData.StepData s = new PhantasiaScriptData.StepData(0, null);
@@ -235,32 +252,16 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen {
     protected void init() {
         super.init();
 
-        // setupEditorWorld() must run whenever pattern is not yet loaded —
-        // even when SHARED_LEVEL is already non-null (the normal path when
-        // opening the editor from SceneScreen). The old check "if (SHARED_LEVEL == null)"
-        // meant pattern was never populated on that path, the renderer block
-        // below was skipped, and nothing rendered.
         if (pattern == null) {
             setupEditorWorld();
         }
 
-        // ── Renderer ──────────────────────────────────────────────────────────
-        // SHARED_LEVEL already contains all pattern blocks placed by SceneScreen
-        // at RENDER_ORIGIN, so we bake from it. editorLevel is a separate
-        // duplicate used only for evalBlockStateFilter() queries.
+        // ── Renderer — borrow the parent scene's already-baked renderer ──────────
+        // The editor only changes visibility (GPU state), never geometry, so there
+        // is no reason to re-bake. We adopt parentScene.renderer for the duration of
+        // this screen and restore full visibility on close.
         if (renderer == null) {
-            renderer = new PhantasiaWorldRenderer(SHARED_LEVEL);
-            if (pattern != null) {
-                renderer.setBaseplatePositions(pattern.baseplatePositions);
-                renderer.setControllerWorldPos(pattern.controllerWorldPos);
-
-                Set<BlockPos> fullBakeSet = new HashSet<>();
-                fullBakeSet.addAll(pattern.blockMap.keySet());
-                fullBakeSet.addAll(pattern.baseplatePositions);
-                renderer.setPatternBlocks(fullBakeSet);
-
-                renderer.requestBake();
-            }
+            renderer = parentScene != null ? parentScene.renderer : null;
             initCamera();
         }
 
@@ -276,34 +277,26 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen {
             return;
         }
 
-        // editorLevel is a local duplicate of the block data used only for
-        // evalBlockStateFilter() queries (e.g. "parts:coil", "controller").
-        // The renderer bakes from SHARED_LEVEL which SceneScreen already
-        // populated at RENDER_ORIGIN — we don't touch SHARED_LEVEL here.
-        editorLevel = new PhantasiaTrackedDummyWorld();
-        editorLevel.addBlocks(pattern.blockMap);
-
-        // Register block entities so the editor world behaves like the scene world
-        for (BlockPos bp : pattern.blockEntityWorldPos) {
-            try {
-                com.lowdragmc.lowdraglib.utils.BlockInfo info = pattern.blockMap.get(bp);
-                if (info == null) continue;
-                var be = info.getBlockEntity(bp);
-                if (be != null) {
-                    be.setLevel(editorLevel);
-                    editorLevel.setInnerBlockEntity(be);
-                }
-            } catch (Exception ignored) {}
+        // Pre-compute block registry identifiers once so evalBlockStateFilter()
+        // never does a registry lookup or string allocation during filtering.
+        // editorLevel is intentionally not created — SHARED_LEVEL already holds the same data.
+        blockIdentifierCache = new HashMap<>(pattern.localToWorld.size());
+        int minY = Integer.MAX_VALUE, maxY = Integer.MIN_VALUE;
+        for (Map.Entry<BlockPos, BlockPos> e : pattern.localToWorld.entrySet()) {
+            BlockPos lp = e.getKey(), wp = e.getValue();
+            BlockState state = SHARED_LEVEL.getBlockState(wp);
+            if (state != null && !state.isAir()) {
+                blockIdentifierCache.put(wp,
+                        net.minecraft.core.registries.BuiltInRegistries.BLOCK
+                                .getKey(state.getBlock()).toString()
+                                .toLowerCase(java.util.Locale.ROOT));
+            }
+            int y = lp.getY();
+            if (y < minY) minY = y;
+            if (y > maxY) maxY = y;
         }
-
-        // Delegate structure formation to the provider (e.g. GTCEu fires onStructureFormed)
-        if (parentScene != null && pattern.controllerWorldPos != null) {
-            com.mojang.blaze3d.systems.RenderSystem.recordRenderCall(() -> parentScene.definition.onShapeLoaded(
-                    editorLevel,
-                    pattern.origin,
-                    new java.util.HashMap<>(pattern.blockMap),
-                    new java.util.HashMap<>(pattern.localToWorld)));
-        }
+        cachedLocalMinY = minY == Integer.MAX_VALUE ? 0 : minY;
+        cachedLocalMaxY = maxY == Integer.MIN_VALUE ? 0 : maxY;
     }
 
     private void initCamera() {
@@ -336,6 +329,21 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen {
                 dirty = true;
             } catch (NumberFormatException ignored) {}
         });
+
+        // --- LAYER COUNT BOX (expandable multiblocks only) ---
+        boolean isExpandable = data != null && data.isExpandable();
+        layerCountBox = addW(new EditBox(font, 0, 0, 30, 12, Component.empty()));
+        layerCountBox.setMaxLength(3);
+        layerCountBox.setFilter(s -> s.matches("\\d*"));
+        layerCountBox.setHint(Component.literal("—"));
+        layerCountBox.setResponder(v -> {
+            try {
+                step().layerCount = v.isBlank() ? -1 : Integer.parseInt(v);
+                dirty = true;
+            } catch (NumberFormatException ignored) {}
+        });
+        layerCountBox.visible = isExpandable;
+        layerCountBox.active = isExpandable;
 
         // --- EXPANDED HIDE LAYER BOX (Supports "1,2,3") ───
         hideLayerBox = addW(new EditBox(font, 0, 0, 45, 12, Component.empty())); // Width synced with layout bounds
@@ -430,7 +438,7 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen {
             this.cacheRangeMin = v;
             checkpoint();
             saveFilterStateToStep();
-            rebuildVisibility();
+            scheduleRebuild();
         });
         rangeMinBox.visible = isRangeMode;
         rangeMinBox.active = isRangeMode;
@@ -445,7 +453,7 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen {
             this.cacheRangeMax = v;
             checkpoint();
             saveFilterStateToStep();
-            rebuildVisibility();
+            scheduleRebuild();
         });
         rangeMaxBox.visible = isRangeMode;
         rangeMaxBox.active = isRangeMode;
@@ -456,10 +464,8 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen {
         partsExprBox.setHint(Component.translatable("screen.phantasia.script_editor.hint_parts_expr"));
         partsExprBox.setValue(this.cachePartsExpr);
         partsExprBox.setResponder(v -> {
+            // Only cache; commit + rebuild on focus-lost so large machines don't bake per keystroke.
             this.cachePartsExpr = v;
-            checkpoint();
-            saveFilterStateToStep();
-            rebuildVisibility();
         });
         partsExprBox.visible = isPartsMode;
         partsExprBox.active = isPartsMode;
@@ -536,10 +542,26 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen {
     // Tick
     // ─────────────────────────────────────────────────────────────────────────
 
+    /** Schedule a rebuildVisibility() after a short idle delay — safe to call on every keystroke. */
+    private void scheduleRebuild() {
+        rebuildCooldown = 3; // ~150 ms at 20 tps
+    }
+
     @Override
     public void tick() {
         super.tick();
         if (camera != null) camera.tick();
+        if (rebuildCooldown > 0 && --rebuildCooldown == 0) rebuildVisibility();
+        if (rebuildPending) flushVisibility();
+
+        // Commit parts-filter and rebuild when the editbox loses focus.
+        boolean partsBoxFocused = partsExprBox != null && partsExprBox.isFocused();
+        if (partsBoxWasFocused && !partsBoxFocused && partsExprBox != null) {
+            checkpoint();
+            saveFilterStateToStep();
+            rebuildVisibility();
+        }
+        partsBoxWasFocused = partsBoxFocused;
 
         if (mode == Mode.SELECT) {
             selectPulse += pulseUp ? 0.07f : -0.07f;
@@ -577,7 +599,14 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen {
     // Visibility
     // ─────────────────────────────────────────────────────────────────────────
 
-    void rebuildVisibility() {
+    /** Schedules a visibility rebuild for the next tick. All rapid calls within one tick collapse to one. */
+    public void rebuildVisibility() {
+        rebuildPending = true;
+    }
+
+    /** Actually computes and pushes the visible set. Called at most once per tick from tick(). */
+    private void flushVisibility() {
+        rebuildPending = false;
         if (renderer == null || pattern == null) return;
         PhantasiaScriptData.StepData s = step();
         Set<BlockPos> visible = new HashSet<>(pattern.baseplatePositions);
@@ -591,6 +620,64 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen {
             }
         }
         renderer.setVisible(visible);
+    }
+
+    // ── PhantasiaHidePosContext impl ──────────────────────────────────────────
+
+    @Override
+    public String getHidePosLabel() {
+        return "Step " + (selectedStep + 1);
+    }
+
+    @Override
+    public Screen returnScreen() {
+        return this;
+    }
+
+    @Override
+    public PhantasiaWorldRenderer getRenderer() {
+        return renderer;
+    }
+
+    @Override
+    public PhantasiaCamera getParentCamera() {
+        return camera;
+    }
+
+    @Override
+    public PhantasiaTrackedDummyWorld getEditorLevel() {
+        return SHARED_LEVEL;
+    }
+
+    @Override
+    public BlockPos localToWorld(int[] xyz) {
+        if (pattern == null) return null;
+        try {
+            return pattern.toWorld(new BlockPos(xyz[0], xyz[1], xyz[2]));
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    @Override
+    public int[] worldToLocal(BlockPos world) {
+        if (pattern == null) return null;
+        try {
+            BlockPos local = pattern.toLocal(world);
+            return local != null ? new int[] { local.getX(), local.getY(), local.getZ() } : null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    @Override
+    public java.util.List<int[]> getHidePositions() {
+        return step().hidePositions;
+    }
+
+    @Override
+    public void markDirty() {
+        dirty = true;
     }
 
     private boolean evalShowFilter(PhantasiaScriptData.StepData s, BlockPos local, BlockPos world) {
@@ -648,29 +735,16 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen {
     }
 
     private boolean evalBlockStateFilter(String show, BlockPos world) {
-        if (editorLevel == null) return false;
-        BlockState state;
-        try {
-            state = editorLevel.getBlockState(world);
-        } catch (Exception e) {
-            return false;
-        }
-        if (state == null || state.isAir()) return false;
-
-        // If no custom expression is present, show everything by default
+        if (SHARED_LEVEL == null) return false;
         if (show == null || show.isEmpty() || show.equals("all")) return true;
-
-        // Strip out the "parts:" UI prefix if it exists before running evaluation
         String expression = show.startsWith("parts:") ? show.substring(6) : show;
         if (expression.trim().isEmpty()) return true;
 
-        // FIX: Safely extract the full namespaced registry identifier string from the block registry
-        // This supports both MetaMachineBlocks and basic structural blocks (like frames/gearboxes)
-        String fullIdentifier = net.minecraft.core.registries.BuiltInRegistries.BLOCK
-                .getKey(state.getBlock())
-                .toString()
-                .toLowerCase(java.util.Locale.ROOT);
+        BlockState state = SHARED_LEVEL.getBlockState(world);
+        if (state == null || state.isAir()) return false;
 
+        // Use pre-computed identifier — avoids registry lookup + string alloc on every call.
+        String fullIdentifier = blockIdentifierCache.getOrDefault(world, "");
         return evalPartsExpr(expression, fullIdentifier, state);
     }
 
@@ -849,7 +923,16 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen {
         renderStepRow(g, mx, my);
         renderTimeline(g, mx, my);
         renderEditorItemPanel(g, mx, my);
-        if (showStartCamPanel) renderStartCamPanel(g, mx, my);
+        if (showStartCamPanel) {
+            renderStartCamPanel(g, mx, my);
+        } else {
+            for (var box : List.of(scYawBox, scPitchBox, scZoomBox, scOffsetXBox, scOffsetYBox, scOffsetZBox)) {
+                if (box != null) {
+                    box.visible = false;
+                    box.active = false;
+                }
+            }
+        }
         // Camera panel floats above the step row
         if (showCameraPanel) renderCameraPanel(g, mx, my);
         // Parts modal dims everything
@@ -858,9 +941,9 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen {
         super.render(g, mx, my, partial);
 
         // Block name + local XYZ tooltip (all modes, not just SELECT)
-        if (hoveredWorldPos != null && editorLevel != null && pattern != null) {
+        if (hoveredWorldPos != null && SHARED_LEVEL != null && pattern != null) {
             try {
-                BlockState baseState = editorLevel.getBlockState(hoveredWorldPos);
+                BlockState baseState = SHARED_LEVEL.getBlockState(hoveredWorldPos);
                 BlockState bs = baseState;
 
                 // Dynamically resolve the variant state safely using the core state engine
@@ -892,6 +975,7 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen {
     @Override
     public void hideAllInputs() {
         if (tickBox != null) tickBox.visible = false;
+        if (layerCountBox != null) layerCountBox.visible = false;
         if (hideLayerBox != null) hideLayerBox.visible = false;
         if (fakeRecipeBox != null) fakeRecipeBox.visible = false;
         if (lerpTicksBox != null) lerpTicksBox.visible = false;
@@ -1131,7 +1215,11 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen {
             rx -= font.width(dot) + 10;
             g.drawString(font, dot, rx, (TOP_BAR_H - 8) / 2, C_WARN(), false);
         }
+        renderTopBarBadge(g, rx);
     }
+
+    /** Override in subclasses to draw a mod badge on the right side of the top bar. */
+    protected void renderTopBarBadge(GuiGraphics g, int rightEdge) {}
 
     private int modeBtn(GuiGraphics g, int mx, int my, int x, Mode m, String label) {
         int w = font.width(label) + 12;
@@ -1149,21 +1237,8 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen {
     // Layer slider
     // ─────────────────────────────────────────────────────────────────────────
 
-    /** Returns the min local Y across all blocks in the pattern. */
-    private int localMinY() {
-        if (pattern == null) return 0;
-        int min = Integer.MAX_VALUE;
-        for (BlockPos local : pattern.localToWorld.keySet()) if (local.getY() < min) min = local.getY();
-        return min == Integer.MAX_VALUE ? 0 : min;
-    }
-
-    /** Returns the max local Y across all blocks in the pattern. */
-    private int localMaxY() {
-        if (pattern == null) return 0;
-        int max = Integer.MIN_VALUE;
-        for (BlockPos local : pattern.localToWorld.keySet()) if (local.getY() > max) max = local.getY();
-        return max == Integer.MIN_VALUE ? 0 : max;
-    }
+    private int localMinY() { return cachedLocalMinY; }
+    private int localMaxY() { return cachedLocalMaxY; }
 
     /** Clamps s.layer / s.layerMin / s.layerMax to local Y bounds in-place. */
     private void clampLayerValues(PhantasiaScriptData.StepData s) {
@@ -1386,6 +1461,22 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen {
             placeBox(fakeRecipeBox, x, y1, 180, 13);
             if (isOver(mx, my, x, y1, 180, 13))
                 pendingTooltip = "Optional GregTech recipe ID for recipe-dependent visuals (e.g. gtceu:fusion/recipe_name)";
+            x += 186;
+        }
+
+        // Layer count — only shown for expandable multiblocks
+        if (layerCountBox != null && layerCountBox.visible) {
+            g.fill(x, y1, x + 1, y1 + 14, 0x33FFFFFF);
+            x += 8;
+            g.drawString(font, "Layers:", x, y1 + 3, C_DIM(), false);
+            x += font.width("Layers:") + 3;
+            placeBox(layerCountBox, x, y1, 30, 13);
+            if (isOver(mx, my, x, y1, 30, 13)) {
+                int maxL = parentScene != null && parentScene.definition != null
+                        ? parentScene.definition.getMatchingShapes().size() : 1;
+                pendingTooltip = "Expandable layer count for this step (1–" + maxL
+                        + "). Blank = keep current. Triggers a full rebake when changed.";
+            }
         }
 
         // ── ROW 2: show mode · Parts… · hide controls ──────────────────────────
@@ -1503,7 +1594,7 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen {
         }
         if (itemsHov) pendingTooltip = "Edit item conditions shown alongside the 3D scene during this step";
         btns.add(new Btn(x, y2, itemsBtnW, 14, () -> Minecraft.getInstance().setScreen(
-                new PhantasiaScriptStepItemEditorScreen(this, data, selectedStep))));
+                createItemEditorScreen(selectedStep))));
         x += itemsBtnW + 3;
 
         // ── HIDE CONTROLS (Right-aligned layout anchors) ───────────────────
@@ -1521,7 +1612,7 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen {
         if (hideHov) pendingTooltip = "Edit local positions excluded from this step (" + hideCount + " hidden)";
         final int fStep = selectedStep;
         btns.add(new Btn(rx2, y2, hideBtnW, 14, () -> Minecraft.getInstance().setScreen(
-                new PhantasiaHidePosEditorScreen(this, data, fStep))));
+                new PhantasiaHidePosEditorScreen(this))));
 
         // 2. HideY Edit Box and Label (Shifted left to provide 45px box space)
         rx2 -= 8; // Spacer between HidePos button and HideY setup
@@ -2047,6 +2138,23 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen {
         placeBox(scriptDurationBox, durX + durLabelW, tlY + 5, 46, 12);
         scriptDurationBox.visible = true;
         scriptDurationBox.active = true;
+
+        // Expandable toggle (global, shown to the left of the duration box)
+        boolean expNow = data.isExpandable();
+        int expW = font.width("Expandable") + 10;
+        int expX = durX - expW - 8;
+        boolean expHov = isOver(mx, my, expX, tlY + 4, expW, 14);
+        g.fill(expX, tlY + 4, expX + expW, tlY + 18, expNow ? C_BTN_ACT() : (expHov ? C_BTN_HOV() : C_BTN()));
+        if (expNow) g.fill(expX, tlY + 4, expX + expW, tlY + 5, C_ACCENT());
+        g.drawString(font, "Expandable", expX + 5, tlY + 7, expNow ? C_ACCENT() : C_DIM(), false);
+        if (expHov)
+            pendingTooltip = "Mark as expandable: script steps may use 'Layers' to switch between size variants";
+        btns.add(new Btn(expX, tlY + 4, expW, 14, () -> {
+            checkpoint();
+            data.setExpandable(!data.isExpandable());
+            dirty = true;
+            buildInputWidgets(); // refresh Layers box visibility
+        }));
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -2312,9 +2420,8 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen {
             }
 
             dirty = true;
-            if (s.layer != prevLayer || s.layerMin != prevMin || s.layerMax != prevMax) {
-                rebuildVisibility();
-            }
+            // Defer rebuildVisibility() to mouseReleased — rebuilding per-pixel during drag
+            // is a full VBO bake on every event, which tanks framerate on large machines.
             return true;
         }
 
@@ -2327,8 +2434,7 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen {
                 org.joml.Vector3f up = new org.joml.Vector3f();
                 camera.getRightAndUp(right, up);
 
-                // 2. MATCHED SENSITIVITY: Use CAM_PAN_SPEED flat rate directly from the main screen config
-                float s = CAM_PAN_SPEED;
+                float s = camera.getZoom() * CAM_PAN_ZOOM_SCALE;
 
                 // 3. Project 2D screen adjustments cleanly onto 3D world space axes
                 camera.pan(
@@ -2370,6 +2476,7 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen {
         }
         draggingTimelineDot = -1;
         dotDragMoved = false;
+        if (draggingLayer) rebuildVisibility();
         draggingLayer = false;
         draggingLayerMax = false;
         reorderingStep = -1;
@@ -2385,6 +2492,16 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen {
 
     @Override
     public boolean keyPressed(int kc, int sc, int mod) {
+        boolean ctrl = (mod & 2) != 0;
+        if (ctrl && kc == GLFW.GLFW_KEY_Z) {
+            undo();
+            return true;
+        }
+        if (partsExprBox != null && partsExprBox.isFocused()
+                && (kc == GLFW.GLFW_KEY_ENTER || kc == GLFW.GLFW_KEY_KP_ENTER)) {
+            partsExprBox.setFocused(false);
+            return true;
+        }
         if (getFocused() != null && getFocused().keyPressed(kc, sc, mod)) return true;
         if (pendingAnnotationLocalPos != null) {
             if (kc == GLFW.GLFW_KEY_ENTER || kc == GLFW.GLFW_KEY_KP_ENTER) {
@@ -2414,11 +2531,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen {
         }
         if (kc == GLFW.GLFW_KEY_DELETE || kc == GLFW.GLFW_KEY_BACKSPACE) {
             deleteStep();
-            return true;
-        }
-        boolean ctrl = (mod & 2) != 0;
-        if (ctrl && kc == 90) {
-            undo();
             return true;
         }
         if (ctrl && kc == 83) {
@@ -2468,7 +2580,7 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen {
     // Undo
     // ─────────────────────────────────────────────────────────────────────────
 
-    void checkpoint() {
+    public void checkpoint() {
         if (undoStack.size() >= MAX_UNDO) undoStack.pollFirst();
         undoStack.addLast(data.copy());
     }
@@ -2716,6 +2828,8 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen {
 
         // REMOVED: hidePosBox.setValue(...) to fix compilation crash
 
+        if (layerCountBox != null)
+            layerCountBox.setValue(s.layerCount > 0 ? String.valueOf(s.layerCount) : "");
         if (fakeRecipeBox != null) fakeRecipeBox.setValue(s.fakeRecipeId != null ? s.fakeRecipeId : "");
         if (lerpTicksBox != null && s.camera != null)
             lerpTicksBox.setValue(String.valueOf(s.camera.lerpTicks > 0 ? s.camera.lerpTicks : 20));
@@ -2865,10 +2979,15 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen {
             showingCloseConfirm = true;
             return;
         }
-        if (renderer != null) {
-            renderer.close();
-            renderer = null;
+        // Do NOT close the renderer — it belongs to parentScene and is still needed there.
+        // Restore full visibility so the main scene looks correct when we return.
+        if (renderer != null && parentScene != null) {
+            parentScene.applyVisibility();
         }
+        renderer = null;
+        blockIdentifierCache.clear();
+        editorLevel = null;
+        pattern = null;
         if (parentScene != null) parentScene.reloadScript();
         Minecraft.getInstance().setScreen(parentScene);
     }

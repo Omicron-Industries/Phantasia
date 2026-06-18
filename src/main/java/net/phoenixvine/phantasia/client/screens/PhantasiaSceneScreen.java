@@ -28,6 +28,7 @@ import net.phoenixvine.phantasia.client.screens.subscreen.*;
 import net.phoenixvine.phantasia.common.data.guides.PhantasiaGuideData;
 import net.phoenixvine.phantasia.common.data.guides.PhantasiaGuideRegistry;
 import net.phoenixvine.phantasia.common.data.pattern.PhantasiaLoadedPattern;
+import net.phoenixvine.phantasia.common.data.pattern.PhantasiaPatternLoader;
 import net.phoenixvine.phantasia.common.data.scene.PhantasiaSceneData;
 import net.phoenixvine.phantasia.common.data.scene.PhantasiaScenes;
 import net.phoenixvine.phantasia.common.data.script.PhantasiaScript;
@@ -41,6 +42,7 @@ import net.phoenixvine.phantasia.common.multiblock.PhantasiaMultiblockRegistry;
 import net.phoenixvine.phantasia.common.world.PhantasiaDimension;
 import net.phoenixvine.phantasia.common.world.PhantasiaSlotAllocator;
 import net.phoenixvine.phantasia.common.world.PhantasiaSlotVersions;
+import net.phoenixvine.phantasia.compat.arsnouveaucompat.ArsNouveauScriptEditorScreen;
 import net.phoenixvine.phantasia.integration.emi.PhantasiaEmiPlugin;
 import net.phoenixvine.phantasia.utils.PhantasiaThemeUtils;
 import net.phoenixvine.phantasia.utils.PhantasiaUIUtils;
@@ -73,6 +75,9 @@ public class PhantasiaSceneScreen extends Screen {
     private static final int REGION_SIZE = 512; // retained for any external references
 
     public static void invalidateSharedLevel() {
+        if (SHARED_LEVEL != null) {
+            SHARED_LEVEL.clear();
+        }
         SHARED_LEVEL = null;
     }
 
@@ -116,7 +121,9 @@ public class PhantasiaSceneScreen extends Screen {
     private static final float CAM_ZOOM_MIN = 2.0f;
     private static final float CAM_ZOOM_MAX = 300.0f;
     private static final float CAM_ORBIT_SENSITIVITY = 0.5f;
-    public static final float CAM_PAN_SPEED = 0.02f;
+    // Pan speed scales with current zoom so one drag gesture always feels the same
+    // regardless of structure size. 0.0005 × zoom=40 = 0.02, matching the old fixed value.
+    public static final float CAM_PAN_ZOOM_SCALE = 0.0005f;
 
     // ─────────────────────────────────────────────────────────────────────────
     // Core state
@@ -127,13 +134,18 @@ public class PhantasiaSceneScreen extends Screen {
     public PhantasiaScript script;
 
     private PhantasiaLoadedPattern pattern;
+    /** Largest axis of the current pattern in blocks; drives zoom-max and pan-speed scaling. */
+    private float patternMaxDim = 0f;
+
+    /** Non-null while a cold pattern load is in progress on a background thread. */
+    private PhantasiaPatternLoader asyncLoader;
 
     /**
      * Our custom renderer. Created once on first init(), survives re-inits
      * (window resize, sub-screen returns) so VBOs are preserved.
      * Explicitly closed in onClose() and on shape changes.
      */
-    private PhantasiaWorldRenderer renderer;
+    public PhantasiaWorldRenderer renderer;
 
     private int shapeIndex = 0;
     private List<IPhantasiaMultiblockShape> availableShapes = new ArrayList<>();
@@ -341,6 +353,91 @@ public class PhantasiaSceneScreen extends Screen {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────────
+    // Async pattern loading
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /** Called on the render thread when the async cold-load completes. */
+    private void onAsyncPatternLoaded(PhantasiaLoadedPattern p) {
+        asyncLoader = null;
+        this.pattern = p;
+
+        // Write all blocks to the shared world HERE on the render thread.
+        // The loader deliberately skipped addBlock() to avoid ConcurrentModificationException
+        // in TrackedDummyWorld.tickWorld() (which the render thread iterates every frame).
+        // Use addBlocks() to preserve the full BlockInfo (model overrides, etc.), not just state.
+        SHARED_LEVEL.renderedBlocks.clear();
+        SHARED_LEVEL.blockEntities.clear();
+        SHARED_LEVEL.addBlocks(p.blockMap);
+        for (BlockPos beWorldPos : p.blockEntityWorldPos) {
+            BlockInfo info = p.blockMap.get(beWorldPos);
+            if (info != null && info.getBlockState().getBlock() instanceof EntityBlock eb) {
+                BlockEntity be = eb.newBlockEntity(beWorldPos, info.getBlockState());
+                if (be != null) {
+                    be.setLevel(SHARED_LEVEL);
+                    SHARED_LEVEL.setInnerBlockEntity(be);
+                }
+            }
+        }
+
+        // Fire any post-world-write task (e.g. onShapeLoaded for GTM structure forming).
+        if (p.postWriteTask != null) {
+            try {
+                p.postWriteTask.run();
+            } catch (Exception e) {
+                net.phoenixvine.phantasia.Phantasia.LOGGER.error("[Phantasia] postWriteTask failed — continuing with finishPatternSetup", e);
+            }
+        }
+
+        finishPatternSetup(p);
+    }
+
+    /**
+     * Completes all pattern-dependent setup after the pattern is available.
+     * Called immediately for warm loads (in init()) and from the async callback
+     * for cold loads.
+     */
+    private float camZoomMax() {
+        // Allow zooming out to ~3× the starting distance so large structures stay navigable.
+        return Math.max(CAM_ZOOM_MAX, patternMaxDim * 9.0f);
+    }
+
+    private void finishPatternSetup(PhantasiaLoadedPattern p) {
+        // Cache maxDim for zoom-max and pan-speed scaling.
+        int sx = 0, sy = 0, sz = 0;
+        for (BlockPos lp : p.localToWorld.keySet()) {
+            sx = Math.max(sx, lp.getX() + 1);
+            sy = Math.max(sy, lp.getY() + 1);
+            sz = Math.max(sz, lp.getZ() + 1);
+        }
+        patternMaxDim = Math.max(sx, Math.max(sy, sz));
+
+        invalidateFilterSets();
+        applyActiveStateToWorld(machineWorking);
+        script = script.withVariants(definition, p);
+        PhantasiaVariantState vs = PhantasiaVariantState.get();
+        vs.loadGroups(script.getVariantGroups());
+        vs.setOnChangeCallback(() -> {
+            if (renderer == null || pattern == null) return;
+            this.cacheInitialized = false;
+            Set<BlockPos> variantPositions = buildVariantWorldPositions(vs);
+            if (variantPositions.isEmpty()) renderer.requestBake();
+            else renderer.requestPartialBake(variantPositions);
+        });
+
+        if (renderer != null) {
+            renderer.setBaseplatePositions(p.baseplatePositions);
+            renderer.setControllerWorldPos(p.controllerWorldPos);
+            Set<BlockPos> fullBakeSet = new HashSet<>(p.blockMap.keySet());
+            fullBakeSet.addAll(p.baseplatePositions);
+            renderer.setPatternBlocks(fullBakeSet);
+            renderer.requestBake();
+        }
+
+        applyVisibility();
+        ensureVariantCachePopulated();
+    }
+
     // Pattern loading (Fully Fake World Schema approach)
     // ─────────────────────────────────────────────────────────────────────────
 
@@ -365,13 +462,43 @@ public class PhantasiaSceneScreen extends Screen {
                     "[Phantasia] Warm load for {} at slot={} render={}", machineId, slotOrigin, renderOrigin);
             return loadPatternWarm(shape, renderOrigin);
         } else {
-            net.phoenixvine.phantasia.Phantasia.LOGGER.info(
-                    "[Phantasia] Cold load for {} at slot={} render={}", machineId, slotOrigin, renderOrigin);
-            PhantasiaLoadedPattern result = loadPatternCold(shape, renderOrigin, slotOrigin);
-            PhantasiaSlotVersions.put(machineId, shapeHash, scriptHash);
-            PhantasiaDimension.forceChunkLoad(slotOrigin);
-            return result;
+            // Count non-air blocks to decide sync vs async.
+            // Small patterns go synchronous (old path — works fine, no flicker).
+            // Large patterns go async with streaming so the screen is usable while loading.
+            int blockCount = countBlocks(shape.getBlocks());
+            if (blockCount <= PhantasiaWorldRenderer.STREAMING_THRESHOLD) {
+                net.phoenixvine.phantasia.Phantasia.LOGGER.info(
+                        "[Phantasia] Cold load (sync, {} blocks) for {}", blockCount, machineId);
+                PhantasiaLoadedPattern result = loadPatternCold(shape, renderOrigin, slotOrigin);
+                PhantasiaSlotVersions.put(machineId, shapeHash, scriptHash);
+                PhantasiaDimension.forceChunkLoad(slotOrigin);
+                return result;
+            } else {
+                net.phoenixvine.phantasia.Phantasia.LOGGER.info(
+                        "[Phantasia] Cold load (async, {} blocks) for {}", blockCount, machineId);
+                if (asyncLoader != null) {
+                    asyncLoader.cancel();
+                    asyncLoader = null;
+                }
+                asyncLoader = PhantasiaPatternLoader.start(
+                        definition, shapeIndex, availableShapes, script, SHARED_LEVEL,
+                        this::onAsyncPatternLoaded);
+                return null; // delivered asynchronously via onAsyncPatternLoaded
+            }
         }
+    }
+
+    private static int countBlocks(BlockInfo[][][] raw) {
+        int n = 0;
+        for (BlockInfo[][] layer : raw)
+            for (BlockInfo[] row : layer)
+                for (BlockInfo b : row) {
+                    if (b == null) continue;
+                    net.minecraft.world.level.block.state.BlockState s = b.getBlockState();
+                    if (s == null || s.isAir() || s.getRenderShape() == net.minecraft.world.level.block.RenderShape.INVISIBLE) continue;
+                    n++;
+                }
+        return n;
     }
 
     /**
@@ -411,13 +538,16 @@ public class PhantasiaSceneScreen extends Screen {
                 for (int z = 0; z < raw[x][y].length; z++) {
                     BlockInfo info = raw[x][y][z];
                     if (info == null) continue;
+
+                    BlockState state = info.getBlockState();
+                    if (state.isAir()) continue; // skip "any"/air placeholder positions
+
                     BlockPos lp = new BlockPos(x, y, z);
                     BlockPos wp = renderOrigin.offset(x, y, z);
 
                     blockMap.put(wp, info);
                     localToWorld.put(lp, wp);
 
-                    BlockState state = info.getBlockState();
                     SHARED_LEVEL.setBlock(wp, state, 3);
 
                     if (controllerWP == null && PhantasiaMultiblockRegistry.isControllerBlock(state))
@@ -426,6 +556,7 @@ public class PhantasiaSceneScreen extends Screen {
                     if (state.getBlock() instanceof EntityBlock entityBlock) {
                         BlockEntity newEntity = entityBlock.newBlockEntity(wp, state);
                         if (newEntity != null) {
+                            newEntity.setLevel(SHARED_LEVEL);
                             SHARED_LEVEL.setInnerBlockEntity(newEntity);
                             bePos.add(wp);
                         }
@@ -448,11 +579,11 @@ public class PhantasiaSceneScreen extends Screen {
     }
 
     /**
-     * Warm load: block states are already in SHARED_LEVEL from a previous session.
-     * Skips the shape.getBlocks() iteration and SHARED_LEVEL.addBlocks(); only
-     * rebuilds the index maps and re-registers BEs dynamically utilizing the Schema logic.
+     * Warm load: slot version is valid so we skip the dimension write, but we still
+     * need to repopulate SHARED_LEVEL (it is an in-memory cache, not persisted across sessions).
      */
     private PhantasiaLoadedPattern loadPatternWarm(IPhantasiaMultiblockShape shape, BlockPos renderOrigin) {
+        SHARED_LEVEL.renderedBlocks.clear();
         SHARED_LEVEL.blockEntities.clear();
 
         BlockInfo[][][] raw = shape.getBlocks();
@@ -481,24 +612,35 @@ public class PhantasiaSceneScreen extends Screen {
                 for (int z = 0; z < raw[x][y].length; z++) {
                     BlockInfo info = raw[x][y][z];
                     if (info == null) continue;
+                    if (info.getBlockState().isAir()) continue; // skip "any"/air placeholder positions
+
                     BlockPos lp = new BlockPos(x, y, z);
                     BlockPos wp = renderOrigin.offset(x, y, z);
 
                     blockMap.put(wp, info);
                     localToWorld.put(lp, wp);
 
-                    BlockState state = SHARED_LEVEL.getBlockState(wp);
+                    BlockState state = info.getBlockState();
                     if (controllerWP == null && PhantasiaMultiblockRegistry.isControllerBlock(state))
                         controllerWP = wp;
 
-                    if (state.getBlock() instanceof EntityBlock entityBlock) {
-                        BlockEntity newEntity = entityBlock.newBlockEntity(wp, state);
-                        if (newEntity != null) {
-                            SHARED_LEVEL.setInnerBlockEntity(newEntity);
-                            bePos.add(wp);
-                        }
+                    if (state.getBlock() instanceof EntityBlock) {
+                        bePos.add(wp);
                     }
                 }
+
+        // Repopulate SHARED_LEVEL from blockMap — it is an in-memory cache rebuilt each session.
+        SHARED_LEVEL.addBlocks(blockMap);
+        for (BlockPos beWorldPos : bePos) {
+            BlockInfo info = blockMap.get(beWorldPos);
+            if (info != null && info.getBlockState().getBlock() instanceof EntityBlock eb) {
+                BlockEntity newEntity = eb.newBlockEntity(beWorldPos, info.getBlockState());
+                if (newEntity != null) {
+                    newEntity.setLevel(SHARED_LEVEL);
+                    SHARED_LEVEL.setInnerBlockEntity(newEntity);
+                }
+            }
+        }
 
         PhantasiaLoadedPattern result = finalisePattern(raw, blockMap, localToWorld, baseplatePos, bePos,
                 controllerWP, renderOrigin);
@@ -709,31 +851,11 @@ public class PhantasiaSceneScreen extends Screen {
             }
             if (shapeIndex >= availableShapes.size()) shapeIndex = 0;
             pattern = loadPattern(availableShapes.get(shapeIndex));
-            invalidateFilterSets();
-
-            // Restore the persisted working state to SHARED_LEVEL immediately after
-            // pattern load. Pattern load writes fresh default states (ACTIVE=false).
-            applyActiveStateToWorld(machineWorking);
-
-            // Compile variant groups now that the pattern is loaded.
-            script = script.withVariants(definition, pattern);
-            PhantasiaVariantState vs = PhantasiaVariantState.get();
-            vs.loadGroups(script.getVariantGroups());
-
-            vs.setOnChangeCallback(() -> {
-                if (renderer == null || pattern == null) return;
-
-                // Hotfix/Optimization Hook: A variant selection changed! We must invalidate
-                // the cache map so it rebuilds the updated positional variant mappings.
-                this.cacheInitialized = false;
-
-                Set<BlockPos> variantPositions = buildVariantWorldPositions(vs);
-                if (variantPositions.isEmpty()) {
-                    renderer.requestBake();
-                } else {
-                    renderer.requestPartialBake(variantPositions);
-                }
-            });
+            if (pattern != null) {
+                // Warm load: pattern is ready immediately, finish setup now.
+                finishPatternSetup(pattern);
+            }
+            // Cold load: pattern is null here; setup deferred to onAsyncPatternLoaded.
         }
 
         // ── Renderer ──────────────────────────────────────────────────────────
@@ -770,14 +892,6 @@ public class PhantasiaSceneScreen extends Screen {
         if (pattern != null) {
             applyVisibility();
 
-            // ── PERFORMANCE OPTIMIZATION: Populate Ambient Ticking Cache ──
-            this.ambientTickingPositions.clear();
-            for (net.minecraft.core.BlockPos wp : pattern.blockMap.keySet()) {
-                net.minecraft.world.level.block.state.BlockState state = SHARED_LEVEL.getBlockState(wp);
-                if (!state.isAir()) {
-                    this.ambientTickingPositions.add(wp);
-                }
-            }
         }
 
         // Trigger an immediate proactive populate step on startup to verify cache alignment
@@ -815,15 +929,9 @@ public class PhantasiaSceneScreen extends Screen {
             }
         }
 
-        // Tick ambient particle effects whenever not actively scrubbing.
-        // Scrubbing excluded because: (a) you're jumping through time so particle
-        // continuity doesn't matter, and (b) calling tickAnimateForPos on every
-        // block in the scene 20x/s while the mouse is moving caused noticeable lag.
-        if (SHARED_LEVEL != null && renderer != null && !scrubbing) {
-            tickAmbientEffects(SHARED_LEVEL.getRandom());
-            if (pattern != null) {
-                definition.onSceneTick(SHARED_LEVEL, pattern.localToWorld, sceneTick++);
-            }
+        // animateTick is now handled by PhantasiaWorldRenderer (capped at ANIMATE_TICK_BUDGET/tick).
+        if (SHARED_LEVEL != null && renderer != null && !scrubbing && pattern != null) {
+            definition.onSceneTick(SHARED_LEVEL, pattern.localToWorld, sceneTick++);
         }
 
         // Emit script-defined particle effects for the active step.
@@ -893,30 +1001,33 @@ public class PhantasiaSceneScreen extends Screen {
                 return; // init() already calls applyVisibility
             }
 
+            // Expandable multiblock: layerCount in a step switches to the shape that
+            // matches that layer count, triggering a full rebake.
+            if (step != null && step.layerCount() != -1 && definition != null
+                    && script != null && script.getSourceData().isExpandable()
+                    && availableShapes != null) {
+                int targetIdx = definition.getShapeIndexForLayerCount(step.layerCount());
+                if (targetIdx != shapeIndex && targetIdx < availableShapes.size()) {
+                    shapeIndex = targetIdx;
+                    camera.hardReset(
+                            camera.getYaw(), camera.getPitch(), camera.getZoom(),
+                            camera.getTargetX(), camera.getTargetY(), camera.getTargetZ(),
+                            LerpType.SNAP, 0);
+                    if (renderer != null) {
+                        renderer.close();
+                        renderer = null;
+                    }
+                    pattern = null;
+                    sceneTick = 0;
+                    invalidateFilterSets();
+                    init();
+                    return;
+                }
+            }
+
             applyVisibility();
             updateMachineState(step);
             updateCaptionForStep(step);
-        }
-    }
-
-    // Add this as a field in PhantasiaSceneScreen
-    private final java.util.List<BlockPos> ambientTickingPositions = new java.util.ArrayList<>();
-
-    private void tickAmbientEffects(net.minecraft.util.RandomSource random) {
-        for (BlockPos wp : ambientTickingPositions) {
-            if (!renderer.isVisible(wp)) continue;
-            try {
-                SHARED_LEVEL.tickAnimateForPos(wp, random);
-            } catch (Exception e) {
-                // Log once per position so spam doesn't fill the log.
-                // Common cause: a custom particle type whose lazy Supplier throws
-                // (e.g. the type isn't a SimpleParticleType, or KJS registry lookup
-                // fails). The block simply won't emit particles this tick.
-                if (net.phoenixvine.phantasia.Phantasia.LOGGER.isDebugEnabled()) {
-                    net.phoenixvine.phantasia.Phantasia.LOGGER.debug(
-                            "[Phantasia] animateTick failed at {}: {}", wp, e.getMessage());
-                }
-            }
         }
     }
 
@@ -941,6 +1052,28 @@ public class PhantasiaSceneScreen extends Screen {
     private void applyActiveStateToWorld(boolean working) {
         if (SHARED_LEVEL == null || pattern == null) return;
         definition.setMachineWorking(SHARED_LEVEL, working);
+
+        // Update ACTIVE block state property on all ActiveBlock-type components.
+        // GTCEu's setMachineWorking only changes RecipeLogic status on the controller BE;
+        // it never touches the block states of coils, fireboxes, or other ActiveBlock
+        // components. Those blocks show their active texture purely via the ACTIVE property,
+        // so we must update SHARED_LEVEL directly.
+        for (Map.Entry<BlockPos, BlockInfo> e : pattern.blockMap.entrySet()) {
+            BlockState original = e.getValue().getBlockState();
+            if (original == null || original.isAir()) continue;
+            try {
+                var block = original.getBlock();
+                if (!(block instanceof com.gregtechceu.gtceu.api.block.ActiveBlock ab)) continue;
+                // Read current state from the live world, not the original pattern — the world
+                // may already have the active variant set from a prior step.
+                BlockPos worldPos = e.getKey(); // blockMap is keyed by world pos
+                BlockState current = SHARED_LEVEL.getBlockState(worldPos);
+                BlockState next = ab.changeActive(current, working);
+                if (next != current) {
+                    SHARED_LEVEL.setBlock(worldPos, next, 2);
+                }
+            } catch (Throwable ignored) {}
+        }
     }
 
     private void updateMachineState(PhantasiaScript.Step step) {
@@ -1099,6 +1232,25 @@ public class PhantasiaSceneScreen extends Screen {
                 }
             } catch (Exception ignored) {} finally {
                 totalVariantLookupTimeNs += (System.nanoTime() - lookupStart);
+            }
+        }
+
+        // ── Async cold-load overlay ────────────────────────────────────────────
+        if (asyncLoader != null && !asyncLoader.isDone()) {
+            g.fill(0, 0, this.width, this.height, 0xCC000000);
+            int cx = this.width / 2, cy = this.height / 2;
+            String phase = asyncLoader.phase;
+            int total = asyncLoader.blocksTotal;
+            int placed = asyncLoader.blocksPlaced;
+            g.drawCenteredString(font, phase, cx, cy - 20, 0xFFCCCCCC);
+            if (total > 0) {
+                int barW = 200, barH = 6;
+                int barX = cx - barW / 2, barY = cy - 3;
+                float pct = Math.min(1f, (float) placed / total);
+                g.fill(barX - 1, barY - 1, barX + barW + 1, barY + barH + 1, 0xFF222222);
+                g.fill(barX, barY, barX + barW, barY + barH, 0xFF333333);
+                g.fill(barX, barY, barX + (int) (barW * pct), barY + barH, C_ACCENT());
+                g.drawCenteredString(font, placed + " / " + total + " blocks", cx, cy + 12, C_DIM());
             }
         }
 
@@ -1647,7 +1799,7 @@ public class PhantasiaSceneScreen extends Screen {
         if (btn == 2 && isPanning) {
             Vector3f right = new Vector3f(), up = new Vector3f();
             camera.getRightAndUp(right, up);
-            float s = CAM_PAN_SPEED;
+            float s = camera.getZoom() * CAM_PAN_ZOOM_SCALE;
             camera.pan(
                     (right.x * (float) -dx + up.x * (float) dy) * s,
                     (right.y * (float) -dx + up.y * (float) dy) * s,
@@ -1680,7 +1832,7 @@ public class PhantasiaSceneScreen extends Screen {
         if (mx >= this.width - getCurrentPanelWidth()) return false;
         if (camera == null || camera.isLocked()) return false;
         camera.zoom(delta > 0 ? CAM_ZOOM_IN_FACTOR : CAM_ZOOM_OUT_FACTOR,
-                CAM_ZOOM_MIN, CAM_ZOOM_MAX);
+                CAM_ZOOM_MIN, camZoomMax());
         return true;
     }
 
@@ -1774,8 +1926,10 @@ public class PhantasiaSceneScreen extends Screen {
         String machineId = definition.getId().toString();
         PhantasiaScriptData current = script.getSourceData();
         if (current == null) current = PhantasiaScriptData.defaultFor(machineId);
-        Minecraft.getInstance().setScreen(
-                new PhantasiaScriptEditorScreen(this, machineId, current));
+        PhantasiaScriptEditorScreen editor = machineId.startsWith("ars_nouveau:") ?
+                new ArsNouveauScriptEditorScreen(this, machineId, current) :
+                new PhantasiaScriptEditorScreen(this, machineId, current);
+        Minecraft.getInstance().setScreen(editor);
     }
 
     private void openFootprintScreen() {
@@ -1896,12 +2050,18 @@ public class PhantasiaSceneScreen extends Screen {
 
     @Override
     public void onClose() {
+        if (asyncLoader != null) {
+            asyncLoader.cancel();
+            asyncLoader = null;
+        }
         if (renderer != null) {
             renderer.close();
             renderer = null;
         }
         net.phoenixvine.phantasia.client.render.PhantasiaParticleEngine.destroy();
         PhantasiaVariantState.get().clear();
+        positionToVariantGroupCache.clear();
+        cacheInitialized = false;
         machineWorking = false;
         invalidateSharedLevel();
         Minecraft.getInstance().setScreen(parent);

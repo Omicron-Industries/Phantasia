@@ -17,7 +17,9 @@ import net.minecraftforge.api.distmarker.OnlyIn;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import javax.annotation.Nullable;
 
@@ -40,6 +42,27 @@ public class PhantasiaTrackedDummyWorld extends TrackedDummyWorld {
     @Override
     public List<Entity> getAllEntities() {
         return Collections.unmodifiableList(sceneEntities);
+    }
+
+    // ── Variant state overlay ─────────────────────────────────────────────────
+    // Applied during bakes so the variant blockstate is used for rendering while
+    // the original BlockInfo (and its block entity) is never replaced — keeping
+    // BER-only blocks (GTCEu machines etc.) visible even after variant resolution.
+
+    private final Map<BlockPos, BlockState> variantOverrides = new HashMap<>();
+
+    public void setVariantOverride(BlockPos pos, BlockState state) {
+        variantOverrides.put(pos, state);
+    }
+
+    public void clearVariantOverrides() {
+        variantOverrides.clear();
+    }
+
+    @Override
+    public BlockState getBlockState(BlockPos pos) {
+        BlockState override = variantOverrides.get(pos);
+        return override != null ? override : super.getBlockState(pos);
     }
 
     // ── Chunk source isolation ────────────────────────────────────────────────

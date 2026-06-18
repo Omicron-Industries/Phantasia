@@ -1,5 +1,6 @@
 {
   "block.phantasia.synchronized_chimera_core": "Synchronized Chimera Core",
+  "item.phantasia.phantasia_manual": "Phantasia Manual",
   "key.categories.phantasia": "Phantasia",
   "key.phantasia.phantasia_menu": "Open Phantasia Menu",
   "role.phantasia.breeder_blanket": "BREEDER BLANKET",
@@ -202,6 +203,7 @@
   "screen.phantasia.script_step_item_editor.btn_apply_close": "✓ Apply & close",
   "screen.phantasia.script_step_item_editor.empty": "No items on this step yet.",
   "screen.phantasia.script_step_item_editor.hint_desc": "Description shown in item popup...",
+  "screen.phantasia.script_step_item_editor.hint_guide_id": "namespace:guide_id (optional)",
   "screen.phantasia.script_step_item_editor.hint_item_id": "namespace:item_id",
   "screen.phantasia.script_step_item_editor.hint_label_auto": "auto",
   "screen.phantasia.script_step_item_editor.hint_scene": "phantasia:scene_id (optional)",

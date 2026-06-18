@@ -77,6 +77,9 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
     private int scrollOffset = 0; // in rows
     private int hoveredCard = -1;
 
+    /** null = All mods; otherwise filters multiblock tab to this namespace */
+    private String modFilter = null;
+
     public PhantasiaSceneSelectionScreen(Screen parent) {
         super(Component.translatable("screen.phantasia.scene_selection.title"));
         this.parent = parent;
@@ -122,6 +125,7 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
         // Multiblocks
         filteredScenes.clear();
         for (IPhantasiaMultiblockDefinition def : PHANTASIA_SCENES) {
+            if (modFilter != null && !modFilter.equals(def.getId().getNamespace())) continue;
             if (query.isEmpty()) {
                 filteredScenes.add(def);
                 continue;
@@ -178,8 +182,10 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
         if (this.searchBox != null)
             this.searchBox.render(g, mx, my, partial);
 
-        if (activeTab == Tab.MULTIBLOCKS) renderCards(g, mx, my);
-        else if (activeTab == Tab.SCENES) renderSceneCards(g, mx, my);
+        if (activeTab == Tab.MULTIBLOCKS) {
+            renderModFilterPills(g, mx, my);
+            renderCards(g, mx, my);
+        } else if (activeTab == Tab.SCENES) renderSceneCards(g, mx, my);
         else if (activeTab == Tab.GUIDES) renderGuideCards(g, mx, my);
         else renderTutorialCards(g, mx, my);
 
@@ -214,10 +220,96 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
         g.drawString(font, label, x + 8, y + 4, act ? C_ACCENT() : C_DIM(), false);
     }
 
+    private java.util.List<String> getModNamespaces() {
+        java.util.LinkedHashSet<String> ns = new java.util.LinkedHashSet<>();
+        for (IPhantasiaMultiblockDefinition def : PHANTASIA_SCENES) {
+            ns.add(def.getId().getNamespace());
+        }
+        return new java.util.ArrayList<>(ns);
+    }
+
+    private void renderModFilterPills(GuiGraphics g, int mx, int my) {
+        java.util.List<String> namespaces = getModNamespaces();
+        if (namespaces.size() <= 1) return;
+
+        int totalGridW = COLS * CARD_W + (COLS - 1) * CARD_PAD;
+        int gridStartX = (this.width - totalGridW) / 2;
+
+        // Find the widest pill to create a uniform, clean sidebar width
+        int maxW = font.width("All") + 12;
+        for (String ns : namespaces) {
+            maxW = Math.max(maxW, font.width(formatModName(ns)) + 12);
+        }
+
+        // Anchor to the left of the grid so it scales safely with window resizing
+        int startX = gridStartX - maxW - 12;
+        int py = HEADER_H + SEARCH_H + 6;
+
+        // "All" pill
+        String allLabel = "All";
+        boolean allSel = modFilter == null;
+        boolean allHov = isOver(mx, my, startX, py, maxW, 12);
+
+        g.fill(startX, py, startX + maxW, py + 12, allSel ? C_BTN_ACT() : (allHov ? C_BTN_HOV() : C_BTN()));
+        if (allSel) g.fill(startX, py, startX + 2, py + 12, C_ACCENT());
+        g.drawString(font, allLabel, startX + 6, py + 2, allSel ? C_ACCENT() : C_TEXT(), false);
+
+        py += 16;
+
+        for (String ns : namespaces) {
+            String label = formatModName(ns);
+            boolean sel = ns.equals(modFilter);
+            boolean hov = isOver(mx, my, startX, py, maxW, 12);
+
+            g.fill(startX, py, startX + maxW, py + 12, sel ? C_BTN_ACT() : (hov ? C_BTN_HOV() : C_BTN()));
+            if (sel) g.fill(startX, py, startX + 2, py + 12, C_ACCENT());
+            g.drawString(font, label, startX + 6, py + 2, sel ? C_ACCENT() : C_TEXT(), false);
+
+            py += 16;
+        }
+    }
+
+    private boolean handleModFilterPillClick(int mx, int my) {
+        java.util.List<String> namespaces = getModNamespaces();
+        if (namespaces.size() <= 1) return false;
+
+        int totalGridW = COLS * CARD_W + (COLS - 1) * CARD_PAD;
+        int gridStartX = (this.width - totalGridW) / 2;
+
+        int maxW = font.width("All") + 12;
+        for (String ns : namespaces) {
+            maxW = Math.max(maxW, font.width(formatModName(ns)) + 12);
+        }
+
+        int startX = gridStartX - maxW - 12;
+        int py = HEADER_H + SEARCH_H + 6;
+
+        // "All" pill
+        if (isOver(mx, my, startX, py, maxW, 12)) {
+            modFilter = null;
+            scrollOffset = 0;
+            updateFilteredList();
+            return true;
+        }
+
+        py += 16;
+
+        for (String ns : namespaces) {
+            if (isOver(mx, my, startX, py, maxW, 12)) {
+                modFilter = ns.equals(modFilter) ? null : ns;
+                scrollOffset = 0;
+                updateFilteredList();
+                return true;
+            }
+            py += 16;
+        }
+        return false;
+    }
+
     private void renderCards(GuiGraphics g, int mx, int my) {
         int totalW = COLS * CARD_W + (COLS - 1) * CARD_PAD;
         int startX = (this.width - totalW) / 2;
-        int startY = HEADER_H + SEARCH_H + 6;
+        int startY = HEADER_H + SEARCH_H + 6; // Grid stays locked at the top bounds
         int maxRows = visibleRows();
 
         hoveredCard = -1;
@@ -288,7 +380,7 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
 
         g.drawString(font, name, cx + 4, nameY, hovered ? C_ACCENT() : C_TEXT(), false);
 
-        // 4. Script info (Green status dot switches to theme's progress feedback color)
+        // Script info (Green status dot switches to theme's progress feedback color)
         boolean hasScript = PhantasiaScripts.has(def);
         if (hasScript) {
             g.fill(cx + CARD_W - 8, cy + 4, cx + CARD_W - 4, cy + 8, C_GREEN());
@@ -337,12 +429,10 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
     }
 
     private void renderNewSceneCard(GuiGraphics g, int cx, int cy, boolean hov) {
-        // Dynamic Theme Color Mapping
         int cardBg = (0xBB << 24) | (C_PANEL() & 0x00FFFFFF);
         int cardHoverBg = (0xBB << 24) | (C_BTN_HOV() & 0x00FFFFFF);
         g.fill(cx, cy, cx + CARD_W, cy + CARD_H, hov ? cardHoverBg : cardBg);
 
-        // CHANGED: Fixed accent line swapped for C_BORDER()
         g.fill(cx, cy, cx + CARD_W, cy + 2, hov ? C_ACCENT() : C_BORDER());
         if (hov) {
             g.fill(cx, cy, cx + 1, cy + CARD_H, C_ACCENT());
@@ -356,12 +446,10 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
 
     private void renderSceneCard(GuiGraphics g, int mx, int my,
                                  PhantasiaSceneData scene, int cx, int cy, boolean hov) {
-        // Dynamic Theme Color Mapping
         int cardBg = (0xBB << 24) | (C_PANEL() & 0x00FFFFFF);
         int cardHoverBg = (0xBB << 24) | (C_BTN_HOV() & 0x00FFFFFF);
         g.fill(cx, cy, cx + CARD_W, cy + CARD_H, hov ? cardHoverBg : cardBg);
 
-        // CHANGED: Fixed accent line swapped for C_BORDER()
         g.fill(cx, cy, cx + CARD_W, cy + 2, hov ? C_ACCENT() : C_BORDER());
         if (hov) {
             g.fill(cx, cy, cx + 1, cy + CARD_H, C_ACCENT());
@@ -401,11 +489,10 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
         if (steps > 0) countStr += "  " + steps + " step" + (steps == 1 ? "" : "s");
         g.drawString(font, countStr, cx + 4, cy + CARD_H - 23, C_DIM(), false);
 
-        // CHANGED: Fixed green dot swapped for the active theme's progress feedback color
         if (!scene.placements.isEmpty())
             g.fill(cx + CARD_W - 8, cy + 4, cx + CARD_W - 4, cy + 8, C_GREEN());
 
-        // ── Action buttons (always visible at card bottom) ───────────────────
+        // ── Action buttons ───────────────────
         boolean hasGuide = scene.steps != null && scene.steps.stream()
                 .anyMatch(s -> (s.caption != null && !s.caption.isBlank()) ||
                         (s.description != null && !s.description.isBlank()) || (s.showItems && scene.placements.stream()
@@ -419,8 +506,6 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
         int viewX = cx + 3;
         boolean viewHov = isOver(mx, my, viewX, btnY, viewW, btnH);
 
-        // CHANGED: Button background states dynamically sample cardBg and panel transparency configurations instead of
-        // static dark blues
         int viewIdleBg = (0x44 << 24) | (C_PANEL() & 0x00FFFFFF);
         g.fill(viewX, btnY, viewX + viewW, btnY + btnH, viewHov ? C_BTN_HOV() : (hov ? cardBg : viewIdleBg));
         if (viewHov) g.fill(viewX, btnY, viewX + viewW, btnY + 1, C_ACCENT());
@@ -435,7 +520,6 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
             int guideX = cx + CARD_W - 3 - guideW;
             boolean guideHov = isOver(mx, my, guideX, btnY, guideW, btnH);
 
-            // CHANGED: Button background states dynamically sample cardBg and panel transparency
             int guideIdleBg = (0x44 << 24) | (C_PANEL() & 0x00FFFFFF);
             g.fill(guideX, btnY, guideX + guideW, btnY + btnH, guideHov ? C_BTN_HOV() : (hov ? cardBg : guideIdleBg));
             if (guideHov) g.fill(guideX, btnY, guideX + guideW, btnY + 1, C_ACCENT());
@@ -463,12 +547,10 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
             boolean hov = isOver(mx, my, cx, cy, CARD_W, CARD_H);
             if (hov) hoveredCard = -2;
 
-            // Dynamic Theme Color Mapping
             int cardBg = (0xBB << 24) | (C_PANEL() & 0x00FFFFFF);
             int cardHoverBg = (0xBB << 24) | (C_BTN_HOV() & 0x00FFFFFF);
             g.fill(cx, cy, cx + CARD_W, cy + CARD_H, hov ? cardHoverBg : cardBg);
 
-            // CHANGED: Fixed accent line swapped for C_BORDER()
             g.fill(cx, cy, cx + CARD_W, cy + 2, hov ? C_ACCENT() : C_BORDER());
             if (hov) {
                 g.fill(cx, cy, cx + 1, cy + CARD_H, C_ACCENT());
@@ -507,12 +589,10 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
 
     private void renderGuideCard(GuiGraphics g, int mx, int my,
                                  PhantasiaGuideData guide, int cx, int cy, boolean hov) {
-        // Dynamic Theme Color Mapping
         int cardBg = (0xBB << 24) | (C_PANEL() & 0x00FFFFFF);
         int cardHoverBg = (0xBB << 24) | (C_BTN_HOV() & 0x00FFFFFF);
         g.fill(cx, cy, cx + CARD_W, cy + CARD_H, hov ? cardHoverBg : cardBg);
 
-        // CHANGED: Fixed accent line swapped for C_BORDER()
         g.fill(cx, cy, cx + CARD_W, cy + 2, hov ? C_ACCENT() : C_BORDER());
         if (hov) {
             g.fill(cx, cy, cx + 1, cy + CARD_H, C_ACCENT());
@@ -559,7 +639,6 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
         int openW = font.width("📖 Read") + 6;
         boolean openHov = isOver(mx, my, cx + 3, btnY, openW, btnH);
 
-        // CHANGED: Fixed background colors swapped for theme equivalents
         g.fill(cx + 3, btnY, cx + 3 + openW, btnY + btnH, openHov ? C_BTN_HOV() : (hov ? cardBg : buttonIdleBg));
         if (openHov) g.fill(cx + 3, btnY, cx + 3 + openW, btnY + 1, C_ACCENT());
         g.drawString(font, "📖 Read", cx + 6, btnY + 2, openHov ? C_ACCENT() : (hov ? C_TEXT() : C_DIM()), false);
@@ -570,7 +649,6 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
             int editX = cx + CARD_W - 3 - editW;
             boolean editHov = isOver(mx, my, editX, btnY, editW, btnH);
 
-            // CHANGED: Fixed background colors swapped for theme equivalents
             g.fill(editX, btnY, editX + editW, btnY + btnH, editHov ? C_BTN_HOV() : (hov ? cardBg : buttonIdleBg));
             if (editHov) g.fill(editX, btnY, editX + editW, btnY + 1, C_ACCENT());
             g.drawString(font, "✏", editX + 3, btnY + 2, editHov ? C_ACCENT() : (hov ? C_TEXT() : C_DIM()), false);
@@ -658,6 +736,7 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
         }
 
         if (activeTab == Tab.MULTIBLOCKS) {
+            if (handleModFilterPillClick((int) mx, (int) my)) return true;
             if (hoveredCard >= 0 && hoveredCard < filteredScenes.size()) {
                 Minecraft.getInstance().setScreen(
                         new PhantasiaSceneScreen(filteredScenes.get(hoveredCard), this));
@@ -665,7 +744,6 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
             }
         } else if (activeTab == Tab.GUIDES) {
             if (hoveredCard == -2) {
-                // New Guide — open editor with a blank guide
                 PhantasiaGuideData blank = PhantasiaGuideData.blank(
                         "phantasia:new_guide_" + System.currentTimeMillis(),
                         Component.translatable("screen.phantasia.scene_selection.btn_new_guide").getString(),
@@ -695,7 +773,6 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
                         return true;
                     }
                 }
-                // Default: open guide reader
                 Minecraft.getInstance().setScreen(new PhantasiaGuideScreen(this, guide));
                 return true;
             }
@@ -707,7 +784,6 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
             if (hoveredCard >= 0 && hoveredCard < filteredManualScenes.size()) {
                 PhantasiaSceneData scene = filteredManualScenes.get(hoveredCard);
 
-                // Recompute this card's position to hit-test individual buttons
                 int totalW = COLS * CARD_W + (COLS - 1) * CARD_PAD;
                 int startX = (this.width - totalW) / 2;
                 int startY = HEADER_H + SEARCH_H + 6;
@@ -720,7 +796,6 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
                 int btnY = cy + CARD_H - 12;
                 int btnH = 11;
 
-                // Component.translatable("screen.phantasia.scene_selection.btn_read").getString() button check
                 boolean hasGuide = scene.steps != null && scene.steps.stream()
                         .anyMatch(s -> (s.caption != null && !s.caption.isBlank()) ||
                                 (s.description != null && !s.description.isBlank()) ||
@@ -736,7 +811,6 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
                     }
                 }
 
-                // Default: open viewer
                 Minecraft.getInstance().setScreen(new PhantasiaSceneViewerScreen(this, scene));
                 return true;
             }
@@ -799,7 +873,6 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
         int maxRows = visibleRows();
         hoveredCard = -1;
 
-        // Section labels
         boolean playerSectionDrawn = false;
         boolean devSectionDrawn = false;
 
@@ -810,7 +883,6 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
             int col = visIdx % COLS;
             visIdx++;
 
-            // Section header (only once per category, in first column)
             if (col == 0) {
                 boolean isPlayer = TutorialSequence.PLAYER.equals(seq.category);
                 if (isPlayer && !playerSectionDrawn) {
@@ -840,7 +912,6 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
             boolean isDev = TutorialSequence.DEV.equals(seq.category);
             g.fill(cx, cy, cx + CARD_W, cy + 1, isDev ? C_DIM() : C_ACCENT());
 
-            // Icon
             ResourceLocation iconRL = null;
             try {
                 iconRL = new ResourceLocation(seq.iconItem);
@@ -852,10 +923,8 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
                 }
             }
 
-            // Title
             g.drawString(font, seq.title, cx + 22, cy + 6, C_ACCENT(), false);
 
-            // Description (wrapped to 2 lines)
             String desc = seq.description != null ? seq.description : "";
             int maxDescW = CARD_W - 8;
             java.util.List<net.minecraft.util.FormattedCharSequence> lines = font.split(Component.literal(desc),
@@ -865,16 +934,13 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
                 g.drawString(font, lines.get(li), cx + 4, ty + li * 10, C_DIM(), false);
             }
 
-            // Slide count
             String slideStr = seq.slides.size() + " slides";
             g.drawString(font, slideStr, cx + 4, cy + CARD_H - 12, C_DIM(), false);
 
-            // Dev badge
             if (isDev) {
                 g.drawString(font, "DEV", cx + CARD_W - font.width("DEV") - 4, cy + CARD_H - 12, C_DIM(), false);
             }
 
-            // Hover: "▶ Start"
             if (hov) {
                 String btnLabel = "▶ Start";
                 int bw = font.width(btnLabel) + 6;
@@ -890,5 +956,11 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
 
     private int visibleRows() {
         return Math.max(1, (this.height - HEADER_H - SEARCH_H - FOOTER_H - 8) / (CARD_H + CARD_PAD));
+    }
+
+    private String formatModName(String ns) {
+        if ("ars_nouveau".equals(ns)) return "Ars";
+        if ("gtceu".equals(ns)) return "GT";
+        return org.apache.commons.lang3.text.WordUtils.capitalizeFully(ns.replace('_', ' '));
     }
 }

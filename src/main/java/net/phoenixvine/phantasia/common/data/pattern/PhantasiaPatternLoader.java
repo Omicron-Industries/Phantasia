@@ -4,7 +4,6 @@ import com.lowdragmc.lowdraglib.utils.BlockInfo;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -196,7 +195,7 @@ public final class PhantasiaPatternLoader {
         Set<BlockPos> bePos = new HashSet<>();
 
         // ── Baseplate ─────────────────────────────────────────────────────────
-        phase = "Placing baseplate…";
+        phase = "Reading baseplate…";
         var _baseplateState0 = net.phoenixvine.phantasia.utils.PhantasiaTheme.currentBaseplateBlockState();
         BlockInfo floor = _baseplateState0 != null ? BlockInfo.fromBlockState(_baseplateState0) : null;
 
@@ -206,13 +205,14 @@ public final class PhantasiaPatternLoader {
                 BlockPos wp = renderOrigin.offset(bx, -1, bz);
                 blockMap.put(wp, floor);
                 baseplatePos.add(wp);
-                sharedLevel.setBlock(wp, floor.getBlockState(), 3);
                 blocksPlaced++;
             }
         }
 
         // ── Machine blocks ────────────────────────────────────────────────────
-        phase = "Placing blocks…";
+        // NOTE: world writes happen on the render thread (in onAsyncPatternLoaded)
+        // to avoid ConcurrentModificationException in TrackedDummyWorld.tickWorld().
+        phase = "Reading blocks…";
 
         for (int x = 0; x < raw.length; x++) {
             for (int y = 0; y < raw[x].length; y++) {
@@ -222,21 +222,18 @@ public final class PhantasiaPatternLoader {
                     BlockInfo info = raw[x][y][z];
                     if (info == null) continue;
 
+                    BlockState state = info.getBlockState();
+                    // Skip air and invisible predicates (e.g. GTM "any" placeholder blocks).
+                    if (state == null || state.isAir() || state.getRenderShape() == net.minecraft.world.level.block.RenderShape.INVISIBLE) continue;
+
                     BlockPos lp = new BlockPos(x, y, z);
                     BlockPos wp = renderOrigin.offset(x, y, z);
 
                     blockMap.put(wp, info);
                     localToWorld.put(lp, wp);
 
-                    BlockState state = info.getBlockState();
-                    sharedLevel.setBlock(wp, state, 3);
-
-                    if (state.getBlock() instanceof EntityBlock entityBlock) {
-                        BlockEntity newBE = entityBlock.newBlockEntity(wp, state);
-                        if (newBE != null) {
-                            sharedLevel.setInnerBlockEntity(newBE);
-                            bePos.add(wp);
-                        }
+                    if (state.getBlock() instanceof EntityBlock) {
+                        bePos.add(wp);
                     }
                     blocksPlaced++;
                 }
@@ -253,14 +250,16 @@ public final class PhantasiaPatternLoader {
         net.phoenixvine.phantasia.client.screens.PhantasiaSceneScreen
                 .coldPopulateDimensionSlot(definition.getId(), slotSpaceMap);
 
-        // ── Notify definition to fire structure-forming logic ─────────────────
+        // ── Prepare post-write task (fires after world is populated on render thread) ──
+        // onShapeLoaded needs the world to be populated; we defer it until after the
+        // render thread writes all blocks in onAsyncPatternLoaded.
         phase = "Forming structure…";
         final Map<BlockPos, BlockInfo> blockMapSnapshot = Map.copyOf(blockMap);
         final Map<BlockPos, BlockPos> localToWorldSnapshot = Map.copyOf(localToWorld);
-        RenderSystem.recordRenderCall(
-                () -> definition.onShapeLoaded(sharedLevel, renderOrigin, blockMapSnapshot, localToWorldSnapshot));
+        Runnable postWriteTask =
+                () -> definition.onShapeLoaded(sharedLevel, renderOrigin, blockMapSnapshot, localToWorldSnapshot);
 
-        return buildResult(raw, blockMap, localToWorld, baseplatePos, bePos, renderOrigin, script);
+        return buildResult(raw, blockMap, localToWorld, baseplatePos, bePos, renderOrigin, script, postWriteTask);
     }
 
     // ── Warm load ─────────────────────────────────────────────────────────────
@@ -311,6 +310,7 @@ public final class PhantasiaPatternLoader {
 
                     BlockInfo info = raw[x][y][z];
                     if (info == null) continue;
+                    if (info.getBlockState().isAir()) continue; // skip "any"/air placeholder positions
 
                     BlockPos lp = new BlockPos(x, y, z);
                     BlockPos wp = renderOrigin.offset(x, y, z);
@@ -345,6 +345,18 @@ public final class PhantasiaPatternLoader {
                                                       Set<BlockPos> bePos,
                                                       BlockPos origin,
                                                       PhantasiaScript script) {
+        return buildResult(raw, blockMap, localToWorld, baseplatePos, bePos, origin, script, null);
+    }
+
+    private static PhantasiaLoadedPattern buildResult(
+                                                      BlockInfo[][][] raw,
+                                                      Map<BlockPos, BlockInfo> blockMap,
+                                                      Map<BlockPos, BlockPos> localToWorld,
+                                                      Set<BlockPos> baseplatePos,
+                                                      Set<BlockPos> bePos,
+                                                      BlockPos origin,
+                                                      PhantasiaScript script,
+                                                      Runnable postWriteTask) {
         LOGGER.info("[Phantasia] PatternLoader: registered {} BEs", bePos.size());
 
         int minY = Integer.MAX_VALUE, maxY = Integer.MIN_VALUE;
@@ -358,7 +370,7 @@ public final class PhantasiaPatternLoader {
         }
 
         return new PhantasiaLoadedPattern(blockMap, localToWorld, baseplatePos,
-                null, bePos, origin, minY, maxY, script);
+                null, bePos, origin, minY, maxY, script, postWriteTask);
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
@@ -367,8 +379,12 @@ public final class PhantasiaPatternLoader {
         int n = 0;
         for (BlockInfo[][] layer : raw)
             for (BlockInfo[] row : layer)
-                for (BlockInfo b : row)
-                    if (b != null) n++;
+                for (BlockInfo b : row) {
+                    if (b == null) continue;
+                    net.minecraft.world.level.block.state.BlockState s = b.getBlockState();
+                    if (s == null || s.isAir() || s.getRenderShape() == net.minecraft.world.level.block.RenderShape.INVISIBLE) continue;
+                    n++;
+                }
         return n;
     }
 }

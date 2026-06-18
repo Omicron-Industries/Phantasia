@@ -29,6 +29,15 @@ public class PhantasiaScriptData {
     private int scriptDuration = -1;
 
     /**
+     * When true, marks this multiblock as expandable. Script steps may use
+     * {@code layerCount} to switch between size variants (each shape index = one layer count).
+     * Also controls whether the Layers editor widget is shown in the script editor.
+     */
+    @Setter
+    @SerializedName("expandable")
+    private boolean expandable = false;
+
+    /**
      * Item condition hints displayed in the GuideME-style panel alongside the
      * autogenned 3D scene. Same model as {@link PhantasiaSceneData.ItemConditionData}
      * — supports label, description, track animation, and an optional
@@ -217,6 +226,13 @@ public class PhantasiaScriptData {
         public String hold = null;
 
         /**
+         * For expandable multiblocks: how many layers to show at this step.
+         * -1 = no change. Maps to shape index via the definition's getShapeIndexForLayerCount().
+         */
+        @SerializedName("layerCount")
+        public int layerCount = -1;
+
+        /**
          * Whether the item panel is visible during this step.
          * Defaults to {@code true}. Set to {@code false} on steps focused on
          * structure assembly where recipe context would be distracting.
@@ -253,6 +269,7 @@ public class PhantasiaScriptData {
             c.working = working;
 
             c.fakeRecipeId = fakeRecipeId;
+            c.layerCount = layerCount;
             c.showItems = showItems;
             for (PhantasiaSceneData.ItemConditionData it : items) c.items.add(it.copy());
             c.camera = camera == null ? null : new CameraData(camera.yaw, camera.pitch, camera.zoom,

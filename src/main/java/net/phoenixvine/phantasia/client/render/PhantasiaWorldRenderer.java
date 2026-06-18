@@ -174,7 +174,7 @@ public final class PhantasiaWorldRenderer {
     private static final float NEAR = 0.1f;
     private static final float FAR = 10_000f;
     private static final float ALPHA_STEP = 0.2f;
-    private static final int TRANSITION_THRESHOLD = 32;
+    private static final int TRANSITION_THRESHOLD = 0;
 
     // ── Streaming bake ────────────────────────────────────────────────────────
     // For patterns exceeding STREAMING_THRESHOLD blocks, the bake is split into
@@ -183,7 +183,7 @@ public final class PhantasiaWorldRenderer {
     // time rather than blocking until the entire multi is baked.
 
     /** Block count above which streaming bake is used instead of a monolithic bake. */
-    private static final int STREAMING_THRESHOLD = 4_000;
+    public static final int STREAMING_THRESHOLD = 4_000;
 
     /** Blocks processed per streaming chunk. */
     private static final int STREAMING_CHUNK_SIZE = 4_000;
@@ -223,6 +223,10 @@ public final class PhantasiaWorldRenderer {
     private final VertexBuffer[] front;
     private final VertexBuffer[] back;
     private volatile boolean backReady = false;
+    /**
+     * True once front[] has been populated at least once; prevents blank-flash on step transitions during streaming.
+     */
+    private boolean frontHasContent = false;
 
     // 1. Add this field at the top of PhantasiaWorldRenderer if it's missing
     private final Set<BlockPos> baseplatePositions = new java.util.HashSet<>();
@@ -263,6 +267,12 @@ public final class PhantasiaWorldRenderer {
     private Set<BlockPos> targetVisible = Collections.emptySet();
     private Set<BlockPos> bakedAll = Collections.emptySet();
     private Set<BlockPos> animateTickEligible = Collections.emptySet();
+    /** Pre-cached (pos, state) pairs for all non-air visible blocks — avoids HashMap lookup in the hot tick loop. */
+    private record AnimTickEntry(BlockPos pos, net.minecraft.world.level.block.state.BlockState state) {}
+    private List<AnimTickEntry> animateTickList = Collections.emptyList();
+    private int animateTickIdx = 0;
+    /** Blocks ticked per game tick. Large enough for visible particle density, small enough to be ~free. */
+    private static final int ANIMATE_TICK_BUDGET = 2048;
 
     // ── Fade-in state (small transitions only) ────────────────────────────────
 
@@ -367,15 +377,28 @@ public final class PhantasiaWorldRenderer {
         this.lastTraceTime = 0;
 
         Set<BlockPos> old = targetVisible;
-        targetVisible = Set.copyOf(newVisible);
+        Set<BlockPos> next = Set.copyOf(newVisible);
+        // Skip the expensive bake if the visible set is unchanged.
+        if (next.equals(old)) return;
+        targetVisible = next;
 
+        // Build animate-tick list from ALL non-air visible blocks — no isRandomlyTicking filter
+        // because many blocks (GTCEu machines etc.) have interesting animateTick without that flag.
+        // States are pre-cached here so the hot tick loop is pure virtual dispatch, no HashMap lookup.
+        List<AnimTickEntry> tickEntries = new ArrayList<>(targetVisible.size());
         Set<BlockPos> eligible = new HashSet<>();
         for (BlockPos pos : targetVisible) {
             BlockState state = world.getBlockState(pos);
+            if (state == null || state.isAir()) continue;
+            tickEntries.add(new AnimTickEntry(pos, state));
             if (state.isRandomlyTicking() || state.getBlock().isRandomlyTicking(state))
                 eligible.add(pos);
         }
-        animateTickEligible = eligible.isEmpty() ? Collections.emptySet() : Collections.unmodifiableSet(eligible);
+        animateTickEligible = eligible.isEmpty() ? Collections.emptySet()
+                : Collections.unmodifiableSet(eligible);
+        animateTickList = tickEntries.isEmpty() ? Collections.emptyList()
+                : Collections.unmodifiableList(tickEntries);
+        animateTickIdx = 0;
 
         int appearing = 0;
         for (BlockPos pos : newVisible) if (!old.contains(pos)) appearing++;
@@ -425,6 +448,8 @@ public final class PhantasiaWorldRenderer {
         blockAlpha.clear();
         blockLayers.clear();
         animateTickEligible = Collections.emptySet();
+        animateTickList = Collections.<AnimTickEntry>emptyList();
+        animateTickIdx = 0;
         hasTransitions = false;
         overlayReady = false;
         partialBakePending = false;
@@ -521,7 +546,10 @@ public final class PhantasiaWorldRenderer {
             long t1 = System.nanoTime();
             drawVBOs();
 
-            if (hasTransitions) {
+            // Draw fading blocks while transitioning AND while blocks are still at alpha=1
+            // waiting for the bake to complete. swapFullBuffers() clears the 1.0 entries,
+            // so this naturally stops once the new geometry is in front[].
+            if (hasTransitions || !blockAlpha.isEmpty()) {
                 RenderSystem.enableDepthTest();
                 RenderSystem.depthMask(true);
                 MultiBufferSource.BufferSource dynBuffers = mc.renderBuffers().bufferSource();
@@ -594,9 +622,17 @@ public final class PhantasiaWorldRenderer {
                 PhantasiaParticleEngine.tick();
                 world.tickWorld();
                 // Checking package-local implementation of TrackedDummyWorld if applicable
-                if (world instanceof PhantasiaTrackedDummyWorld ptdw && !animateTickEligible.isEmpty()) {
+                if (!animateTickList.isEmpty()) {
                     RandomSource ar = RandomSource.createNewThreadLocalInstance();
-                    for (BlockPos pos : animateTickEligible) ptdw.tickAnimateForPos(pos, ar);
+                    int size = animateTickList.size();
+                    int limit = Math.min(ANIMATE_TICK_BUDGET, size);
+                    for (int _i = 0; _i < limit; _i++) {
+                        if (animateTickIdx >= size) animateTickIdx = 0;
+                        AnimTickEntry entry = animateTickList.get(animateTickIdx++);
+                        try {
+                            entry.state().getBlock().animateTick(entry.state(), world, entry.pos(), ar);
+                        } catch (Exception ignored) {}
+                    }
                 }
                 totalWorldTickNs += (System.nanoTime() - _tickStart);
             }
@@ -871,20 +907,16 @@ public final class PhantasiaWorldRenderer {
 
     private void tickAlpha() {
         if (blockAlpha.isEmpty()) return;
-        Iterator<Map.Entry<BlockPos, Float>> it = blockAlpha.entrySet().iterator();
-        boolean any = false;
-        while (it.hasNext()) {
-            Map.Entry<BlockPos, Float> e = it.next();
+        boolean anyStillFading = false;
+        for (Map.Entry<BlockPos, Float> e : blockAlpha.entrySet()) {
             float next = Math.min(1f, e.getValue() + ALPHA_STEP);
-            if (next >= 1f) {
-                it.remove();
-                blockLayers.remove(e.getKey());
-            } else {
-                e.setValue(next);
-                any = true;
-            }
+            e.setValue(next);
+            if (next < 1f) anyStillFading = true;
         }
-        hasTransitions = any;
+        // Keep hasTransitions true until ALL blocks reach 1.0 — completed blocks stay
+        // in blockAlpha at 1.0 so drawFadingIn() keeps them visible until the bake fires
+        // and swapFullBuffers() moves them into front[].
+        hasTransitions = anyStillFading;
     }
 
     // ── Buffer swaps ──────────────────────────────────────────────────────────
@@ -904,10 +936,16 @@ public final class PhantasiaWorldRenderer {
         frontTileEntities = backTileEntities != null ? backTileEntities : Collections.emptySet();
         animatedPositions = backAnimatedPositions != null ? backAnimatedPositions : Collections.emptySet();
         PhantasiaSpriteMarker.invalidateCache(); // new bake may have new animated sprites
+        frontHasContent = true;
         backReady = false;
         backTileEntities = null;
         backAnimatedPositions = null;
         overlayReady = false;
+        // Remove fade-in entries that reached alpha 1.0 — they're now in front[] at full
+        // opacity, so drawFadingIn() no longer needs to render them.
+        blockAlpha.entrySet().removeIf(e -> e.getValue() >= 1f);
+        blockLayers.keySet().removeIf(pos -> !blockAlpha.containsKey(pos));
+        hasTransitions = !blockAlpha.isEmpty();
 
         // When a full bake completes after streaming, the consolidated geometry is
         // now in front[]. Release all streaming chunk VBOs — they're redundant.
@@ -946,6 +984,13 @@ public final class PhantasiaWorldRenderer {
 
         Set<BlockPos> snapshot = new HashSet<>(patternVisible);
         snapshot.addAll(baseplatePositions);
+        // Strip positions whose block state is air or has no visible geometry (e.g. GTM "any"
+        // predicate placeholders). Doing this before the bake avoids iterating dead positions
+        // in bucket(), which matters a lot for machines with thousands of predicate slots.
+        snapshot.removeIf(pos -> {
+            BlockState s = world.getBlockState(pos);
+            return s == null || s.isAir() || s.getRenderShape() == net.minecraft.world.level.block.RenderShape.INVISIBLE;
+        });
 
         if (snapshot.isEmpty()) {
             uploadEmptyBuffers(false);
@@ -991,6 +1036,7 @@ public final class PhantasiaWorldRenderer {
                         continue;
                     }
                     baked[i] = bakeLayerToBuffer(brd, random, layer, solid, fluid, animatedBack);
+                    if (baked[i] == null) return; // interrupted inside bakeLayerToBuffer
                 }
             } finally {
                 ModelBlockRenderer.clearCache();
@@ -1035,8 +1081,11 @@ public final class PhantasiaWorldRenderer {
      * that the final state lives in {@code front[]} and all chunk VBOs are released.
      */
     private void scheduleStreamingBake(Set<BlockPos> snapshot) {
-        // Put empty geometry in front[] immediately so the viewport opens at once.
-        uploadEmptyBuffers(false);
+        // On the initial open (front is empty), wipe to blank immediately so the
+        // viewport appears quickly. On step transitions (front already has content),
+        // keep the old frame alive — the new geometry streams in via streamChunks,
+        // and front[] is replaced atomically when consolidation completes.
+        if (!frontHasContent) uploadEmptyBuffers(false);
 
         // Reset streaming counters (render thread — safe to write here).
         isStreaming = true;
@@ -1091,6 +1140,7 @@ public final class PhantasiaWorldRenderer {
                                 continue;
                             }
                             baked[i] = bakeLayerToBuffer(brd, random, layer, solid, fluid, animatedBack);
+                            if (baked[i] == null) return; // interrupted inside bakeLayerToBuffer
                         }
                     } finally {
                         ModelBlockRenderer.clearCache();
@@ -1282,7 +1332,12 @@ public final class PhantasiaWorldRenderer {
         PoseStack ps = new PoseStack();
         TintedVertexConsumer tinted = new TintedVertexConsumer(bb);
 
+        int checkInterval = 0;
         for (BlockPos pos : solid) {
+            if (++checkInterval >= 512) {
+                checkInterval = 0;
+                if (Thread.interrupted()) return null;
+            }
             BlockState state = world.getBlockState(pos);
             ps.pushPose();
             ps.translate(pos.getX(), pos.getY(), pos.getZ());
@@ -1361,6 +1416,7 @@ public final class PhantasiaWorldRenderer {
     private Map<BlockPos, BlockInfo> applyVariants(PhantasiaVariantState vs, Set<BlockPos> positions) {
         Map<BlockPos, BlockInfo> saved = new HashMap<>();
         for (BlockPos vp : positions) {
+            if (world.getBlockEntity(vp) != null) continue; // BER blocks go invisible when state-overridden
             BlockInfo baseInfo = world.renderedBlocks.get(vp);
             if (baseInfo == null) continue;
             BlockState base = baseInfo.getBlockState();
@@ -1538,6 +1594,9 @@ public final class PhantasiaWorldRenderer {
     };
 
     private static void driveClientTick(BlockEntity be) {
+        // Skip BEs whose level reference is null — their clientTick may assume a real world
+        // (e.g. GTCEu MufflerPartMachine calls Level.getBlockState via capability helpers).
+        if (be.getLevel() == null) return;
         try {
             var gm = GET_MACHINE.get(be.getClass());
             if (gm == NO_OP) return;
@@ -1860,5 +1919,13 @@ public final class PhantasiaWorldRenderer {
         }
         streamChunks.clear();
         streamChunksReady = 0;
+        // Release large collections so the bake thread can't keep them alive after close.
+        animateTickList = Collections.emptyList();
+        animateTickIdx = 0;
+        targetVisible = Collections.emptySet();
+        bakedAll = Collections.emptySet();
+        animateTickEligible = Collections.emptySet();
+        blockAlpha.clear();
+        blockLayers.clear();
     }
 }

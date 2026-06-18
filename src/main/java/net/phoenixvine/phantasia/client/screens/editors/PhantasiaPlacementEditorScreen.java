@@ -7,7 +7,9 @@ import net.minecraft.network.chat.Component;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.phoenixvine.phantasia.client.screens.PhantasiaScreen;
+import net.phoenixvine.phantasia.client.screens.subscreen.PhantasiaTextInputScreen;
 import net.phoenixvine.phantasia.common.data.scene.PhantasiaSceneData;
+import net.phoenixvine.phantasia.common.data.scene.PhantasiaScenes;
 
 import org.lwjgl.glfw.GLFW;
 
@@ -430,32 +432,44 @@ public class PhantasiaPlacementEditorScreen extends PhantasiaScreen {
         }
         cy += 16;
 
-        // Description
+        // Description — opens terminal editor
         if (inClip(cy, clipTop, clipBottom)) {
-            g.drawString(font, Component.translatable("screen.phantasia.placement_editor.label_desc").getString(),
-                    px + 8, cy + 2, C_DIM(), false);
-            place(addItemDescBox, px + 8 +
-                    font.width(Component.translatable("screen.phantasia.placement_editor.label_desc").getString()) + 4,
-                    cy,
-                    pw - 20 - font.width(
-                            Component.translatable("screen.phantasia.placement_editor.label_desc").getString()) - 4,
-                    12);
+            String descLbl = Component.translatable("screen.phantasia.placement_editor.label_desc").getString();
+            g.drawString(font, descLbl, px + 8, cy + 2, C_DIM(), false);
+            int descBx = px + 8 + font.width(descLbl) + 4;
+            int descBw = pw - 20 - font.width(descLbl) - 4;
+            String descVal = addItemDescBox.getValue();
+            boolean descHov = isOver(mx, my, descBx, cy, descBw, 12);
+            g.fill(descBx, cy, descBx + descBw, cy + 12, descHov ? C_BTN_HOV() : C_BTN());
+            g.fill(descBx, cy, descBx + descBw, cy + 1, 0x22FFFFFF);
+            g.drawString(font, descVal.isEmpty() ? "✎  Description…" : trunc(descVal, descBw - 8),
+                    descBx + 4, cy + 2, descVal.isEmpty() ? C_DIM() : C_TEXT(), false);
+            if (descHov) pendingTooltip = "Click to edit item description";
+            btns.add(new Btn(descBx, cy, descBw, 12, () -> Minecraft.getInstance().setScreen(
+                    new PhantasiaTextInputScreen(this, "Item Description",
+                            "Displayed when the player inspects this item…",
+                            addItemDescBox.getValue(), 256, v -> addItemDescBox.setValue(v)))));
         }
         cy += 16;
 
-        // Microscene ID
+        // Microscene — opens scene picker
         if (inClip(cy, clipTop, clipBottom)) {
-            g.drawString(font, Component.translatable("screen.phantasia.placement_editor.label_scene").getString(),
-                    px + 8, cy + 2, C_DIM(), false);
-            place(addItemMicrosceneBox,
-                    px + 8 + font.width(
-                            Component.translatable("screen.phantasia.placement_editor.label_scene").getString()) + 4,
-                    cy,
-                    pw - 20 - font.width(
-                            Component.translatable("screen.phantasia.placement_editor.label_scene").getString()) - 4,
-                    12);
-            if (isOver(mx, my, px + 8, cy, pw - 16, 12))
-                pendingTooltip = "Optional microscene ID to open when the player clicks this item";
+            String sceneLbl = Component.translatable("screen.phantasia.placement_editor.label_scene").getString();
+            g.drawString(font, sceneLbl, px + 8, cy + 2, C_DIM(), false);
+            int sceneBx = px + 8 + font.width(sceneLbl) + 4;
+            int sceneBw = pw - 20 - font.width(sceneLbl) - 4;
+            String sceneVal = addItemMicrosceneBox.getValue();
+            boolean sceneHov = isOver(mx, my, sceneBx, cy, sceneBw, 12);
+            g.fill(sceneBx, cy, sceneBx + sceneBw, cy + 12, sceneHov ? C_BTN_HOV() : C_BTN());
+            g.fill(sceneBx, cy, sceneBx + sceneBw, cy + 1, 0x22FFFFFF);
+            g.drawString(font, sceneVal.isEmpty() ? "✎  phantasia:scene_id (optional)" : trunc(sceneVal, sceneBw - 8),
+                    sceneBx + 4, cy + 2, sceneVal.isEmpty() ? C_DIM() : C_ACCENT(), false);
+            if (sceneHov) pendingTooltip = "Click to pick a microscene to open when this item is clicked";
+            btns.add(new Btn(sceneBx, cy, sceneBw, 12, () -> {
+                java.util.List<String> ids = PhantasiaScenes.all().stream().map(s -> s.id).toList();
+                Minecraft.getInstance().setScreen(new PhantasiaGuideEditorScreen.RegistrySearchScreen(
+                        this, "Select Scene Link", ids, id -> addItemMicrosceneBox.setValue(id)));
+            }));
         }
         cy += 16;
 
@@ -673,30 +687,45 @@ public class PhantasiaPlacementEditorScreen extends PhantasiaScreen {
         }
         cy += 16;
 
-        // Description
+        // Description — opens terminal editor
         if (inClip(cy, clipTop, clipBottom)) {
-            g.drawString(font, Component.translatable("screen.phantasia.placement_editor.label_desc").getString(),
-                    px + 8, cy + 2, C_DIM(), false);
-            place(editItemDescBox, px + 8 +
-                    font.width(Component.translatable("screen.phantasia.placement_editor.label_desc").getString()) + 4,
-                    cy,
-                    pw - 20 - font.width(
-                            Component.translatable("screen.phantasia.placement_editor.label_desc").getString()) - 4,
-                    12);
+            String descLbl2 = Component.translatable("screen.phantasia.placement_editor.label_desc").getString();
+            g.drawString(font, descLbl2, px + 8, cy + 2, C_DIM(), false);
+            int descBx2 = px + 8 + font.width(descLbl2) + 4;
+            int descBw2 = pw - 20 - font.width(descLbl2) - 4;
+            String descVal2 = editItemDescBox.getValue();
+            boolean descHov2 = isOver(mx, my, descBx2, cy, descBw2, 12);
+            g.fill(descBx2, cy, descBx2 + descBw2, cy + 12, descHov2 ? C_BTN_HOV() : C_BTN());
+            g.fill(descBx2, cy, descBx2 + descBw2, cy + 1, 0x22FFFFFF);
+            g.drawString(font, descVal2.isEmpty() ? "✎  Description…" : trunc(descVal2, descBw2 - 8),
+                    descBx2 + 4, cy + 2, descVal2.isEmpty() ? C_DIM() : C_TEXT(), false);
+            if (descHov2) pendingTooltip = "Click to edit item description";
+            btns.add(new Btn(descBx2, cy, descBw2, 12, () -> Minecraft.getInstance().setScreen(
+                    new PhantasiaTextInputScreen(this, "Item Description",
+                            "Displayed when the player inspects this item…",
+                            editItemDescBox.getValue(), 256, v -> editItemDescBox.setValue(v)))));
         }
         cy += 16;
 
-        // Microscene ID
+        // Microscene — opens scene picker
         if (inClip(cy, clipTop, clipBottom)) {
-            g.drawString(font, Component.translatable("screen.phantasia.placement_editor.label_scene").getString(),
-                    px + 8, cy + 2, C_DIM(), false);
-            place(editItemMicrosceneBox,
-                    px + 8 + font.width(
-                            Component.translatable("screen.phantasia.placement_editor.label_scene").getString()) + 4,
-                    cy,
-                    pw - 20 - font.width(
-                            Component.translatable("screen.phantasia.placement_editor.label_scene").getString()) - 4,
-                    12);
+            String sceneLbl2 = Component.translatable("screen.phantasia.placement_editor.label_scene").getString();
+            g.drawString(font, sceneLbl2, px + 8, cy + 2, C_DIM(), false);
+            int sceneBx2 = px + 8 + font.width(sceneLbl2) + 4;
+            int sceneBw2 = pw - 20 - font.width(sceneLbl2) - 4;
+            String sceneVal2 = editItemMicrosceneBox.getValue();
+            boolean sceneHov2 = isOver(mx, my, sceneBx2, cy, sceneBw2, 12);
+            g.fill(sceneBx2, cy, sceneBx2 + sceneBw2, cy + 12, sceneHov2 ? C_BTN_HOV() : C_BTN());
+            g.fill(sceneBx2, cy, sceneBx2 + sceneBw2, cy + 1, 0x22FFFFFF);
+            g.drawString(font,
+                    sceneVal2.isEmpty() ? "✎  phantasia:scene_id (optional)" : trunc(sceneVal2, sceneBw2 - 8),
+                    sceneBx2 + 4, cy + 2, sceneVal2.isEmpty() ? C_DIM() : C_ACCENT(), false);
+            if (sceneHov2) pendingTooltip = "Click to pick a microscene to open when this item is clicked";
+            btns.add(new Btn(sceneBx2, cy, sceneBw2, 12, () -> {
+                java.util.List<String> ids2 = PhantasiaScenes.all().stream().map(s -> s.id).toList();
+                Minecraft.getInstance().setScreen(new PhantasiaGuideEditorScreen.RegistrySearchScreen(
+                        this, "Select Scene Link", ids2, id -> editItemMicrosceneBox.setValue(id)));
+            }));
         }
         cy += 16;
 

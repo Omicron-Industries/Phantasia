@@ -190,6 +190,19 @@ final class ArsNouveauLayoutBuilder {
         return grid;
     }
 
+    // ── Bookwyrm ────────────────────────────────────────────────────────────────
+    // Storage Lectern at centre (bookwyrm's home); Archwood Chests at cardinals
+    // that the bookwyrm shuttles items to and from.
+
+    static BlockInfo[][][] bookwyrmBase() {
+        BlockInfo[][][] grid = emptyGrid();
+        grid[CX][CY][CZ] = BlockInfo.fromBlock(BlockRegistry.CRAFTING_LECTERN.get());
+        grid[CX - 2][CY][CZ] = BlockInfo.fromBlock(BlockRegistry.ARCHWOOD_CHEST.get());
+        grid[CX + 2][CY][CZ] = BlockInfo.fromBlock(BlockRegistry.ARCHWOOD_CHEST.get());
+        grid[CX][CY][CZ - 2] = BlockInfo.fromBlock(BlockRegistry.ARCHWOOD_CHEST.get());
+        return grid;
+    }
+
     // ── Ritual Brazier ─────────────────────────────────────────────────────────
     // Ritual Brazier at centre; Brazier Relays at cardinals to extend ritual range;
     // Source Jars at diagonals.

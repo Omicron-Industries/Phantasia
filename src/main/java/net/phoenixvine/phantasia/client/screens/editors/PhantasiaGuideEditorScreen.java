@@ -1111,7 +1111,7 @@ public class PhantasiaGuideEditorScreen extends Screen {
 
     // ── Registry Search Screen (Self-Contained Lookup Window) ──────────────────
 
-    private static class RegistrySearchScreen extends Screen {
+    static class RegistrySearchScreen extends Screen {
 
         private final Screen parent;
         private final String titleText;

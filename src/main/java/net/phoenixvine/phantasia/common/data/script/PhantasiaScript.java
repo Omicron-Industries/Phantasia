@@ -35,7 +35,8 @@ public class PhantasiaScript {
                        int lerpTicks,
                        @Nullable String fakeRecipeId,
                        List<PhantasiaParticleEffect> particleEffects,
-                       @Nullable String hold) {
+                       @Nullable String hold,
+                       int layerCount) {
 
         public boolean hasCamera() {
             return useCam;
@@ -187,7 +188,7 @@ public class PhantasiaScript {
                 sd.working, -1, -1,
                 yaw, pitch, zoom, useCam, lerpType, lerpTicks,
                 sd.fakeRecipeId, Collections.unmodifiableList(new ArrayList<>(particleFx)),
-                sd.hold);
+                sd.hold, sd.layerCount);
     }
 
     private static Predicate<BlockPos> buildShowPredicate(PhantasiaScriptData.StepData sd) {

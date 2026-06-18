@@ -6,11 +6,11 @@ import net.phoenixvine.phantasia.common.data.script.PhantasiaScriptData;
  * Default scene scripts for static Ars Nouveau setups (no recipe registry).
  * Each method returns the JSON-compiled script for one machine type.
  */
-final class ArsNouveauStaticScripts {
+public final class ArsNouveauStaticScripts {
 
     // ── Spell Turrets ──────────────────────────────────────────────────────────
 
-    static PhantasiaScriptData basicSpellTurret() {
+    public static PhantasiaScriptData basicSpellTurret() {
         return PhantasiaScriptData.fromJson(
                 """
                         {
@@ -66,7 +66,7 @@ final class ArsNouveauStaticScripts {
                         """);
     }
 
-    static PhantasiaScriptData enchantedSpellTurret() {
+    public static PhantasiaScriptData enchantedSpellTurret() {
         return PhantasiaScriptData.fromJson(
                 """
                         {
@@ -122,7 +122,7 @@ final class ArsNouveauStaticScripts {
                         """);
     }
 
-    static PhantasiaScriptData timerSpellTurret() {
+    public static PhantasiaScriptData timerSpellTurret() {
         return PhantasiaScriptData.fromJson(
                 """
                         {
@@ -179,7 +179,7 @@ final class ArsNouveauStaticScripts {
                         """);
     }
 
-    static PhantasiaScriptData rotatingSpellTurret() {
+    public static PhantasiaScriptData rotatingSpellTurret() {
         return PhantasiaScriptData.fromJson(
                 """
                         {
@@ -229,7 +229,7 @@ final class ArsNouveauStaticScripts {
 
     // ── Wixie Cauldron ─────────────────────────────────────────────────────────
 
-    static PhantasiaScriptData wixieCauldron() {
+    public static PhantasiaScriptData wixieCauldron() {
         return PhantasiaScriptData.fromJson(
                 """
                         {
@@ -289,7 +289,7 @@ final class ArsNouveauStaticScripts {
 
     // ── Drygmy ─────────────────────────────────────────────────────────────────
 
-    static PhantasiaScriptData drygmy() {
+    public static PhantasiaScriptData drygmy() {
         return PhantasiaScriptData.fromJson(
                 """
                         {
@@ -336,7 +336,7 @@ final class ArsNouveauStaticScripts {
 
     // ── Whirlisprig ────────────────────────────────────────────────────────────
 
-    static PhantasiaScriptData whirlisprig() {
+    public static PhantasiaScriptData whirlisprig() {
         return PhantasiaScriptData.fromJson(
                 """
                         {
@@ -384,7 +384,7 @@ final class ArsNouveauStaticScripts {
 
     // ── Starbuncle ─────────────────────────────────────────────────────────────
 
-    static PhantasiaScriptData starbuncle() {
+    public static PhantasiaScriptData starbuncle() {
         return PhantasiaScriptData.fromJson(
                 """
                         {
@@ -429,9 +429,58 @@ final class ArsNouveauStaticScripts {
                         """);
     }
 
+    // ── Bookwyrm ───────────────────────────────────────────────────────────────
+
+    public static PhantasiaScriptData bookwyrm() {
+        return PhantasiaScriptData.fromJson(
+                """
+                        {
+                          "machine": "ars_nouveau:bookwyrm",
+                          "startCamera": { "yaw": -135.0, "pitch": -30.0, "zoom": 4.0 },
+                          "steps": [
+                            {
+                              "tick": 0,
+                              "caption": "The Bookwyrm automates item transfer between a Storage Lectern and nearby inventories. Craft a Bookwyrm Charm and right-click a Storage Lectern to bind one.",
+                              "show": "pos",
+                              "positions": [[2,1,2]],
+                              "items": [
+                                { "item": "ars_nouveau:bookwyrm_charm", "label": "Bookwyrm Charm", "type": "catalyst", "description": "Right-click a Storage Lectern to bind the Bookwyrm to it. It will live there and manage transfers." }
+                              ],
+                              "camera": { "yaw": -135.0, "pitch": -30.0, "zoom": 4.0, "lerpType": "SNAP", "lerpTicks": 0 }
+                            },
+                            {
+                              "tick": 60,
+                              "caption": "Place chests near the Storage Lectern. The Bookwyrm will shuttle items back and forth between the lectern and the connected inventories.",
+                              "show": "all",
+                              "items": [
+                                { "item": "ars_nouveau:archwood_chest", "label": "Archwood Chest (or any inventory)", "type": "input", "description": "Any inventory within range can be linked to the Storage Lectern." }
+                              ],
+                              "camera": { "yaw": -150.0, "pitch": -38.0, "zoom": 5.5, "lerpType": "EASE", "lerpTicks": 15 }
+                            },
+                            {
+                              "tick": 120,
+                              "caption": "Use the Dominion Wand to configure which inventories are linked. Right-click the lectern to open its interface and manage Bookwyrm filter settings.",
+                              "show": "all",
+                              "items": [
+                                { "item": "ars_nouveau:dominion_wand", "label": "Dominion Wand", "type": "catalyst", "description": "Use to link inventories to the Storage Lectern. Right-click the lectern to open filter settings." }
+                              ],
+                              "camera": { "yaw": -120.0, "pitch": -35.0, "zoom": 4.5, "lerpType": "EASE", "lerpTicks": 12 }
+                            }
+                          ],
+                          "globalMistakes": [
+                            "The Bookwyrm needs a Storage Lectern — a regular lectern won't work.",
+                            "Inventories must be within range of the lectern to be linked.",
+                            "Use Allow or Deny Scrolls at the lectern to restrict which items the Bookwyrm transfers."
+                          ],
+                          "mistakes": [],
+                          "optionalGroups": []
+                        }
+                        """);
+    }
+
     // ── Ritual Brazier ─────────────────────────────────────────────────────────
 
-    static PhantasiaScriptData ritualBrazier() {
+    public static PhantasiaScriptData ritualBrazier() {
         return PhantasiaScriptData.fromJson(
                 """
                         {
@@ -491,7 +540,7 @@ final class ArsNouveauStaticScripts {
 
     // ── Sourcelinks ────────────────────────────────────────────────────────────
 
-    static PhantasiaScriptData agronomicSourcelink() {
+    public static PhantasiaScriptData agronomicSourcelink() {
         return PhantasiaScriptData.fromJson(
                 """
                         {
@@ -529,7 +578,7 @@ final class ArsNouveauStaticScripts {
                         """);
     }
 
-    static PhantasiaScriptData volcanicSourcelink() {
+    public static PhantasiaScriptData volcanicSourcelink() {
         return PhantasiaScriptData.fromJson(
                 """
                         {
@@ -576,7 +625,7 @@ final class ArsNouveauStaticScripts {
                         """);
     }
 
-    static PhantasiaScriptData vitalicSourcelink() {
+    public static PhantasiaScriptData vitalicSourcelink() {
         return PhantasiaScriptData.fromJson(
                 """
                         {
@@ -612,7 +661,7 @@ final class ArsNouveauStaticScripts {
                         """);
     }
 
-    static PhantasiaScriptData mycelialSourcelink() {
+    public static PhantasiaScriptData mycelialSourcelink() {
         return PhantasiaScriptData.fromJson(
                 """
                         {
@@ -658,7 +707,7 @@ final class ArsNouveauStaticScripts {
                         """);
     }
 
-    static PhantasiaScriptData alchemicalSourcelink() {
+    public static PhantasiaScriptData alchemicalSourcelink() {
         return PhantasiaScriptData.fromJson(
                 """
                         {
