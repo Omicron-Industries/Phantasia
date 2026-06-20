@@ -7,12 +7,15 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.phoenixvine.phantasia.client.render.PhantasiaTrackedDummyWorld;
+import net.phoenixvine.phantasia.common.data.script.PhantasiaScriptData;
 import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockDefinition;
 import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockProvider;
 import net.phoenixvine.phantasia.common.multisetup.PhantasiaMultiSetupRegistry;
 
 import com.hollingsworth.arsnouveau.client.particle.ParticleColor;
 import com.hollingsworth.arsnouveau.client.particle.ParticleUtil;
+import com.hollingsworth.arsnouveau.api.registry.RitualRegistry;
 import com.hollingsworth.arsnouveau.common.block.tile.BasicSpellTurretTile;
 import com.hollingsworth.arsnouveau.common.block.tile.RitualBrazierTile;
 import com.hollingsworth.arsnouveau.common.block.tile.RotatingTurretTile;
@@ -196,7 +199,8 @@ public class ArsNouveauMultiblockProvider implements IPhantasiaMultiblockProvide
                 () -> new ItemStack(BlockRegistry.RITUAL_BLOCK.get()),
                 ArsNouveauLayoutBuilder::ritualBrazierBase,
                 ArsNouveauStaticScripts::ritualBrazier,
-                ritualBrazierTickHandler()).withShapeLoadHandler(ArsNouveauMultiblockProvider::activateBrazier));
+                ritualBrazierTickHandler())
+                .withScriptAwareShapeLoadHandler(ArsNouveauMultiblockProvider::activateBrazierWithScript));
 
         // ── Sourcelinks ────────────────────────────────────────────────────────
         ArsNouveauStaticDefinition.SceneTickHandler sourcelinkFill = sourcelinkFillHandler();
@@ -477,6 +481,30 @@ public class ArsNouveauMultiblockProvider implements IPhantasiaMultiblockProvide
                 if (brazier.getLevel() == null) brazier.setLevel(level);
                 brazier.isDecorative = true;
                 brazier.color = new ParticleColor(255, 220, 30); // warm sun-gold
+                break;
+            }
+        }
+    }
+
+    private static void activateBrazierWithScript(PhantasiaTrackedDummyWorld level,
+                                                   Map<BlockPos, BlockPos> localToWorld,
+                                                   @javax.annotation.Nullable PhantasiaScriptData script) {
+        activateBrazier(level, localToWorld);
+        if (script != null && script.getRecipeId() != null) {
+            placeRitualTablet(level, localToWorld, script.getRecipeId());
+        }
+    }
+
+    private static void placeRitualTablet(PhantasiaTrackedDummyWorld level,
+                                          Map<BlockPos, BlockPos> localToWorld,
+                                          String recipeId) {
+        ResourceLocation ritualId = new ResourceLocation(recipeId);
+        if (!RitualRegistry.getRitualMap().containsKey(ritualId)) return;
+        for (BlockPos worldPos : localToWorld.values()) {
+            BlockEntity be = level.getBlockEntity(worldPos);
+            if (be instanceof RitualBrazierTile brazier) {
+                if (brazier.getLevel() == null) brazier.setLevel(level);
+                brazier.setRitual(ritualId);
                 break;
             }
         }

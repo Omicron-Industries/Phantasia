@@ -152,25 +152,165 @@ public class GTCEuMultiblockDefinition implements IPhantasiaMultiblockDefinition
         } catch (Exception ignored) {}
     }
 
-    // ── GTCEu-specific variant detection (PartAbility tiers) ─────────────────
+    // ── GTCEu-specific variant detection ─────────────────────────────────────
 
     @Override
     public List<PhantasiaVariantGroup> detectProviderVariants(PhantasiaScriptData data,
                                                               PhantasiaLoadedPattern pattern,
                                                               String machinePrefix,
                                                               Set<String> explicitIds) {
-        // Build lookup maps from the loaded pattern
-        Map<Block, List<BlockPos>> loadedBlockToWorldPos = new HashMap<>();
-        for (Map.Entry<BlockPos, BlockPos> e : pattern.localToWorld.entrySet()) {
-            BlockPos world = e.getValue();
-            BlockInfo info = pattern.blockMap.get(world);
-            if (info == null) continue;
-            BlockState state = info.getBlockState();
-            if (state == null || state.isAir()) continue;
-            loadedBlockToWorldPos.computeIfAbsent(state.getBlock(), k -> new ArrayList<>()).add(world);
+        return new ArrayList<>(detectPredicateVariants(machinePrefix, pattern, explicitIds));
+    }
+
+    /**
+     * Reads the BlockPattern's TraceabilityPredicate grid directly.
+     * Any position whose predicate has multiple SimplePredicate components (i.e. was built
+     * with .or()) becomes a variant group — one option per SimplePredicate, using its
+     * candidates supplier for the block list.
+     *
+     * Groups are keyed by a sorted signature of all candidate block IDs so the ID is
+     * stable across world restarts regardless of predicate ordering.
+     */
+    private List<PhantasiaVariantGroup> detectPredicateVariants(
+            String machinePrefix, PhantasiaLoadedPattern pattern, Set<String> excludeIds) {
+
+        com.gregtechceu.gtceu.api.pattern.BlockPattern blockPattern;
+        try {
+            var factory = definition.getPatternFactory();
+            if (factory == null) return List.of();
+            blockPattern = factory.get();
+            if (blockPattern == null) return List.of();
+        } catch (Exception e) {
+            return List.of();
         }
 
-        return detectPartAbilityGroups(machinePrefix, loadedBlockToWorldPos, pattern, explicitIds);
+        com.gregtechceu.gtceu.api.pattern.TraceabilityPredicate[][][] grid;
+        try {
+            var f = com.gregtechceu.gtceu.api.pattern.BlockPattern.class.getDeclaredField("blockMatches");
+            f.setAccessible(true);
+            grid = (com.gregtechceu.gtceu.api.pattern.TraceabilityPredicate[][][]) f.get(blockPattern);
+        } catch (Exception e) {
+            return List.of();
+        }
+
+        // Signature → list of local positions that share the same predicate candidate set.
+        // Using LinkedHashMap for deterministic iteration order.
+        Map<String, List<BlockPos>> sigToLocal = new LinkedHashMap<>();
+        // Signature → ordered list of candidate BlockInfo[] per SimplePredicate component.
+        Map<String, List<BlockInfo[]>> sigToCandidates = new LinkedHashMap<>();
+
+        for (int x = 0; x < grid.length; x++) {
+            if (grid[x] == null) continue;
+            for (int y = 0; y < grid[x].length; y++) {
+                if (grid[x][y] == null) continue;
+                for (int z = 0; z < grid[x][y].length; z++) {
+                    var tp = grid[x][y][z];
+                    if (tp == null || tp.common == null || tp.common.size() < 2) continue;
+
+                    // Collect candidate blocks per component; skip if any has no candidates.
+                    List<BlockInfo[]> componentCandidates = new ArrayList<>();
+                    boolean valid = true;
+                    for (var sp : tp.common) {
+                        if (sp.candidates == null) { valid = false; break; }
+                        BlockInfo[] cands;
+                        try { cands = sp.candidates.get(); } catch (Exception ex) { valid = false; break; }
+                        if (cands == null || cands.length == 0) { valid = false; break; }
+                        componentCandidates.add(cands);
+                    }
+                    if (!valid || componentCandidates.size() < 2) continue;
+
+                    // Build a deterministic signature from sorted block IDs across all components.
+                    List<String> sigParts = new ArrayList<>();
+                    for (BlockInfo[] cands : componentCandidates) {
+                        List<String> ids = new ArrayList<>();
+                        for (BlockInfo bi : cands) {
+                            if (bi == null || bi.getBlockState() == null) continue;
+                            var rl = net.minecraftforge.registries.ForgeRegistries.BLOCKS
+                                    .getKey(bi.getBlockState().getBlock());
+                            if (rl != null) ids.add(rl.toString());
+                        }
+                        Collections.sort(ids);
+                        sigParts.add(String.join(",", ids));
+                    }
+                    Collections.sort(sigParts);
+                    String sig = String.join("|", sigParts);
+
+                    sigToLocal.computeIfAbsent(sig, k -> new ArrayList<>()).add(new BlockPos(x, y, z));
+                    sigToCandidates.putIfAbsent(sig, componentCandidates);
+                }
+            }
+        }
+
+        List<PhantasiaVariantGroup> result = new ArrayList<>();
+
+        for (Map.Entry<String, List<BlockPos>> entry : sigToLocal.entrySet()) {
+            String sig = entry.getKey();
+            // Use a stable hash of the signature so the ID is short but deterministic.
+            // String.hashCode() is specified in the Java Language Spec — stable across JVMs.
+            String groupId = machinePrefix + "::predicate_" + Integer.toUnsignedString(sig.hashCode(), 16);
+            if (excludeIds.contains(groupId)) continue;
+
+            List<BlockInfo[]> componentCandidates = sigToCandidates.get(sig);
+            List<BlockState> options = new ArrayList<>();
+            List<String> labels = new ArrayList<>();
+
+            // Use the first candidate of each component as the representative block state.
+            for (BlockInfo[] cands : componentCandidates) {
+                BlockState rep = null;
+                for (BlockInfo bi : cands) {
+                    if (bi != null && bi.getBlockState() != null && !bi.getBlockState().isAir()) {
+                        rep = bi.getBlockState();
+                        break;
+                    }
+                }
+                if (rep == null) continue;
+                options.add(rep);
+                labels.add(PhantasiaVariantGroup.blockDisplayName(rep));
+            }
+            if (options.size() < 2) continue;
+
+            // Skip groups where every option is a MetaMachine part (hatch, bus, muffler, etc.)
+            // — there's no visual difference between tiers so these aren't useful variants.
+            boolean allParts = options.stream().allMatch(
+                    s -> s.getBlock() instanceof com.gregtechceu.gtceu.api.block.MetaMachineBlock);
+            if (allParts) continue;
+
+            // Map world positions and determine which option index is currently loaded.
+            Map<BlockPos, Integer> posMap = new HashMap<>();
+            int defaultIdx = 0;
+            boolean foundDefault = false;
+
+            for (BlockPos local : entry.getValue()) {
+                BlockPos world = pattern.localToWorld.get(local);
+                if (world == null) continue;
+                BlockInfo info = pattern.blockMap.get(world);
+                if (info == null || info.getBlockState() == null) { posMap.put(world, 0); continue; }
+                Block loaded = info.getBlockState().getBlock();
+
+                int idx = 0;
+                outer:
+                for (int ci = 0; ci < componentCandidates.size(); ci++) {
+                    for (BlockInfo bi : componentCandidates.get(ci)) {
+                        if (bi != null && bi.getBlockState() != null
+                                && bi.getBlockState().getBlock() == loaded) {
+                            idx = ci;
+                            break outer;
+                        }
+                    }
+                }
+                posMap.put(world, idx);
+                if (!foundDefault) { defaultIdx = idx; foundDefault = true; }
+            }
+            if (posMap.isEmpty()) continue;
+
+            result.add(PhantasiaVariantGroup.create(
+                    groupId,
+                    labels.get(0) + " / " + labels.get(1) + (options.size() > 2 ? " …" : ""),
+                    PhantasiaVariantGroup.Category.OPTIONAL,
+                    true, options, labels, posMap, defaultIdx));
+        }
+
+        return result;
     }
 
     private static List<PhantasiaVariantGroup> detectPartAbilityGroups(

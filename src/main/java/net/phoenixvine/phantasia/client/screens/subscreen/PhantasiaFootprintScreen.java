@@ -9,6 +9,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.phoenixvine.phantasia.client.screens.PhantasiaSceneScreen;
+import net.phoenixvine.phantasia.client.screens.PhantasiaScreen;
 import net.phoenixvine.phantasia.common.data.pattern.PhantasiaLoadedPattern;
 import net.phoenixvine.phantasia.common.data.script.PhantasiaScript;
 
@@ -35,7 +36,7 @@ public class PhantasiaFootprintScreen extends Screen {
     private static final int C_NORMAL = 0xFF3A506A;
     private static final int C_HOVER = 0xAAFFFFFF;
 
-    private static final int PANEL_W = 164;
+    private int panelW;
 
     // ── State ─────────────────────────────────────────────────────────────────
     private final Screen parent;
@@ -78,6 +79,7 @@ public class PhantasiaFootprintScreen extends Screen {
     @Override
     protected void init() {
         super.init();
+        panelW = Math.min(164, this.width / 3);
         recalcGrid();
     }
 
@@ -103,7 +105,7 @@ public class PhantasiaFootprintScreen extends Screen {
 
         int spanX = maxX - minX + 1;
         int spanZ = maxZ - minZ + 1;
-        int availW = this.width - PANEL_W - 16;
+        int availW = Math.max(64, this.width - panelW - 16);
         int availH = this.height - 50;
 
         cellSize = Math.max(6, Math.min(40,
@@ -144,7 +146,7 @@ public class PhantasiaFootprintScreen extends Screen {
         g.fill(0, 22, this.width, 23, C_ACCENT());
         String title = "Footprint  —  Layer Y = " + currentLayerY() + "  (" + (layerIndex + 1) + " / " + layers.size() +
                 ")";
-        g.drawCenteredString(font, title, (this.width - PANEL_W) / 2, 7, C_ACCENT());
+        g.drawCenteredString(font, title, (this.width - panelW) / 2, 7, C_ACCENT());
 
         hoveredLocal = screenToLocal(mx, my);
 
@@ -242,12 +244,12 @@ public class PhantasiaFootprintScreen extends Screen {
     }
 
     private void renderSidePanel(GuiGraphics g, int mx, int my) {
-        int px = this.width - PANEL_W;
+        int px = this.width - panelW;
         g.fill(px, 0, this.width, this.height, C_PANEL());
         g.fill(px, 0, px + 2, this.height, C_ACCENT());
 
         int y = 28;
-        int hw = (PANEL_W - 18) / 2;
+        int hw = (panelW - 18) / 2;
 
         // Layer navigation
         g.drawString(font, "Layer (Y):", px + 10, y, C_DIM(), false);
@@ -279,9 +281,9 @@ public class PhantasiaFootprintScreen extends Screen {
         y += 8;
 
         // Heatmap toggle
-        drawThemedBtn(g, font, px + 8, y, PANEL_W - 16, 15,
+        drawThemedBtn(g, font, px + 8, y, panelW - 16, 15,
                 "Heatmap: " + (showHeatmap ? "ON" : "OFF"),
-                isOver(mx, my, px + 8, y, PANEL_W - 16, 15),
+                isOver(mx, my, px + 8, y, panelW - 16, 15),
                 showHeatmap ? C_ACCENT() : C_BTN());
         y += 20;
 
@@ -294,7 +296,7 @@ public class PhantasiaFootprintScreen extends Screen {
                     if (!bs.isAir()) {
                         g.drawString(font, "Inspecting:", px + 10, y, C_ACCENT(), false);
                         y += 11;
-                        g.drawString(font, trunc(bs.getBlock().getName().getString(), PANEL_W - 18), px + 10, y,
+                        g.drawString(font, trunc(bs.getBlock().getName().getString(), panelW - 18), px + 10, y,
                                 C_TEXT(), false);
                         y += 10;
                         g.drawString(font, "X=" + inspectedLocal.getX() + " Z=" + inspectedLocal.getZ(), px + 10, y,
@@ -309,8 +311,8 @@ public class PhantasiaFootprintScreen extends Screen {
                             y += 10;
                         }
                         y += 3;
-                        boolean ch = isOver(mx, my, px + 8, y, PANEL_W - 16, 13);
-                        drawThemedBtn(g, font, px + 8, y, PANEL_W - 16, 13, "Clear", ch, C_BTN());
+                        boolean ch = isOver(mx, my, px + 8, y, panelW - 16, 13);
+                        drawThemedBtn(g, font, px + 8, y, panelW - 16, 13, "Clear", ch, C_BTN());
                         y += 18;
                     }
                 } catch (Exception ignored) {}
@@ -329,18 +331,18 @@ public class PhantasiaFootprintScreen extends Screen {
                 g.drawString(font, "...", px + 10, y, C_DIM(), false);
                 break;
             }
-            g.drawString(font, e.getValue() + "\u00D7 " + trunc(e.getKey(), PANEL_W - 30), px + 10, y, C_TEXT(), false);
+            g.drawString(font, e.getValue() + "\u00D7 " + trunc(e.getKey(), panelW - 30), px + 10, y, C_TEXT(), false);
             y += 10;
         }
 
         // Back button — pinned to bottom
-        drawThemedBtn(g, font, px + 8, this.height - 24, PANEL_W - 16, 18, "\u2190 Back",
-                isOver(mx, my, px + 8, this.height - 24, PANEL_W - 16, 18), C_BTN());
+        drawThemedBtn(g, font, px + 8, this.height - 24, panelW - 16, 18, "\u2190 Back",
+                isOver(mx, my, px + 8, this.height - 24, panelW - 16, 18), C_BTN());
     }
 
     private void renderLegend(GuiGraphics g) {
         int ly = this.height - 13, x = 8;
-        g.fill(0, ly - 3, this.width - PANEL_W, this.height, 0xCC000000 | (C_BG() & 0xFFFFFF));
+        g.fill(0, ly - 3, this.width - panelW, this.height, 0xCC000000 | (C_BG() & 0xFFFFFF));
         x = legendDot(g, x, ly, C_ACCENT(), "Controller");
         x = legendDot(g, x, ly, C_WARN(), "Block Entity");
         legendDot(g, x, ly, C_NORMAL, "Block");
@@ -373,8 +375,8 @@ public class PhantasiaFootprintScreen extends Screen {
 
     @Override
     public boolean mouseClicked(double mx, double my, int btn) {
-        int px = this.width - PANEL_W;
-        int hw = (PANEL_W - 18) / 2;
+        int px = this.width - panelW;
+        int hw = (panelW - 18) / 2;
         int y = 28;
 
         // Layer nav buttons
@@ -408,7 +410,7 @@ public class PhantasiaFootprintScreen extends Screen {
         y += 8; // separator
 
         // Heatmap toggle
-        if (isOver((int) mx, (int) my, px + 8, y, PANEL_W - 16, 15)) {
+        if (isOver((int) mx, (int) my, px + 8, y, panelW - 16, 15)) {
             showHeatmap = !showHeatmap;
             return true;
         }
@@ -425,7 +427,7 @@ public class PhantasiaFootprintScreen extends Screen {
                 if (wp.equals(pattern.controllerWorldPos)) y += 10;
             }
             y += 3;
-            if (isOver((int) mx, (int) my, px + 8, y, PANEL_W - 16, 13)) {
+            if (isOver((int) mx, (int) my, px + 8, y, panelW - 16, 13)) {
                 inspectedLocal = null;
                 return true;
             }
@@ -434,7 +436,7 @@ public class PhantasiaFootprintScreen extends Screen {
         }
 
         // Back button
-        if (isOver((int) mx, (int) my, px + 8, this.height - 24, PANEL_W - 16, 18)) {
+        if (isOver((int) mx, (int) my, px + 8, this.height - 24, panelW - 16, 18)) {
             onClose();
             return true;
         }
@@ -477,7 +479,7 @@ public class PhantasiaFootprintScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mx, double my, double delta) {
-        if (mx < this.width - PANEL_W) {
+        if (mx < this.width - panelW) {
             cycleLayer(delta > 0 ? 1 : -1);
             return true;
         }

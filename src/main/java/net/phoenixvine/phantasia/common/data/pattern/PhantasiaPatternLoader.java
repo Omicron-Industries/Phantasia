@@ -11,9 +11,6 @@ import net.phoenixvine.phantasia.client.render.PhantasiaTrackedDummyWorld;
 import net.phoenixvine.phantasia.common.data.script.PhantasiaScript;
 import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockDefinition;
 import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockShape;
-import net.phoenixvine.phantasia.common.world.PhantasiaDimension;
-import net.phoenixvine.phantasia.common.world.PhantasiaSlotAllocator;
-import net.phoenixvine.phantasia.common.world.PhantasiaSlotVersions;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import org.slf4j.Logger;
@@ -127,6 +124,9 @@ public final class PhantasiaPatternLoader {
 
             RenderSystem.recordRenderCall(() -> {
                 done = true;
+                // Clear block entities on the render thread so tickWorld() doesn't
+                // race against this while iterating its internal ticking-BE list.
+                sharedLevel.blockEntities.clear();
                 onLoaded.accept(result);
             });
         } catch (InterruptedException ignored) {
@@ -145,26 +145,10 @@ public final class PhantasiaPatternLoader {
                                           List<IPhantasiaMultiblockShape> shapes,
                                           PhantasiaScript script,
                                           PhantasiaTrackedDummyWorld sharedLevel) throws InterruptedException {
-        ResourceLocation machineId = definition.getId();
-        BlockPos slotOrigin = PhantasiaSlotAllocator.originFor(machineId);
-        BlockPos renderOrigin = PhantasiaSlotAllocator.RENDER_ORIGIN;
-
+        BlockPos renderOrigin = new BlockPos(8, 50, 8);
         IPhantasiaMultiblockShape shape = shapes.get(shapeIndex);
-        int shapeHash = PhantasiaSlotVersions.hashShape(shape.getBlocks());
-        int scriptHash = PhantasiaSlotVersions.hashScript(script.getSourceData());
-        boolean warm = PhantasiaSlotVersions.isValid(machineId, shapeHash, scriptHash, slotOrigin);
-
-        LOGGER.info("[Phantasia] {} load for {} at slot={} render={}",
-                warm ? "Warm" : "Cold", machineId, slotOrigin, renderOrigin);
-
-        PhantasiaLoadedPattern result = warm ? loadWarm(shape, renderOrigin, sharedLevel, script) :
-                loadCold(definition, shape, renderOrigin, slotOrigin, sharedLevel, script);
-
-        if (!warm) {
-            PhantasiaSlotVersions.put(machineId, shapeHash, scriptHash);
-            PhantasiaDimension.forceChunkLoad(slotOrigin);
-        }
-        return result;
+        LOGGER.info("[Phantasia] Async load for {}", definition.getId());
+        return loadCold(definition, shape, renderOrigin, sharedLevel, script);
     }
 
     // ── Cold load ─────────────────────────────────────────────────────────────
@@ -173,7 +157,6 @@ public final class PhantasiaPatternLoader {
                                             IPhantasiaMultiblockDefinition definition,
                                             IPhantasiaMultiblockShape shape,
                                             BlockPos renderOrigin,
-                                            BlockPos slotOrigin,
                                             PhantasiaTrackedDummyWorld sharedLevel,
                                             PhantasiaScript script) throws InterruptedException {
         phase = "Reading shape…";
@@ -240,16 +223,6 @@ public final class PhantasiaPatternLoader {
             }
         }
 
-        // ── Persist to scene dimension ────────────────────────────────────────
-        phase = "Saving to dimension…";
-        Map<BlockPos, BlockInfo> slotSpaceMap = new HashMap<>(blockMap.size());
-        for (Map.Entry<BlockPos, BlockInfo> e : blockMap.entrySet()) {
-            BlockPos localOffset = e.getKey().subtract(renderOrigin);
-            slotSpaceMap.put(slotOrigin.offset(localOffset), e.getValue());
-        }
-        net.phoenixvine.phantasia.client.screens.PhantasiaSceneScreen
-                .coldPopulateDimensionSlot(definition.getId(), slotSpaceMap);
-
         // ── Prepare post-write task (fires after world is populated on render thread) ──
         // onShapeLoaded needs the world to be populated; we defer it until after the
         // render thread writes all blocks in onAsyncPatternLoaded.
@@ -260,79 +233,6 @@ public final class PhantasiaPatternLoader {
                 () -> definition.onShapeLoaded(sharedLevel, renderOrigin, blockMapSnapshot, localToWorldSnapshot);
 
         return buildResult(raw, blockMap, localToWorld, baseplatePos, bePos, renderOrigin, script, postWriteTask);
-    }
-
-    // ── Warm load ─────────────────────────────────────────────────────────────
-
-    private PhantasiaLoadedPattern loadWarm(
-                                            IPhantasiaMultiblockShape shape,
-                                            BlockPos renderOrigin,
-                                            PhantasiaTrackedDummyWorld sharedLevel,
-                                            PhantasiaScript script) throws InterruptedException {
-        phase = "Reading shape…";
-
-        BlockInfo[][][] raw = shape.getBlocks();
-        int sxLen = raw.length;
-        int syLen = sxLen > 0 ? raw[0].length : 0;
-        int szLen = sxLen > 0 && syLen > 0 ? raw[0][0].length : 0;
-        int padX = Math.max(2, sxLen / 2 + 1);
-        int padZ = Math.max(2, szLen / 2 + 1);
-
-        int baseplateCount = (sxLen + 2 * padX + 1) * (szLen + 2 * padZ + 1);
-        int machineCount = countNonNull(raw);
-        blocksTotal = baseplateCount + machineCount;
-
-        sharedLevel.blockEntities.clear();
-
-        Map<BlockPos, BlockInfo> blockMap = new HashMap<>(blocksTotal);
-        Map<BlockPos, BlockPos> localToWorld = new HashMap<>(machineCount);
-        Set<BlockPos> baseplatePos = new HashSet<>(baseplateCount);
-        Set<BlockPos> bePos = new HashSet<>();
-
-        phase = "Indexing baseplate…";
-        var _baseplateState1 = net.phoenixvine.phantasia.utils.PhantasiaTheme.currentBaseplateBlockState();
-        BlockInfo floor = _baseplateState1 != null ? BlockInfo.fromBlockState(_baseplateState1) : null;
-        if (floor != null) for (int bx = -padX; bx <= sxLen + padX; bx++) {
-            for (int bz = -padZ; bz <= szLen + padZ; bz++) {
-                if (Thread.interrupted()) throw new InterruptedException();
-                BlockPos wp = renderOrigin.offset(bx, -1, bz);
-                blockMap.put(wp, floor);
-                baseplatePos.add(wp);
-                blocksPlaced++;
-            }
-        }
-
-        phase = "Indexing blocks…";
-        for (int x = 0; x < raw.length; x++) {
-            for (int y = 0; y < raw[x].length; y++) {
-                for (int z = 0; z < raw[x][y].length; z++) {
-                    if (Thread.interrupted()) throw new InterruptedException();
-
-                    BlockInfo info = raw[x][y][z];
-                    if (info == null) continue;
-                    if (info.getBlockState().isAir()) continue; // skip "any"/air placeholder positions
-
-                    BlockPos lp = new BlockPos(x, y, z);
-                    BlockPos wp = renderOrigin.offset(x, y, z);
-
-                    blockMap.put(wp, info);
-                    localToWorld.put(lp, wp);
-
-                    BlockState state = sharedLevel.getBlockState(wp);
-                    if (state.getBlock() instanceof EntityBlock entityBlock) {
-                        BlockEntity newBE = entityBlock.newBlockEntity(wp, state);
-                        if (newBE != null) {
-                            sharedLevel.setInnerBlockEntity(newBE);
-                            bePos.add(wp);
-                        }
-                    }
-                    blocksPlaced++;
-                }
-            }
-        }
-
-        phase = "Forming structure…";
-        return buildResult(raw, blockMap, localToWorld, baseplatePos, bePos, renderOrigin, script);
     }
 
     // ── Build result ──────────────────────────────────────────────────────────

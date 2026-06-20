@@ -50,6 +50,16 @@ public abstract class PhantasiaScreen extends Screen {
 
     public final List<Btn> btns = new ArrayList<>(64);
 
+    /**
+     * Renders just the scene background (world + base fill) without any interactive UI.
+     * Called by subscreens to show their parent as a background without iterating
+     * the parent's widget list (which would CME from within the subscreen's render).
+     * Override in subclasses that host a 3D scene renderer.
+     */
+    public void renderAsBackground(net.minecraft.client.gui.GuiGraphics g, float partial) {
+        g.fill(0, 0, this.width, this.height, net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.C_BG());
+    }
+
     // ── Pending tooltip ───────────────────────────────────────────────────────
 
     /**

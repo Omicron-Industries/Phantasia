@@ -19,6 +19,7 @@ import net.phoenixvine.phantasia.client.render.PhantasiaWorldRenderer;
 import net.phoenixvine.phantasia.client.screens.editors.PhantasiaSceneEditorScreen;
 import net.phoenixvine.phantasia.common.data.pattern.PhantasiaScenePattern;
 import net.phoenixvine.phantasia.common.data.scene.PhantasiaSceneData;
+import net.phoenixvine.phantasia.configs.PhantasiaConfigs;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import org.joml.Vector3f;
@@ -122,6 +123,11 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
     private void initCamera() {
         if (pattern == null || pattern.placements.isEmpty()) {
             camera = new PhantasiaCamera(-135f, -30f, 30f, 0f, 5f, 0f);
+            if (PhantasiaConfigs.INSTANCE != null) {
+                boolean follow = PhantasiaConfigs.INSTANCE.phantasiaUI.scriptLockCamera;
+                camera.setLocked(follow);
+                if (!follow) camera.setPlayerOwned(true);
+            }
             return;
         }
         float sumX = 0, sumZ = 0;
@@ -136,6 +142,11 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
         float dist = 20f + Math.max(0, spanH - 6) * 2f;
         camera = new PhantasiaCamera(-135f, -30f, dist, midX, midY, midZ);
         camera.setFloorY(pattern.minY + 0.5f);
+        if (PhantasiaConfigs.INSTANCE != null) {
+            boolean follow = PhantasiaConfigs.INSTANCE.phantasiaUI.scriptLockCamera;
+            camera.setLocked(follow);
+            if (!follow) camera.setPlayerOwned(true);
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -390,8 +401,6 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
         g.drawString(font, formatTicks(playbackTick), tx + tw + 6, tlY + (TIMELINE_H - 8) / 2 + 2,
                 C_DIM(), false);
 
-        // Scrub zone button
-        btns.add(new Btn(tx, tlY, tw, TIMELINE_H, () -> {})); // handled in mouseClicked
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -439,7 +448,9 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
         if (camera == null) return super.mouseDragged(mx, my, btn, dx, dy);
 
         if (btn == 0 && my > TOP_BAR_H && my < tlY) {
-            camera.orbit((float) dx * CAM_ORBIT, (float) dy * CAM_ORBIT);
+            float orbitMult = net.phoenixvine.phantasia.configs.PhantasiaConfigs.INSTANCE != null
+                    ? net.phoenixvine.phantasia.configs.PhantasiaConfigs.INSTANCE.phantasiaUI.cameraSensitivity : 1f;
+            camera.orbit((float) dx * CAM_ORBIT * orbitMult, (float) dy * CAM_ORBIT * orbitMult);
             return true;
         }
         if (btn == 2 && isPanning) {
@@ -470,7 +481,11 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
     @Override
     public boolean mouseScrolled(double mx, double my, double delta) {
         if (my > TOP_BAR_H && my < this.height - TIMELINE_H && camera != null) {
-            camera.zoom(delta > 0 ? ZOOM_IN : ZOOM_OUT, 2f, 300f);
+            float zoomMult = net.phoenixvine.phantasia.configs.PhantasiaConfigs.INSTANCE != null
+                    ? net.phoenixvine.phantasia.configs.PhantasiaConfigs.INSTANCE.phantasiaUI.scrollZoomSpeed : 1f;
+            float zIn  = 1f - (1f - ZOOM_IN)  * zoomMult;
+            float zOut = 1f + (ZOOM_OUT - 1f) * zoomMult;
+            camera.zoom(delta > 0 ? Math.max(0.5f, zIn) : Math.min(2f, zOut), 2f, 300f);
             return true;
         }
         return false;
@@ -478,11 +493,41 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
 
     @Override
     public boolean keyPressed(int kc, int sc, int mod) {
-        if (kc == 256) {
-            onClose();
-            return true;
-        } // ESC
+        if (kc == 256) { onClose(); return true; }
+        List<PhantasiaSceneData.StepData> steps = data.steps;
+        if (steps != null && !steps.isEmpty()) {
+            if (kc == org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT) {
+                int cur = activeStepIndex();
+                if (cur + 1 < steps.size()) jumpToStep(cur + 1);
+                return true;
+            }
+            if (kc == org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT) {
+                int cur = activeStepIndex();
+                if (cur > 0) jumpToStep(cur - 1);
+                return true;
+            }
+        }
         return super.keyPressed(kc, sc, mod);
+    }
+
+    private void jumpToStep(int idx) {
+        List<PhantasiaSceneData.StepData> steps = data.steps;
+        if (steps == null || idx < 0 || idx >= steps.size()) return;
+        playing = false;
+        playbackTick = steps.get(idx).tick;
+        tickAccum = 0f;
+        if (idx != lastStepIndex) {
+            lastStepIndex = idx;
+            applyVisibility();
+            PhantasiaSceneData.StepData step = steps.get(idx);
+            if (step.camera != null && camera != null) {
+                float zoom = step.camera.zoom > 0 ? step.camera.zoom : camera.getZoom();
+                net.phoenixvine.phantasia.client.camera.LerpType lt =
+                        net.phoenixvine.phantasia.client.camera.LerpType.fromString(step.camera.lerpType);
+                camera.scriptDrive(step.camera.yaw, step.camera.pitch, zoom, lt,
+                        step.camera.lerpTicks > 0 ? step.camera.lerpTicks : 20);
+            }
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────

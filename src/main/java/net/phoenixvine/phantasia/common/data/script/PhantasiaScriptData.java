@@ -38,6 +38,17 @@ public class PhantasiaScriptData {
     private boolean expandable = false;
 
     /**
+     * Optional recipe/ritual ID this scene represents, e.g.
+     * {@code "ars_nouveau:magebloom_seed"} for an apparatus recipe or
+     * {@code "ars_nouveau:ritual_sunrise"} for a ritual. Definitions that
+     * understand recipe IDs use this in {@code onShapeLoaded} to load the
+     * correct item placements. Null = use the definition's default.
+     */
+    @Setter
+    @SerializedName("recipeId")
+    private String recipeId = null;
+
+    /**
      * Item condition hints displayed in the GuideME-style panel alongside the
      * autogenned 3D scene. Same model as {@link PhantasiaSceneData.ItemConditionData}
      * — supports label, description, track animation, and an optional
@@ -249,6 +260,16 @@ public class PhantasiaScriptData {
         @SerializedName("items")
         public List<PhantasiaSceneData.ItemConditionData> items = new ArrayList<>();
 
+        /**
+         * Per-step item placements in the dummy world.
+         * Each entry targets a block entity at local-space coords and places a specific item
+         * in its primary slot (slot 0). Works on any {@link net.minecraft.world.Container}
+         * BE — pedestals, source jars (as display), braziers, chests, etc.
+         * Applied every time this step becomes active, overwriting whatever is currently there.
+         */
+        @SerializedName("worldItems")
+        public List<WorldItemEntry> worldItems = new ArrayList<>();
+
         @SerializedName("camera")
         public CameraData camera = null;
 
@@ -276,6 +297,50 @@ public class PhantasiaScriptData {
                     camera.lerpType, camera.lerpTicks);
             for (int[] p : positions) c.positions.add(new int[] { p[0], p[1], p[2] });
             for (int[] p : hidePositions) c.hidePositions.add(new int[] { p[0], p[1], p[2] });
+            for (WorldItemEntry wi : worldItems) c.worldItems.add(wi.copy());
+            return c;
+        }
+    }
+
+    /** A single local-space block entity → item assignment for a script step. */
+    @Getter
+    public static class WorldItemEntry {
+
+        /** Local X coordinate (same space as pattern local coords). */
+        @SerializedName("x")
+        public int x = 0;
+
+        /** Local Y coordinate. */
+        @SerializedName("y")
+        public int y = 0;
+
+        /** Local Z coordinate. */
+        @SerializedName("z")
+        public int z = 0;
+
+        /**
+         * Item resource location, e.g. {@code "minecraft:diamond"}.
+         * Empty string or {@code "minecraft:air"} clears the slot.
+         */
+        @SerializedName("item")
+        public String item = "";
+
+        /** Source amount (0–10000) to set on a SourceJarTile. -1 = don't set. */
+        @SerializedName("sourceAmount")
+        public int sourceAmount = -1;
+
+        public WorldItemEntry() {}
+
+        public WorldItemEntry(int x, int y, int z, String item) {
+            this.x = x;
+            this.y = y;
+            this.z = z;
+            this.item = item;
+        }
+
+        public WorldItemEntry copy() {
+            WorldItemEntry c = new WorldItemEntry(x, y, z, item);
+            c.sourceAmount = sourceAmount;
             return c;
         }
     }
@@ -435,6 +500,8 @@ public class PhantasiaScriptData {
         PhantasiaScriptData c = new PhantasiaScriptData(machine);
         c.startCamera = startCamera == null ? null : startCamera.copy();
         c.scriptDuration = scriptDuration;
+        c.expandable = expandable;
+        c.recipeId = recipeId;
         for (StepData s : steps) c.steps.add(s.copy());
         for (PhantasiaSceneData.ItemConditionData it : items) c.items.add(it.copy());
         for (MistakeData m : mistakes) {

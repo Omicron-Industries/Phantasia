@@ -36,7 +36,8 @@ public class PhantasiaScript {
                        @Nullable String fakeRecipeId,
                        List<PhantasiaParticleEffect> particleEffects,
                        @Nullable String hold,
-                       int layerCount) {
+                       int layerCount,
+                       List<PhantasiaScriptData.WorldItemEntry> worldItems) {
 
         public boolean hasCamera() {
             return useCam;
@@ -188,7 +189,8 @@ public class PhantasiaScript {
                 sd.working, -1, -1,
                 yaw, pitch, zoom, useCam, lerpType, lerpTicks,
                 sd.fakeRecipeId, Collections.unmodifiableList(new ArrayList<>(particleFx)),
-                sd.hold, sd.layerCount);
+                sd.hold, sd.layerCount,
+                Collections.unmodifiableList(new ArrayList<>(sd.worldItems)));
     }
 
     private static Predicate<BlockPos> buildShowPredicate(PhantasiaScriptData.StepData sd) {
@@ -220,15 +222,78 @@ public class PhantasiaScript {
             case "functional" -> localPred(PhantasiaMultiblockRegistry::isFunctionalBlock);
 
             default -> {
-                // parts:keyword — single keyword match, e.g. "parts:hatch", "parts:muffler"
+                // parts:expr — full expression (e.g. "parts:@type(parts)", "parts:hatch | @coil")
                 if (show.startsWith("parts:")) {
-                    String keyword = show.substring(6);
-                    yield localPred(state -> PhantasiaMultiblockRegistry.isPartBlock(state) &&
-                            state.getBlock().getDescriptionId().contains(keyword));
+                    yield buildPartsExprPredicate(show.substring(6).trim());
                 }
                 yield pos -> true;
             }
         };
+    }
+
+    /**
+     * Evaluates a parts-filter expression the same way the script editor's matchToken does,
+     * so the compiled predicate and the editor's live visibility always agree.
+     */
+    private static Predicate<BlockPos> buildPartsExprPredicate(String expr) {
+        if (expr.isEmpty()) return pos -> true;
+
+        // OR groups
+        if (expr.contains("|")) {
+            List<Predicate<BlockPos>> preds = new ArrayList<>();
+            for (String part : expr.split("\\|"))
+                preds.add(buildPartsExprPredicate(part.trim()));
+            return pos -> { for (Predicate<BlockPos> p : preds) if (p.test(pos)) return true; return false; };
+        }
+
+        // AND chains
+        if (expr.contains("&")) {
+            List<Predicate<BlockPos>> preds = new ArrayList<>();
+            for (String part : expr.split("&"))
+                preds.add(buildPartsExprPredicate(part.trim()));
+            return pos -> { for (Predicate<BlockPos> p : preds) if (!p.test(pos)) return false; return true; };
+        }
+
+        // @type() scopes
+        if (expr.startsWith("@type(") && expr.endsWith(")")) {
+            String type = expr.substring(6, expr.length() - 1).trim();
+            return localPred(switch (type) {
+                case "parts" -> PhantasiaMultiblockRegistry::isPartBlock;
+                case "controller" -> PhantasiaMultiblockRegistry::isControllerBlock;
+                case "functional" -> PhantasiaMultiblockRegistry::isFunctionalBlock;
+                default -> state -> false;
+            });
+        }
+
+        // @coil shorthand
+        if (expr.equals("@coil")) {
+            return localPred(state -> {
+                try {
+                    for (java.util.function.Supplier<com.gregtechceu.gtceu.common.block.CoilBlock> s :
+                            com.gregtechceu.gtceu.api.GTCEuAPI.HEATING_COILS.values())
+                        if (s != null && s.get() == state.getBlock()) return true;
+                } catch (Exception ignored) {}
+                return false;
+            });
+        }
+
+        // @ability(xxx) or @block(xxx) — registry path contains value
+        if ((expr.startsWith("@ability(") || expr.startsWith("@block(")) && expr.endsWith(")")) {
+            String val = expr.substring(expr.indexOf('(') + 1, expr.length() - 1).trim().toLowerCase(Locale.ROOT);
+            return localPred(state -> {
+                net.minecraft.resources.ResourceLocation key =
+                        net.minecraftforge.registries.ForgeRegistries.BLOCKS.getKey(state.getBlock());
+                return key != null && key.toString().toLowerCase(Locale.ROOT).contains(val);
+            });
+        }
+
+        // Plain keyword — match registry path
+        String keyword = expr.toLowerCase(Locale.ROOT);
+        return localPred(state -> {
+            net.minecraft.resources.ResourceLocation key =
+                    net.minecraftforge.registries.ForgeRegistries.BLOCKS.getKey(state.getBlock());
+            return key != null && key.toString().toLowerCase(Locale.ROOT).contains(keyword);
+        });
     }
 
     private static Predicate<BlockPos> buildHidePredicate(PhantasiaScriptData.StepData sd) {

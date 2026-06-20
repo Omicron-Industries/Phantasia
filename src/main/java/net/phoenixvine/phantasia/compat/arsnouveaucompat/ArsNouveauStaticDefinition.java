@@ -41,6 +41,13 @@ public class ArsNouveauStaticDefinition implements IPhantasiaMultiblockDefinitio
         void onLoaded(PhantasiaTrackedDummyWorld level, Map<BlockPos, BlockPos> localToWorld);
     }
 
+    @FunctionalInterface
+    public interface ScriptAwareShapeLoadHandler {
+
+        void onLoaded(PhantasiaTrackedDummyWorld level, Map<BlockPos, BlockPos> localToWorld,
+                      @javax.annotation.Nullable net.phoenixvine.phantasia.common.data.script.PhantasiaScriptData script);
+    }
+
     private final ResourceLocation id;
     private final String displayName;
     private final Supplier<ItemStack> iconSupplier;
@@ -50,6 +57,8 @@ public class ArsNouveauStaticDefinition implements IPhantasiaMultiblockDefinitio
     private final SceneTickHandler sceneTickHandler;
     @Nullable
     private ShapeLoadHandler shapeLoadHandler;
+    @Nullable
+    private ScriptAwareShapeLoadHandler scriptAwareShapeLoadHandler;
 
     private final List<IPhantasiaMultiblockShape> shapes;
 
@@ -87,6 +96,11 @@ public class ArsNouveauStaticDefinition implements IPhantasiaMultiblockDefinitio
         return this;
     }
 
+    public ArsNouveauStaticDefinition withScriptAwareShapeLoadHandler(ScriptAwareShapeLoadHandler handler) {
+        this.scriptAwareShapeLoadHandler = handler;
+        return this;
+    }
+
     @Override
     public ResourceLocation getId() {
         return id;
@@ -117,16 +131,18 @@ public class ArsNouveauStaticDefinition implements IPhantasiaMultiblockDefinitio
     public void onShapeLoaded(PhantasiaTrackedDummyWorld level,
                               BlockPos origin,
                               Map<BlockPos, BlockInfo> blockMap,
-                              Map<BlockPos, BlockPos> localToWorld) {
-        // Ensure every tile has its level set (TrackedDummyWorld skips setLevel on registration)
+                              Map<BlockPos, BlockPos> localToWorld,
+                              @javax.annotation.Nullable net.phoenixvine.phantasia.common.data.script.PhantasiaScriptData script) {
         for (BlockPos worldPos : localToWorld.values()) {
             BlockEntity be = level.getBlockEntity(worldPos);
             if (be != null && be.getLevel() == null) be.setLevel(level);
         }
-        // Clear entities from any previous scene opened on this definition instance
         level.clearSceneEntities();
-        // Delegate to optional custom handler
-        if (shapeLoadHandler != null) shapeLoadHandler.onLoaded(level, localToWorld);
+        if (scriptAwareShapeLoadHandler != null) {
+            scriptAwareShapeLoadHandler.onLoaded(level, localToWorld, script);
+        } else if (shapeLoadHandler != null) {
+            shapeLoadHandler.onLoaded(level, localToWorld);
+        }
     }
 
     private BlockInfo[][][] getLayout() {

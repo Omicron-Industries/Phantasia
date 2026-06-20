@@ -14,12 +14,10 @@ import javax.annotation.Nullable;
  *
  * ── Ownership model ──────────────────────────────────────────────────────────
  *
- * playerOwned locked scriptDrive() result
- * ──────────── ──────── ────────────────────────────────────────────────────
- * false true Lerp to script target. playerOwned stays false.
- * false false Lerp to script target. playerOwned stays false.
- * true true Lerp to script target. playerOwned cleared → false.
- * true false Ignored — player has control.
+ * locked scriptDrive() result
+ * ──────── ─────────────────────────────────────────────────────────────────
+ * true  Lerp to script target. playerOwned cleared (unless softLock).
+ * false Ignored — scripts never drive when unlocked, regardless of playerOwned.
  *
  * Any player input (orbit / zoom / pan) always sets playerOwned = true and
  * cancels any active lerp immediately.
@@ -95,6 +93,14 @@ public class PhantasiaCamera {
      * Toggled by the lock button in the timeline bar.
      */
     private boolean locked = true;
+
+    /**
+     * Soft-lock mode (used by the scene step viewer).
+     * When true, script drives the camera on step change but does NOT revoke
+     * player ownership — the player can still orbit/zoom/pan freely between drives.
+     * When false (default, script viewer), locked=true gives the script exclusive control.
+     */
+    private boolean softLock = false;
 
     // ── Sub-screen snapshot ───────────────────────────────────────────────────
 
@@ -219,10 +225,8 @@ public class PhantasiaCamera {
      */
     public void scriptDrive(float toYaw, float toPitch, float toZoom,
                             LerpType lerpType, int lerpTicks) {
-        if (!locked && playerOwned) return; // player has control, script is muted
-
-        if (locked) playerOwned = false;   // locked → script reclaims ownership
-
+        if (!locked) return; // unlocked = scripts never drive, regardless of playerOwned
+        if (!softLock) playerOwned = false; // hard lock reclaims exclusive ownership
         startLerp(toYaw, toPitch, toZoom, targetX, targetY, targetZ, lerpType, lerpTicks);
     }
 
@@ -232,8 +236,8 @@ public class PhantasiaCamera {
     public void scriptDrive(float toYaw, float toPitch, float toZoom,
                             float toTX, float toTY, float toTZ,
                             LerpType lerpType, int lerpTicks) {
-        if (!locked && playerOwned) return;
-        if (locked) playerOwned = false;
+        if (!locked) return;
+        if (!softLock) playerOwned = false;
         startLerp(toYaw, toPitch, toZoom, toTX, toTY, toTZ, lerpType, lerpTicks);
     }
 
@@ -380,6 +384,19 @@ public class PhantasiaCamera {
 
     public void toggleLocked() {
         this.locked = !this.locked;
+    }
+
+    public void setSoftLock(boolean softLock) {
+        this.softLock = softLock;
+    }
+
+    public boolean isSoftLock() {
+        return softLock;
+    }
+
+    /** Force the camera into player-owned state so scripts are muted from the start. */
+    public void setPlayerOwned(boolean owned) {
+        this.playerOwned = owned;
     }
 
     // ── Accessors (for the script editor "Capture Camera" feature) ────────────

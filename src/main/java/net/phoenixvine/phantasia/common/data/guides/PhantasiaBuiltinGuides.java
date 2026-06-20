@@ -54,6 +54,21 @@ public final class PhantasiaBuiltinGuides {
                 "you prefer across world restarts.";
         guide.pages.add(p4);
 
+        PhantasiaGuideData.PageData p5 = new PhantasiaGuideData.PageData();
+        p5.headline = "Settings";
+        p5.text = "Open §b/phantasia§r and click the §b⚙ Settings§r tab to customise " +
+                "Phantasia. You can also find it on the §bPhantasia Manual§r item tooltip.\n\n" +
+                "§bCamera follows steps§r — when ON (default) the camera is driven by " +
+                "scripts and scene steps; toggle the §b🔒§r button inside any viewer to " +
+                "take manual control. When OFF the camera is always free.\n\n" +
+                "§bAuto-play scripts on open§r — when ON, scripts begin playing " +
+                "immediately when you open a viewer.\n\n" +
+                "§bShow floor baseplate§r — toggle the decorative floor under previews.\n\n" +
+                "§bDisplay mode§r controls where the progress overlay appears " +
+                "(tooltip, hotbar, or Jade).\n\n" +
+                "§b🎨 Open Theme Editor§r lets you customise all colours used by Phantasia.";
+        guide.pages.add(p5);
+
         PhantasiaGuideRegistry.registerBuiltin(guide);
     }
 }

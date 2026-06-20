@@ -415,6 +415,14 @@ public class PhantasiaSceneData {
         @SerializedName("machineWorking")
         public Boolean machineWorking = null;
 
+        /**
+         * Per-placement, per-step item placements in the dummy world.
+         * Coordinates are local to this placement's machine pattern origin.
+         * Applied when this step becomes active, same as script-side worldItems.
+         */
+        @SerializedName("worldItems")
+        public List<PhantasiaScriptData.WorldItemEntry> worldItems = new ArrayList<>();
+
         public MachineOverride() {}
 
         /**
@@ -464,6 +472,7 @@ public class PhantasiaSceneData {
             for (int[] p : positions) c.positions.add(new int[] { p[0], p[1], p[2] });
             for (int[] p : hidePositions) c.hidePositions.add(new int[] { p[0], p[1], p[2] });
             if (particleEffects != null) c.particleEffects = new ArrayList<>(particleEffects);
+            for (PhantasiaScriptData.WorldItemEntry wi : worldItems) c.worldItems.add(wi.copy());
             return c;
         }
     }

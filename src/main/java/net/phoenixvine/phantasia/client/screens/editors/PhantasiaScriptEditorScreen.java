@@ -104,13 +104,19 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
     // ── Mode ──────────────────────────────────────────────────────────────────
     private enum Mode {
         SELECT,
-        ANNOTATE
+        ANNOTATE,
+        WORLD
     }
 
     private Mode mode = null;
 
+    // ── WORLD mode inline state ───────────────────────────────────────────────
+    private BlockPos wiBlock = null;   // local-space selected block in WORLD mode
+    private EditBox wiItemBox;
+    private EditBox wiSourceBox;
+
     // ── Data ──────────────────────────────────────────────────────────────────
-    private final PhantasiaSceneScreen parentScene;
+    protected final PhantasiaSceneScreen parentScene;
     private final String machineId;
     protected PhantasiaScriptData data;
     public boolean dirty = false;
@@ -136,10 +142,21 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
     PhantasiaCamera camera;
 
     // ── SELECT mode ───────────────────────────────────────────────────────────
+    private static final int SELECT_PANEL_W = 220;
+    private static final int SELECT_ROW_H = 20;
+
     private final Set<BlockPos> selectedWorldPos = new LinkedHashSet<>();
     private BlockPos hoveredWorldPos = null;
+    /** Shared pulse used by WORLD-mode world-item markers (and previously SELECT's dot overlay). */
     private float selectPulse = 0f;
     private boolean pulseUp = true;
+    /** When true, viewport shows the real filtered ("pos") result instead of all blocks for picking. */
+    private boolean selectPreviewMode = false;
+    /** Local XYZ of the row currently hovered in the SELECT side panel, or null. */
+    private int[] selectHoveredListPos = null;
+    private int selectScrollOffset = 0;
+    private EditBox selectAddBox;
+    private String selectAddError = null;
 
     // ── ANNOTATE mode ─────────────────────────────────────────────────────────
     private BlockPos pendingAnnotationLocalPos = null;
@@ -171,10 +188,14 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
     // ── Undo ──────────────────────────────────────────────────────────────────
     private static final int MAX_UNDO = 20;
     private final ArrayDeque<PhantasiaScriptData> undoStack = new ArrayDeque<>();
+    private final ArrayDeque<Integer> undoStepStack = new ArrayDeque<>();
+    /** Set true while populateInputsFromStep() runs to suppress EditBox responders from writing back to data. */
+    private boolean isPopulating = false;
 
     // ── Preview ───────────────────────────────────────────────────────────────
     private boolean previewing = false;
     private int previewTick = 0;
+    private int itemAnimTick = 0;
     private float previewAccum = 0f;
 
     // ── Dialogs / panels ──────────────────────────────────────────────────────
@@ -188,10 +209,9 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
 
     // ── Inputs ────────────────────────────────────────────────────────────────
     private EditBox tickBox;
-    private EditBox layerCountBox;
+    private EditBox layerCountBox; // expandable size-variant layer count display (read-only label)
     private EditBox hideLayerBox;
     private EditBox hidePosBox;
-    private EditBox fakeRecipeBox;
     private EditBox lerpTicksBox;
     private EditBox partsExprBox;
 
@@ -284,7 +304,7 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         int minY = Integer.MAX_VALUE, maxY = Integer.MIN_VALUE;
         for (Map.Entry<BlockPos, BlockPos> e : pattern.localToWorld.entrySet()) {
             BlockPos lp = e.getKey(), wp = e.getValue();
-            BlockState state = SHARED_LEVEL.getBlockState(wp);
+            BlockState state = getResolvedState(wp);
             if (state != null && !state.isAir()) {
                 blockIdentifierCache.put(wp,
                         net.minecraft.core.registries.BuiltInRegistries.BLOCK
@@ -324,34 +344,37 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         tickBox.setMaxLength(5);
         tickBox.setFilter(s -> s.matches("\\d*"));
         tickBox.setResponder(v -> {
+            if (isPopulating) return;
             try {
                 step().tick = Integer.parseInt(v);
                 dirty = true;
             } catch (NumberFormatException ignored) {}
         });
 
-        // --- LAYER COUNT BOX (expandable multiblocks only) ---
-        boolean isExpandable = data != null && data.isExpandable();
+        // Hidden backing editbox for layerCount — keeps the value in sync but is never rendered.
+        // The actual UI is the teal +/- stepper drawn in renderStepRow().
         layerCountBox = addW(new EditBox(font, 0, 0, 30, 12, Component.empty()));
         layerCountBox.setMaxLength(3);
         layerCountBox.setFilter(s -> s.matches("\\d*"));
         layerCountBox.setHint(Component.literal("—"));
         layerCountBox.setResponder(v -> {
+            if (isPopulating) return;
             try {
                 step().layerCount = v.isBlank() ? -1 : Integer.parseInt(v);
                 dirty = true;
             } catch (NumberFormatException ignored) {}
         });
-        layerCountBox.visible = isExpandable;
-        layerCountBox.active = isExpandable;
+        layerCountBox.visible = false;
+        layerCountBox.active = false;
 
         // --- EXPANDED HIDE LAYER BOX (Supports "1,2,3") ───
         hideLayerBox = addW(new EditBox(font, 0, 0, 45, 12, Component.empty())); // Width synced with layout bounds
-                                                                                 // (45px)
+        // (45px)
         hideLayerBox.setMaxLength(32);
         hideLayerBox.setFilter(s -> s.matches("[\\d,\\s-]*"));
         hideLayerBox.setHint(Component.translatable("screen.phantasia.script_editor.hint_hide_layer"));
         hideLayerBox.setResponder(v -> {
+            if (isPopulating) return;
             PhantasiaScriptData.StepData stepData = step();
 
             // Clean out any previous multi-Y layer tokens stored inside the hidePositions collection
@@ -380,21 +403,13 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
 
         // REMOVED: hidePosBox initialization code was here
 
-        fakeRecipeBox = addW(new EditBox(font, 0, 0, 180, 12, Component.empty()));
-        fakeRecipeBox.setMaxLength(256);
-        fakeRecipeBox.setHint(Component.translatable("screen.phantasia.script_editor.hint_recipe"));
-        fakeRecipeBox.setResponder(v -> {
-            step().fakeRecipeId = v.isBlank() ? null : v.trim();
-            dirty = true;
-        });
-        fakeRecipeBox.visible = false;
-        fakeRecipeBox.active = false;
 
         lerpTicksBox = addW(new EditBox(font, 0, 0, 34, 12, Component.empty()));
         lerpTicksBox.setMaxLength(4);
         lerpTicksBox.setFilter(s -> s.matches("\\d*"));
         lerpTicksBox.setHint(Component.translatable("screen.phantasia.script_editor.hint_lerp_ticks"));
         lerpTicksBox.setResponder(v -> {
+            if (isPopulating) return;
             PhantasiaScriptData.StepData s = step();
             if (s.camera == null) return;
             try {
@@ -412,6 +427,7 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         camZoomBox.setFilter(s -> s.matches("-?\\d*\\.?\\d*"));
         camZoomBox.setHint(Component.translatable("screen.phantasia.script_editor.hint_zoom"));
         camZoomBox.setResponder(v -> {
+            if (isPopulating) return;
             PhantasiaScriptData.StepData s = step();
             if (s.camera == null) return;
             try {
@@ -424,6 +440,19 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         camZoomBox.visible = false;
         camZoomBox.active = false;
 
+        wiItemBox = addW(new EditBox(font, 0, 0, 200, 12, Component.empty()));
+        wiItemBox.setMaxLength(120);
+        wiItemBox.setHint(Component.literal("namespace:item  (blank = clear slot)"));
+        wiItemBox.visible = false;
+        wiItemBox.active = false;
+
+        wiSourceBox = addW(new EditBox(font, 0, 0, 54, 12, Component.empty()));
+        wiSourceBox.setMaxLength(6);
+        wiSourceBox.setHint(Component.literal("source (0-10000)"));
+        wiSourceBox.setFilter(v -> v.matches("\\d*"));
+        wiSourceBox.visible = false;
+        wiSourceBox.active = false;
+
         // --- DYNAMIC VISIBILITY FLAGS ---
         boolean isRangeMode = (this.currentFilterMode == FilterMode.RANGE);
         boolean isPartsMode = (this.currentFilterMode == FilterMode.PARTS);
@@ -435,6 +464,7 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         rangeMinBox.setHint(Component.translatable("screen.phantasia.script_editor.hint_range_min"));
         rangeMinBox.setValue(this.cacheRangeMin);
         rangeMinBox.setResponder(v -> {
+            if (isPopulating) return;
             this.cacheRangeMin = v;
             checkpoint();
             saveFilterStateToStep();
@@ -450,6 +480,7 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         rangeMaxBox.setHint(Component.translatable("screen.phantasia.script_editor.hint_range_max"));
         rangeMaxBox.setValue(this.cacheRangeMax);
         rangeMaxBox.setResponder(v -> {
+            if (isPopulating) return;
             this.cacheRangeMax = v;
             checkpoint();
             saveFilterStateToStep();
@@ -464,6 +495,7 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         partsExprBox.setHint(Component.translatable("screen.phantasia.script_editor.hint_parts_expr"));
         partsExprBox.setValue(this.cachePartsExpr);
         partsExprBox.setResponder(v -> {
+            if (isPopulating) return;
             // Only cache; commit + rebuild on focus-lost so large machines don't bake per keystroke.
             this.cachePartsExpr = v;
         });
@@ -475,6 +507,7 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         scriptDurationBox.setFilter(s -> s.matches("\\d*"));
         scriptDurationBox.setHint(Component.translatable("screen.phantasia.script_editor.hint_zoom"));
         scriptDurationBox.setResponder(v -> {
+            if (isPopulating) return;
             try {
                 data.setScriptDuration(v.isBlank() ? -1 : Integer.parseInt(v));
             } catch (NumberFormatException ignored) {
@@ -517,6 +550,7 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         box.setFilter(s -> s.matches("-?\\d*\\.?\\d*"));
         box.setHint(Component.literal(hint));
         box.setResponder(v -> {
+            if (isPopulating) return;
             try {
                 setter.accept(Float.parseFloat(v));
             } catch (NumberFormatException ignored) {}
@@ -550,6 +584,7 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
     @Override
     public void tick() {
         super.tick();
+        itemAnimTick++;
         if (camera != null) camera.tick();
         if (rebuildCooldown > 0 && --rebuildCooldown == 0) rebuildVisibility();
         if (rebuildPending) flushVisibility();
@@ -563,7 +598,7 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         }
         partsBoxWasFocused = partsBoxFocused;
 
-        if (mode == Mode.SELECT) {
+        if (mode == Mode.SELECT || mode == Mode.WORLD) {
             selectPulse += pulseUp ? 0.07f : -0.07f;
             if (selectPulse >= 1f) {
                 selectPulse = 1f;
@@ -611,7 +646,7 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         PhantasiaScriptData.StepData s = step();
         Set<BlockPos> visible = new HashSet<>(pattern.baseplatePositions);
 
-        if (mode == Mode.SELECT) {
+        if (mode == Mode.SELECT && !selectPreviewMode) {
             for (BlockPos wp : pattern.localToWorld.values()) visible.add(wp);
         } else {
             for (Map.Entry<BlockPos, BlockPos> e : pattern.localToWorld.entrySet()) {
@@ -675,7 +710,20 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         return step().hidePositions;
     }
 
+    /** Mirrors {@link PhantasiaHidePosContext#showAllForPickingMode()} — all blocks clickable while picking. */
     @Override
+    public void showAllForPickingMode() {
+        selectPreviewMode = false;
+        rebuildVisibility();
+    }
+
+    /** Mirrors {@link PhantasiaHidePosContext#previewVisibility()} — shows the real "pos" filtered result. */
+    @Override
+    public void previewVisibility() {
+        selectPreviewMode = true;
+        rebuildVisibility();
+    }
+
     public void markDirty() {
         dirty = true;
     }
@@ -702,6 +750,7 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
             case "all" -> true;
             case "layer" -> local.getY() == s.layer;
             case "layers" -> local.getY() >= s.layerMin && local.getY() <= s.layerMax;
+            case "pos" -> isInPositionList(local);
             default -> evalBlockStateFilter(show, world);
         };
     }
@@ -736,14 +785,19 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
 
     private boolean evalBlockStateFilter(String show, BlockPos world) {
         if (SHARED_LEVEL == null) return false;
+
+        // 1. CRITICAL: Always check and reject air/null states first.
+        // This prevents empty filter strings from returning 'true' for thousands of air coordinates,
+        // which floods the renderer pass and causes the multiblock to go "poof" and disappear.
+        BlockState state = getResolvedState(world);
+        if (state == null || state.isAir()) return false;
+
+        // 2. Now check if the selection filter string is empty or clear
         if (show == null || show.isEmpty() || show.equals("all")) return true;
         String expression = show.startsWith("parts:") ? show.substring(6) : show;
         if (expression.trim().isEmpty()) return true;
 
-        BlockState state = SHARED_LEVEL.getBlockState(world);
-        if (state == null || state.isAir()) return false;
-
-        // Use pre-computed identifier — avoids registry lookup + string alloc on every call.
+        // 3. Evaluate the pre-computed identifier for active selection filtering
         String fullIdentifier = blockIdentifierCache.getOrDefault(world, "");
         return evalPartsExpr(expression, fullIdentifier, state);
     }
@@ -891,6 +945,16 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
     // ─────────────────────────────────────────────────────────────────────────
 
     @Override
+    public void renderAsBackground(GuiGraphics g, float partial) {
+        g.fill(0, 0, this.width, this.height, C_BG());
+        if (renderer != null && camera != null) {
+            int sceneH = this.height - TOP_BAR_H - BOTTOM_H;
+            CameraView view = camera.getView(partial);
+            renderer.render(view, 0, TOP_BAR_H, this.width, sceneH);
+        }
+    }
+
+    @Override
     public void render(GuiGraphics g, int mx, int my, float partial) {
         btns.clear();
         hideAllInputs();
@@ -943,14 +1007,7 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         // Block name + local XYZ tooltip (all modes, not just SELECT)
         if (hoveredWorldPos != null && SHARED_LEVEL != null && pattern != null) {
             try {
-                BlockState baseState = SHARED_LEVEL.getBlockState(hoveredWorldPos);
-                BlockState bs = baseState;
-
-                // Dynamically resolve the variant state safely using the core state engine
-                if (!baseState.isAir()) {
-                    PhantasiaVariantState variantState = PhantasiaVariantState.get();
-                    bs = variantState.resolveState(hoveredWorldPos, baseState);
-                }
+                BlockState bs = getResolvedState(hoveredWorldPos);
 
                 if (bs != null && !bs.isAir()) {
                     BlockPos local = pattern.toLocal(hoveredWorldPos);
@@ -977,9 +1034,10 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         if (tickBox != null) tickBox.visible = false;
         if (layerCountBox != null) layerCountBox.visible = false;
         if (hideLayerBox != null) hideLayerBox.visible = false;
-        if (fakeRecipeBox != null) fakeRecipeBox.visible = false;
         if (lerpTicksBox != null) lerpTicksBox.visible = false;
         if (camZoomBox != null) camZoomBox.visible = false;
+        if (wiItemBox != null) { wiItemBox.visible = false; wiItemBox.active = false; }
+        if (wiSourceBox != null) { wiSourceBox.visible = false; wiSourceBox.active = false; }
 
         // Explicitly handles dynamic mode boxes safely when they are null
         if (rangeMinBox != null) rangeMinBox.visible = false;
@@ -993,9 +1051,11 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
 
     private void renderModeTooltipBanner(GuiGraphics g) {
         if (hoveredModeBtnThisFrame == null || hoveredModeBtnThisFrame == mode) return;
-        String tip = hoveredModeBtnThisFrame == Mode.SELECT ?
-                "SELECT \u2014 Click blocks to add/remove from this step's position list" :
-                "ANNOTATE \u2014 Click any block to attach a floating mistake label";
+        String tip = switch (hoveredModeBtnThisFrame) {
+            case SELECT -> "SELECT — Click blocks to add/remove from this step's position list";
+            case ANNOTATE -> "ANNOTATE — Click any block to attach a floating mistake label";
+            case WORLD -> "WORLD — Click any block entity to set the item or source amount for this step";
+        };
         drawBanner(g, tip, TOP_BAR_H + 4, C_DIM());
     }
 
@@ -1003,6 +1063,7 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         renderMistakeMarkers(g);
         if (mode == Mode.SELECT) renderSelectOverlay(g, mx, my);
         if (mode == Mode.ANNOTATE) renderAnnotateOverlay(g, mx, my);
+        if (mode == Mode.WORLD) renderWorldItemOverlay(g, mx, my);
     }
 
     private void renderMistakeMarkers(GuiGraphics g) {
@@ -1040,48 +1101,55 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
 
     private void renderSelectOverlay(GuiGraphics g, int mx, int my) {
         int hy = TOP_BAR_H + 4;
-        String hint = selectedWorldPos.isEmpty() ?
-                "Left-click blocks to add to step  |  Ctrl+A: select all  |  Ctrl+D: clear" :
-                selectedWorldPos.size() + " block" + (selectedWorldPos.size() == 1 ? "" : "s") +
-                        " selected  \u2014  Left-click to toggle  |  Right-click to remove";
+        String hint;
+        if (selectPreviewMode) {
+            hint = "Previewing filtered result \u2014 click \u25CB Filtered to resume picking";
+        } else {
+            hint = selectedWorldPos.isEmpty() ?
+                    "Left-click blocks to add to step  |  Ctrl+A: select all  |  Ctrl+D: clear" :
+                    selectedWorldPos.size() + " block" + (selectedWorldPos.size() == 1 ? "" : "s") +
+                            " selected  \u2014  Left-click to toggle  |  Right-click to remove";
+        }
+        int selViewW = this.width - SELECT_PANEL_W;
         drawBanner(g, hint, hy, C_ACCENT());
-        if (hoveredWorldPos != null && pattern != null) {
+
+        // Cursor-following tooltip on a hoverable block — mirrors HidePos's hoveredViewportPos tooltip,
+        // no 3D crosshairs or dots; the renderer's own block model is the only thing drawn in-world.
+        if (!selectPreviewMode && hoveredWorldPos != null && pattern != null && mx < selViewW) {
             BlockPos local = pattern.toLocal(hoveredWorldPos);
             if (local != null && !pattern.baseplatePositions.contains(hoveredWorldPos)) {
                 boolean isSel = isInPositionList(local);
-                g.drawCenteredString(font, isSel ? "\u25BC Remove from step" : "\u25B2 Add to step",
-                        this.width / 2, hy + 20, isSel ? C_WARN() : C_GREEN());
+                String blockName = "";
+                try {
+                    BlockState bs = getResolvedState(hoveredWorldPos);
+                    if (bs != null && !bs.isAir()) blockName = bs.getBlock().getName().getString();
+                } catch (Exception ignored) {}
+
+                String coordStr = local.getX() + ", " + local.getY() + ", " + local.getZ();
+                String line1 = blockName.isEmpty() ? coordStr : blockName;
+                String line2 = (blockName.isEmpty() ? "" : "  " + coordStr) +
+                        (blockName.isEmpty() ? "" : "  \u2014  ") + (isSel ? "Remove" : "Add");
+                int tipX = mx + 10, tipY = my - 22;
+                int tipW = Math.max(font.width(line1), font.width(line2)) + 8;
+                int tipH = 24;
+                tipX = Math.min(tipX, selViewW - tipW - 2);
+                tipY = Math.max(tipY, TOP_BAR_H + 2);
+
+                g.fill(tipX - 1, tipY - 1, tipX + tipW + 1, tipY + tipH + 1, 0xBB000000);
+                g.fill(tipX - 1, tipY - 1, tipX, tipY + tipH + 1, isSel ? C_WARN() : C_GREEN());
+                g.drawString(font, line1, tipX + 3, tipY + 3, C_TEXT(), false);
+                g.drawString(font, line2, tipX + 3, tipY + 13, isSel ? C_WARN() : C_GREEN(), false);
             }
         }
-        if (pattern != null && camera != null) {
-            CameraView view = camera.getView(0f);
-            Vector3f eye = view.eyePos(), lookat = view.lookAt();
-            Vector3f fwd = new Vector3f(lookat).sub(eye).normalize();
-            Vector3f rgt = new Vector3f(fwd).cross(new Vector3f(0, 1, 0)).normalize();
-            Vector3f upv = new Vector3f(rgt).cross(fwd).normalize();
-            float fov = this.height / (2f * (float) Math.tan(Math.toRadians(PhantasiaCamera.FOV)));
-            for (BlockPos wp : selectedWorldPos) {
-                float[] sc = projectToScreen(wp.getX() + 0.5f, wp.getY() + 0.5f, wp.getZ() + 0.5f,
-                        eye, fwd, rgt, upv, fov);
-                if (sc == null || sc[2] < 0.3f) continue;
-                int isx = (int) sc[0], isy = (int) sc[1];
-                if (isy < TOP_BAR_H || isy > this.height - BOTTOM_H) continue;
-                int alpha = (int) (0.5f + selectPulse * 0.5f) * 0xAA;
-                alpha = Mth.clamp(alpha, 0x44, 0xBB);
-                int col = (alpha << 24) | (C_ACCENT() & 0x00FFFFFF);
-                g.fill(isx - 3, isy - 3, isx + 3, isy + 3, col);
-                g.fill(isx - 5, isy - 1, isx + 5, isy + 1, col & 0x66FFFFFF);
-                g.fill(isx - 1, isy - 5, isx + 1, isy + 5, col & 0x66FFFFFF);
-            }
-            if (hoveredWorldPos != null && !selectedWorldPos.contains(hoveredWorldPos) &&
-                    !pattern.baseplatePositions.contains(hoveredWorldPos)) {
-                float[] sc = projectToScreen(hoveredWorldPos.getX() + 0.5f, hoveredWorldPos.getY() + 0.5f,
-                        hoveredWorldPos.getZ() + 0.5f, eye, fwd, rgt, upv, fov);
-                if (sc != null && sc[2] > 0.3f) {
-                    int isx = (int) sc[0], isy = (int) sc[1];
-                    g.fill(isx - 4, isy - 4, isx + 4, isy + 4, 0x66FFFFFF);
-                }
-            }
+
+        // Dim the viewport when a row is hovered in the side panel — same idea as HidePos's
+        // "can't easily draw a 3D overlay, so flash a subtle tint" approach.
+        if (selectHoveredListPos != null && mx >= selViewW) {
+            g.fill(0, TOP_BAR_H, selViewW, this.height - BOTTOM_H, 0x2200FF66);
+            String coordLabel = "  Selected: " + selectHoveredListPos[0] + ", " + selectHoveredListPos[1] + ", "
+                    + selectHoveredListPos[2];
+            g.fill(2, TOP_BAR_H + 2, font.width(coordLabel) + 6, TOP_BAR_H + 14, 0xAA000000);
+            g.drawString(font, coordLabel, 4, TOP_BAR_H + 4, C_GREEN(), false);
         }
     }
 
@@ -1127,14 +1195,35 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
                 "Left-click any block to add a mistake marker";
         drawBanner(g, hint, TOP_BAR_H + 4, C_WARN());
         if (mode == Mode.ANNOTATE) {
-            int glx = this.width - 310, gly = this.height - BOTTOM_H + STEP_ROW_H + 4;
-            g.drawString(font, Component.translatable("screen.phantasia.script_editor.label_global_note").getString(),
-                    glx - 74, gly + 2, C_DIM(), false);
-            boolean gnHov = isOver(mx, my, glx, gly, 220, 14);
-            g.fill(glx, gly, glx + 220, gly + 14, gnHov ? C_BTN_HOV() : C_BTN());
-            g.fill(glx, gly, glx + 220, gly + 1, C_WARN());
-            g.drawString(font, "\u270E  Add global note...", glx + 4, gly + 3, C_DIM(), false);
-            btns.add(new Btn(glx, gly, 220, 14, this::openGlobalMistakeInput));
+            java.util.List<String> gm = data.getGlobalMistakes();
+            int ROW = 13;
+            int panelW = 260;
+            int panelH = 18 + gm.size() * ROW + ROW; // header + rows + add row
+            int panelX = this.width - panelW - 6;
+            int panelY = this.height - BOTTOM_H - panelH - 4;
+            g.fill(panelX, panelY, panelX + panelW, panelY + panelH, C_PANEL());
+            g.fill(panelX, panelY, panelX + panelW, panelY + 1, C_WARN());
+            g.drawString(font, "\u26A0 Global Mistakes", panelX + 5, panelY + 4, C_WARN(), false);
+            int ry = panelY + 16;
+            for (int i = 0; i < gm.size(); i++) {
+                String w = gm.get(i);
+                g.fill(panelX + 2, ry, panelX + panelW - 2, ry + ROW, 0x22FFFFFF);
+                g.drawString(font, trunc(w, panelW - 26), panelX + 5, ry + 2, C_TEXT(), false);
+                int rbx = panelX + panelW - 14;
+                boolean rbHov = isOver(mx, my, rbx, ry + 1, 11, ROW - 2);
+                g.fill(rbx, ry + 1, rbx + 11, ry + ROW - 1, rbHov ? 0xAA440000 : 0x55220000);
+                g.drawCenteredString(font, "\u2715", rbx + 5, ry + 2, rbHov ? 0xFFFF5555 : C_DIM());
+                final int fi = i;
+                btns.add(new Btn(rbx, ry + 1, 11, ROW - 2, () -> {
+                    checkpoint(); data.getGlobalMistakes().remove(fi); dirty = true;
+                }));
+                ry += ROW;
+            }
+            boolean addHov = isOver(mx, my, panelX + 2, ry + 1, panelW - 4, ROW - 2);
+            g.fill(panelX + 2, ry + 1, panelX + panelW - 2, ry + ROW - 1, addHov ? C_BTN_HOV() : C_BTN());
+            g.fill(panelX + 2, ry + 1, panelX + panelW - 2, ry + 2, C_WARN());
+            g.drawCenteredString(font, "+ Add Global Mistake", panelX + panelW / 2, ry + 3, addHov ? C_ACCENT() : C_DIM());
+            btns.add(new Btn(panelX + 2, ry + 1, panelW - 4, ROW - 2, this::openGlobalMistakeInput));
         }
     }
 
@@ -1144,15 +1233,199 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
                 v -> pendingAnnotationLabel = v));
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // WORLD mode overlay + inline panel
+    // ─────────────────────────────────────────────────────────────────────────
+
+    private void renderWorldItemOverlay(GuiGraphics g, int mx, int my) {
+        if (pattern == null || camera == null || SHARED_LEVEL == null) return;
+        CameraView view = camera.getView(0f);
+        Vector3f eye = view.eyePos(), lookat = view.lookAt();
+        Vector3f fwd = new Vector3f(lookat).sub(eye).normalize();
+        Vector3f rgt = new Vector3f(fwd).cross(new Vector3f(0, 1, 0)).normalize();
+        Vector3f upv = new Vector3f(rgt).cross(fwd).normalize();
+        float fov = this.height / (2f * (float) Math.tan(Math.toRadians(PhantasiaCamera.FOV)));
+
+        java.util.List<PhantasiaScriptData.WorldItemEntry> entries = step().worldItems;
+        int sceneBottom = this.height - BOTTOM_H;
+
+        for (java.util.Map.Entry<BlockPos, BlockPos> e : pattern.localToWorld.entrySet()) {
+            BlockPos local = e.getKey();
+            BlockPos world = e.getValue();
+            if (SHARED_LEVEL.getBlockEntity(world) == null) continue;
+            BlockState bs = getResolvedState(world);
+            if (bs != null && bs.getBlock() instanceof MetaMachineBlock) continue;
+
+            boolean hasEntry = entries.stream().anyMatch(wi -> wi.x == local.getX() && wi.y == local.getY() && wi.z == local.getZ());
+            boolean isSelected = local.equals(wiBlock);
+
+            float[] sc = projectToScreen(world.getX() + 0.5f, world.getY() + 0.5f, world.getZ() + 0.5f,
+                    eye, fwd, rgt, upv, fov);
+            if (sc == null || sc[2] < 0.3f) continue;
+            int isx = (int) sc[0], isy = (int) sc[1];
+            if (isy < TOP_BAR_H || isy > sceneBottom) continue;
+
+            if (isSelected) {
+                g.fill(isx - 5, isy - 5, isx + 5, isy + 5, 0xCCFFFFFF);
+                g.fill(isx - 3, isy - 3, isx + 3, isy + 3, C_ACCENT() | 0xFF000000);
+            } else if (hasEntry) {
+                int alpha = (int) (0x55 + selectPulse * 0x77);
+                g.fill(isx - 4, isy - 4, isx + 4, isy + 4, (alpha << 24) | (C_GREEN() & 0xFFFFFF));
+            } else {
+                g.fill(isx - 3, isy - 3, isx + 3, isy + 3, 0x44AAAAAA);
+            }
+        }
+
+        // Banner hint
+        if (wiBlock == null) {
+            String beCount = entries.isEmpty() ? "" : " (" + entries.size() + " set)";
+            drawBanner(g, "Click a block entity to edit its item for this step — right-click to remove entry" + beCount, TOP_BAR_H + 4, C_DIM());
+        }
+
+        // Inline panel when a block is selected
+        if (wiBlock != null) renderWorldItemPanel(g, mx, my);
+    }
+
+    private static final int WI_PANEL_H = 62;
+
+    private void renderWorldItemPanel(GuiGraphics g, int mx, int my) {
+        int panelW = Math.min(440, this.width - 16);
+        int panelX = 6;
+        int panelY = this.height - BOTTOM_H - WI_PANEL_H - 4;
+
+        g.fill(panelX - 2, panelY - 2, panelX + panelW + 2, panelY + WI_PANEL_H + 2, 0xDD070712);
+        g.fill(panelX - 2, panelY - 2, panelX + panelW + 2, panelY - 1, C_ACCENT());
+
+        // Block name header
+        String label = "World Items — " + wiBlock.toShortString();
+        if (SHARED_LEVEL != null) {
+            BlockPos wp = pattern != null ? pattern.localToWorld.get(wiBlock) : null;
+            if (wp != null) {
+                BlockState bs = getResolvedState(wp);
+                if (!bs.isAir()) label += "  ·  " + bs.getBlock().getName().getString();
+            }
+        }
+        g.drawString(font, label, panelX + 4, panelY + 3, C_ACCENT(), false);
+
+        int row1Y = panelY + 14;
+        int x = panelX + 4;
+
+        // Item field
+        g.drawString(font, "Item:", x, row1Y + 2, C_DIM(), false);
+        x += font.width("Item:") + 4;
+        placeBox(wiItemBox, x, row1Y, panelW - 200, 12);
+        x += panelW - 200 + 8;
+
+        // Source field
+        g.drawString(font, "Source:", x, row1Y + 2, C_DIM(), false);
+        x += font.width("Source:") + 4;
+        placeBox(wiSourceBox, x, row1Y, 54, 12);
+        x += 62;
+
+        // Confirm button
+        int confirmW = font.width("✓ Confirm") + 12;
+        boolean confHov = isOver(mx, my, x, row1Y, confirmW, 13);
+        g.fill(x, row1Y, x + confirmW, row1Y + 13, confHov ? C_BTN_HOV() : C_GREEN());
+        if (confHov) g.fill(x, row1Y, x + confirmW, row1Y + 1, C_ACCENT());
+        g.drawString(font, "✓ Confirm", x + 6, row1Y + 2, confHov ? C_ACCENT() : C_TEXT(), false);
+        btns.add(new Btn(x, row1Y, confirmW, 13, this::confirmWorldItemEntry));
+        x += confirmW + 4;
+
+        // Remove button
+        java.util.List<PhantasiaScriptData.WorldItemEntry> entries = step().worldItems;
+        boolean hasEntry = wiBlock != null && entries.stream().anyMatch(
+                wi -> wi.x == wiBlock.getX() && wi.y == wiBlock.getY() && wi.z == wiBlock.getZ());
+        if (hasEntry) {
+            int remW = font.width("✕ Remove") + 12;
+            boolean remHov = isOver(mx, my, x, row1Y, remW, 13);
+            g.fill(x, row1Y, x + remW, row1Y + 13, remHov ? C_BTN_HOV() : C_BTN());
+            g.drawString(font, "✕ Remove", x + 6, row1Y + 2, remHov ? C_RED() : C_DIM(), false);
+            btns.add(new Btn(x, row1Y, remW, 13, this::removeWorldItemEntry));
+        }
+
+        // Row 2: hint
+        int row2Y = panelY + 30;
+        g.drawString(font, "Leave Item blank to only set source. Leave Source blank to only set item. [Esc] deselects.", panelX + 4, row2Y + 2, C_DIM(), false);
+
+        // recipeId conflict note
+        if (data.getRecipeId() != null && !data.getRecipeId().isBlank() && hasEntry) {
+            g.drawString(font, "⚠ recipeId is set — this entry overrides recipe-placed items at this position", panelX + 4, row2Y + 14, 0xFFFFAA44, false);
+        }
+    }
+
+    private void confirmWorldItemEntry() {
+        if (wiBlock == null) return;
+        String item = wiItemBox.getValue().trim();
+        int sourceAmt = wiSourceBox.getValue().isBlank() ? -1 : parseIntSafe(wiSourceBox.getValue(), -1);
+        if (item.isBlank() && sourceAmt < 0) { wiBlock = null; return; }
+
+        checkpoint();
+        java.util.List<PhantasiaScriptData.WorldItemEntry> entries = step().worldItems;
+        entries.removeIf(wi -> wi.x == wiBlock.getX() && wi.y == wiBlock.getY() && wi.z == wiBlock.getZ());
+        PhantasiaScriptData.WorldItemEntry entry = new PhantasiaScriptData.WorldItemEntry(wiBlock.getX(), wiBlock.getY(), wiBlock.getZ(), item);
+        entry.sourceAmount = sourceAmt;
+        entries.add(entry);
+        dirty = true;
+        parentScene.refireShapeLoaded();
+        wiBlock = null;
+        wiItemBox.setValue("");
+        wiSourceBox.setValue("");
+    }
+
+    private void removeWorldItemEntry() {
+        if (wiBlock == null) return;
+        checkpoint();
+        step().worldItems.removeIf(wi -> wi.x == wiBlock.getX() && wi.y == wiBlock.getY() && wi.z == wiBlock.getZ());
+        dirty = true;
+        parentScene.refireShapeLoaded();
+        wiBlock = null;
+        wiItemBox.setValue("");
+        wiSourceBox.setValue("");
+    }
+
+    private boolean handleWorldItemClick(double mx, double my, int btn) {
+        if (hoveredWorldPos == null || pattern == null || SHARED_LEVEL == null) return false;
+        BlockPos local = pattern.toLocal(hoveredWorldPos);
+        if (local == null || pattern.baseplatePositions.contains(hoveredWorldPos)) return false;
+        if (SHARED_LEVEL.getBlockEntity(hoveredWorldPos) == null) return false;
+        BlockState bs = getResolvedState(hoveredWorldPos);
+        if (bs != null && bs.getBlock() instanceof MetaMachineBlock) return false;
+
+        if (btn == 1) {
+            // Right-click: remove entry
+            if (step().worldItems.removeIf(wi -> wi.x == local.getX() && wi.y == local.getY() && wi.z == local.getZ())) {
+                checkpoint();
+                dirty = true;
+                parentScene.refireShapeLoaded();
+                if (local.equals(wiBlock)) wiBlock = null;
+            }
+            return true;
+        }
+
+        // Left-click: select block and populate fields
+        wiBlock = local;
+        PhantasiaScriptData.WorldItemEntry existing = step().worldItems.stream()
+                .filter(wi -> wi.x == local.getX() && wi.y == local.getY() && wi.z == local.getZ())
+                .findFirst().orElse(null);
+        wiItemBox.setValue(existing != null && existing.item != null ? existing.item : "");
+        wiSourceBox.setValue(existing != null && existing.sourceAmount >= 0 ? String.valueOf(existing.sourceAmount) : "");
+        setFocused(wiItemBox);
+        return true;
+    }
+
+    private static int parseIntSafe(String s, int fallback) {
+        try { return Integer.parseInt(s.trim()); } catch (NumberFormatException e) { return fallback; }
+    }
+
     private void openGlobalMistakeInput() {
         Minecraft.getInstance().setScreen(new PhantasiaTextInputScreen(
                 this, "Global Mistake Note", "e.g. Controller must face south", "", 256, v -> {
-                    if (!v.isBlank()) {
-                        checkpoint();
-                        data.getGlobalMistakes().add(v.trim());
-                        dirty = true;
-                    }
-                }));
+            if (!v.isBlank()) {
+                checkpoint();
+                data.getGlobalMistakes().add(v.trim());
+                dirty = true;
+            }
+        }));
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -1166,7 +1439,30 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
 
         int x = 6;
         x = modeBtn(g, mx, my, x, Mode.SELECT, "\u25C8 Select");
+
+        // Select pick/preview toggle — mirrors HidePos's previewMode button.
+        // Only shown while actively in SELECT mode.
+        if (mode == Mode.SELECT) {
+            String selPrevLabel = selectPreviewMode ? "\u25C9 Filtered" : "\u25CB Filtered";
+            int selPrevW = font.width(selPrevLabel) + 10;
+            boolean selPrevHov = isOver(mx, my, x, 3, selPrevW, TOP_BAR_H - 6);
+            g.fill(x, 3, x + selPrevW, TOP_BAR_H - 3,
+                    selectPreviewMode ? C_BTN_ACT() : (selPrevHov ? C_BTN_HOV() : C_BTN()));
+            if (selectPreviewMode) g.fill(x, 3, x + selPrevW, 4, C_ACCENT());
+            g.drawString(font, selPrevLabel, x + 5, (TOP_BAR_H - 8) / 2,
+                    selectPreviewMode ? C_ACCENT() : C_TEXT(), false);
+            if (selPrevHov) pendingTooltip = selectPreviewMode ?
+                    "Showing only selected blocks \u2014 click to switch back to pick mode" :
+                    "Showing all blocks for picking \u2014 click to preview the selected-only result";
+            btns.add(new Btn(x, 3, selPrevW, TOP_BAR_H - 6, () -> {
+                if (selectPreviewMode) showAllForPickingMode();
+                else previewVisibility();
+            }));
+            x += selPrevW + 4;
+        }
+
         x = modeBtn(g, mx, my, x, Mode.ANNOTATE, "\u26A0 Annotate");
+        x = modeBtn(g, mx, my, x, Mode.WORLD, "\u25A6 World");
         x += 6;
 
         // Preview
@@ -1204,6 +1500,7 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         if (scHov)
             pendingTooltip = "Set the initial camera position when this machine is first opened (yaw, pitch, zoom, target offset)";
         btns.add(new Btn(x, 3, scTabW, TOP_BAR_H - 6, () -> showStartCamPanel = !showStartCamPanel));
+        x += scTabW + 4;
 
         // Right side
         int rx = this.width - 4;
@@ -1215,11 +1512,11 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
             rx -= font.width(dot) + 10;
             g.drawString(font, dot, rx, (TOP_BAR_H - 8) / 2, C_WARN(), false);
         }
-        renderTopBarBadge(g, rx);
+        renderTopBarBadge(g, mx, my, rx);
     }
 
     /** Override in subclasses to draw a mod badge on the right side of the top bar. */
-    protected void renderTopBarBadge(GuiGraphics g, int rightEdge) {}
+    protected void renderTopBarBadge(GuiGraphics g, int mx, int my, int rightEdge) {}
 
     private int modeBtn(GuiGraphics g, int mx, int my, int x, Mode m, String label) {
         int w = font.width(label) + 12;
@@ -1431,10 +1728,10 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         btns.add(new Btn(x, y1, capW, 13, () -> Minecraft.getInstance().setScreen(
                 new PhantasiaTextInputScreen(this, "Step Caption", "What the viewer sees\u2026",
                         s.caption != null ? s.caption : "", 256, v -> {
-                            checkpoint();
-                            s.caption = v.isBlank() ? null : v;
-                            dirty = true;
-                        }))));
+                    checkpoint();
+                    s.caption = v.isBlank() ? null : v;
+                    dirty = true;
+                }))));
         x += capW + 8;
 
         g.fill(x, y1, x + 1, y1 + 14, 0x33FFFFFF);
@@ -1451,6 +1748,8 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
             checkpoint();
             s.working = !s.working;
             dirty = true;
+            if (parentScene != null) parentScene.applyActiveStateToWorld(s.working);
+            if (renderer != null) renderer.requestBake();
         }));
         x += 88;
 
@@ -1458,25 +1757,21 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
             g.drawString(font, Component.translatable("screen.phantasia.script_editor.label_recipe").getString(), x,
                     y1 + 3, C_DIM(), false);
             x += font.width(Component.translatable("screen.phantasia.script_editor.label_recipe").getString()) + 4;
-            placeBox(fakeRecipeBox, x, y1, 180, 13);
-            if (isOver(mx, my, x, y1, 180, 13))
-                pendingTooltip = "Optional GregTech recipe ID for recipe-dependent visuals (e.g. gtceu:fusion/recipe_name)";
-            x += 186;
-        }
-
-        // Layer count — only shown for expandable multiblocks
-        if (layerCountBox != null && layerCountBox.visible) {
-            g.fill(x, y1, x + 1, y1 + 14, 0x33FFFFFF);
-            x += 8;
-            g.drawString(font, "Layers:", x, y1 + 3, C_DIM(), false);
-            x += font.width("Layers:") + 3;
-            placeBox(layerCountBox, x, y1, 30, 13);
-            if (isOver(mx, my, x, y1, 30, 13)) {
-                int maxL = parentScene != null && parentScene.definition != null
-                        ? parentScene.definition.getMatchingShapes().size() : 1;
-                pendingTooltip = "Expandable layer count for this step (1–" + maxL
-                        + "). Blank = keep current. Triggers a full rebake when changed.";
-            }
+            int recBtnW = 180;
+            boolean recHov = isOver(mx, my, x, y1, recBtnW, 13);
+            g.fill(x, y1, x + recBtnW, y1 + 13, recHov ? C_BTN_HOV() : C_BTN());
+            g.fill(x, y1, x + recBtnW, y1 + 1, 0x22FFFFFF);
+            String recLbl = s.fakeRecipeId != null ? trunc(s.fakeRecipeId, recBtnW - 16) : "✎  Choose recipe…";
+            g.drawString(font, recLbl, x + 4, y1 + 3, s.fakeRecipeId != null ? C_TEXT() : C_DIM(), false);
+            if (recHov) pendingTooltip = "Click to search and pick a GregTech recipe ID";
+            final PhantasiaScriptData.StepData fStep = s;
+            btns.add(new Btn(x, y1, recBtnW, 13, () -> Minecraft.getInstance().setScreen(
+                    new net.phoenixvine.phantasia.compat.gtceu.GTRecipePickerScreen(this, fStep.fakeRecipeId, picked -> {
+                        checkpoint();
+                        fStep.fakeRecipeId = picked;
+                        dirty = true;
+                    }))));
+            x += recBtnW + 4;
         }
 
         // ── ROW 2: show mode · Parts… · hide controls ──────────────────────────
@@ -1597,6 +1892,55 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
                 createItemEditorScreen(selectedStep))));
         x += itemsBtnW + 3;
 
+        // Expandable shape stepper — for expandable multiblocks (data flag or auto-detected from shape variants)
+        boolean isExpandable = data.isExpandable() || (parentScene != null && parentScene.computeHasRealSizeVariants());
+        if (isExpandable) {
+            int maxShapes = (parentScene != null && parentScene.availableShapes != null)
+                    ? parentScene.availableShapes.size() : 0;
+            // lc == -1 means "no override"; treat as shape 0 for display
+            int curShape = s.layerCount > 0 ? s.layerCount : 1;
+
+            int arrowW = 12;
+            String stepLabel = "Size " + curShape + (maxShapes > 0 ? "/" + maxShapes : "");
+            int labelW = font.width(stepLabel);
+            int totalW = arrowW + 4 + labelW + 4 + arrowW;
+
+            boolean prevHov = isOver(mx, my, x, y2, arrowW, 14);
+            boolean nextHov = isOver(mx, my, x + arrowW + 4 + labelW + 4, y2, arrowW, 14);
+            boolean anyActive = s.layerCount > 0;
+
+            g.fill(x, y2, x + totalW, y2 + 14, anyActive ? C_BTN_ACT() : C_BTN());
+            if (anyActive) g.fill(x, y2, x + totalW, y2 + 1, C_ACCENT());
+
+            g.fill(x, y2, x + arrowW, y2 + 14, prevHov ? C_BTN_HOV() : 0x22FFFFFF);
+            g.drawString(font, "◄", x + 2, y2 + 3, prevHov ? C_TEXT() : C_DIM(), false);
+
+            g.drawString(font, stepLabel, x + arrowW + 4, y2 + 3, anyActive ? C_ACCENT() : C_DIM(), false);
+
+            g.fill(x + arrowW + 4 + labelW + 4, y2, x + totalW, y2 + 14, nextHov ? C_BTN_HOV() : 0x22FFFFFF);
+            g.drawString(font, "►", x + arrowW + 4 + labelW + 4 + 2, y2 + 3, nextHov ? C_TEXT() : C_DIM(), false);
+
+            if (prevHov || nextHov)
+                pendingTooltip = "Set the expandable shape variant for this step (Size 1 = smallest)";
+
+            final int fMaxShapes = maxShapes;
+            btns.add(new Btn(x, y2, arrowW, 14, () -> {
+                checkpoint();
+                int next = curShape - 1;
+                s.layerCount = (next <= 0) ? -1 : next;
+                if (layerCountBox != null) layerCountBox.setValue(s.layerCount > 0 ? String.valueOf(s.layerCount) : "");
+                dirty = true; rebuildVisibility();
+            }));
+            btns.add(new Btn(x + arrowW + 4 + labelW + 4, y2, arrowW, 14, () -> {
+                checkpoint();
+                int next = curShape + 1;
+                s.layerCount = (fMaxShapes > 0 && next > fMaxShapes) ? fMaxShapes : next;
+                if (layerCountBox != null) layerCountBox.setValue(s.layerCount > 0 ? String.valueOf(s.layerCount) : "");
+                dirty = true; rebuildVisibility();
+            }));
+            x += totalW + 3;
+        }
+
         // ── HIDE CONTROLS (Right-aligned layout anchors) ───────────────────
         int rx2 = this.width - 8;
 
@@ -1682,21 +2026,17 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
             float[] anim = editorItemTrackOffset(it);
             int alpha = Math.max(0, Math.min(255, (int) (anim[2] * 255)));
             int iconSz = hov ? EIP_HOV : EIP_ICON;
-            int iconX = panelX + 5;
+            int iconX = panelX + 5 + Math.round(anim[0]);
             int iconCY = ry + (EIP_ROW - 1) / 2;
             int iconY = iconCY - iconSz / 2 + Math.round(anim[1]);
 
             net.minecraft.world.item.Item mcItem = eipResolveItem(it.item);
             if (mcItem != null) {
                 net.minecraft.world.item.ItemStack stack = new net.minecraft.world.item.ItemStack(mcItem, it.count);
-                float scale = iconSz / 16f;
+                int renderY = iconCY - 8 + Math.round(anim[1]);
                 if (alpha < 255) com.mojang.blaze3d.systems.RenderSystem.setShaderColor(1f, 1f, 1f, alpha / 255f);
-                g.pose().pushPose();
-                g.pose().translate(iconX, iconY, 200f);
-                g.pose().scale(scale, scale, 1f);
-                g.renderItem(stack, 0, 0);
-                g.renderItemDecorations(font, stack, 0, 0);
-                g.pose().popPose();
+                g.renderItem(stack, iconX, renderY);
+                g.renderItemDecorations(font, stack, iconX, renderY);
                 if (alpha < 255) com.mojang.blaze3d.systems.RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
             } else {
                 g.fill(iconX + 2, iconY + 2, iconX + EIP_HOV - 2, iconY + EIP_HOV - 2, 0x44FF0000);
@@ -1754,7 +2094,7 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         String track = it.track == null ? "none" : it.track.toLowerCase(java.util.Locale.ROOT);
         if ("none".equals(track)) return new float[] { 0, 0, 1f };
         int dur = Math.max(1, it.trackDurationTicks);
-        float t = (previewTick % dur) / (float) dur;
+        float t = (itemAnimTick % dur) / (float) dur;
         return switch (track) {
             case "left" -> {
                 float fade = 1f - Math.abs(t - 0.5f) * 2f;
@@ -2139,22 +2479,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         scriptDurationBox.visible = true;
         scriptDurationBox.active = true;
 
-        // Expandable toggle (global, shown to the left of the duration box)
-        boolean expNow = data.isExpandable();
-        int expW = font.width("Expandable") + 10;
-        int expX = durX - expW - 8;
-        boolean expHov = isOver(mx, my, expX, tlY + 4, expW, 14);
-        g.fill(expX, tlY + 4, expX + expW, tlY + 18, expNow ? C_BTN_ACT() : (expHov ? C_BTN_HOV() : C_BTN()));
-        if (expNow) g.fill(expX, tlY + 4, expX + expW, tlY + 5, C_ACCENT());
-        g.drawString(font, "Expandable", expX + 5, tlY + 7, expNow ? C_ACCENT() : C_DIM(), false);
-        if (expHov)
-            pendingTooltip = "Mark as expandable: script steps may use 'Layers' to switch between size variants";
-        btns.add(new Btn(expX, tlY + 4, expW, 14, () -> {
-            checkpoint();
-            data.setExpandable(!data.isExpandable());
-            dirty = true;
-            buildInputWidgets(); // refresh Layers box visibility
-        }));
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -2316,6 +2640,7 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
 
         int sceneBottom = this.height - BOTTOM_H;
         if (my < TOP_BAR_H || my >= sceneBottom) return false;
+        if (mode == Mode.WORLD) return handleWorldItemClick(mx, my, btn);
         if (mode == Mode.SELECT) {
             selectClickPending = true;
             selectClickBtn = btn;
@@ -2492,11 +2817,16 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
 
     @Override
     public boolean keyPressed(int kc, int sc, int mod) {
-        boolean ctrl = (mod & 2) != 0;
-        if (ctrl && kc == GLFW.GLFW_KEY_Z) {
-            undo();
+        if (kc == GLFW.GLFW_KEY_ESCAPE && mode == Mode.WORLD && wiBlock != null) {
+            wiBlock = null;
             return true;
         }
+        boolean ctrl = (mod & 2) != 0;
+        if (ctrl && kc == GLFW.GLFW_KEY_Z) { undo(); return true; }
+        if (ctrl && kc == 83) { save(); return true; }
+        if (ctrl && kc == 67) { copyStep(); return true; }
+        if (ctrl && kc == 86) { pasteStep(); return true; }
+        if (ctrl && kc == 68 && mode != Mode.SELECT) { duplicateStep(); return true; }
         if (partsExprBox != null && partsExprBox.isFocused()
                 && (kc == GLFW.GLFW_KEY_ENTER || kc == GLFW.GLFW_KEY_KP_ENTER)) {
             partsExprBox.setFocused(false);
@@ -2533,22 +2863,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
             deleteStep();
             return true;
         }
-        if (ctrl && kc == 83) {
-            save();
-            return true;
-        }
-        if (ctrl && kc == 67) {
-            copyStep();
-            return true;
-        }
-        if (ctrl && kc == 86) {
-            pasteStep();
-            return true;
-        }
-        if (ctrl && kc == 68 && mode != Mode.SELECT) {
-            duplicateStep();
-            return true;
-        }
         if (kc == GLFW.GLFW_KEY_ENTER || kc == GLFW.GLFW_KEY_KP_ENTER) {
             addStep();
             return true;
@@ -2581,14 +2895,16 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
     // ─────────────────────────────────────────────────────────────────────────
 
     public void checkpoint() {
-        if (undoStack.size() >= MAX_UNDO) undoStack.pollFirst();
+        if (undoStack.size() >= MAX_UNDO) { undoStack.pollFirst(); undoStepStack.pollFirst(); }
         undoStack.addLast(data.copy());
+        undoStepStack.addLast(selectedStep);
     }
 
     private void undo() {
         if (undoStack.isEmpty()) return;
         data = undoStack.pollLast();
-        selectedStep = Mth.clamp(selectedStep, 0, data.getSteps().size() - 1);
+        int restoredStep = undoStepStack.isEmpty() ? selectedStep : undoStepStack.pollLast();
+        selectedStep = Mth.clamp(restoredStep, 0, data.getSteps().size() - 1);
         dirty = !undoStack.isEmpty();
         populateInputsFromStep();
         syncSelectedFromStep();
@@ -2601,12 +2917,18 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
 
     private void setMode(Mode m) {
         mode = m;
+        wiBlock = null;
         if (m == Mode.SELECT) {
+            selectPreviewMode = false; // always start in pick mode, like HidePos's init()
             syncSelectedFromStep();
             if (!"pos".equals(step().show)) {
                 step().show = "pos";
                 dirty = true;
             }
+        } else {
+            // Restore show from the current filter mode so that exiting SELECT
+            // doesn't leave show="pos" with an empty positions list (which hides everything).
+            saveFilterStateToStep();
         }
         pendingAnnotationLocalPos = null;
         rebuildVisibility();
@@ -2621,6 +2943,7 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
 
     private void selectStep(int i) {
         selectedStep = Mth.clamp(i, 0, data.getSteps().size() - 1);
+        wiBlock = null;
 
         // 1. Reconstruct the active FilterMode enum and fill caches from the new step
         populateInputsFromStep();
@@ -2630,7 +2953,10 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
 
         if (mode == Mode.SELECT) syncSelectedFromStep();
 
-        // 3. Force-repaint the main world view instantly
+        // 3. Apply the new step's working state to the scene world
+        if (parentScene != null) parentScene.applyActiveStateToWorld(step().working);
+
+        // 4. Force-repaint the main world view instantly
         rebuildVisibility();
     }
 
@@ -2773,7 +3099,7 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         step().positions.clear();
         selectedWorldPos.clear();
         dirty = true;
-        rebuildVisibility();
+        showAllForPickingMode(); // mirrors HidePos's "Clear" button dropping back into pick mode
     }
 
     private void save() {
@@ -2810,6 +3136,12 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
 
     private void populateInputsFromStep() {
         if (tickBox == null) return;
+        isPopulating = true;
+        try { populateInputsFromStepImpl(); } finally { isPopulating = false; }
+    }
+
+    private void populateInputsFromStepImpl() {
+        if (tickBox == null) return;
         PhantasiaScriptData.StepData s = step();
         tickBox.setValue(String.valueOf(s.tick));
 
@@ -2830,7 +3162,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
 
         if (layerCountBox != null)
             layerCountBox.setValue(s.layerCount > 0 ? String.valueOf(s.layerCount) : "");
-        if (fakeRecipeBox != null) fakeRecipeBox.setValue(s.fakeRecipeId != null ? s.fakeRecipeId : "");
         if (lerpTicksBox != null && s.camera != null)
             lerpTicksBox.setValue(String.valueOf(s.camera.lerpTicks > 0 ? s.camera.lerpTicks : 20));
         if (camZoomBox != null && s.camera != null)
@@ -2990,6 +3321,24 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         pattern = null;
         if (parentScene != null) parentScene.reloadScript();
         Minecraft.getInstance().setScreen(parentScene);
+    }
+
+    /**
+     * Resolves the block state at a world position using the central variant engine.
+     * This ensures the editor logic (filtering, picking, naming) perfectly matches
+     * the actual visual models shown by the 3D renderer.
+     */
+    private BlockState getResolvedState(BlockPos pos) {
+        if (SHARED_LEVEL == null || pos == null) return null;
+        BlockState baseState = SHARED_LEVEL.getBlockState(pos);
+        if (baseState == null || baseState.isAir()) return baseState;
+
+        try {
+            BlockState resolved = PhantasiaVariantState.get().resolveState(pos, baseState);
+            return resolved != null ? resolved : baseState;
+        } catch (Exception e) {
+            return baseState;
+        }
     }
 
     private void forceClose() {

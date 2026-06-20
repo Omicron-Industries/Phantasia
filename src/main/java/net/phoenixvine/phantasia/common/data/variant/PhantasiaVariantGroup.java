@@ -289,10 +289,18 @@ public final class PhantasiaVariantGroup {
             List<BlockPos> localPositions = sigEntry.getValue();
 
             List<Block> sortedBlocks = new ArrayList<>(blocks);
-            sortedBlocks.sort(Comparator.comparingInt(b -> {
-                List<BlockPos> wp = loadedShapeBlockToWorldPos.get(b);
-                return wp != null ? wp.size() : 0;
-            }));
+            // Sort primarily by count (loaded-shape blocks first), then by registry name as a
+            // stable tiebreaker so the ordering — and thus the group ID — is deterministic
+            // across world restarts regardless of how many blocks share the same count.
+            sortedBlocks.sort(Comparator
+                    .comparingInt((Block b) -> {
+                        List<BlockPos> wp = loadedShapeBlockToWorldPos.get(b);
+                        return wp != null ? wp.size() : 0;
+                    })
+                    .thenComparing(b -> {
+                        ResourceLocation rl = ForgeRegistries.BLOCKS.getKey(b);
+                        return rl != null ? rl.toString() : b.getDescriptionId();
+                    }));
 
             List<BlockState> options = new ArrayList<>();
             List<String> labels = new ArrayList<>();
@@ -301,9 +309,9 @@ public final class PhantasiaVariantGroup {
                 labels.add(blockDisplayName(b.defaultBlockState()));
             }
 
-            Block primaryBlock = sortedBlocks.get(0);
-            ResourceLocation primaryRl = ForgeRegistries.BLOCKS.getKey(primaryBlock);
-            String groupId = "optional_" + (primaryRl != null ? primaryRl.toString().replace(":", "_") : "unknown");
+            // Use the sorted block-ID signature as the group ID so it is stable across
+            // world restarts (previously used primaryBlock which had non-deterministic ordering).
+            String groupId = "optional_" + sigEntry.getKey().replace(":", "_").replace("|", "__");
             if (excludeIds.contains(groupId)) continue;
 
             Map<BlockPos, Integer> posMap = new HashMap<>();

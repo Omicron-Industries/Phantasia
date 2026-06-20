@@ -88,16 +88,29 @@ public class ArsNouveauSetupDefinition implements IPhantasiaMultiblockDefinition
     @Override
     public void onShapeLoaded(PhantasiaTrackedDummyWorld level, BlockPos origin,
                               Map<BlockPos, BlockInfo> blockMap,
-                              Map<BlockPos, BlockPos> localToWorld) {
+                              Map<BlockPos, BlockPos> localToWorld,
+                              @Nullable net.phoenixvine.phantasia.common.data.script.PhantasiaScriptData script) {
         List<IPhantasiaSetupRecipe> recipes = setup.getRecipes();
         if (recipes.isEmpty()) return;
 
-        String preferredPath = switch (setup.getId().getPath()) {
-            case "enchanting_apparatus" -> "magebloom_seed";
-            case "imbuement_chamber" -> "source_gem";
-            default -> null;
-        };
-        IPhantasiaSetupRecipe recipe = preferredRecipe(recipes, preferredPath);
+        // If the script specifies a recipe, use it directly. Fall back to the
+        // hardcoded default so scenes without a recipeId still look reasonable.
+        String recipeId = script != null ? script.getRecipeId() : null;
+        IPhantasiaSetupRecipe recipe;
+        if (recipeId != null) {
+            recipe = recipes.stream()
+                    .filter(r -> r.getId().toString().equals(recipeId))
+                    .findFirst()
+                    .orElse(null);
+            if (recipe == null) return; // recipeId set but not found — skip item setup
+        } else {
+            String preferredPath = switch (setup.getId().getPath()) {
+                case "enchanting_apparatus" -> "magebloom_seed";
+                case "imbuement_chamber" -> "source_gem";
+                default -> null;
+            };
+            recipe = preferredRecipe(recipes, preferredPath);
+        }
         Map<BlockPos, ItemStack> placements = recipe.getItemPlacements();
         if (placements == null || placements.isEmpty()) return;
 

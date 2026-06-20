@@ -7,6 +7,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.phoenixvine.phantasia.client.screens.PhantasiaSceneScreen;
+import net.phoenixvine.phantasia.client.screens.PhantasiaScreen;
 import net.phoenixvine.phantasia.common.data.variant.PhantasiaVariantGroup;
 import net.phoenixvine.phantasia.common.data.variant.PhantasiaVariantState;
 import net.phoenixvine.phantasia.utils.PhantasiaThemeUtils;
@@ -38,11 +39,11 @@ public class PhantasiaVariantsScreen extends Screen {
 
     // ── Layout ────────────────────────────────────────────────────────────────
 
-    private static final int PANEL_W = 280;
+    private int panelW;
     private static final int PANEL_PADDING = 12;
     private static final int SECTION_HEADER_H = 18;
     private static final int ROW_H = 22;
-    private static final int DROPDOWN_W = 160;
+    private int dropdownW;
     private static final int DROPDOWN_ITEM_H = 16;
     private int dropdownScrollY = 0;
     private final int maxDropdownHeight = 16 * 8;
@@ -89,33 +90,41 @@ public class PhantasiaVariantsScreen extends Screen {
     @Override
     protected void init() {
         super.init();
+        panelW = Math.min(280, this.width - 16);
+        dropdownW = Math.min(160, panelW - 20);
     }
 
     @Override
     public void render(GuiGraphics g, int mx, int my, float partial) {
-        // Dim background
-        renderBackground(g);
+        if (parent instanceof PhantasiaScreen ps) {
+            ps.renderAsBackground(g, partial);
+        } else if (parent instanceof PhantasiaSceneScreen pss) {
+            pss.renderAsBackground(g, partial);
+        } else {
+            g.fill(0, 0, this.width, this.height, C_BG());
+        }
+        g.fill(0, 0, this.width, this.height, 0x80000000);
         activeButtons.clear();
 
-        int panelX = (width - PANEL_W) / 2;
+        int panelX = (width - panelW) / 2;
         int panelY = 20;
         int panelH = height - 40;
 
         // ── Panel background ──────────────────────────────────────────────────
-        g.fill(panelX, panelY, panelX + PANEL_W, panelY + panelH, 0xE0101018);
-        PhantasiaThemeUtils.drawBorderRect(g, panelX, panelY, PANEL_W, panelH, C_BORDER());
+        g.fill(panelX, panelY, panelX + panelW, panelY + panelH, 0xE0101018);
+        PhantasiaThemeUtils.drawBorderRect(g, panelX, panelY, panelW, panelH, C_BORDER());
 
         // ── Title bar ─────────────────────────────────────────────────────────
         int titleBarH = 20;
-        g.fill(panelX, panelY, panelX + PANEL_W, panelY + titleBarH, 0xFF161625);
-        g.drawCenteredString(font, "§bVariants", panelX + PANEL_W / 2, panelY + 6, 0xFFFFFF);
+        g.fill(panelX, panelY, panelX + panelW, panelY + titleBarH, 0xFF161625);
+        g.drawCenteredString(font, "§bVariants", panelX + panelW / 2, panelY + 6, 0xFFFFFF);
 
         // Close button
-        regBtn(g, mx, my, panelX + PANEL_W - 18, panelY + 3, 14, 14, "✕", () -> onClose());
+        regBtn(g, mx, my, panelX + panelW - 18, panelY + 3, 14, 14, "✕", () -> onClose());
 
         // ── Content area (scrollable) ─────────────────────────────────────────
         int contentX = panelX + PANEL_PADDING;
-        int contentW = PANEL_W - PANEL_PADDING * 2;
+        int contentW = panelW - PANEL_PADDING * 2;
         int contentY = panelY + titleBarH + 4;
         int contentH = panelH - titleBarH - 8;
 
@@ -168,9 +177,9 @@ public class PhantasiaVariantsScreen extends Screen {
             int trackH = contentH;
             int thumbH = Math.max(20, contentH * contentH / totalContentH);
             int thumbY = contentY + (scrollY * (trackH - thumbH) / (totalContentH - contentH));
-            g.fill(panelX + PANEL_W - 5, contentY, panelX + PANEL_W - 2,
+            g.fill(panelX + panelW - 5, contentY, panelX + panelW - 2,
                     contentY + trackH, 0xFF222233);
-            g.fill(panelX + PANEL_W - 5, thumbY, panelX + PANEL_W - 2,
+            g.fill(panelX + panelW - 5, thumbY, panelX + panelW - 2,
                     thumbY + thumbH, 0xFF6666AA);
         }
 
@@ -188,11 +197,11 @@ public class PhantasiaVariantsScreen extends Screen {
         g.fill(contentX, rowY, contentX + contentW, rowY + ROW_H, rowBg);
 
         // Group label
-        String label = trunc(group.getLabel(), contentW - DROPDOWN_W - 12);
+        String label = trunc(group.getLabel(), contentW - dropdownW - 12);
         g.drawString(font, label, contentX + 4, rowY + 7, 0xCCCCCC);
 
         // Dropdown button
-        int ddX = contentX + contentW - DROPDOWN_W;
+        int ddX = contentX + contentW - dropdownW;
         int ddY = rowY + 3;
         int ddH = ROW_H - 6;
 
@@ -201,20 +210,20 @@ public class PhantasiaVariantsScreen extends Screen {
         String selectedLabel = selectedIdx >= 0 && selectedIdx < labels.size() ? labels.get(selectedIdx) : "?";
 
         boolean ddOpen = group.getId().equals(openDropdownGroupId);
-        boolean ddHov = isOver(mx, my, ddX, ddY, DROPDOWN_W, ddH);
+        boolean ddHov = isOver(mx, my, ddX, ddY, dropdownW, ddH);
 
         // Dropdown background
         int ddBg = ddOpen ? C_BTN_ACT() : (ddHov ? brighten(C_BTN(), 0.15f) : C_BTN());
-        g.fill(ddX, ddY, ddX + DROPDOWN_W, ddY + ddH, ddBg);
-        PhantasiaThemeUtils.drawBorderRect(g, ddX, ddY, DROPDOWN_W, ddH, C_BORDER());
+        g.fill(ddX, ddY, ddX + dropdownW, ddY + ddH, ddBg);
+        PhantasiaThemeUtils.drawBorderRect(g, ddX, ddY, dropdownW, ddH, C_BORDER());
 
         // Selected label + arrow
-        String truncLabel = trunc(selectedLabel, DROPDOWN_W - 18);
+        String truncLabel = trunc(selectedLabel, dropdownW - 18);
         g.drawString(font, truncLabel, ddX + 4, ddY + 3, 0xFFFFFF);
-        g.drawString(font, ddOpen ? "▲" : "▼", ddX + DROPDOWN_W - 12, ddY + 3, 0xAAAAAA);
+        g.drawString(font, ddOpen ? "▲" : "▼", ddX + dropdownW - 12, ddY + 3, 0xAAAAAA);
 
         final String gid = group.getId();
-        activeButtons.add(new PhantasiaUIUtils.ButtonAction(ddX, ddY, DROPDOWN_W, ddH, () -> {
+        activeButtons.add(new PhantasiaUIUtils.ButtonAction(ddX, ddY, dropdownW, ddH, () -> {
             openDropdownGroupId = gid.equals(openDropdownGroupId) ? null : gid;
         }));
 
@@ -239,7 +248,7 @@ public class PhantasiaVariantsScreen extends Screen {
             return;
         }
 
-        int ddX = contentX + contentW - DROPDOWN_W;
+        int ddX = contentX + contentW - dropdownW;
         int numOptions = openGroup.getOptions().size();
 
         // Find Y position of this group's row by precisely mimicking the render loop layout
@@ -279,18 +288,18 @@ public class PhantasiaVariantsScreen extends Screen {
         g.pose().translate(0, 0, 300.0F);
 
         // Drop shadow
-        g.fill(ddX + 2, dropY + 2, ddX + DROPDOWN_W + 2, dropY + visibleListH + 2, 0x66000000);
+        g.fill(ddX + 2, dropY + 2, ddX + dropdownW + 2, dropY + visibleListH + 2, 0x66000000);
 
         // List background & Outer Border
-        g.fill(ddX, dropY, ddX + DROPDOWN_W, dropY + visibleListH, 0xFF151520);
-        PhantasiaThemeUtils.drawBorderRect(g, ddX, dropY, DROPDOWN_W, visibleListH, C_BORDER());
+        g.fill(ddX, dropY, ddX + dropdownW, dropY + visibleListH, 0xFF151520);
+        PhantasiaThemeUtils.drawBorderRect(g, ddX, dropY, dropdownW, visibleListH, C_BORDER());
 
         // ── Scissor List Content ──────────────────────────────────────────────
         double scale = Minecraft.getInstance().getWindow().getGuiScale();
         int scissorY = (int) ((height - dropY - visibleListH) * scale);
         RenderSystem.enableScissor(
                 (int) (ddX * scale), scissorY,
-                (int) (DROPDOWN_W * scale), (int) (visibleListH * scale));
+                (int) (dropdownW * scale), (int) (visibleListH * scale));
 
         int selectedIdx = variantState.getSelection(openGroup.getId());
 
@@ -299,27 +308,27 @@ public class PhantasiaVariantsScreen extends Screen {
             int itemY = dropY + (i * DROPDOWN_ITEM_H) - dropdownScrollY;
 
             // Mouse hover checks must hit both the item bounds and the global dropdown visible box
-            boolean itemHov = isOver(mx, my, ddX, itemY, DROPDOWN_W, DROPDOWN_ITEM_H) &&
-                    isOver(mx, my, ddX, dropY, DROPDOWN_W, visibleListH);
+            boolean itemHov = isOver(mx, my, ddX, itemY, dropdownW, DROPDOWN_ITEM_H) &&
+                    isOver(mx, my, ddX, dropY, dropdownW, visibleListH);
 
             boolean itemSel = i == selectedIdx;
 
             int itemBg = itemSel ? 0xFF2A2A50 : (itemHov ? 0xFF1E1E35 : 0x00000000);
-            g.fill(ddX, itemY, ddX + DROPDOWN_W, itemY + DROPDOWN_ITEM_H, itemBg);
+            g.fill(ddX, itemY, ddX + dropdownW, itemY + DROPDOWN_ITEM_H, itemBg);
 
             String optLabel = i < openGroup.getOptionLabels().size() ? openGroup.getOptionLabels().get(i) :
                     "Option " + i;
             int textColor = itemSel ? 0xAABBFF : (itemHov ? 0xEEEEEE : 0xBBBBBB);
 
-            g.drawString(font, trunc(optLabel, DROPDOWN_W - 20), ddX + 4, itemY + 4, textColor);
+            g.drawString(font, trunc(optLabel, dropdownW - 20), ddX + 4, itemY + 4, textColor);
 
             if (itemSel) {
-                g.drawString(font, "✔", ddX + DROPDOWN_W - 12, itemY + 4, 0x66AAFF);
+                g.drawString(font, "✔", ddX + dropdownW - 12, itemY + 4, 0x66AAFF);
             }
 
             final int finalI = i;
             final String gid = openGroup.getId();
-            activeButtons.add(new PhantasiaUIUtils.ButtonAction(ddX, itemY, DROPDOWN_W,
+            activeButtons.add(new PhantasiaUIUtils.ButtonAction(ddX, itemY, dropdownW,
                     DROPDOWN_ITEM_H, () -> {
                         variantState.setSelection(gid, finalI);
                         openDropdownGroupId = null;
@@ -332,7 +341,7 @@ public class PhantasiaVariantsScreen extends Screen {
         // ── Dropdown Mini Scrollbar Indicator ─────────────────────────────────
         if (totalListH > visibleListH) {
             int sbW = 2;
-            int sbX = ddX + DROPDOWN_W - sbW - 1;
+            int sbX = ddX + dropdownW - sbW - 1;
             int thumbH = Math.max(8, visibleListH * visibleListH / totalListH);
             int thumbY = dropY + (dropdownScrollY * (visibleListH - thumbH) / (totalListH - visibleListH));
             g.fill(sbX, dropY, sbX + sbW, dropY + visibleListH, 0x33FFFFFF);
@@ -350,7 +359,7 @@ public class PhantasiaVariantsScreen extends Screen {
             // 1. Prioritize checking the active dropdown area first
             if (openDropdownGroupId != null) {
                 // Re-calculate the dropdown's exact screen bounding box
-                int ddX = ((width - PANEL_W) / 2) + PANEL_PADDING + (PANEL_W - PANEL_PADDING * 2) - DROPDOWN_W;
+                int ddX = ((width - panelW) / 2) + PANEL_PADDING + (panelW - PANEL_PADDING * 2) - dropdownW;
 
                 // Recalculate dropY exactly like the render loop
                 int rowY = (20 + 20 + 4) - scrollY; // panelY + titleBarH + 4
@@ -374,7 +383,7 @@ public class PhantasiaVariantsScreen extends Screen {
                 int maxAllowedH = (20 + (height - 40) - 4) - dropY; // (panelY + panelH - 4) - dropY
                 int visibleListH = Math.max(DROPDOWN_ITEM_H, Math.min(idealListH, maxAllowedH));
 
-                boolean clickIsInsideDropdownArea = isOver((int) mx, (int) my, ddX, dropY, DROPDOWN_W, visibleListH);
+                boolean clickIsInsideDropdownArea = isOver((int) mx, (int) my, ddX, dropY, dropdownW, visibleListH);
 
                 if (clickIsInsideDropdownArea) {
                     // Only scan buttons that actually fit inside the visible scissored bounding box

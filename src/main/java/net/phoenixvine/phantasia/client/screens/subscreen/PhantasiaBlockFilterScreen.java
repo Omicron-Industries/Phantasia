@@ -15,6 +15,7 @@ import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.phoenixvine.phantasia.client.screens.PhantasiaSceneScreen;
+import net.phoenixvine.phantasia.client.screens.PhantasiaScreen;
 import net.phoenixvine.phantasia.common.data.pattern.PhantasiaLoadedPattern;
 import net.phoenixvine.phantasia.common.data.script.PhantasiaScript;
 
@@ -164,7 +165,7 @@ public class PhantasiaBlockFilterScreen extends Screen {
 
     private void renderFilterTab(GuiGraphics g, int mx, int my) {
         int y = 50;
-        int bw = 200, x = (this.width - bw) / 2;
+        int bw = Math.min(200, this.width - 20), x = (this.width - bw) / 2;
 
         g.drawCenteredString(font, "Select which blocks to highlight", this.width / 2, y, C_DIM());
         y += 18;
@@ -428,7 +429,7 @@ public class PhantasiaBlockFilterScreen extends Screen {
 
         switch (tab) {
             case FILTER -> {
-                int fw = 200, fx = (this.width - fw) / 2;
+                int fw = Math.min(200, this.width - 20), fx = (this.width - fw) / 2;
                 int y = 68;
 
                 PhantasiaSceneScreen.ViewFilter[] vfs = PhantasiaSceneScreen.ViewFilter.values();

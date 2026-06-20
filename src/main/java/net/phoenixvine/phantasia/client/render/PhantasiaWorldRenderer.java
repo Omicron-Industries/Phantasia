@@ -185,6 +185,16 @@ public final class PhantasiaWorldRenderer {
     /** Block count above which streaming bake is used instead of a monolithic bake. */
     public static final int STREAMING_THRESHOLD = 4_000;
 
+    /** Returns the effective streaming threshold, respecting the in-game config. */
+    public static int effectiveStreamingThreshold() {
+        if (net.phoenixvine.phantasia.configs.PhantasiaConfigs.INSTANCE == null) return STREAMING_THRESHOLD;
+        return switch (net.phoenixvine.phantasia.configs.PhantasiaConfigs.INSTANCE.phantasiaUI.streamingMode) {
+            case PERFORMANCE -> 500;
+            case QUALITY     -> 20_000;
+            default          -> STREAMING_THRESHOLD;
+        };
+    }
+
     /** Blocks processed per streaming chunk. */
     private static final int STREAMING_CHUNK_SIZE = 4_000;
 
@@ -253,9 +263,23 @@ public final class PhantasiaWorldRenderer {
 
     private volatile boolean fullBakeNeeded = false;
     private volatile boolean partialBakePending = false;
+    /** Set by close() so that queued recordRenderCall lambdas discard rather than upload. */
+    private volatile boolean closed = false;
 
     /** Positions queued for the next partial bake. Set from the main thread. */
     private volatile Set<BlockPos> partialBakePositions = Collections.emptySet();
+
+    /**
+     * Returns true once the initial bake has completed and the scene is fully visible.
+     * Scripts should not autostart until this returns true.
+     */
+    public boolean isSceneReady() {
+        // Ready once any geometry is visible: either the full consolidated front buffer
+        // is uploaded, or at least one streaming chunk has landed on the render thread.
+        // For large scenes (monsterblocks etc.) the consolidating bake can take minutes;
+        // streaming chunks make the scene visible within seconds, so we ungate here.
+        return frontHasContent || streamChunksReady > 0;
+    }
 
     private final AtomicInteger pendingUploads = new AtomicInteger(0);
 
@@ -303,15 +327,6 @@ public final class PhantasiaWorldRenderer {
     @Nullable
     private BlockPos controllerWorldPos = null;
 
-    /**
-     * The slot origin this pattern was placed at (from PhantasiaSlotAllocator).
-     *
-     * All block geometry is baked at world-space slot coordinates (potentially
-     * tens of thousands of blocks from 0,0). The modelview matrix is shifted by
-     * the full float32 precision that GT's 0.001-block overlay offset requires.
-     *
-     * BlockPos values remain in dummy-world coordinate space.
-     */
     private BlockPos slotOrigin = BlockPos.ZERO;
 
     // Keep a reference to the active layout pattern for exact boundary collision tests
@@ -625,7 +640,10 @@ public final class PhantasiaWorldRenderer {
                 if (!animateTickList.isEmpty()) {
                     RandomSource ar = RandomSource.createNewThreadLocalInstance();
                     int size = animateTickList.size();
-                    int limit = Math.min(ANIMATE_TICK_BUDGET, size);
+                    int budget = net.phoenixvine.phantasia.configs.PhantasiaConfigs.INSTANCE != null
+                            ? net.phoenixvine.phantasia.configs.PhantasiaConfigs.INSTANCE.phantasiaUI.animateTickBudget
+                            : ANIMATE_TICK_BUDGET;
+                    int limit = Math.min(budget, size);
                     for (int _i = 0; _i < limit; _i++) {
                         if (animateTickIdx >= size) animateTickIdx = 0;
                         AnimTickEntry entry = animateTickList.get(animateTickIdx++);
@@ -999,7 +1017,7 @@ public final class PhantasiaWorldRenderer {
 
         // Large patterns stream block-by-block in 4k chunks so the scene is
         // immediately visible and populates in real time.
-        if (snapshot.size() > STREAMING_THRESHOLD) {
+        if (snapshot.size() > effectiveStreamingThreshold()) {
             scheduleStreamingBake(snapshot);
             return;
         }
@@ -1025,6 +1043,7 @@ public final class PhantasiaWorldRenderer {
             // then enqueue all GPU uploads in one batch.
             Set<BlockPos> animatedBack = new HashSet<>();
             BakedLayer[] baked = new BakedLayer[LAYER_COUNT];
+            boolean fullBakeDone = false;
             try {
                 for (int i = 0; i < LAYER_COUNT; i++) {
                     if (Thread.interrupted()) return;
@@ -1036,20 +1055,25 @@ public final class PhantasiaWorldRenderer {
                         continue;
                     }
                     baked[i] = bakeLayerToBuffer(brd, random, layer, solid, fluid, animatedBack);
-                    if (baked[i] == null) return; // interrupted inside bakeLayerToBuffer
+                    if (baked[i] == null) return; // interrupted inside bakeLayerToBuffer — bb already released
                 }
+                fullBakeDone = true;
             } finally {
                 ModelBlockRenderer.clearCache();
                 restoreVariants(hiddenSaved);
                 restoreVariants(variantSaved);
+                if (!fullBakeDone) {
+                    for (BakedLayer bl : baked) if (bl != null) bl.renderedBuffer().release();
+                    return;
+                }
             }
-            // Only upload non-empty layers
 
             pendingUploads.set(LAYER_COUNT);
             for (int i = 0; i < LAYER_COUNT; i++) {
                 final int fi = i;
                 final BakedLayer bl = baked[fi]; // null = empty layer
                 RenderSystem.recordRenderCall(() -> {
+                    if (closed) { pendingUploads.decrementAndGet(); return; }
                     if (bl != null) uploadToVBO(back[fi], bl);
                     else uploadEmptyVBO(back[fi], LAYERS.get(fi));
                     if (pendingUploads.decrementAndGet() == 0) backReady = true;
@@ -1129,6 +1153,7 @@ public final class PhantasiaWorldRenderer {
                     bucket(brd, random, new HashSet<>(chunk), solidBuckets, fluidBuckets);
 
                     BakedLayer[] baked = new BakedLayer[LAYER_COUNT];
+                    boolean chunkDone = false;
                     try {
                         for (int i = 0; i < LAYER_COUNT; i++) {
                             if (Thread.interrupted()) return;
@@ -1140,10 +1165,14 @@ public final class PhantasiaWorldRenderer {
                                 continue;
                             }
                             baked[i] = bakeLayerToBuffer(brd, random, layer, solid, fluid, animatedBack);
-                            if (baked[i] == null) return; // interrupted inside bakeLayerToBuffer
+                            if (baked[i] == null) return; // interrupted inside bakeLayerToBuffer — bb already released
                         }
+                        chunkDone = true;
                     } finally {
                         ModelBlockRenderer.clearCache();
+                        if (!chunkDone) {
+                            for (BakedLayer bl : baked) if (bl != null) bl.renderedBuffer().release();
+                        }
                     }
 
                     // Collect BEs for this chunk.
@@ -1158,6 +1187,7 @@ public final class PhantasiaWorldRenderer {
 
                     // Upload this chunk's geometry to a fresh VBO set on the render thread.
                     RenderSystem.recordRenderCall(() -> {
+                        if (closed) return; // renderer was closed — discard, don't leak VBOs
                         VertexBuffer[] chunkVBOs = new VertexBuffer[LAYER_COUNT];
                         for (int i = 0; i < LAYER_COUNT; i++) {
                             chunkVBOs[i] = new VertexBuffer(VertexBuffer.Usage.STATIC);
@@ -1198,6 +1228,7 @@ public final class PhantasiaWorldRenderer {
 
             Set<BlockPos> animatedBack2 = new HashSet<>();
             BakedLayer[] finalBaked = new BakedLayer[LAYER_COUNT];
+            boolean consolidateDone = false;
             try {
                 for (int i = 0; i < LAYER_COUNT; i++) {
                     if (Thread.interrupted()) return;
@@ -1210,10 +1241,16 @@ public final class PhantasiaWorldRenderer {
                     }
                     finalBaked[i] = bakeLayerToBuffer(brd, random, layer, solid, fluid, animatedBack2);
                 }
+                consolidateDone = true;
             } finally {
                 ModelBlockRenderer.clearCache();
                 restoreVariants(hidSaved2);
                 restoreVariants(vs2saved);
+                if (!consolidateDone) {
+                    // Interrupted mid-loop — release any layers already baked to avoid native memory leak.
+                    for (BakedLayer bl : finalBaked) if (bl != null) bl.renderedBuffer().release();
+                    return;
+                }
             }
 
             pendingUploads.set(LAYER_COUNT);
@@ -1221,6 +1258,7 @@ public final class PhantasiaWorldRenderer {
                 final int fi = i;
                 final BakedLayer bl = finalBaked[fi];
                 RenderSystem.recordRenderCall(() -> {
+                    if (closed) { pendingUploads.decrementAndGet(); return; }
                     if (bl != null) uploadToVBO(back[fi], bl);
                     else uploadEmptyVBO(back[fi], LAYERS.get(fi));
                     if (pendingUploads.decrementAndGet() == 0) {
@@ -1263,6 +1301,7 @@ public final class PhantasiaWorldRenderer {
 
             Set<BlockPos> animatedBack = new HashSet<>();
             BakedLayer[] baked = new BakedLayer[LAYER_COUNT];
+            boolean partialDone = false;
             try {
                 for (int i = 0; i < LAYER_COUNT; i++) {
                     if (Thread.interrupted()) return;
@@ -1275,16 +1314,22 @@ public final class PhantasiaWorldRenderer {
                     }
                     baked[i] = bakeLayerToBuffer(brd, random, layer, solid, fluid, animatedBack);
                 }
+                partialDone = true;
             } finally {
                 ModelBlockRenderer.clearCache();
                 restoreVariants(hiddenSaved);
                 restoreVariants(variantSaved);
+                if (!partialDone) {
+                    for (BakedLayer bl : baked) if (bl != null) bl.renderedBuffer().release();
+                    return;
+                }
             }
             pendingUploads.set(LAYER_COUNT);
             for (int i = 0; i < LAYER_COUNT; i++) {
                 final int fi = i;
                 final BakedLayer bl = baked[fi];
                 RenderSystem.recordRenderCall(() -> {
+                    if (closed) { pendingUploads.decrementAndGet(); return; }
                     if (bl != null) uploadToVBO(overlay[fi], bl);
                     else uploadEmptyVBO(overlay[fi], LAYERS.get(fi));
                     if (pendingUploads.decrementAndGet() == 0) overlayReady = true;
@@ -1336,7 +1381,10 @@ public final class PhantasiaWorldRenderer {
         for (BlockPos pos : solid) {
             if (++checkInterval >= 512) {
                 checkInterval = 0;
-                if (Thread.interrupted()) return null;
+                if (Thread.interrupted()) {
+                    bb.end().release(); // free off-heap ByteBuffer — MemoryUtil alloc has no GC Cleaner
+                    return null;
+                }
             }
             BlockState state = world.getBlockState(pos);
             ps.pushPose();
@@ -1902,6 +1950,7 @@ public final class PhantasiaWorldRenderer {
     // ── Cleanup ───────────────────────────────────────────────────────────────
 
     public void close() {
+        closed = true; // must be first — guards all pending recordRenderCall lambdas
         if (bakeFuture != null) {
             bakeFuture.cancel(true);
             bakeFuture = null;

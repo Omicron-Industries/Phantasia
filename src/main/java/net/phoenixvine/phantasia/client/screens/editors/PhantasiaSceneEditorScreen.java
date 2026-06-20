@@ -77,6 +77,20 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
     /** Camera floating panel toggle (top-bar tab) */
     private boolean showCameraPanel = false;
 
+    // ── WORLD mode ────────────────────────────────────────────────────────────
+    /** World-item floating panel toggle (top-bar tab) */
+    private boolean showWorldItemPanel = false;
+    /** Local-space selected block in WORLD mode (relative to placement offset). */
+    private BlockPos wiBlock = null;
+    /** Which placement wiBlock belongs to. */
+    private int wiPlacementIdx = -1;
+    private EditBox wiItemBox;
+    private EditBox wiSourceBox;
+    private BlockPos hoveredWorldPos = null;
+    private float sceneSelectPulse = 0f;
+    private boolean sceneSelectPulseUp = true;
+    private static final int WI_PANEL_H = 62;
+
     // ── Placements panel ──────────────────────────────────────────────────────
     private boolean showPlacementsPanel = true;
     private int selectedPlacement = -1; // -1 = no selection / global step view
@@ -187,6 +201,7 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         }
 
         initCamera();
+        applyActiveStateToScene(step().working);
         rebuildVisibility();
     }
 
@@ -274,6 +289,18 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
             }
             dirty = true;
         });
+
+        // WORLD mode boxes
+        wiItemBox = addW(new EditBox(font, 0, 0, 200, 12, Component.empty()));
+        wiItemBox.setMaxLength(120);
+        wiItemBox.setHint(Component.literal("namespace:item  (blank = clear slot)"));
+        wiItemBox.visible = false; wiItemBox.active = false;
+
+        wiSourceBox = addW(new EditBox(font, 0, 0, 54, 12, Component.empty()));
+        wiSourceBox.setMaxLength(6);
+        wiSourceBox.setHint(Component.literal("1-10k"));
+        wiSourceBox.setFilter(v -> v.matches("\\d*"));
+        wiSourceBox.visible = false; wiSourceBox.active = false;
 
         // Per-placement override boxes
         ovLayerBox = addW(new EditBox(font, 0, 0, 28, 12, Component.empty()));
@@ -371,6 +398,9 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
     public void tick() {
         super.tick();
         if (camera != null) camera.tick();
+        sceneSelectPulse += sceneSelectPulseUp ? 0.07f : -0.07f;
+        if (sceneSelectPulse >= 1f) { sceneSelectPulse = 1f; sceneSelectPulseUp = false; }
+        if (sceneSelectPulse <= 0f) { sceneSelectPulse = 0f; sceneSelectPulseUp = true; }
 
         if (previewing) {
             previewAccum += 1f;
@@ -396,11 +426,76 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
     // Visibility
     // ─────────────────────────────────────────────────────────────────────────
 
+    @Override
+    public void renderAsBackground(net.minecraft.client.gui.GuiGraphics g, float partial) {
+        g.fill(0, 0, this.width, this.height, net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.C_BG());
+        if (renderer != null && camera != null) {
+            int sceneX = showPlacementsPanel ? PLACEMENTS_PANEL_W : 0;
+            int sceneW = this.width - sceneX;
+            int sceneH = this.height - TOP_BAR_H - BOTTOM_H;
+            net.phoenixvine.phantasia.client.camera.CameraView view = camera.getView(partial);
+            renderer.render(view, sceneX, TOP_BAR_H, sceneW, sceneH);
+        }
+    }
+
     void rebuildVisibility() {
         if (renderer == null || scenePattern == null) return;
         Set<BlockPos> visible = scenePattern.computeVisible(step(), data);
         renderer.setVisible(visible);
         renderer.requestBake();
+    }
+
+    private void applyActiveStateToScene(boolean globalWorking) {
+        if (editorLevel == null || scenePattern == null) return;
+        PhantasiaSceneData.StepData s = step();
+
+        // Build per-position effective working state, respecting per-placement overrides.
+        java.util.Map<net.minecraft.core.BlockPos, Boolean> posWorking = new java.util.HashMap<>();
+        for (PhantasiaScenePattern.PlacementEntry pe : scenePattern.placements) {
+            PhantasiaSceneData.MachineOverride ov = s.getOverride(pe.index);
+            boolean effective = ov != null ? ov.resolveWorking(globalWorking) : globalWorking;
+            for (net.minecraft.core.BlockPos wp : pe.worldPositions) posWorking.put(wp, effective);
+        }
+
+        // Set RecipeLogic status on each WorkableMultiblockMachine controller in this level.
+        // This drives the primary GTCEu "working" visual state (controller BE, sounds, etc.).
+        try {
+            for (net.minecraft.world.level.block.entity.BlockEntity be : editorLevel.blockEntities.values()) {
+                if (!(be instanceof com.gregtechceu.gtceu.api.blockentity.MetaMachineBlockEntity mmbe)) continue;
+                var machine = mmbe.getMetaMachine();
+                if (!(machine instanceof com.gregtechceu.gtceu.api.machine.multiblock.WorkableMultiblockMachine workable)) continue;
+                Boolean effective = posWorking.get(be.getBlockPos());
+                if (effective == null) effective = globalWorking;
+                com.gregtechceu.gtceu.api.machine.trait.RecipeLogic logic = workable.getRecipeLogic();
+                if (logic != null)
+                    logic.setStatus(effective ? com.gregtechceu.gtceu.api.machine.trait.RecipeLogic.Status.WORKING
+                                              : com.gregtechceu.gtceu.api.machine.trait.RecipeLogic.Status.IDLE);
+            }
+        } catch (Throwable ignored) {}
+
+        // Also toggle ActiveBlock state properties for coils, fireboxes, etc.
+        for (java.util.Map.Entry<net.minecraft.core.BlockPos, com.lowdragmc.lowdraglib.utils.BlockInfo> e : scenePattern.mergedBlockMap.entrySet()) {
+            net.minecraft.world.level.block.state.BlockState original = e.getValue().getBlockState();
+            if (original == null || original.isAir()) continue;
+            try {
+                net.minecraft.core.BlockPos worldPos = e.getKey();
+                boolean effectiveWorking = posWorking.getOrDefault(worldPos, globalWorking);
+                net.minecraft.world.level.block.state.BlockState current = editorLevel.getBlockState(worldPos);
+                if (current == null || current.isAir()) continue;
+                var currentBlock = current.getBlock();
+                com.gregtechceu.gtceu.api.block.ActiveBlock ab;
+                if (currentBlock instanceof com.gregtechceu.gtceu.api.block.ActiveBlock currentAb) {
+                    ab = currentAb;
+                } else {
+                    var origBlock = original.getBlock();
+                    if (!(origBlock instanceof com.gregtechceu.gtceu.api.block.ActiveBlock origAb)) continue;
+                    ab = origAb;
+                }
+                net.minecraft.world.level.block.state.BlockState next = ab.changeActive(current, effectiveWorking);
+                if (next != current) editorLevel.setBlock(worldPos, next, 2);
+            } catch (Throwable ignored) {}
+        }
+        if (renderer != null) renderer.requestBake();
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -422,12 +517,19 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
             int sceneX = showPlacementsPanel ? PLACEMENTS_PANEL_W : 0;
             int sceneW = this.width - sceneX;
             int sceneH = this.height - TOP_BAR_H - BOTTOM_H;
-            // Don't feed the mouse position to the renderer if the camera panel is open
-            // and the cursor is over it — otherwise block-hover tooltips bleed through.
             boolean overCamPanel = showCameraPanel && isCamPanelHit(mx, my);
-            renderer.setMousePos(overCamPanel ? -1 : mx, overCamPanel ? -1 : my);
+            boolean overWiPanel = showWorldItemPanel && isWiPanelHit(mx, my);
+            renderer.setMousePos((overCamPanel || overWiPanel) ? -1 : mx, (overCamPanel || overWiPanel) ? -1 : my);
             CameraView view = camera.getView(partial);
             renderer.render(view, sceneX, TOP_BAR_H, sceneW, sceneH);
+            // Track hovered block for WORLD mode
+            net.minecraft.world.phys.BlockHitResult hit = renderer.getLastHitResult();
+            if (hit != null && hit.getType() == net.minecraft.world.phys.HitResult.Type.BLOCK) {
+                BlockPos hp = hit.getBlockPos();
+                hoveredWorldPos = renderer.isVisible(hp) ? hp : null;
+            } else {
+                hoveredWorldPos = null;
+            }
         }
 
         renderTopBar(g, mx, my);
@@ -436,6 +538,7 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         renderTimeline(g, mx, my);
         renderItemStrip(g);
         if (showCameraPanel) renderCameraPanel(g, mx, my);
+        if (showWorldItemPanel) renderWorldItemOverlay(g, mx, my);
 
         super.render(g, mx, my, partial);
 
@@ -484,12 +587,19 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
                 false);
         if (camHov) pendingTooltip = "Set per-step camera overrides (yaw, pitch, zoom, easing)";
         btns.add(new Btn(x, 3, camTabW, TOP_BAR_H - 6, () -> showCameraPanel = !showCameraPanel));
+        x += camTabW + 6;
 
-        // Scene name (centre)
-        String title = data.name != null && !data.name.isBlank() ? data.name : data.id;
-        g.drawCenteredString(font, title, this.width / 2, (TOP_BAR_H - 8) / 2, C_DIM());
+        // World items panel tab
+        int wiTabW = 70;
+        boolean wiHov = isOver(mx, my, x, 3, wiTabW, TOP_BAR_H - 6);
+        g.fill(x, 3, x + wiTabW, TOP_BAR_H - 3, showWorldItemPanel ? C_BTN_ACT() : (wiHov ? C_BTN_HOV() : C_BTN()));
+        if (showWorldItemPanel) g.fill(x, TOP_BAR_H - 3, x + wiTabW, TOP_BAR_H - 2, C_ACCENT());
+        g.drawString(font, "▦ World", x + 5, (TOP_BAR_H - 8) / 2, showWorldItemPanel ? C_ACCENT() : C_DIM(), false);
+        if (wiHov) pendingTooltip = "Place items in block entities per placement per step";
+        btns.add(new Btn(x, 3, wiTabW, TOP_BAR_H - 6, () -> { showWorldItemPanel = !showWorldItemPanel; wiBlock = null; }));
+        int leftEdge = x + wiTabW + 6;
 
-        // Right buttons
+        // Right buttons drawn first so we know where they end
         int rx = this.width - 4;
         rx = topBtn(g, mx, my, rx, "\u2715 Back", C_BTN(), "Close the editor (warns if unsaved)", this::onClose);
         rx = topBtn(g, mx, my, rx, "\uD83D\uDCBE Save", C_GREEN(), "Save scene to disk", this::save);
@@ -497,6 +607,14 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
             String dot = "\u25CF unsaved";
             rx -= font.width(dot) + 10;
             g.drawString(font, dot, rx, (TOP_BAR_H - 8) / 2, C_WARN(), false);
+        }
+        int rightEdge = rx - 4;
+
+        // Scene name: centered in the space between left buttons and right buttons
+        String title = data.name != null && !data.name.isBlank() ? data.name : data.id;
+        if (rightEdge > leftEdge) {
+            int titleX = (leftEdge + rightEdge) / 2;
+            g.drawCenteredString(font, title, titleX, (TOP_BAR_H - 8) / 2, C_DIM());
         }
     }
 
@@ -603,6 +721,228 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
                         r2Y + 2, C_DIM(), false);
             }
         }
+    }
+
+    // ── World items overlay ───────────────────────────────────────────────────
+
+    private boolean isWiPanelHit(int mx, int my) {
+        int panelX = showPlacementsPanel ? PLACEMENTS_PANEL_W + 6 : 6;
+        int panelY = this.height - BOTTOM_H - WI_PANEL_H - 4;
+        int panelW = Math.min(500, this.width - 16);
+        return isOver(mx, my, panelX - 2, panelY - 2, panelW + 4, WI_PANEL_H + 4);
+    }
+
+    private void renderWorldItemOverlay(GuiGraphics g, int mx, int my) {
+        if (scenePattern == null || camera == null || editorLevel == null) return;
+        CameraView view = camera.getView(0f);
+        Vector3f eye = view.eyePos(), lookat = view.lookAt();
+        Vector3f fwd = new Vector3f(lookat).sub(eye).normalize();
+        Vector3f rgt = new Vector3f(fwd).cross(new Vector3f(0, 1, 0)).normalize();
+        Vector3f upv = new Vector3f(rgt).cross(fwd).normalize();
+        float fov = this.height / (2f * (float) Math.tan(Math.toRadians(net.phoenixvine.phantasia.client.camera.PhantasiaCamera.FOV)));
+        int sceneBottom = this.height - BOTTOM_H;
+
+        if (selectedPlacement < 0 || selectedPlacement >= scenePattern.placements.size()) {
+            drawBanner(g, "Select a placement in the panel, then click a block entity to edit its item", TOP_BAR_H + 4, C_DIM());
+            return;
+        }
+
+        PhantasiaScenePattern.PlacementEntry pe = scenePattern.placements.get(selectedPlacement);
+        PhantasiaSceneData.MachineOverride ov = step().getOverride(selectedPlacement);
+        java.util.List<PhantasiaScriptData.WorldItemEntry> entries = ov != null ? ov.worldItems : java.util.Collections.emptyList();
+
+        for (BlockPos worldPos : pe.worldPositions) {
+            if (editorLevel.getBlockEntity(worldPos) == null) continue;
+            if (editorLevel.getBlockState(worldPos).getBlock() instanceof com.gregtechceu.gtceu.api.block.MetaMachineBlock) continue;
+
+            BlockPos local = worldPos.subtract(pe.offset);
+            boolean hasEntry = entries.stream().anyMatch(wi -> wi.x == local.getX() && wi.y == local.getY() && wi.z == local.getZ());
+            boolean isSelected = local.equals(wiBlock) && wiPlacementIdx == selectedPlacement;
+
+            float[] sc = projectToScreen(worldPos.getX() + 0.5f, worldPos.getY() + 0.5f, worldPos.getZ() + 0.5f,
+                    eye, fwd, rgt, upv, fov);
+            if (sc == null || sc[2] < 0.3f) continue;
+            int isx = (int) sc[0], isy = (int) sc[1];
+            if (isy < TOP_BAR_H || isy > sceneBottom) continue;
+
+            if (isSelected) {
+                g.fill(isx - 5, isy - 5, isx + 5, isy + 5, 0xCCFFFFFF);
+                g.fill(isx - 3, isy - 3, isx + 3, isy + 3, C_ACCENT() | 0xFF000000);
+            } else if (hasEntry) {
+                int alpha = (int) (0x55 + sceneSelectPulse * 0x77);
+                g.fill(isx - 4, isy - 4, isx + 4, isy + 4, (alpha << 24) | (C_GREEN() & 0xFFFFFF));
+            } else {
+                g.fill(isx - 3, isy - 3, isx + 3, isy + 3, 0x44AAAAAA);
+            }
+        }
+
+        if (wiBlock == null || wiPlacementIdx != selectedPlacement) {
+            String beCount = entries.isEmpty() ? "" : " (" + entries.size() + " set)";
+            drawBanner(g, "Click a block entity to edit its item for this placement/step — right-click to remove" + beCount, TOP_BAR_H + 4, C_DIM());
+        }
+
+        if (wiBlock != null && wiPlacementIdx == selectedPlacement) renderWorldItemPanel(g, mx, my);
+    }
+
+    private void renderWorldItemPanel(GuiGraphics g, int mx, int my) {
+        int panelX = showPlacementsPanel ? PLACEMENTS_PANEL_W + 6 : 6;
+        int panelW = Math.min(500, this.width - panelX - 10);
+        int panelY = this.height - BOTTOM_H - WI_PANEL_H - 4;
+
+        g.fill(panelX - 2, panelY - 2, panelX + panelW + 2, panelY + WI_PANEL_H + 2, 0xDD070712);
+        g.fill(panelX - 2, panelY - 2, panelX + panelW + 2, panelY - 1, C_ACCENT());
+
+        String placement = wiPlacementIdx >= 0 && wiPlacementIdx < data.placements.size()
+                ? data.placements.get(wiPlacementIdx).machine : "?";
+        String label = "World Items — " + placement + " @ " + wiBlock.toShortString();
+        if (editorLevel != null && scenePattern != null && wiPlacementIdx < scenePattern.placements.size()) {
+            BlockPos worldPos = wiBlock.offset(scenePattern.placements.get(wiPlacementIdx).offset);
+            net.minecraft.world.level.block.state.BlockState bs = editorLevel.getBlockState(worldPos);
+            if (!bs.isAir()) label += "  ·  " + bs.getBlock().getName().getString();
+        }
+        g.drawString(font, label, panelX + 4, panelY + 3, C_ACCENT(), false);
+
+        int row1Y = panelY + 14;
+        int x = panelX + 4;
+
+        g.drawString(font, "Item:", x, row1Y + 2, C_DIM(), false);
+        x += font.width("Item:") + 4;
+        placeBox(wiItemBox, x, row1Y, 200, 12);
+        x += 208;
+
+        g.drawString(font, "Source:", x, row1Y + 2, C_DIM(), false);
+        x += font.width("Source:") + 4;
+        placeBox(wiSourceBox, x, row1Y, 54, 12);
+        x += 62;
+
+        int confirmW = font.width("✓ Confirm") + 12;
+        boolean confHov = isOver(mx, my, x, row1Y, confirmW, 13);
+        g.fill(x, row1Y, x + confirmW, row1Y + 13, confHov ? C_BTN_HOV() : C_GREEN());
+        if (confHov) g.fill(x, row1Y, x + confirmW, row1Y + 1, C_ACCENT());
+        g.drawString(font, "✓ Confirm", x + 6, row1Y + 2, confHov ? C_ACCENT() : C_TEXT(), false);
+        btns.add(new Btn(x, row1Y, confirmW, 13, this::confirmWorldItemEntry));
+        x += confirmW + 4;
+
+        PhantasiaSceneData.MachineOverride ov = step().getOverride(wiPlacementIdx);
+        boolean hasEntry = ov != null && wiBlock != null && ov.worldItems.stream().anyMatch(
+                wi -> wi.x == wiBlock.getX() && wi.y == wiBlock.getY() && wi.z == wiBlock.getZ());
+        if (hasEntry) {
+            int remW = font.width("✕ Remove") + 12;
+            boolean remHov = isOver(mx, my, x, row1Y, remW, 13);
+            g.fill(x, row1Y, x + remW, row1Y + 13, remHov ? C_BTN_HOV() : C_BTN());
+            g.drawString(font, "✕ Remove", x + 6, row1Y + 2, remHov ? C_RED() : C_DIM(), false);
+            btns.add(new Btn(x, row1Y, remW, 13, this::removeWorldItemEntry));
+        }
+
+        int row2Y = panelY + 30;
+        g.drawString(font, "Leave Item blank to only set source. Leave Source blank to only set item. [Esc] deselects.",
+                panelX + 4, row2Y + 2, C_DIM(), false);
+    }
+
+    private void confirmWorldItemEntry() {
+        if (wiBlock == null) return;
+        String item = wiItemBox.getValue().trim();
+        int sourceAmt = wiSourceBox.getValue().isBlank() ? -1 : parseSceneIntSafe(wiSourceBox.getValue(), -1);
+        if (item.isBlank() && sourceAmt < 0) { wiBlock = null; return; }
+
+        checkpoint();
+        PhantasiaSceneData.MachineOverride ov = ensureOverrideForPlacement(wiPlacementIdx);
+        if (ov == null) return;
+        ov.worldItems.removeIf(wi -> wi.x == wiBlock.getX() && wi.y == wiBlock.getY() && wi.z == wiBlock.getZ());
+        PhantasiaScriptData.WorldItemEntry entry = new PhantasiaScriptData.WorldItemEntry(wiBlock.getX(), wiBlock.getY(), wiBlock.getZ(), item);
+        entry.sourceAmount = sourceAmt;
+        ov.worldItems.add(entry);
+        dirty = true;
+        wiBlock = null;
+        wiItemBox.setValue("");
+        wiSourceBox.setValue("");
+    }
+
+    private void removeWorldItemEntry() {
+        if (wiBlock == null) return;
+        checkpoint();
+        PhantasiaSceneData.MachineOverride ov = step().getOverride(wiPlacementIdx);
+        if (ov != null) {
+            BlockPos b = wiBlock;
+            ov.worldItems.removeIf(wi -> wi.x == b.getX() && wi.y == b.getY() && wi.z == b.getZ());
+        }
+        dirty = true;
+        wiBlock = null;
+        wiItemBox.setValue("");
+        wiSourceBox.setValue("");
+    }
+
+    private boolean handleWorldItemClick(double mx, double my, int btn) {
+        if (hoveredWorldPos == null || scenePattern == null || editorLevel == null) return false;
+        if (editorLevel.getBlockEntity(hoveredWorldPos) == null) return false;
+        if (scenePattern.allBaseplatePositions.contains(hoveredWorldPos)) return false;
+        if (editorLevel.getBlockState(hoveredWorldPos).getBlock() instanceof com.gregtechceu.gtceu.api.block.MetaMachineBlock) return false;
+
+        // Find which placement this world position belongs to
+        int foundPlacement = -1;
+        for (PhantasiaScenePattern.PlacementEntry pe : scenePattern.placements) {
+            if (pe.worldPositions.contains(hoveredWorldPos)) {
+                foundPlacement = pe.index;
+                break;
+            }
+        }
+        if (foundPlacement < 0) return false;
+
+        PhantasiaScenePattern.PlacementEntry pe = scenePattern.placements.get(foundPlacement);
+        BlockPos local = hoveredWorldPos.subtract(pe.offset);
+
+        if (btn == 1) {
+            PhantasiaSceneData.MachineOverride ov = step().getOverride(foundPlacement);
+            if (ov != null && ov.worldItems.removeIf(wi -> wi.x == local.getX() && wi.y == local.getY() && wi.z == local.getZ())) {
+                checkpoint();
+                dirty = true;
+                if (local.equals(wiBlock) && wiPlacementIdx == foundPlacement) wiBlock = null;
+            }
+            return true;
+        }
+
+        // Left-click: select
+        wiPlacementIdx = foundPlacement;
+        wiBlock = local;
+        // Select this placement in the panel too
+        if (selectedPlacement != foundPlacement) {
+            selectedPlacement = foundPlacement;
+            populateOverrideBoxes();
+        }
+        PhantasiaSceneData.MachineOverride ov = step().getOverride(foundPlacement);
+        PhantasiaScriptData.WorldItemEntry existing = ov == null ? null : ov.worldItems.stream()
+                .filter(wi -> wi.x == local.getX() && wi.y == local.getY() && wi.z == local.getZ())
+                .findFirst().orElse(null);
+        wiItemBox.setValue(existing != null && existing.item != null ? existing.item : "");
+        wiSourceBox.setValue(existing != null && existing.sourceAmount >= 0 ? String.valueOf(existing.sourceAmount) : "");
+        setFocused(wiItemBox);
+        return true;
+    }
+
+    private PhantasiaSceneData.MachineOverride ensureOverrideForPlacement(int placementIdx) {
+        if (placementIdx < 0 || placementIdx >= data.placements.size()) return null;
+        PhantasiaSceneData.MachineOverride ov = step().getOverride(placementIdx);
+        if (ov == null) {
+            ov = new PhantasiaSceneData.MachineOverride();
+            step().setOverride(placementIdx, ov);
+        }
+        return ov;
+    }
+
+    private static int parseSceneIntSafe(String s, int fallback) {
+        try { return Integer.parseInt(s.trim()); } catch (NumberFormatException e) { return fallback; }
+    }
+
+    private float[] projectToScreen(float wx, float wy, float wz,
+                                    Vector3f eye, Vector3f fwd, Vector3f rgt, Vector3f upv, float fov) {
+        Vector3f toP = new Vector3f(wx - eye.x(), wy - eye.y(), wz - eye.z());
+        float depth = toP.dot(fwd);
+        if (depth <= 0.1f) return null;
+        float rightProj = toP.dot(rgt);
+        float upProj = toP.dot(upv);
+        float screenX = this.width * 0.5f + (rightProj / depth) * fov;
+        float screenY = this.height * 0.5f - (upProj / depth) * fov;
+        return new float[] { screenX, screenY, depth };
     }
 
     // ── Placements panel ──────────────────────────────────────────────────────
@@ -913,6 +1253,7 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
                         if (nov != null) {
                             nov.machineWorking = fwval;
                             dirty = true;
+                            applyActiveStateToScene(step().working);
                         }
                     }));
                     wbx += wW + 3;
@@ -1123,6 +1464,7 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
             checkpoint();
             s.working = !s.working;
             dirty = true;
+            applyActiveStateToScene(s.working);
         }));
         x += wW + 6;
 
@@ -1509,6 +1851,12 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
             return true;
         }
 
+        // Scene area – WORLD mode click
+        int sceneBottom = this.height - BOTTOM_H;
+        if (my >= TOP_BAR_H && my < sceneBottom && showWorldItemPanel) {
+            return handleWorldItemClick(mx, my, btn);
+        }
+
         return false;
     }
 
@@ -1594,6 +1942,10 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         if (getFocused() != null && getFocused().keyPressed(kc, sc, mod)) return true;
 
         if (kc == GLFW.GLFW_KEY_ESCAPE) {
+            if (showWorldItemPanel && wiBlock != null) {
+                wiBlock = null;
+                return true;
+            }
             if (showingCloseConfirm) {
                 showingCloseConfirm = false;
                 return true;
@@ -1761,8 +2113,10 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
 
     private void selectStep(int i) {
         selectedStep = Mth.clamp(i, 0, data.steps.size() - 1);
+        wiBlock = null;
         populateInputsFromStep();
         populateOverrideBoxes();
+        applyActiveStateToScene(step().working);
         rebuildVisibility();
     }
 
@@ -1835,6 +2189,7 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
     @Override
     public void hideAllInputs() {
         for (var box : new EditBox[] { captionBox, descriptionBox, tickBox, lerpTicksBox, camZoomBox,
+                wiItemBox, wiSourceBox,
                 ovLayerBox, ovHidePosBox, ovFakeRecipeBox, ovParticleBox, newMachineIdBox,
                 newOffsetXBox, newOffsetYBox, newOffsetZBox, sceneNameBox, sceneIconBox, tooltipItemBox }) {
             if (box != null) {

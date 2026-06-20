@@ -38,8 +38,20 @@ public interface IPhantasiaMultiblockDefinition {
     /**
      * Called on the render thread after all blocks have been placed in the dummy world.
      * Implementations should fire their structure-forming logic here (e.g. GTCEu's
-     * {@code onStructureFormed}). Default: no-op.
+     * {@code onStructureFormed}). Default: delegates to the 4-arg overload.
+     *
+     * @param script the currently loaded script; may be null. Definitions that
+     *               support per-recipe scenes should read
+     *               {@link net.phoenixvine.phantasia.common.data.script.PhantasiaScriptData#getRecipeId()}
+     *               to load the correct item placements.
      */
+    default void onShapeLoaded(PhantasiaTrackedDummyWorld level, BlockPos origin,
+                               Map<BlockPos, BlockInfo> blockMap,
+                               Map<BlockPos, BlockPos> localToWorld,
+                               @javax.annotation.Nullable net.phoenixvine.phantasia.common.data.script.PhantasiaScriptData script) {
+        onShapeLoaded(level, origin, blockMap, localToWorld);
+    }
+
     default void onShapeLoaded(PhantasiaTrackedDummyWorld level, BlockPos origin,
                                Map<BlockPos, BlockInfo> blockMap,
                                Map<BlockPos, BlockPos> localToWorld) {}

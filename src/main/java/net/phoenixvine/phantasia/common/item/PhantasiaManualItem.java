@@ -55,7 +55,11 @@ public class PhantasiaManualItem extends Item {
         lines.add(Component.empty());
         lines.add(Component.literal("Tutorials tab")
                 .withStyle(ChatFormatting.YELLOW)
-                .append(Component.literal(" — interactive guides with animated walkthroughs.")
+                .append(Component.literal(" — interactive walkthroughs.")
+                        .withStyle(ChatFormatting.GRAY)));
+        lines.add(Component.literal("⚙ Settings tab")
+                .withStyle(ChatFormatting.YELLOW)
+                .append(Component.literal(" — camera behaviour, display mode, theme editor.")
                         .withStyle(ChatFormatting.GRAY)));
     }
 }

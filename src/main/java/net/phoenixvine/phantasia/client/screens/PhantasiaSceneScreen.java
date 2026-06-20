@@ -39,11 +39,9 @@ import net.phoenixvine.phantasia.common.data.variant.PhantasiaVariantState;
 import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockDefinition;
 import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockShape;
 import net.phoenixvine.phantasia.common.multiblock.PhantasiaMultiblockRegistry;
-import net.phoenixvine.phantasia.common.world.PhantasiaDimension;
-import net.phoenixvine.phantasia.common.world.PhantasiaSlotAllocator;
-import net.phoenixvine.phantasia.common.world.PhantasiaSlotVersions;
 import net.phoenixvine.phantasia.compat.arsnouveaucompat.ArsNouveauScriptEditorScreen;
 import net.phoenixvine.phantasia.integration.emi.PhantasiaEmiPlugin;
+import net.phoenixvine.phantasia.configs.PhantasiaConfigs;
 import net.phoenixvine.phantasia.utils.PhantasiaThemeUtils;
 import net.phoenixvine.phantasia.utils.PhantasiaUIUtils;
 
@@ -148,7 +146,7 @@ public class PhantasiaSceneScreen extends Screen {
     public PhantasiaWorldRenderer renderer;
 
     private int shapeIndex = 0;
-    private List<IPhantasiaMultiblockShape> availableShapes = new ArrayList<>();
+    public List<IPhantasiaMultiblockShape> availableShapes = new ArrayList<>();
 
     // ─────────────────────────────────────────────────────────────────────────
     // Camera
@@ -168,6 +166,7 @@ public class PhantasiaSceneScreen extends Screen {
     private boolean scrubbing = false;
     private PhantasiaScript.Step lastAppliedStep = null;
     private int sceneTick = 0;
+    private int itemAnimTick = 0;
 
     // ─────────────────────────────────────────────────────────────────────────
     // View / filter
@@ -233,6 +232,11 @@ public class PhantasiaSceneScreen extends Screen {
 
     public void reloadScript() {
         this.script = PhantasiaScripts.get(definition);
+        if (pattern != null) {
+            this.script = this.script.withVariants(definition, pattern);
+            PhantasiaVariantState vs = PhantasiaVariantState.get();
+            vs.loadGroups(this.script.getVariantGroups());
+        }
         this.lastAppliedStep = null;
         applyVisibility();
     }
@@ -250,6 +254,11 @@ public class PhantasiaSceneScreen extends Screen {
         PhantasiaCamera cam = new PhantasiaCamera(yp[0], yp[1], zoom,
                 target[0], target[1], target[2]);
         if (pattern != null) cam.setFloorY(pattern.origin.getY() + 0.5f);
+        if (PhantasiaConfigs.INSTANCE != null) {
+            boolean follow = PhantasiaConfigs.INSTANCE.phantasiaUI.scriptLockCamera;
+            cam.setLocked(follow);
+            if (!follow) cam.setPlayerOwned(true); // scripts never move camera when config is OFF
+        }
         return cam;
     }
 
@@ -442,49 +451,23 @@ public class PhantasiaSceneScreen extends Screen {
     // ─────────────────────────────────────────────────────────────────────────
 
     private PhantasiaLoadedPattern loadPattern(IPhantasiaMultiblockShape shape) {
-        ResourceLocation machineId = definition.getId();
-        // Stable per-machine slot in the Phantasia scene dimension (used for persistence only).
-        BlockPos slotOrigin = PhantasiaSlotAllocator.originFor(machineId);
-        // Fixed local origin used for SHARED_LEVEL block placement. Always near (0,0,0)
-        // so baked VBO vertices are small floats — preserving the float32 precision that
-        // GT's 0.001-block overlay offset requires to avoid z-fighting.
-        BlockPos renderOrigin = PhantasiaSlotAllocator.RENDER_ORIGIN;
-
-        int shapeHash = PhantasiaSlotVersions.hashShape(shape.getBlocks());
-        int scriptHash = PhantasiaSlotVersions.hashScript(script.getSourceData());
-
-        // isValid() checks hash stamps AND that the dimension chunk actually exists
-        // on disk, so we never warm-start against a missing or freshly wiped region.
-        boolean warm = PhantasiaSlotVersions.isValid(machineId, shapeHash, scriptHash, slotOrigin);
-
-        if (warm) {
+        BlockPos renderOrigin = new BlockPos(8, 50, 8);
+        int blockCount = countBlocks(shape.getBlocks());
+        if (blockCount <= PhantasiaWorldRenderer.STREAMING_THRESHOLD) {
             net.phoenixvine.phantasia.Phantasia.LOGGER.info(
-                    "[Phantasia] Warm load for {} at slot={} render={}", machineId, slotOrigin, renderOrigin);
-            return loadPatternWarm(shape, renderOrigin);
+                    "[Phantasia] Sync load ({} blocks) for {}", blockCount, definition.getId());
+            return loadPatternCold(shape, renderOrigin);
         } else {
-            // Count non-air blocks to decide sync vs async.
-            // Small patterns go synchronous (old path — works fine, no flicker).
-            // Large patterns go async with streaming so the screen is usable while loading.
-            int blockCount = countBlocks(shape.getBlocks());
-            if (blockCount <= PhantasiaWorldRenderer.STREAMING_THRESHOLD) {
-                net.phoenixvine.phantasia.Phantasia.LOGGER.info(
-                        "[Phantasia] Cold load (sync, {} blocks) for {}", blockCount, machineId);
-                PhantasiaLoadedPattern result = loadPatternCold(shape, renderOrigin, slotOrigin);
-                PhantasiaSlotVersions.put(machineId, shapeHash, scriptHash);
-                PhantasiaDimension.forceChunkLoad(slotOrigin);
-                return result;
-            } else {
-                net.phoenixvine.phantasia.Phantasia.LOGGER.info(
-                        "[Phantasia] Cold load (async, {} blocks) for {}", blockCount, machineId);
-                if (asyncLoader != null) {
-                    asyncLoader.cancel();
-                    asyncLoader = null;
-                }
-                asyncLoader = PhantasiaPatternLoader.start(
-                        definition, shapeIndex, availableShapes, script, SHARED_LEVEL,
-                        this::onAsyncPatternLoaded);
-                return null; // delivered asynchronously via onAsyncPatternLoaded
+            net.phoenixvine.phantasia.Phantasia.LOGGER.info(
+                    "[Phantasia] Async load ({} blocks) for {}", blockCount, definition.getId());
+            if (asyncLoader != null) {
+                asyncLoader.cancel();
+                asyncLoader = null;
             }
+            asyncLoader = PhantasiaPatternLoader.start(
+                    definition, shapeIndex, availableShapes, script, SHARED_LEVEL,
+                    this::onAsyncPatternLoaded);
+            return null;
         }
     }
 
@@ -501,13 +484,7 @@ public class PhantasiaSceneScreen extends Screen {
         return n;
     }
 
-    /**
-     * Cold load: places all blocks into SHARED_LEVEL at {@code renderOrigin} (near 0,0,0),
-     * dynamically spins up Schema entities, then writes them to the Phantasia dimension at
-     * {@code slotOrigin} for persistence.
-     */
-    private PhantasiaLoadedPattern loadPatternCold(IPhantasiaMultiblockShape shape, BlockPos renderOrigin,
-                                                   BlockPos slotOrigin) {
+    private PhantasiaLoadedPattern loadPatternCold(IPhantasiaMultiblockShape shape, BlockPos renderOrigin) {
         SHARED_LEVEL.renderedBlocks.clear();
         SHARED_LEVEL.blockEntities.clear();
 
@@ -563,130 +540,30 @@ public class PhantasiaSceneScreen extends Screen {
                     }
                 }
 
-        // Persist to the Phantasia dimension at slot-space coords for warm-start.
-        Map<BlockPos, BlockInfo> slotSpaceMap = new HashMap<>(blockMap.size());
-        for (Map.Entry<BlockPos, BlockInfo> e : blockMap.entrySet()) {
-            BlockPos localOffset = e.getKey().subtract(renderOrigin);
-            slotSpaceMap.put(slotOrigin.offset(localOffset), e.getValue());
-        }
-        coldPopulateDimensionSlot(definition.getId(), slotSpaceMap);
-
         PhantasiaLoadedPattern result = finalisePattern(raw, blockMap, localToWorld, baseplatePos, bePos,
                 controllerWP, renderOrigin);
+        PhantasiaScriptData scriptData = script != null ? script.getSourceData() : null;
         RenderSystem.recordRenderCall(() -> definition.onShapeLoaded(SHARED_LEVEL, renderOrigin,
-                new HashMap<>(blockMap), new HashMap<>(localToWorld)));
+                new HashMap<>(blockMap), new HashMap<>(localToWorld), scriptData));
         return result;
     }
 
     /**
-     * Warm load: slot version is valid so we skip the dimension write, but we still
-     * need to repopulate SHARED_LEVEL (it is an in-memory cache, not persisted across sessions).
+     * Re-fires {@link IPhantasiaMultiblockDefinition#onShapeLoaded} on the current
+     * SHARED_LEVEL using the latest script data. Call this after any change to the
+     * script that affects item/block placement (e.g. {@code recipeId} changed).
+     * No-op if the pattern hasn't loaded yet.
      */
-    private PhantasiaLoadedPattern loadPatternWarm(IPhantasiaMultiblockShape shape, BlockPos renderOrigin) {
-        SHARED_LEVEL.renderedBlocks.clear();
-        SHARED_LEVEL.blockEntities.clear();
-
-        BlockInfo[][][] raw = shape.getBlocks();
-        Map<BlockPos, BlockInfo> blockMap = new HashMap<>();
-        Map<BlockPos, BlockPos> localToWorld = new HashMap<>();
-        Set<BlockPos> baseplatePos = new HashSet<>();
-        Set<BlockPos> bePos = new HashSet<>();
-        BlockPos controllerWP = null;
-
-        var _baseplateState1 = net.phoenixvine.phantasia.utils.PhantasiaTheme.currentBaseplateBlockState();
-        BlockInfo floor = _baseplateState1 != null ? BlockInfo.fromBlockState(_baseplateState1) : null;
-        int sxLen = raw.length;
-        int szLen = sxLen > 0 && raw[0].length > 0 ? raw[0][0].length : 0;
-        int padX = Math.max(2, sxLen / 2 + 1);
-        int padZ = Math.max(2, szLen / 2 + 1);
-
-        if (floor != null) for (int bx = -padX; bx <= sxLen + padX; bx++)
-            for (int bz = -padZ; bz <= szLen + padZ; bz++) {
-                BlockPos wp = renderOrigin.offset(bx, -1, bz);
-                blockMap.put(wp, floor);
-                baseplatePos.add(wp);
-            }
-
-        for (int x = 0; x < raw.length; x++)
-            for (int y = 0; y < raw[x].length; y++)
-                for (int z = 0; z < raw[x][y].length; z++) {
-                    BlockInfo info = raw[x][y][z];
-                    if (info == null) continue;
-                    if (info.getBlockState().isAir()) continue; // skip "any"/air placeholder positions
-
-                    BlockPos lp = new BlockPos(x, y, z);
-                    BlockPos wp = renderOrigin.offset(x, y, z);
-
-                    blockMap.put(wp, info);
-                    localToWorld.put(lp, wp);
-
-                    BlockState state = info.getBlockState();
-                    if (controllerWP == null && PhantasiaMultiblockRegistry.isControllerBlock(state))
-                        controllerWP = wp;
-
-                    if (state.getBlock() instanceof EntityBlock) {
-                        bePos.add(wp);
-                    }
-                }
-
-        // Repopulate SHARED_LEVEL from blockMap — it is an in-memory cache rebuilt each session.
-        SHARED_LEVEL.addBlocks(blockMap);
-        for (BlockPos beWorldPos : bePos) {
-            BlockInfo info = blockMap.get(beWorldPos);
-            if (info != null && info.getBlockState().getBlock() instanceof EntityBlock eb) {
-                BlockEntity newEntity = eb.newBlockEntity(beWorldPos, info.getBlockState());
-                if (newEntity != null) {
-                    newEntity.setLevel(SHARED_LEVEL);
-                    SHARED_LEVEL.setInnerBlockEntity(newEntity);
-                }
-            }
-        }
-
-        PhantasiaLoadedPattern result = finalisePattern(raw, blockMap, localToWorld, baseplatePos, bePos,
-                controllerWP, renderOrigin);
-        RenderSystem.recordRenderCall(() -> definition.onShapeLoaded(SHARED_LEVEL, renderOrigin,
-                new HashMap<>(blockMap), new HashMap<>(localToWorld)));
-        return result;
+    public void refireShapeLoaded() {
+        if (pattern == null || SHARED_LEVEL == null) return;
+        PhantasiaScriptData scriptData = script != null ? script.getSourceData() : null;
+        BlockPos origin = pattern.origin;
+        Map<BlockPos, com.lowdragmc.lowdraglib.utils.BlockInfo> blockMap = new java.util.HashMap<>(pattern.blockMap);
+        Map<BlockPos, BlockPos> localToWorld = new java.util.HashMap<>(pattern.localToWorld);
+        com.mojang.blaze3d.systems.RenderSystem.recordRenderCall(
+                () -> definition.onShapeLoaded(SHARED_LEVEL, origin, blockMap, localToWorld, scriptData));
     }
 
-    /**
-     * Writes the blocks in {@code blockMap} to the Phantasia scene dimension so
-     * that subsequent screen opens can skip the shape.getBlocks() iteration
-     * (warm-start). Also called during world-load pre-population.
-     *
-     * <p>
-     * The write is submitted to the server thread asynchronously so the
-     * calling render-thread open is not blocked on disk I/O.
-     * </p>
-     */
-    public static void coldPopulateDimensionSlot(ResourceLocation machineId,
-                                                 Map<BlockPos, BlockInfo> blockMap) {
-        var sl = PhantasiaDimension.getServerLevel();
-        if (sl == null) return;
-        try {
-            net.minecraft.server.MinecraftServer server = net.minecraftforge.server.ServerLifecycleHooks
-                    .getCurrentServer();
-            if (server == null) return;
-            server.submit(() -> {
-                for (Map.Entry<BlockPos, BlockInfo> e : blockMap.entrySet()) {
-                    try {
-                        BlockState state = e.getValue().getBlockState();
-                        if (state != null && !state.isAir()) {
-                            sl.setBlock(e.getKey(), state,
-                                    net.minecraft.world.level.block.Block.UPDATE_CLIENTS |
-                                            net.minecraft.world.level.block.Block.UPDATE_KNOWN_SHAPE);
-                        }
-                    } catch (Exception ignored) {}
-                }
-                net.phoenixvine.phantasia.Phantasia.LOGGER.debug(
-                        "[Phantasia] Wrote {} blocks to scene dimension for {}",
-                        blockMap.size(), machineId);
-            });
-        } catch (Exception e) {
-            net.phoenixvine.phantasia.Phantasia.LOGGER.warn(
-                    "[Phantasia] Could not submit dimension write task: {}", e.getMessage());
-        }
-    }
 
     private PhantasiaLoadedPattern finalisePattern(
                                                    BlockInfo[][][] raw,
@@ -760,7 +637,7 @@ public class PhantasiaSceneScreen extends Screen {
     // Filter sets (lazy build)
     // ─────────────────────────────────────────────────────────────────────────
 
-    private boolean computeHasRealSizeVariants() {
+    public boolean computeHasRealSizeVariants() {
         if (availableShapes == null || availableShapes.size() <= 1) return false;
         int firstCount = countBlocks(availableShapes.get(0));
         for (int i = 1; i < availableShapes.size(); i++) {
@@ -904,6 +781,7 @@ public class PhantasiaSceneScreen extends Screen {
     @Override
     public void tick() {
         super.tick();
+        itemAnimTick++;
 
         if (camera != null) camera.tick();
 
@@ -949,6 +827,9 @@ public class PhantasiaSceneScreen extends Screen {
         }
 
         if (!playing || scrubbing || buildOrderMode || script == null || viewFilter != ViewFilter.ALL) return;
+        // Hold playback until the initial bake is fully uploaded so the script
+        // doesn't advance before the multiblock is visible.
+        if (renderer != null && !renderer.isSceneReady()) { tickAccum = 0f; return; }
 
         int prevTick = playbackTick;
         tickAccum += playbackSpeed;
@@ -1028,6 +909,7 @@ public class PhantasiaSceneScreen extends Screen {
             applyVisibility();
             updateMachineState(step);
             updateCaptionForStep(step);
+            applyWorldItems(step);
         }
     }
 
@@ -1042,6 +924,61 @@ public class PhantasiaSceneScreen extends Screen {
     }
 
     /**
+     * Applies {@link PhantasiaScriptData.WorldItemEntry} placements for the active step.
+     * Resolves local coords to world coords via the loaded pattern, then places the item
+     * on any {@link net.minecraft.world.Container} BE, or sets source on a SourceJarTile.
+     * No-op if the step has no world-item entries.
+     */
+    private void applyWorldItems(PhantasiaScript.Step step) {
+        if (step == null || SHARED_LEVEL == null || pattern == null) return;
+        var entries = step.worldItems();
+        if (entries.isEmpty()) return;
+
+        Set<BlockPos> rebakePos = new java.util.HashSet<>();
+        for (var e : entries) {
+            net.minecraft.core.BlockPos local = new net.minecraft.core.BlockPos(e.x, e.y, e.z);
+            net.minecraft.core.BlockPos world = pattern.localToWorld.get(local);
+            if (world == null) continue;
+
+            net.minecraft.world.level.block.entity.BlockEntity be = SHARED_LEVEL.getBlockEntity(world);
+            if (be == null) continue;
+            if (be.getLevel() == null) be.setLevel(SHARED_LEVEL);
+
+            // Source jar — set source amount
+            if (e.sourceAmount >= 0) {
+                try {
+                    if (be instanceof com.hollingsworth.arsnouveau.common.block.tile.SourceJarTile jar) {
+                        jar.setSource(e.sourceAmount);
+                        jar.setChanged();
+                        rebakePos.add(world);
+                    }
+                } catch (Exception ignored) {}
+            }
+
+            // Item slot — set on any Container BE
+            if (e.item != null && !e.item.isBlank()) {
+                try {
+                    net.minecraft.resources.ResourceLocation rl = new net.minecraft.resources.ResourceLocation(e.item);
+                    net.minecraft.world.item.Item item = net.minecraftforge.registries.ForgeRegistries.ITEMS.getValue(rl);
+                    net.minecraft.world.item.ItemStack stack =
+                            (item == null || item == net.minecraft.world.item.Items.AIR)
+                                    ? net.minecraft.world.item.ItemStack.EMPTY
+                                    : new net.minecraft.world.item.ItemStack(item);
+                    if (be instanceof net.minecraft.world.Container container) {
+                        container.setItem(0, stack);
+                        be.setChanged();
+                        rebakePos.add(world);
+                    }
+                } catch (Exception ignored) {}
+            }
+        }
+
+        if (!rebakePos.isEmpty() && renderer != null) {
+            renderer.requestPartialBake(rebakePos);
+        }
+    }
+
+    /**
      * Writes the ACTIVE block state property to the controller AND all coil blocks
      * in SHARED_LEVEL. Called whenever the working state changes or when coil types
      * are swapped, so the VBO always rebakes with the correct active states.
@@ -1049,7 +986,7 @@ public class PhantasiaSceneScreen extends Screen {
      * GT's internal notifyBlockEntityChanged → sendBlockUpdated chain is a no-op in
      * TrackedDummyWorld, so we must write to SHARED_LEVEL explicitly.
      */
-    private void applyActiveStateToWorld(boolean working) {
+    public void applyActiveStateToWorld(boolean working) {
         if (SHARED_LEVEL == null || pattern == null) return;
         definition.setMachineWorking(SHARED_LEVEL, working);
 
@@ -1062,12 +999,22 @@ public class PhantasiaSceneScreen extends Screen {
             BlockState original = e.getValue().getBlockState();
             if (original == null || original.isAir()) continue;
             try {
-                var block = original.getBlock();
-                if (!(block instanceof com.gregtechceu.gtceu.api.block.ActiveBlock ab)) continue;
-                // Read current state from the live world, not the original pattern — the world
-                // may already have the active variant set from a prior step.
-                BlockPos worldPos = e.getKey(); // blockMap is keyed by world pos
+                BlockPos worldPos = e.getKey();
                 BlockState current = SHARED_LEVEL.getBlockState(worldPos);
+                if (current == null || current.isAir()) continue;
+                // Use the block from the live world (not the original pattern) so that
+                // state.is(this) in ActiveBlock.changeActive() always passes — even after
+                // the user swaps coil tiers (cupronickel → nichrome etc.).
+                var currentBlock = current.getBlock();
+                com.gregtechceu.gtceu.api.block.ActiveBlock ab;
+                if (currentBlock instanceof com.gregtechceu.gtceu.api.block.ActiveBlock currentAb) {
+                    ab = currentAb;
+                } else {
+                    // Fallback to original block in case the world state is stale/missing.
+                    var origBlock = original.getBlock();
+                    if (!(origBlock instanceof com.gregtechceu.gtceu.api.block.ActiveBlock origAb)) continue;
+                    ab = origAb;
+                }
                 BlockState next = ab.changeActive(current, working);
                 if (next != current) {
                     SHARED_LEVEL.setBlock(worldPos, next, 2);
@@ -1147,6 +1094,18 @@ public class PhantasiaSceneScreen extends Screen {
         totalScreenRenderTimeNs = 0;
         maxScreenSpikeNs = 0;
         totalVariantLookupTimeNs = 0;
+    }
+
+    public void renderAsBackground(net.minecraft.client.gui.GuiGraphics g, float partial) {
+        int pw = getCurrentPanelWidth();
+        int sw = this.width - pw;
+        int sh = this.height - TIMELINE_H - CAPTION_STRIP_H;
+        g.fill(0, 0, this.width, this.height, C_BG());
+        if (renderer != null && camera != null) {
+            CameraView view = camera.getView(partial);
+            renderer.setMousePos(-1, -1);
+            renderer.render(view, 0, CAPTION_STRIP_H, sw, sh);
+        }
     }
 
     @Override
@@ -1314,24 +1273,20 @@ public class PhantasiaSceneScreen extends Screen {
             g.fill(panelX + 2, ry, panelX + 3, ry + SIP_ROW - 1, ac);
 
             // Track animation
-            float[] anim = computeSipTrackOffset(it, playbackTick);
+            float[] anim = computeSipTrackOffset(it, itemAnimTick);
             int alpha = Math.max(0, Math.min(255, (int) (anim[2] * 255)));
             int iconSize = hov ? SIP_HOV : SIP_ICON;
-            int iconX = panelX + 5;
+            int iconX = panelX + 5 + Math.round(anim[0]);
             int iconCY = ry + (SIP_ROW - 1) / 2;
             int iconY = iconCY - iconSize / 2 + Math.round(anim[1]);
 
             net.minecraft.world.item.Item mcItem = resolveItemById(it.item);
             if (mcItem != null) {
                 net.minecraft.world.item.ItemStack stack = new net.minecraft.world.item.ItemStack(mcItem, it.count);
-                float scale = iconSize / 16f;
+                int renderY = iconCY - 8 + Math.round(anim[1]);
                 if (alpha < 255) RenderSystem.setShaderColor(1f, 1f, 1f, alpha / 255f);
-                g.pose().pushPose();
-                g.pose().translate(iconX, iconY, 200f);
-                g.pose().scale(scale, scale, 1f);
-                g.renderItem(stack, 0, 0);
-                g.renderItemDecorations(font, stack, 0, 0);
-                g.pose().popPose();
+                g.renderItem(stack, iconX, renderY);
+                g.renderItemDecorations(font, stack, iconX, renderY);
                 if (alpha < 255) RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
             } else {
                 g.fill(iconX + 2, iconY + 2, iconX + SIP_HOV - 2, iconY + SIP_HOV - 2, 0x44FF0000);
@@ -1725,6 +1680,56 @@ public class PhantasiaSceneScreen extends Screen {
             y += 20;
         }
 
+        // ── Expandable size stepper (only for expandable multiblocks) ─────────
+        if (script != null && script.getSourceData().isExpandable()
+                && availableShapes != null && availableShapes.size() > 1) {
+            int maxL = availableShapes.size();
+            int curL = shapeIndex + 1;
+            int teal = 0xFF4DB8B8;
+            int tealDim = 0xFF1A3A3A;
+            // Label
+            g.drawString(font, "Size:", px + 10, y + 4, teal, false);
+            int lblW = font.width("Size:") + 4;
+            // "−" button
+            int minX = px + 10 + lblW;
+            int btnH = 14;
+            boolean minHov = mx >= minX && mx < minX + btnH && my >= y && my < y + btnH;
+            g.fill(minX, y, minX + btnH, y + btnH, minHov ? 0xFF2A5A5A : tealDim);
+            g.fill(minX, y + btnH - 1, minX + btnH, y + btnH, teal);
+            g.drawCenteredString(font, "−", minX + btnH / 2, y + (btnH - 8) / 2, teal);
+            regBtn(g, mx, my, minX, y, btnH, btnH, "", () -> {
+                if (shapeIndex > 0) {
+                    shapeIndex--;
+                    if (definition != null)
+                        PhantasiaVariantState.get().setShapeIndex(definition.getId().toString(), shapeIndex);
+                    if (renderer != null) { renderer.close(); renderer = null; }
+                    pattern = null; invalidateFilterSets(); init();
+                }
+            });
+            // Value display
+            int valX = minX + btnH + 2;
+            int valW = font.width("00/00") + 6;
+            g.fill(valX, y, valX + valW, y + btnH, 0xFF1A2A2A);
+            g.fill(valX, y + btnH - 1, valX + valW, y + btnH, teal);
+            g.drawCenteredString(font, curL + "/" + maxL, valX + valW / 2, y + (btnH - 8) / 2, teal);
+            // "+" button
+            int plusX = valX + valW + 2;
+            boolean plusHov = mx >= plusX && mx < plusX + btnH && my >= y && my < y + btnH;
+            g.fill(plusX, y, plusX + btnH, y + btnH, plusHov ? 0xFF2A5A5A : tealDim);
+            g.fill(plusX, y + btnH - 1, plusX + btnH, y + btnH, teal);
+            g.drawCenteredString(font, "+", plusX + btnH / 2, y + (btnH - 8) / 2, teal);
+            regBtn(g, mx, my, plusX, y, btnH, btnH, "", () -> {
+                if (shapeIndex < maxL - 1) {
+                    shapeIndex++;
+                    if (definition != null)
+                        PhantasiaVariantState.get().setShapeIndex(definition.getId().toString(), shapeIndex);
+                    if (renderer != null) { renderer.close(); renderer = null; }
+                    pattern = null; invalidateFilterSets(); init();
+                }
+            });
+            y += 20;
+        }
+
         boolean hasVariants = script != null &&
                 script.getVariantGroups().stream().anyMatch(PhantasiaVariantGroup::hasChoice);
         if (hasVariants) {
@@ -1815,8 +1820,9 @@ public class PhantasiaSceneScreen extends Screen {
             float targetZ = camera.getTargetZ();
 
             // Perform pure rotation
-            camera.orbit((float) dx * CAM_ORBIT_SENSITIVITY,
-                    (float) dy * CAM_ORBIT_SENSITIVITY);
+            float orbitMult = PhantasiaConfigs.INSTANCE != null ? PhantasiaConfigs.INSTANCE.phantasiaUI.cameraSensitivity : 1f;
+            camera.orbit((float) dx * CAM_ORBIT_SENSITIVITY * orbitMult,
+                    (float) dy * CAM_ORBIT_SENSITIVITY * orbitMult);
 
             // Re-bind to the fixed pivot point and distance
             camera.setTarget(targetX, targetY, targetZ);
@@ -1831,7 +1837,10 @@ public class PhantasiaSceneScreen extends Screen {
     public boolean mouseScrolled(double mx, double my, double delta) {
         if (mx >= this.width - getCurrentPanelWidth()) return false;
         if (camera == null || camera.isLocked()) return false;
-        camera.zoom(delta > 0 ? CAM_ZOOM_IN_FACTOR : CAM_ZOOM_OUT_FACTOR,
+        float zoomMult = PhantasiaConfigs.INSTANCE != null ? PhantasiaConfigs.INSTANCE.phantasiaUI.scrollZoomSpeed : 1f;
+        float zoomIn  = 1f - (1f - CAM_ZOOM_IN_FACTOR)  * zoomMult;
+        float zoomOut = 1f + (CAM_ZOOM_OUT_FACTOR - 1f) * zoomMult;
+        camera.zoom(delta > 0 ? Math.max(0.5f, zoomIn) : Math.min(2f, zoomOut),
                 CAM_ZOOM_MIN, camZoomMax());
         return true;
     }
@@ -1914,6 +1923,13 @@ public class PhantasiaSceneScreen extends Screen {
             lastAppliedStep = step;
             updateCaptionForStep(step);
             applyVisibility();
+            applyWorldItems(step);
+            // Always re-evaluate active states on scrub — machineWorking may be stale
+            // if the user jumped over a working→idle transition without the tick loop firing.
+            boolean working = step != null && step.working() && playbackTick < script.getTotalTicks();
+            machineWorking = working;
+            applyActiveStateToWorld(working);
+            if (renderer != null) renderer.requestBake();
         }
     }
 

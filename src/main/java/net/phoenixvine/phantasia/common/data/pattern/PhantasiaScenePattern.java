@@ -12,6 +12,7 @@ import com.lowdragmc.lowdraglib.utils.BlockInfo;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.phoenixvine.phantasia.client.render.PhantasiaTrackedDummyWorld;
 import net.phoenixvine.phantasia.common.data.scene.PhantasiaSceneData;
 
@@ -157,6 +158,7 @@ public class PhantasiaScenePattern {
 
         Map<BlockPos, BlockInfo> placementMap = new HashMap<>();
         Map<BlockPos, BlockPos> localToWorld = new HashMap<>();
+        Map<BlockPos, BlockEntity> cachedBEs = new HashMap<>();
         Set<BlockPos> baseplatePos = new HashSet<>();
         Set<BlockPos> bePos = new HashSet<>();
         BlockPos controllerWP = null;
@@ -195,19 +197,20 @@ public class PhantasiaScenePattern {
                                 controllerWP = wp;
                             }
                             bePos.add(wp);
+                            cachedBEs.put(wp, be);
                         }
                     } catch (Exception ignored) {}
                     placementMap.put(wp, info);
                     localToWorld.put(lp, wp);
                 }
 
-        // Stamp into shared world and register BEs
+        // Stamp into shared world and register BEs using the already-initialized instances.
+        // Calling info.getBlockEntity() again would create a new un-initialized BE instance
+        // (without setLevel) which can cause NPEs when the renderer queries it.
         sharedWorld.addBlocks(placementMap);
         for (BlockPos bp : bePos) {
             try {
-                BlockInfo info = placementMap.get(bp);
-                if (info == null) continue;
-                var be = info.getBlockEntity(bp);
+                BlockEntity be = cachedBEs.get(bp);
                 if (be != null) sharedWorld.setInnerBlockEntity(be);
             } catch (Exception ignored) {}
         }

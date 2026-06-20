@@ -483,7 +483,8 @@ public class PhantasiaGuideScreen extends PhantasiaScreen {
 
         g.fill(0, 0, width, height, 0xCC05050A);
 
-        int mw = 200, mh = 220;
+        int mw = Math.min(200, this.width - 40);
+        int mh = (int) (220 * mw / 200.0);
         int mxPos = (width - mw) / 2;
         int myPos = (height - mh) / 2;
 

@@ -13,7 +13,9 @@ import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.phoenixvine.phantasia.client.screens.editors.PhantasiaGuideEditorScreen;
+import net.phoenixvine.phantasia.client.screens.editors.PhantasiaThemeEditorScreen;
 import net.phoenixvine.phantasia.client.tutorial.PhantasiaTutorials;
+import net.phoenixvine.phantasia.configs.PhantasiaConfigs;
 import net.phoenixvine.phantasia.client.tutorial.TutorialSequence;
 import net.phoenixvine.phantasia.common.data.guides.PhantasiaGuideData;
 import net.phoenixvine.phantasia.common.data.guides.PhantasiaGuideRegistry;
@@ -51,7 +53,8 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
         MULTIBLOCKS,
         SCENES,
         GUIDES,
-        TUTORIALS
+        TUTORIALS,
+        SETTINGS
     }
 
     private Tab activeTab = Tab.MULTIBLOCKS;
@@ -74,7 +77,8 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
 
     private final Screen parent;
     private EditBox searchBox;
-    private int scrollOffset = 0; // in rows
+    private int scrollOffset = 0; // in rows (card grid tabs)
+    private int settingsScrollPx = 0; // pixel scroll for the settings panel
     private int hoveredCard = -1;
 
     /** null = All mods; otherwise filters multiblock tab to this namespace */
@@ -187,7 +191,8 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
             renderCards(g, mx, my);
         } else if (activeTab == Tab.SCENES) renderSceneCards(g, mx, my);
         else if (activeTab == Tab.GUIDES) renderGuideCards(g, mx, my);
-        else renderTutorialCards(g, mx, my);
+        else if (activeTab == Tab.TUTORIALS) renderTutorialCards(g, mx, my);
+        else renderSettings(g, mx, my);
 
         renderFooter(g, mx, my);
     }
@@ -208,7 +213,10 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
         renderTab(g, mx, my, tabStartX + 104, tabY, "Scenes", Tab.SCENES);
         int guidesTabX = tabStartX + 104 + font.width("Scenes") + 20;
         renderTab(g, mx, my, guidesTabX, tabY, "Guides", Tab.GUIDES);
-        renderTab(g, mx, my, guidesTabX + font.width("Guides") + 20, tabY, "Tutorials", Tab.TUTORIALS);
+        int tutorialsTabX = guidesTabX + font.width("Guides") + 20;
+        renderTab(g, mx, my, tutorialsTabX, tabY, "Tutorials", Tab.TUTORIALS);
+        int settingsTabX = tutorialsTabX + font.width("Tutorials") + 20;
+        renderTab(g, mx, my, settingsTabX, tabY, "⚙ Settings", Tab.SETTINGS);
     }
 
     private void renderTab(GuiGraphics g, int mx, int my, int x, int y, String label, Tab tab) {
@@ -655,6 +663,383 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
         }
     }
 
+    // ── Settings layout constants (shared between render and click) ──────────────
+    // All positions are relative to panelY. Computed once so render ↔ click never drift.
+    // rowH=18 is the standard row height.
+    private static final int S_ROW_H = 18;
+
+    /**
+     * Returns the y-positions of each interactive settings row.
+     * panelY is the virtual top of the content (already offset by scroll).
+     */
+    private int[] settingsRowYs(int panelY) {
+        int rh = S_ROW_H;
+        int y = panelY + 12;
+        // Camera section
+        y += rh - 4;               // past section label
+        int camY = y;              // [0] camera toggle
+        y += rh;
+        y += 3 * (rh - 4) + 4;    // past 3 wrapped desc lines + small gap
+        int sensY = y;             // [1] camera sensitivity stepper
+        y += rh;
+        int zoomY = y;             // [2] zoom speed stepper
+        y += rh + 8;               // + gap before border
+        // Display section
+        y += 8;                    // past border gap
+        y += rh - 4;               // past section label
+        int dispY = y;             // [3] display mode stepper
+        y += rh;
+        int ticksY = y;            // [4] activation ticks stepper
+        y += rh;
+        int autoPlayY = y;         // [5] auto-play toggle
+        y += rh;
+        int baseplateY = y;        // [6] show baseplate toggle
+        y += rh + 8;
+        // Performance section
+        y += 8;                    // past border gap
+        y += rh - 4;               // past section label
+        int streamY = y;           // [7] streaming mode cycler
+        y += rh;
+        y += 2 * (rh - 4) + 8;    // past 2 desc lines + gap before border
+        // Appearance section
+        y += 8;                    // past border gap
+        y += rh - 4;               // past section label
+        int themeY = y;            // [8] theme editor button
+        return new int[]{camY, sensY, zoomY, dispY, ticksY, autoPlayY, baseplateY, streamY, themeY};
+    }
+
+    /** Total pixel height of the settings content (used to cap scroll). */
+    private int settingsContentH() {
+        int[] ys = settingsRowYs(0); // relative to virtual panelY=0
+        return ys[8] + 20 + 12;     // themeY + button height + bottom padding
+    }
+
+    private void renderSettings(GuiGraphics g, int mx, int my) {
+        int totalGridW = COLS * CARD_W + (COLS - 1) * CARD_PAD;
+        int panelX = (this.width - totalGridW) / 2;
+        int panelYScreen = HEADER_H + SEARCH_H - 4;           // fixed screen position of panel top
+        int panelW = totalGridW;
+        int panelH = this.height - panelYScreen - FOOTER_H - 4;
+        int rh = S_ROW_H;
+
+        // Background + top border drawn at fixed screen coords
+        g.fill(panelX, panelYScreen, panelX + panelW, panelYScreen + panelH, C_PANEL());
+        g.fill(panelX, panelYScreen, panelX + panelW, panelYScreen + 1, C_BORDER());
+
+        // Scrollbar
+        int contentH = settingsContentH();
+        if (contentH > panelH) {
+            int trackH = panelH - 4;
+            int thumbH = Math.max(20, trackH * panelH / contentH);
+            int thumbY = panelYScreen + 2 + (trackH - thumbH) * settingsScrollPx / Math.max(1, contentH - panelH);
+            g.fill(panelX + panelW - 4, panelYScreen + 2, panelX + panelW - 2, panelYScreen + panelH - 2, 0x33FFFFFF);
+            g.fill(panelX + panelW - 4, thumbY, panelX + panelW - 2, thumbY + thumbH, 0xAAFFFFFF);
+        }
+
+        // Scissor to panel area so scrolled content doesn't bleed into header/footer
+        com.mojang.blaze3d.platform.GlStateManager._enableScissorTest();
+        double scale = Minecraft.getInstance().getWindow().getGuiScale();
+        com.mojang.blaze3d.platform.GlStateManager._scissorBox(
+                (int)(panelX * scale),
+                (int)((this.height - panelYScreen - panelH) * scale),
+                (int)(panelW * scale),
+                (int)(panelH * scale));
+
+        // Virtual panelY is shifted upward by the scroll amount
+        int panelY = panelYScreen - settingsScrollPx;
+        int rowX = panelX + 12;
+
+        PhantasiaConfigs.PhantasiaUIConfig cfg = PhantasiaConfigs.INSTANCE.phantasiaUI;
+        int[] ys = settingsRowYs(panelY);
+        int arrowW = font.width("◄") + 8;
+
+        // ── Camera section ────────────────────────────────────────────────────
+        g.drawString(font, "Camera", rowX, panelY + 12, C_ACCENT(), false);
+
+        renderToggleRow(g, mx, my, panelX, panelW, rowX, ys[0], "Camera follows steps", cfg.scriptLockCamera);
+        String camDesc = cfg.scriptLockCamera
+                ? "ON: scripts/steps drive the camera exclusively. The player cannot move it until they toggle the 🔒 lock button inside the viewer."
+                : "OFF: camera is always yours — scripts and steps never move it. Use the 🔒 lock button to give control back to scripts.";
+        int descMaxW = panelW - 28;
+        java.util.List<net.minecraft.util.FormattedCharSequence> descLines =
+                font.split(net.minecraft.network.chat.Component.literal(camDesc), descMaxW);
+        int descY = ys[0] + rh;
+        for (int li = 0; li < Math.min(descLines.size(), 3); li++) {
+            g.drawString(font, descLines.get(li), rowX + 4, descY + li * (rh - 4), C_DIM(), false);
+        }
+
+        // Camera sensitivity stepper [1]
+        String sensLabel = "Camera sensitivity  (" + String.format("%.2f", cfg.cameraSensitivity) + "x)";
+        g.drawString(font, sensLabel, rowX + 4, ys[1] + 2, C_TEXT(), false);
+        String sensStr = String.format("%.2f", cfg.cameraSensitivity);
+        int sensW = arrowW + font.width(sensStr) + 8 + arrowW;
+        int sensX = panelX + panelW - 12 - sensW;
+        boolean sensHovL = isOver(mx, my, sensX, ys[1], arrowW, 13);
+        boolean sensHovR = isOver(mx, my, sensX + sensW - arrowW, ys[1], arrowW, 13);
+        g.fill(sensX, ys[1], sensX + sensW, ys[1] + 13, C_BTN());
+        g.drawString(font, "◄", sensX + 4, ys[1] + 3, sensHovL ? C_ACCENT() : C_DIM(), false);
+        g.drawCenteredString(font, sensStr, sensX + sensW / 2, ys[1] + 3, C_TEXT());
+        g.drawString(font, "►", sensX + sensW - arrowW + 4, ys[1] + 3, sensHovR ? C_ACCENT() : C_DIM(), false);
+
+        // Zoom speed stepper [2]
+        String zoomLabel = "Scroll zoom speed  (" + String.format("%.2f", cfg.scrollZoomSpeed) + "x)";
+        g.drawString(font, zoomLabel, rowX + 4, ys[2] + 2, C_TEXT(), false);
+        String zoomStr = String.format("%.2f", cfg.scrollZoomSpeed);
+        int zoomW = arrowW + font.width(zoomStr) + 8 + arrowW;
+        int zoomX = panelX + panelW - 12 - zoomW;
+        boolean zoomHovL = isOver(mx, my, zoomX, ys[2], arrowW, 13);
+        boolean zoomHovR = isOver(mx, my, zoomX + zoomW - arrowW, ys[2], arrowW, 13);
+        g.fill(zoomX, ys[2], zoomX + zoomW, ys[2] + 13, C_BTN());
+        g.drawString(font, "◄", zoomX + 4, ys[2] + 3, zoomHovL ? C_ACCENT() : C_DIM(), false);
+        g.drawCenteredString(font, zoomStr, zoomX + zoomW / 2, ys[2] + 3, C_TEXT());
+        g.drawString(font, "►", zoomX + zoomW - arrowW + 4, ys[2] + 3, zoomHovR ? C_ACCENT() : C_DIM(), false);
+
+        // ── Display section ───────────────────────────────────────────────────
+        int borderY1 = ys[2] + rh + 8;  // matches settingsRowYs: zoomY + rh + 8
+        g.fill(panelX + 6, borderY1, panelX + panelW - 6, borderY1 + 1, C_BORDER());
+        g.drawString(font, "Display & Playback", rowX, borderY1 + 8, C_ACCENT(), false);
+
+        g.drawString(font, "Display mode", rowX + 4, ys[3] + 2, C_TEXT(), false);
+        String dispStr = cfg.displayMode.name().replace('_', ' ');
+        int dispW = arrowW + font.width(dispStr) + 8 + arrowW;
+        int dispX = panelX + panelW - 12 - dispW;
+        boolean dispHovL = isOver(mx, my, dispX, ys[3], arrowW, 13);
+        boolean dispHovR = isOver(mx, my, dispX + dispW - arrowW, ys[3], arrowW, 13);
+        g.fill(dispX, ys[3], dispX + dispW, ys[3] + 13, C_BTN());
+        g.drawString(font, "◄", dispX + 4, ys[3] + 3, dispHovL ? C_ACCENT() : C_DIM(), false);
+        g.drawCenteredString(font, dispStr, dispX + dispW / 2, ys[3] + 3, C_TEXT());
+        g.drawString(font, "►", dispX + dispW - arrowW + 4, ys[3] + 3, dispHovR ? C_ACCENT() : C_DIM(), false);
+
+        String tickLabel = "Activation hold  (" + cfg.activationTicks + " ticks = "
+                + String.format("%.1f", cfg.activationTicks / 20f) + "s)";
+        g.drawString(font, tickLabel, rowX + 4, ys[4] + 2, C_TEXT(), false);
+        String tickStr = String.valueOf(cfg.activationTicks);
+        int tickW = arrowW + font.width(tickStr) + 8 + arrowW;
+        int tickX = panelX + panelW - 12 - tickW;
+        boolean tickHovL = isOver(mx, my, tickX, ys[4], arrowW, 13);
+        boolean tickHovR = isOver(mx, my, tickX + tickW - arrowW, ys[4], arrowW, 13);
+        g.fill(tickX, ys[4], tickX + tickW, ys[4] + 13, C_BTN());
+        g.drawString(font, "◄", tickX + 4, ys[4] + 3, tickHovL ? C_ACCENT() : C_DIM(), false);
+        g.drawCenteredString(font, tickStr, tickX + tickW / 2, ys[4] + 3, C_TEXT());
+        g.drawString(font, "►", tickX + tickW - arrowW + 4, ys[4] + 3, tickHovR ? C_ACCENT() : C_DIM(), false);
+
+        renderToggleRow(g, mx, my, panelX, panelW, rowX, ys[5], "Auto-play scripts on open", cfg.autoPlayScripts);
+        renderToggleRow(g, mx, my, panelX, panelW, rowX, ys[6], "Show floor baseplate in previews", cfg.showBaseplate);
+
+        // ── Performance section ───────────────────────────────────────────────
+        int borderY2 = ys[6] + rh + 8;
+        g.fill(panelX + 6, borderY2, panelX + panelW - 6, borderY2 + 1, C_BORDER());
+        g.drawString(font, "Performance", rowX, borderY2 + 8, C_ACCENT(), false);
+
+        g.drawString(font, "Scene streaming", rowX + 4, ys[7] + 2, C_TEXT(), false);
+        String streamStr = cfg.streamingMode.name();
+        int streamW = arrowW + font.width(streamStr) + 8 + arrowW;
+        int streamX = panelX + panelW - 12 - streamW;
+        boolean streamHovL = isOver(mx, my, streamX, ys[7], arrowW, 13);
+        boolean streamHovR = isOver(mx, my, streamX + streamW - arrowW, ys[7], arrowW, 13);
+        g.fill(streamX, ys[7], streamX + streamW, ys[7] + 13, C_BTN());
+        g.drawString(font, "◄", streamX + 4, ys[7] + 3, streamHovL ? C_ACCENT() : C_DIM(), false);
+        g.drawCenteredString(font, streamStr, streamX + streamW / 2, ys[7] + 3, C_TEXT());
+        g.drawString(font, "►", streamX + streamW - arrowW + 4, ys[7] + 3, streamHovR ? C_ACCENT() : C_DIM(), false);
+        String streamDesc = switch (cfg.streamingMode) {
+            case PERFORMANCE -> "PERFORMANCE: starts displaying the scene sooner with fewer blocks baked. Reduces GPU spikes — best for weak hardware.";
+            case BALANCED    -> "BALANCED: waits for a moderate amount of baking before displaying. Good default for most machines.";
+            case QUALITY     -> "QUALITY: bakes as much as possible before displaying. Smoothest result but causes a longer initial load spike.";
+        };
+        java.util.List<net.minecraft.util.FormattedCharSequence> streamDescLines =
+                font.split(net.minecraft.network.chat.Component.literal(streamDesc), descMaxW);
+        int streamDescY = ys[7] + rh;
+        for (int li = 0; li < Math.min(streamDescLines.size(), 2); li++) {
+            g.drawString(font, streamDescLines.get(li), rowX + 4, streamDescY + li * (rh - 4), C_DIM(), false);
+        }
+
+        // ── Appearance section ────────────────────────────────────────────────
+        int borderY3 = ys[7] + rh + 2 * (rh - 4) + 8;  // matches settingsRowYs
+        g.fill(panelX + 6, borderY3, panelX + panelW - 6, borderY3 + 1, C_BORDER());
+        g.drawString(font, "Appearance", rowX, borderY3 + 8, C_ACCENT(), false);
+
+        String themeLabel = "🎨 Open Theme Editor →";
+        int themeBtnW = font.width(themeLabel) + 16;
+        int themeBtnX = panelX + (panelW - themeBtnW) / 2;
+        boolean themeHov = isOver(mx, my, themeBtnX, ys[8], themeBtnW, 16);
+        g.fill(themeBtnX, ys[8], themeBtnX + themeBtnW, ys[8] + 16, themeHov ? C_BTN_HOV() : C_BTN());
+        if (themeHov) {
+            g.fill(themeBtnX, ys[8], themeBtnX + themeBtnW, ys[8] + 1, C_ACCENT());
+            g.fill(themeBtnX, ys[8] + 15, themeBtnX + themeBtnW, ys[8] + 16, C_ACCENT());
+        }
+        g.drawCenteredString(font, themeLabel, themeBtnX + themeBtnW / 2, ys[8] + 4,
+                themeHov ? C_ACCENT() : C_TEXT());
+
+        com.mojang.blaze3d.platform.GlStateManager._disableScissorTest();
+    }
+
+    /** Render a labelled ON/OFF toggle row at the given y. */
+    private void renderToggleRow(GuiGraphics g, int mx, int my,
+                                 int panelX, int panelW, int rowX,
+                                 int y, String label, boolean value) {
+        g.drawString(font, label, rowX + 4, y + 2, C_TEXT(), false);
+        String tog = value ? "ON" : "OFF";
+        int togW = font.width(tog) + 10;
+        int togX = panelX + panelW - 12 - togW;
+        boolean hov = isOver(mx, my, togX, y, togW, 13);
+        g.fill(togX, y, togX + togW, y + 13, hov ? C_BTN_HOV() : C_BTN());
+        if (value) g.fill(togX, y, togX + 2, y + 13, C_GREEN());
+        g.drawString(font, tog, togX + 5, y + 3, value ? C_GREEN() : C_DIM(), false);
+    }
+
+    private boolean handleSettingsClick(int mx, int my) {
+        int totalGridW = COLS * CARD_W + (COLS - 1) * CARD_PAD;
+        int panelX = (this.width - totalGridW) / 2;
+        int panelW = totalGridW;
+        int panelYScreen = HEADER_H + SEARCH_H - 4;
+        int panelH = this.height - panelYScreen - FOOTER_H - 4;
+        // Reject clicks outside the panel area
+        if (my < panelYScreen || my > panelYScreen + panelH) return false;
+        int panelY = panelYScreen - settingsScrollPx; // virtual top, shifted by scroll
+        int arrowW = font.width("◄") + 8;
+
+        PhantasiaConfigs.PhantasiaUIConfig cfg = PhantasiaConfigs.INSTANCE.phantasiaUI;
+        int[] ys = settingsRowYs(panelY);
+
+        // [0] Camera toggle
+        int camBtnW = font.width(cfg.scriptLockCamera ? "ON" : "OFF") + 10;
+        if (isOver(mx, my, panelX + panelW - 12 - camBtnW, ys[0], camBtnW, 13)) {
+            cfg.scriptLockCamera = !cfg.scriptLockCamera;
+            savePhantasiaConfig();
+            return true;
+        }
+
+        // [1] Camera sensitivity
+        String sensStr = String.format("%.2f", cfg.cameraSensitivity);
+        int sensW = arrowW + font.width(sensStr) + 8 + arrowW;
+        int sensX = panelX + panelW - 12 - sensW;
+        if (isOver(mx, my, sensX, ys[1], arrowW, 13)) {
+            cfg.cameraSensitivity = Math.round(Math.max(0.25f, cfg.cameraSensitivity - 0.25f) * 100f) / 100f;
+            savePhantasiaConfig();
+            return true;
+        }
+        if (isOver(mx, my, sensX + sensW - arrowW, ys[1], arrowW, 13)) {
+            cfg.cameraSensitivity = Math.round(Math.min(3.0f, cfg.cameraSensitivity + 0.25f) * 100f) / 100f;
+            savePhantasiaConfig();
+            return true;
+        }
+
+        // [2] Scroll zoom speed
+        String zoomStr = String.format("%.2f", cfg.scrollZoomSpeed);
+        int zoomW = arrowW + font.width(zoomStr) + 8 + arrowW;
+        int zoomX = panelX + panelW - 12 - zoomW;
+        if (isOver(mx, my, zoomX, ys[2], arrowW, 13)) {
+            cfg.scrollZoomSpeed = Math.round(Math.max(0.25f, cfg.scrollZoomSpeed - 0.25f) * 100f) / 100f;
+            savePhantasiaConfig();
+            return true;
+        }
+        if (isOver(mx, my, zoomX + zoomW - arrowW, ys[2], arrowW, 13)) {
+            cfg.scrollZoomSpeed = Math.round(Math.min(3.0f, cfg.scrollZoomSpeed + 0.25f) * 100f) / 100f;
+            savePhantasiaConfig();
+            return true;
+        }
+
+        // [3] Display mode
+        String dispStr = cfg.displayMode.name().replace('_', ' ');
+        int dispW = arrowW + font.width(dispStr) + 8 + arrowW;
+        int dispX = panelX + panelW - 12 - dispW;
+        PhantasiaConfigs.PhantasiaUIConfig.DisplayMode[] dmVals =
+                PhantasiaConfigs.PhantasiaUIConfig.DisplayMode.values();
+        if (isOver(mx, my, dispX, ys[3], arrowW, 13)) {
+            cfg.displayMode = dmVals[(cfg.displayMode.ordinal() - 1 + dmVals.length) % dmVals.length];
+            savePhantasiaConfig();
+            return true;
+        }
+        if (isOver(mx, my, dispX + dispW - arrowW, ys[3], arrowW, 13)) {
+            cfg.displayMode = dmVals[(cfg.displayMode.ordinal() + 1) % dmVals.length];
+            savePhantasiaConfig();
+            return true;
+        }
+
+        // [4] Activation ticks
+        int tickW = arrowW + font.width(String.valueOf(cfg.activationTicks)) + 8 + arrowW;
+        int tickX = panelX + panelW - 12 - tickW;
+        if (isOver(mx, my, tickX, ys[4], arrowW, 13)) {
+            cfg.activationTicks = Math.max(1, cfg.activationTicks - 1);
+            savePhantasiaConfig();
+            return true;
+        }
+        if (isOver(mx, my, tickX + tickW - arrowW, ys[4], arrowW, 13)) {
+            cfg.activationTicks = Math.min(200, cfg.activationTicks + 1);
+            savePhantasiaConfig();
+            return true;
+        }
+
+        // [5] Auto-play toggle
+        int apW = font.width(cfg.autoPlayScripts ? "ON" : "OFF") + 10;
+        if (isOver(mx, my, panelX + panelW - 12 - apW, ys[5], apW, 13)) {
+            cfg.autoPlayScripts = !cfg.autoPlayScripts;
+            savePhantasiaConfig();
+            return true;
+        }
+
+        // [6] Show baseplate toggle
+        int bpW = font.width(cfg.showBaseplate ? "ON" : "OFF") + 10;
+        if (isOver(mx, my, panelX + panelW - 12 - bpW, ys[6], bpW, 13)) {
+            cfg.showBaseplate = !cfg.showBaseplate;
+            savePhantasiaConfig();
+            return true;
+        }
+
+        // [7] Streaming mode
+        PhantasiaConfigs.PhantasiaUIConfig.StreamingMode[] smVals =
+                PhantasiaConfigs.PhantasiaUIConfig.StreamingMode.values();
+        String streamStr = cfg.streamingMode.name();
+        int streamW = arrowW + font.width(streamStr) + 8 + arrowW;
+        int streamX = panelX + panelW - 12 - streamW;
+        if (isOver(mx, my, streamX, ys[7], arrowW, 13)) {
+            cfg.streamingMode = smVals[(cfg.streamingMode.ordinal() - 1 + smVals.length) % smVals.length];
+            savePhantasiaConfig();
+            return true;
+        }
+        if (isOver(mx, my, streamX + streamW - arrowW, ys[7], arrowW, 13)) {
+            cfg.streamingMode = smVals[(cfg.streamingMode.ordinal() + 1) % smVals.length];
+            savePhantasiaConfig();
+            return true;
+        }
+
+        // [8] Theme editor button
+        String themeLabel = "🎨 Open Theme Editor →";
+        int themeBtnW = font.width(themeLabel) + 16;
+        int themeBtnX = panelX + (panelW - themeBtnW) / 2;
+        if (isOver(mx, my, themeBtnX, ys[8], themeBtnW, 16)) {
+            Minecraft.getInstance().setScreen(new PhantasiaThemeEditorScreen(this));
+            return true;
+        }
+        return false;
+    }
+
+    /** Writes current config values to the toma YAML file and syncs ConfigValue state. */
+    private void savePhantasiaConfig() {
+        try {
+            PhantasiaConfigs.PhantasiaUIConfig ui = PhantasiaConfigs.INSTANCE.phantasiaUI;
+            java.io.File configDir = new java.io.File(
+                    Minecraft.getInstance().gameDirectory, "config");
+            String ext = PhantasiaConfigs.CONFIG_HOLDER.getFormat().fileExt();
+            String filename = PhantasiaConfigs.CONFIG_HOLDER.getFilename();
+            java.io.File file = new java.io.File(configDir, filename + "." + ext);
+            StringBuilder yaml = new StringBuilder();
+            yaml.append("phantasiaUI:\n");
+            yaml.append("  displayMode: ").append(ui.displayMode.name()).append("\n\n");
+            yaml.append("  activationTicks: ").append(ui.activationTicks).append("\n\n");
+            yaml.append("  baseplateBlock: ").append(ui.baseplateBlock).append("\n\n");
+            yaml.append("  scriptLockCamera: ").append(ui.scriptLockCamera).append("\n\n");
+            yaml.append("  autoPlayScripts: ").append(ui.autoPlayScripts).append("\n\n");
+            yaml.append("  showBaseplate: ").append(ui.showBaseplate).append("\n\n");
+            yaml.append("  cameraSensitivity: ").append(ui.cameraSensitivity).append("\n\n");
+            yaml.append("  scrollZoomSpeed: ").append(ui.scrollZoomSpeed).append("\n\n");
+            yaml.append("  streamingMode: ").append(ui.streamingMode.name()).append("\n");
+            java.nio.file.Files.writeString(file.toPath(), yaml.toString());
+        } catch (Exception e) {
+            net.phoenixvine.phantasia.Phantasia.LOGGER.warn("Failed to save Phantasia config: {}", e.getMessage());
+        }
+    }
+
     private void renderFooter(GuiGraphics g, int mx, int my) {
         int fy = this.height - FOOTER_H;
         g.fill(0, fy, this.width, this.height, 0xCC0A0A14);
@@ -666,8 +1051,9 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
         if (totalRows > visibleRows())
             g.drawCenteredString(font, "\u25B2 \u25BC  scroll to see more", this.width / 2, fy + 4, C_DIM());
 
-        // Back button
-        int bw = 80, bh = 18;
+        // Back button \u2014 on Settings tab this returns to Multiblocks, otherwise closes the screen
+        String backLabel = activeTab == Tab.SETTINGS ? "\u2190 Back to List" : "\u2190 Back";
+        int bw = font.width(backLabel) + 24, bh = 18;
         int bx = (this.width - bw) / 2, by = fy + (FOOTER_H - bh) / 2;
         boolean bHov = isOver(mx, my, bx, by, bw, bh);
         g.fill(bx, by, bx + bw, by + bh, bHov ? C_BTN_HOV() : C_BTN());
@@ -675,7 +1061,7 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
             g.fill(bx, by, bx + bw, by + 1, C_ACCENT());
             g.fill(bx, by + bh - 1, bx + bw, by + bh, C_ACCENT());
         }
-        g.drawString(font, "\u2190 Back", bx + (bw - font.width("\u2190 Back")) / 2, by + 5,
+        g.drawString(font, backLabel, bx + (bw - font.width(backLabel)) / 2, by + 5,
                 bHov ? C_ACCENT() : C_TEXT(), false);
     }
 
@@ -725,13 +1111,34 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
             }
             return true;
         }
+        int settingsTabX = tutorialsTabX + font.width("Tutorials") + 20;
+        if (isOver((int) mx, (int) my, settingsTabX, tabY, font.width("⚙ Settings") + 16, TAB_H)) {
+            if (activeTab != Tab.SETTINGS) {
+                activeTab = Tab.SETTINGS;
+                scrollOffset = 0;
+                settingsScrollPx = 0;
+            }
+            return true;
+        }
 
-        // Back button
+        // Settings tab interactions
+        if (activeTab == Tab.SETTINGS) {
+            if (handleSettingsClick((int) mx, (int) my)) return true;
+        }
+
+        // Back button — Settings tab goes back to Multiblocks, otherwise closes
+        String backLabel = activeTab == Tab.SETTINGS ? "← Back to List" : "← Back";
         int fy = this.height - FOOTER_H;
-        int bw = 80, bh = 18;
+        int bw = font.width(backLabel) + 24, bh = 18;
         int bx = (this.width - bw) / 2, by = fy + (FOOTER_H - bh) / 2;
         if (isOver((int) mx, (int) my, bx, by, bw, bh)) {
-            onClose();
+            if (activeTab == Tab.SETTINGS) {
+                activeTab = Tab.MULTIBLOCKS;
+                scrollOffset = 0;
+                updateFilteredList();
+            } else {
+                onClose();
+            }
             return true;
         }
 
@@ -827,6 +1234,13 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
 
     @Override
     public boolean mouseScrolled(double mx, double my, double delta) {
+        if (activeTab == Tab.SETTINGS) {
+            int panelYScreen = HEADER_H + SEARCH_H - 4;
+            int panelH = this.height - panelYScreen - FOOTER_H - 4;
+            int maxScroll = Math.max(0, settingsContentH() - panelH);
+            settingsScrollPx = Math.max(0, Math.min(maxScroll, settingsScrollPx + (delta > 0 ? -12 : 12)));
+            return true;
+        }
         int itemCount;
         if (activeTab == Tab.MULTIBLOCKS) itemCount = filteredScenes.size();
         else if (activeTab == Tab.GUIDES) itemCount = filteredGuides.size() + 1;

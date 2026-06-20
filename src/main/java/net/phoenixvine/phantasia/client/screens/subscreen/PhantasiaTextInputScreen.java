@@ -18,6 +18,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
+import net.phoenixvine.phantasia.client.screens.PhantasiaSceneScreen;
+import net.phoenixvine.phantasia.client.screens.PhantasiaScreen;
+
 import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
 
 /**
@@ -79,7 +82,14 @@ public class PhantasiaTextInputScreen extends Screen {
 
     @Override
     public void render(GuiGraphics g, int mx, int my, float partial) {
-        g.fill(0, 0, this.width, this.height, C_BG());
+        if (parent instanceof PhantasiaScreen ps) {
+            ps.renderAsBackground(g, partial);
+        } else if (parent instanceof PhantasiaSceneScreen pss) {
+            pss.renderAsBackground(g, partial);
+        } else {
+            g.fill(0, 0, this.width, this.height, C_BG());
+        }
+        g.fill(0, 0, this.width, this.height, 0x80000000);
 
         g.fill(px, py, px + pw, py + ph, C_PANEL());
         g.fill(px, py, px + pw, py + 1, C_ACCENT());

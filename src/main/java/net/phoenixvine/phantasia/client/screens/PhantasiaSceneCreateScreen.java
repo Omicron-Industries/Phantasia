@@ -41,7 +41,7 @@ public class PhantasiaSceneCreateScreen extends Screen {
     protected void init() {
         super.init();
 
-        int pw = 300, ph = 130;
+        int pw = Math.min(300, this.width - 20), ph = 130;
         int px = (this.width - pw) / 2;
         int py = (this.height - ph) / 2;
 
@@ -66,7 +66,7 @@ public class PhantasiaSceneCreateScreen extends Screen {
     public void render(GuiGraphics g, int mx, int my, float partial) {
         g.fill(0, 0, this.width, this.height, C_BG());
 
-        int pw = 300, ph = 130;
+        int pw = Math.min(300, this.width - 20), ph = 130;
         int px = (this.width - pw) / 2;
         int py = (this.height - ph) / 2;
 
@@ -109,7 +109,7 @@ public class PhantasiaSceneCreateScreen extends Screen {
     public boolean mouseClicked(double mx, double my, int btn) {
         if (super.mouseClicked(mx, my, btn)) return true;
 
-        int pw = 300, ph = 130;
+        int pw = Math.min(300, this.width - 20), ph = 130;
         int px = (this.width - pw) / 2;
         int py = (this.height - ph) / 2;
         int btnY = py + ph - 22;

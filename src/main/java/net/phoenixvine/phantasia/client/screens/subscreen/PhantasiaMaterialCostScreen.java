@@ -14,6 +14,8 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
+import net.phoenixvine.phantasia.client.screens.PhantasiaSceneScreen;
+import net.phoenixvine.phantasia.client.screens.PhantasiaScreen;
 import net.phoenixvine.phantasia.common.data.pattern.PhantasiaLoadedPattern;
 
 import dev.emi.emi.api.EmiApi;
@@ -32,7 +34,7 @@ public class PhantasiaMaterialCostScreen extends Screen {
     private static final int HEADER_H = 50;
     private static final int FOOTER_H = 32;
     private static final int ICON_SZ = 16;
-    private static final int PICKER_W = 280;
+    private int pickerW;
     private static final int PICKER_ROW = 20;
 
     // ── Tabs ──────────────────────────────────────────────────────────────────
@@ -167,6 +169,8 @@ public class PhantasiaMaterialCostScreen extends Screen {
     @Override
     protected void init() {
         super.init();
+
+        this.pickerW = Math.min(280, this.width - 20);
 
         this.blockEntries.clear();
         this.rootNodes.clear();
@@ -481,7 +485,7 @@ public class PhantasiaMaterialCostScreen extends Screen {
         filteredPickerRecipes = new ArrayList<>(pickerRecipes);
         pickerScroll = 0;
 
-        pickerX = Math.min(sx + 4, this.width - PICKER_W - 4);
+        pickerX = Math.min(sx + 4, this.width - pickerW - 4);
         pickerY = Math.max(HEADER_H, Math.min(sy, this.height - FOOTER_H - pickerVisibleRows() * PICKER_ROW - 44));
     }
 
@@ -556,15 +560,15 @@ public class PhantasiaMaterialCostScreen extends Screen {
         int rows = pickerVisibleRows();
         int ph = rows * PICKER_ROW + 40;
 
-        g.fill(pickerX - 1, pickerY - 1, pickerX + PICKER_W + 1, pickerY + ph + 1, 0xFF000000);
-        g.fill(pickerX, pickerY, pickerX + PICKER_W, pickerY + ph, 0xFF0E0E1C);
-        g.fill(pickerX, pickerY, pickerX + PICKER_W, pickerY + 1, C_ACCENT());
-        g.fill(pickerX, pickerY + ph - 1, pickerX + PICKER_W, pickerY + ph, C_ACCENT());
+        g.fill(pickerX - 1, pickerY - 1, pickerX + pickerW + 1, pickerY + ph + 1, 0xFF000000);
+        g.fill(pickerX, pickerY, pickerX + pickerW, pickerY + ph, 0xFF0E0E1C);
+        g.fill(pickerX, pickerY, pickerX + pickerW, pickerY + 1, C_ACCENT());
+        g.fill(pickerX, pickerY + ph - 1, pickerX + pickerW, pickerY + ph, C_ACCENT());
 
-        g.drawString(font, trunc("Recipe for: " + pickerNode.displayName, PICKER_W - 8),
+        g.drawString(font, trunc("Recipe for: " + pickerNode.displayName, pickerW - 8),
                 pickerX + 4, pickerY + 5, C_ACCENT(), false);
 
-        int sX = pickerX + 4, sY = pickerY + 16, sW = PICKER_W - 8, sH = 14;
+        int sX = pickerX + 4, sY = pickerY + 16, sW = pickerW - 8, sH = 14;
 
         g.fill(sX - 1, sY - 1, sX + sW + 1, sY + sH + 1, this.isPickerSearchFocused ? C_ACCENT() : 0xFF000000);
         g.fill(sX, sY, sX + sW, sY + sH, 0xBB05050A);
@@ -577,15 +581,15 @@ public class PhantasiaMaterialCostScreen extends Screen {
             g.drawString(font, trunc(pickerSearchQuery, sW - 12) + cursor, sX + 4, sY + 3, C_TEXT(), false);
         }
 
-        g.enableScissor(pickerX, pickerY + 34, pickerX + PICKER_W, pickerY + ph - 4);
+        g.enableScissor(pickerX, pickerY + 34, pickerX + pickerW, pickerY + ph - 4);
 
         int ry = pickerY + 34;
         for (int i = pickerScroll; i < filteredPickerRecipes.size() && i < pickerScroll + rows; i++) {
             EmiRecipe recipe = filteredPickerRecipes.get(i);
             int rowY = ry + (i - pickerScroll) * PICKER_ROW;
-            boolean hov = isOver(mx, my, pickerX, rowY, PICKER_W, PICKER_ROW - 1);
-            g.fill(pickerX, rowY, pickerX + PICKER_W, rowY + PICKER_ROW - 1, hov ? C_BTN_HOV() : 0);
-            if (hov) g.fill(pickerX, rowY, pickerX + PICKER_W, rowY + 1, 0x33FFFFFF);
+            boolean hov = isOver(mx, my, pickerX, rowY, pickerW, PICKER_ROW - 1);
+            g.fill(pickerX, rowY, pickerX + pickerW, rowY + PICKER_ROW - 1, hov ? C_BTN_HOV() : 0);
+            if (hov) g.fill(pickerX, rowY, pickerX + pickerW, rowY + 1, 0x33FFFFFF);
 
             int cx = pickerX + 4;
 
@@ -617,7 +621,7 @@ public class PhantasiaMaterialCostScreen extends Screen {
 
             String cat = recipe.getCategory().getId().getPath().replace("_", " ");
             String recId = recipe.getId() != null ? "  [" + recipe.getId().getPath() + "]" : "";
-            g.drawString(font, trunc(cat + recId, PICKER_W - (cx - pickerX) - 8), cx, rowY + 6, C_TEXT(), false);
+            g.drawString(font, trunc(cat + recId, pickerW - (cx - pickerX) - 8), cx, rowY + 6, C_TEXT(), false);
         }
 
         g.disableScissor();
@@ -962,7 +966,7 @@ public class PhantasiaMaterialCostScreen extends Screen {
 
             int sX = pickerX + 4;
             int sY = pickerY + 16;
-            int sW = PICKER_W - 8;
+            int sW = pickerW - 8;
             int sH = 14;
 
             if (isOver(imx, imy, sX, sY, sW, sH)) {
@@ -970,7 +974,7 @@ public class PhantasiaMaterialCostScreen extends Screen {
                 return true;
             }
 
-            if (isOver(imx, imy, pickerX, pickerY + 36, PICKER_W, rows * PICKER_ROW)) {
+            if (isOver(imx, imy, pickerX, pickerY + 36, pickerW, rows * PICKER_ROW)) {
                 this.isPickerSearchFocused = false;
                 int idx = (imy - (pickerY + 36)) / PICKER_ROW + pickerScroll;
                 if (idx >= 0 && idx < filteredPickerRecipes.size()) {
@@ -982,7 +986,7 @@ public class PhantasiaMaterialCostScreen extends Screen {
                 }
             }
 
-            if (isOver(imx, imy, pickerX, pickerY, PICKER_W, ph)) {
+            if (isOver(imx, imy, pickerX, pickerY, pickerW, ph)) {
                 this.isPickerSearchFocused = false;
                 return true;
             }
@@ -1102,7 +1106,7 @@ public class PhantasiaMaterialCostScreen extends Screen {
         int imx = (int) mx, imy = (int) my;
         if (pickerNode != null) {
             int ph = pickerVisibleRows() * PICKER_ROW + 24;
-            if (isOver(imx, imy, pickerX, pickerY, PICKER_W, ph)) {
+            if (isOver(imx, imy, pickerX, pickerY, pickerW, ph)) {
                 int max = Math.max(0, pickerRecipes.size() - pickerVisibleRows());
                 pickerScroll = Math.max(0, Math.min(max, pickerScroll + (delta > 0 ? -1 : 1)));
                 return true;
