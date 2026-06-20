@@ -778,6 +778,7 @@ public class PhantasiaPlacementEditorScreen extends PhantasiaScreen {
         pd().machine = id;
         parent.dirty = true;
         parent.rebuildWorld();
+        parent.save();
     }
 
     private void applyOffset() {

@@ -200,10 +200,10 @@ public class PhantasiaScriptLoader {
     }
 
     private static void log(String msg) {
-        System.out.println("[Phantasia] " + msg);
+        net.phoenixvine.phantasia.Phantasia.LOGGER.info("[Phantasia] {}", msg);
     }
 
     private static void logErr(String msg) {
-        System.err.println("[Phantasia] ERROR: " + msg);
+        net.phoenixvine.phantasia.Phantasia.LOGGER.error("[Phantasia] {}", msg);
     }
 }

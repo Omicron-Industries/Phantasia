@@ -100,7 +100,10 @@ public class PhantasiaSceneScreen extends Screen {
     private final java.util.Map<net.minecraft.core.BlockPos, PhantasiaVariantGroup> positionToVariantGroupCache = new java.util.HashMap<>();
     private boolean cacheInitialized = false;
 
-    private static final long SCREEN_PROFILE_WINDOW_NS = 5_000_000_000L; // Profile every 5 seconds
+    // Set to true to emit periodic screen render timing reports to the log.
+    private static final boolean ENABLE_PROFILER = false;
+
+    private static final long SCREEN_PROFILE_WINDOW_NS = 5_000_000_000L;
     private long screenProfileWindowStart = -1;
     private int screenProfiledFramesCount = 0;
     private long totalScreenRenderTimeNs = 0;
@@ -159,7 +162,7 @@ public class PhantasiaSceneScreen extends Screen {
     // Playback
     // ─────────────────────────────────────────────────────────────────────────
 
-    private boolean playing = true;
+    private boolean playing = PhantasiaConfigs.INSTANCE == null || PhantasiaConfigs.INSTANCE.phantasiaUI.autoPlayScripts;
     private int playbackTick = 0;
     private float tickAccum = 0f;
     private float playbackSpeed = 1.0f;
@@ -435,10 +438,11 @@ public class PhantasiaSceneScreen extends Screen {
         });
 
         if (renderer != null) {
-            renderer.setBaseplatePositions(p.baseplatePositions);
+            boolean showBP = PhantasiaConfigs.INSTANCE == null || PhantasiaConfigs.INSTANCE.phantasiaUI.showBaseplate;
+            renderer.setBaseplatePositions(showBP ? p.baseplatePositions : Set.of());
             renderer.setControllerWorldPos(p.controllerWorldPos);
             Set<BlockPos> fullBakeSet = new HashSet<>(p.blockMap.keySet());
-            fullBakeSet.addAll(p.baseplatePositions);
+            if (showBP) fullBakeSet.addAll(p.baseplatePositions);
             renderer.setPatternBlocks(fullBakeSet);
             renderer.requestBake();
         }
@@ -502,8 +506,8 @@ public class PhantasiaSceneScreen extends Screen {
         int padX = Math.max(2, sxLen / 2 + 1);
         int padZ = Math.max(2, szLen / 2 + 1);
 
-        if (floor != null) for (int bx = -padX; bx <= sxLen + padX; bx++)
-            for (int bz = -padZ; bz <= szLen + padZ; bz++) {
+        if (floor != null) for (int bx = -padX; bx < sxLen + padX; bx++)
+            for (int bz = -padZ; bz < szLen + padZ; bz++) {
                 BlockPos wp = renderOrigin.offset(bx, -1, bz);
                 blockMap.put(wp, floor);
                 baseplatePos.add(wp);
@@ -740,13 +744,13 @@ public class PhantasiaSceneScreen extends Screen {
             renderer = new PhantasiaWorldRenderer(SHARED_LEVEL);
         }
         if (pattern != null) {
-            renderer.setBaseplatePositions(pattern.baseplatePositions);
+            boolean showBP2 = PhantasiaConfigs.INSTANCE == null || PhantasiaConfigs.INSTANCE.phantasiaUI.showBaseplate;
+            renderer.setBaseplatePositions(showBP2 ? pattern.baseplatePositions : Set.of());
             renderer.setControllerWorldPos(pattern.controllerWorldPos);
 
-            // Tell the renderer the full set of pattern blocks (validity for bake targeting).
             Set<BlockPos> fullBakeSet = new HashSet<>();
             fullBakeSet.addAll(pattern.blockMap.keySet());
-            fullBakeSet.addAll(pattern.baseplatePositions);
+            if (showBP2) fullBakeSet.addAll(pattern.baseplatePositions);
             renderer.setPatternBlocks(fullBakeSet);
 
             renderer.requestBake();
@@ -1110,8 +1114,8 @@ public class PhantasiaSceneScreen extends Screen {
 
     @Override
     public void render(@NotNull GuiGraphics g, int mx, int my, float partial) {
-        long screenRenderStart = System.nanoTime();
-        if (screenProfileWindowStart == -1) {
+        long screenRenderStart = ENABLE_PROFILER ? System.nanoTime() : 0;
+        if (ENABLE_PROFILER && screenProfileWindowStart == -1) {
             screenProfileWindowStart = screenRenderStart;
         }
 
@@ -1213,14 +1217,14 @@ public class PhantasiaSceneScreen extends Screen {
             }
         }
 
-        // Record screen metrics tracking metrics
-        long frameDurationNs = System.nanoTime() - screenRenderStart;
-        totalScreenRenderTimeNs += frameDurationNs;
-        maxScreenSpikeNs = Math.max(maxScreenSpikeNs, frameDurationNs);
-        screenProfiledFramesCount++;
-
-        if (System.nanoTime() - screenProfileWindowStart >= SCREEN_PROFILE_WINDOW_NS) {
-            dumpScreenProfilingMetrics();
+        if (ENABLE_PROFILER) {
+            long frameDurationNs = System.nanoTime() - screenRenderStart;
+            totalScreenRenderTimeNs += frameDurationNs;
+            maxScreenSpikeNs = Math.max(maxScreenSpikeNs, frameDurationNs);
+            screenProfiledFramesCount++;
+            if (System.nanoTime() - screenProfileWindowStart >= SCREEN_PROFILE_WINDOW_NS) {
+                dumpScreenProfilingMetrics();
+            }
         }
     }
 

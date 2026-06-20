@@ -168,7 +168,7 @@ public final class PhantasiaPatternLoader {
         int padX = Math.max(2, sxLen / 2 + 1);
         int padZ = Math.max(2, szLen / 2 + 1);
 
-        int baseplateCount = (sxLen + 2 * padX + 1) * (szLen + 2 * padZ + 1);
+        int baseplateCount = (sxLen + 2 * padX) * (szLen + 2 * padZ);
         int machineCount = countNonNull(raw);
         blocksTotal = baseplateCount + machineCount;
 
@@ -182,8 +182,8 @@ public final class PhantasiaPatternLoader {
         var _baseplateState0 = net.phoenixvine.phantasia.utils.PhantasiaTheme.currentBaseplateBlockState();
         BlockInfo floor = _baseplateState0 != null ? BlockInfo.fromBlockState(_baseplateState0) : null;
 
-        if (floor != null) for (int bx = -padX; bx <= sxLen + padX; bx++) {
-            for (int bz = -padZ; bz <= szLen + padZ; bz++) {
+        if (floor != null) for (int bx = -padX; bx < sxLen + padX; bx++) {
+            for (int bz = -padZ; bz < szLen + padZ; bz++) {
                 if (Thread.interrupted()) throw new InterruptedException();
                 BlockPos wp = renderOrigin.offset(bx, -1, bz);
                 blockMap.put(wp, floor);

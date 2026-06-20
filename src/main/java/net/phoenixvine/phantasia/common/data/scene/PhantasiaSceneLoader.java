@@ -145,10 +145,10 @@ public class PhantasiaSceneLoader {
     }
 
     private static void log(String msg) {
-        System.out.println("[Phantasia/Scenes] " + msg);
+        net.phoenixvine.phantasia.Phantasia.LOGGER.info("[Phantasia/Scenes] {}", msg);
     }
 
     private static void logErr(String msg) {
-        System.err.println("[Phantasia/Scenes] ERROR: " + msg);
+        net.phoenixvine.phantasia.Phantasia.LOGGER.error("[Phantasia/Scenes] {}", msg);
     }
 }

@@ -79,6 +79,8 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
     private EditBox searchBox;
     private int scrollOffset = 0; // in rows (card grid tabs)
     private int settingsScrollPx = 0; // pixel scroll for the settings panel
+    private int tutPlayerScroll = 0;
+    private int tutDevScroll = 0;
     private int hoveredCard = -1;
 
     /** null = All mods; otherwise filters multiblock tab to this namespace */
@@ -1108,6 +1110,8 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
             if (activeTab != Tab.TUTORIALS) {
                 activeTab = Tab.TUTORIALS;
                 scrollOffset = 0;
+                tutPlayerScroll = 0;
+                tutDevScroll = 0;
             }
             return true;
         }
@@ -1241,11 +1245,33 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
             settingsScrollPx = Math.max(0, Math.min(maxScroll, settingsScrollPx + (delta > 0 ? -12 : 12)));
             return true;
         }
+        if (activeTab == Tab.TUTORIALS) {
+            int contentTop = HEADER_H + SEARCH_H + 6;
+            int contentBot = this.height - FOOTER_H;
+            int midY = (contentTop + contentBot) / 2;
+            int labelH = font.lineHeight + 4;
+            int stride = CARD_H + CARD_PAD;
+            int dir = delta > 0 ? -1 : 1;
+            if (my < midY) {
+                long playerCount = PhantasiaTutorials.ALL.stream()
+                        .filter(t -> TutorialSequence.PLAYER.equals(t.category)).count();
+                int totalRows = (int) ((playerCount + COLS - 1) / COLS);
+                int panelRows = Math.max(1, (midY - 3 - (contentTop + labelH + 4)) / stride);
+                tutPlayerScroll = Math.max(0, Math.min(Math.max(0, totalRows - panelRows), tutPlayerScroll + dir));
+            } else {
+                long devCount = PhantasiaTutorials.ALL.stream()
+                        .filter(t -> TutorialSequence.DEV.equals(t.category)).count();
+                int totalRows = (int) ((devCount + COLS - 1) / COLS);
+                int panelRows = Math.max(1, (contentBot - (midY + 2 + labelH + 4)) / stride);
+                tutDevScroll = Math.max(0, Math.min(Math.max(0, totalRows - panelRows), tutDevScroll + dir));
+            }
+            return true;
+        }
         int itemCount;
         if (activeTab == Tab.MULTIBLOCKS) itemCount = filteredScenes.size();
         else if (activeTab == Tab.GUIDES) itemCount = filteredGuides.size() + 1;
         else if (activeTab == Tab.SCENES) itemCount = filteredManualScenes.size() + 1;
-        else itemCount = PhantasiaTutorials.ALL.size();
+        else itemCount = 0;
         int totalRows = (itemCount + COLS - 1) / COLS;
         int maxScroll = Math.max(0, totalRows - visibleRows());
         scrollOffset = Math.max(0, Math.min(maxScroll, scrollOffset + (delta > 0 ? -1 : 1)));
@@ -1280,80 +1306,77 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
     // ── Tutorial cards ────────────────────────────────────────────────────────
 
     private void renderTutorialCards(GuiGraphics g, int mx, int my) {
-        List<TutorialSequence> tutorials = PhantasiaTutorials.ALL;
+        List<TutorialSequence> playerTuts = PhantasiaTutorials.ALL.stream()
+                .filter(t -> TutorialSequence.PLAYER.equals(t.category)).toList();
+        List<TutorialSequence> devTuts = PhantasiaTutorials.ALL.stream()
+                .filter(t -> TutorialSequence.DEV.equals(t.category)).toList();
+
         int totalW = COLS * CARD_W + (COLS - 1) * CARD_PAD;
         int startX = (this.width - totalW) / 2;
-        int startY = HEADER_H + SEARCH_H + 6;
-        int maxRows = visibleRows();
+        int contentTop = HEADER_H + SEARCH_H + 6;
+        int contentBot = this.height - FOOTER_H;
+        int midY = (contentTop + contentBot) / 2;
+
         hoveredCard = -1;
 
-        boolean playerSectionDrawn = false;
-        boolean devSectionDrawn = false;
+        // Player section — top half
+        renderTutorialSection(g, mx, my, playerTuts, 0,
+                "For Players", C_ACCENT(), false, startX, contentTop, midY - 3, tutPlayerScroll);
 
-        int visIdx = 0;
-        for (int i = 0; i < tutorials.size(); i++) {
-            TutorialSequence seq = tutorials.get(i);
-            int row = visIdx / COLS - scrollOffset;
-            int col = visIdx % COLS;
-            visIdx++;
+        // Divider
+        g.fill(startX, midY - 1, startX + totalW, midY, 0x44FFFFFF);
 
-            if (col == 0) {
-                boolean isPlayer = TutorialSequence.PLAYER.equals(seq.category);
-                if (isPlayer && !playerSectionDrawn) {
-                    playerSectionDrawn = true;
-                    if (row >= 0 && row < maxRows) {
-                        g.drawString(font, "For Players", startX, startY + row * (CARD_H + CARD_PAD) - 12, C_ACCENT(),
-                                false);
-                    }
-                }
-                if (!isPlayer && !devSectionDrawn) {
-                    devSectionDrawn = true;
-                    if (row >= 0 && row < maxRows) {
-                        g.drawString(font, "For Pack Authors", startX, startY + row * (CARD_H + CARD_PAD) - 12, C_DIM(),
-                                false);
-                    }
-                }
-            }
+        // Dev section — bottom half
+        renderTutorialSection(g, mx, my, devTuts, playerTuts.size(),
+                "For Pack Authors", C_WARN(), true, startX, midY + 2, contentBot, tutDevScroll);
+    }
 
-            if (row < 0 || row >= maxRows) continue;
+    private void renderTutorialSection(GuiGraphics g, int mx, int my,
+            List<TutorialSequence> list, int indexOffset,
+            String label, int labelColor, boolean isDev,
+            int startX, int panelTop, int panelBot, int scroll) {
+        int stride = CARD_H + CARD_PAD;
+        int labelH = font.lineHeight + 4;
+        int cardsTop = panelTop + labelH + 4;
+        int panelRows = Math.max(1, (panelBot - cardsTop) / stride);
+
+        g.drawString(font, label, startX, panelTop + 2, labelColor, false);
+
+        g.enableScissor(0, cardsTop, this.width, panelBot);
+        for (int i = 0; i < list.size(); i++) {
+            TutorialSequence seq = list.get(i);
+            int row = i / COLS - scroll;
+            int col = i % COLS;
+            if (row < 0 || row >= panelRows) continue;
 
             int cx = startX + col * (CARD_W + CARD_PAD);
-            int cy = startY + row * (CARD_H + CARD_PAD);
-            boolean hov = isOver(mx, my, cx, cy, CARD_W, CARD_H);
-            if (hov) hoveredCard = i;
+            int cy = cardsTop + row * stride;
+            boolean hov = isOver(mx, my, cx, cy, CARD_W, CARD_H) && my >= cardsTop && my < panelBot;
+            if (hov) hoveredCard = indexOffset + i;
 
             g.fill(cx, cy, cx + CARD_W, cy + CARD_H, hov ? C_CARD_HOV : C_CARD);
-            boolean isDev = TutorialSequence.DEV.equals(seq.category);
-            g.fill(cx, cy, cx + CARD_W, cy + 1, isDev ? C_DIM() : C_ACCENT());
+            g.fill(cx, cy, cx + CARD_W, cy + 1, isDev ? C_WARN() : C_ACCENT());
 
             ResourceLocation iconRL = null;
-            try {
-                iconRL = new ResourceLocation(seq.iconItem);
-            } catch (Exception ignored) {}
+            try { iconRL = new ResourceLocation(seq.iconItem); } catch (Exception ignored) {}
             if (iconRL != null) {
                 Item iconItem = net.minecraftforge.registries.ForgeRegistries.ITEMS.getValue(iconRL);
-                if (iconItem != null && iconItem != Items.AIR) {
+                if (iconItem != null && iconItem != Items.AIR)
                     g.renderItem(new ItemStack(iconItem), cx + 4, cy + 4);
-                }
             }
 
-            g.drawString(font, seq.title, cx + 22, cy + 6, C_ACCENT(), false);
+            g.drawString(font, seq.title, cx + 22, cy + 6, isDev ? C_WARN() : C_ACCENT(), false);
 
             String desc = seq.description != null ? seq.description : "";
-            int maxDescW = CARD_W - 8;
-            java.util.List<net.minecraft.util.FormattedCharSequence> lines = font.split(Component.literal(desc),
-                    maxDescW);
+            java.util.List<net.minecraft.util.FormattedCharSequence> lines =
+                    font.split(Component.literal(desc), CARD_W - 8);
             int ty = cy + 20;
-            for (int li = 0; li < Math.min(lines.size(), 3); li++) {
+            for (int li = 0; li < Math.min(lines.size(), 3); li++)
                 g.drawString(font, lines.get(li), cx + 4, ty + li * 10, C_DIM(), false);
-            }
 
-            String slideStr = seq.slides.size() + " slides";
-            g.drawString(font, slideStr, cx + 4, cy + CARD_H - 12, C_DIM(), false);
-
-            if (isDev) {
+            g.drawString(font, seq.slides.size() + " slides", cx + 4, cy + CARD_H - 12, C_DIM(), false);
+            if (isDev)
                 g.drawString(font, "DEV", cx + CARD_W - font.width("DEV") - 4, cy + CARD_H - 12, C_DIM(), false);
-            }
 
             if (hov) {
                 String btnLabel = "▶ Start";
@@ -1364,6 +1387,7 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
                 g.drawString(font, btnLabel, bx2 + 3, by2 + 1, C_ACCENT(), false);
             }
         }
+        g.disableScissor();
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

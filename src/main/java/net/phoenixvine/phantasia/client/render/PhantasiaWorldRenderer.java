@@ -30,7 +30,6 @@ import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.phoenixvine.phantasia.client.camera.CameraView;
-import net.phoenixvine.phantasia.common.data.pattern.PhantasiaLoadedPattern;
 import net.phoenixvine.phantasia.common.data.variant.PhantasiaVariantState;
 
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -98,7 +97,9 @@ public final class PhantasiaWorldRenderer {
     }
 
     // ── Profiler ──────────────────────────────────────────────────────────────
-    // Window: emit a report every 5 s of wall-clock render time.
+    // Set to true to emit periodic bake/render timing reports to the log.
+    private static final boolean ENABLE_PROFILER = false;
+
     private static final long PROFILE_WINDOW_NS = 5_000_000_000L;
     private static final int SPIKE_HISTORY_SIZE = 64; // ring-buffer of recent frame times
 
@@ -329,13 +330,6 @@ public final class PhantasiaWorldRenderer {
 
     private BlockPos slotOrigin = BlockPos.ZERO;
 
-    // Keep a reference to the active layout pattern for exact boundary collision tests
-    private PhantasiaLoadedPattern patternContext = null;
-
-    public void setPatternContext(PhantasiaLoadedPattern pattern) {
-        this.patternContext = pattern;
-    }
-
     private long lastParticleTick = -1;
     private boolean tickedThisFrame = false;
     @Nullable
@@ -376,10 +370,6 @@ public final class PhantasiaWorldRenderer {
 
     public void setControllerWorldPos(@Nullable BlockPos pos) {
         this.controllerWorldPos = pos;
-    }
-
-    public void setSlotOrigin(BlockPos slotOrigin) {
-        this.slotOrigin = slotOrigin;
     }
 
     public void setPatternBlocks(Set<BlockPos> all) {
@@ -489,8 +479,8 @@ public final class PhantasiaWorldRenderer {
     public void render(CameraView view, int guiX, int guiY, int guiW, int guiH) {
         if (guiW <= 0 || guiH <= 0) return;
 
-        long renderStart = System.nanoTime();
-        if (profileWindowStart == -1) {
+        long renderStart = ENABLE_PROFILER ? System.nanoTime() : 0;
+        if (ENABLE_PROFILER && profileWindowStart == -1) {
             profileWindowStart = renderStart;
         }
 
@@ -689,26 +679,25 @@ public final class PhantasiaWorldRenderer {
             }
         }
 
-        // ── RECORD SUMMARY ──
-        long frameDurationNs = System.nanoTime() - renderStart;
-        totalRenderTimeNs += frameDurationNs;
-        maxRenderTimeNs = Math.max(maxRenderTimeNs, frameDurationNs);
-        profiledFramesCount++;
+        if (ENABLE_PROFILER) {
+            long frameDurationNs = System.nanoTime() - renderStart;
+            totalRenderTimeNs += frameDurationNs;
+            maxRenderTimeNs = Math.max(maxRenderTimeNs, frameDurationNs);
+            profiledFramesCount++;
 
-        // Spike ring-buffer
-        spikeHistory[spikeHead] = frameDurationNs;
-        spikeHead = (spikeHead + 1) % SPIKE_HISTORY_SIZE;
+            spikeHistory[spikeHead] = frameDurationNs;
+            spikeHead = (spikeHead + 1) % SPIKE_HISTORY_SIZE;
 
-        // Budget violation counters
-        long frameMs8 = 8_000_000L;
-        long frameMs16 = 16_000_000L;
-        long frameMs33 = 33_000_000L;
-        if (frameDurationNs > frameMs8) framesOver8ms++;
-        if (frameDurationNs > frameMs16) framesOver16ms++;
-        if (frameDurationNs > frameMs33) framesOver33ms++;
+            long frameMs8 = 8_000_000L;
+            long frameMs16 = 16_000_000L;
+            long frameMs33 = 33_000_000L;
+            if (frameDurationNs > frameMs8) framesOver8ms++;
+            if (frameDurationNs > frameMs16) framesOver16ms++;
+            if (frameDurationNs > frameMs33) framesOver33ms++;
 
-        if (System.nanoTime() - profileWindowStart >= PROFILE_WINDOW_NS) {
-            dumpProfilingData();
+            if (System.nanoTime() - profileWindowStart >= PROFILE_WINDOW_NS) {
+                dumpProfilingData();
+            }
         }
     }
 

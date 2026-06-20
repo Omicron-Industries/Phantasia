@@ -7,6 +7,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
+import net.phoenixvine.phantasia.Phantasia;
+
 public class StructureAssetReader {
 
     public static String[][] readAislesFromAsset(String assetPath) {
@@ -57,7 +59,7 @@ public class StructureAssetReader {
 
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            Phantasia.LOGGER.error("[Phantasia/StructureAsset] Failed to read {}: {}", assetPath, e.getMessage());
         }
 
         // Convert the structural Lists back to String[][] for GTCEu's loop

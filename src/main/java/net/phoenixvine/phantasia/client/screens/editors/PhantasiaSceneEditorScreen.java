@@ -213,8 +213,8 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
 
         float sumX = 0, sumZ = 0;
         for (PhantasiaScenePattern.PlacementEntry pe : scenePattern.placements) {
-            sumX += pe.offset.getX();
-            sumZ += pe.offset.getZ();
+            sumX += pe.centerX;
+            sumZ += pe.centerZ;
         }
         float midX = sumX / scenePattern.placements.size();
         float midZ = sumZ / scenePattern.placements.size();
@@ -222,8 +222,8 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
 
         float spanX = 0, spanZ = 0;
         for (PhantasiaScenePattern.PlacementEntry pe : scenePattern.placements) {
-            spanX = Math.max(spanX, Math.abs(pe.offset.getX() - midX));
-            spanZ = Math.max(spanZ, Math.abs(pe.offset.getZ() - midZ));
+            spanX = Math.max(spanX, Math.abs(pe.centerX - midX));
+            spanZ = Math.max(spanZ, Math.abs(pe.centerZ - midZ));
         }
         float dist = 20f + Math.max(spanX, spanZ) * 1.5f;
 
@@ -2120,7 +2120,7 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         rebuildVisibility();
     }
 
-    private void save() {
+    void save() {
         PhantasiaSceneLoader.save(data);
         dirty = false;
     }

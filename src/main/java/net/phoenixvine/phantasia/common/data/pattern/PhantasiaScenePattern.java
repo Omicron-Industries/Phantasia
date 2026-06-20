@@ -39,6 +39,9 @@ public class PhantasiaScenePattern {
         public final int index;
         public final String machineId;
         public final BlockPos offset;
+        /** Centroid of the machine's block footprint — use this for camera centering. */
+        public final float centerX;
+        public final float centerZ;
         /** World positions belonging to this placement (non-baseplate). */
         public final Set<BlockPos> worldPositions;
         /** World positions of this placement's baseplate. */
@@ -56,6 +59,15 @@ public class PhantasiaScenePattern {
             this.baseplatePositions = Collections.unmodifiableSet(baseplatePositions);
             this.minY = minY;
             this.maxY = maxY;
+            if (worldPositions.isEmpty()) {
+                this.centerX = offset.getX();
+                this.centerZ = offset.getZ();
+            } else {
+                float sx = 0, sz = 0;
+                for (BlockPos p : worldPositions) { sx += p.getX() + 0.5f; sz += p.getZ() + 0.5f; }
+                this.centerX = sx / worldPositions.size();
+                this.centerZ = sz / worldPositions.size();
+            }
         }
     }
 
@@ -99,8 +111,7 @@ public class PhantasiaScenePattern {
             PhantasiaSceneData.PlacementData pd = sceneData.placements.get(i);
             PlacementEntry entry = buildPlacement(i, pd, world, mergedMap, allBaseplates);
             if (entry == null) {
-                System.err.println(
-                        "[Phantasia/Scene] Could not build placement " + i + " (" + pd.machine + ") — skipping.");
+                net.phoenixvine.phantasia.Phantasia.LOGGER.warn("[Phantasia/Scene] Could not build placement {} ({}) — skipping.", i, pd.machine);
                 continue;
             }
             placements.add(entry);
@@ -167,8 +178,8 @@ public class PhantasiaScenePattern {
         // Baseplate
         var _baseplateState0 = net.phoenixvine.phantasia.utils.PhantasiaTheme.currentBaseplateBlockState();
         BlockInfo floor = _baseplateState0 != null ? BlockInfo.fromBlockState(_baseplateState0) : null;
-        if (floor != null) for (int bx = -padX; bx <= sxLen + padX; bx++)
-            for (int bz = -padZ; bz <= szLen + padZ; bz++) {
+        if (floor != null) for (int bx = -padX; bx < sxLen + padX; bx++)
+            for (int bz = -padZ; bz < szLen + padZ; bz++) {
                 BlockPos wp = origin.offset(bx, -1, bz);
                 placementMap.put(wp, floor);
                 baseplatePos.add(wp);
@@ -263,8 +274,7 @@ public class PhantasiaScenePattern {
         // Resolve block: try GTCEu machine registry first, then Forge block registry
         BlockInfo blockInfo = resolveBlockInfo(pd.machine);
         if (blockInfo == null) {
-            System.err.println("[Phantasia/Scene] Could not resolve block for singleblock placement " + index + " (" +
-                    pd.machine + ") — skipping.");
+            net.phoenixvine.phantasia.Phantasia.LOGGER.warn("[Phantasia/Scene] Could not resolve block for singleblock placement {} ({}) — skipping.", index, pd.machine);
             return null;
         }
 

@@ -183,8 +183,8 @@ public final class PhantasiaPatternLoader {
             BlockPos controllerWP = null; // populated by definition.onShapeLoaded() at apply time
 
             // ── Baseplate ─────────────────────────────────────────────────────
-            if (floor != null) for (int bx = -padX; bx <= sxLen + padX; bx++)
-                for (int bz = -padZ; bz <= szLen + padZ; bz++) {
+            if (floor != null) for (int bx = -padX; bx < sxLen + padX; bx++)
+                for (int bz = -padZ; bz < szLen + padZ; bz++) {
                     if (Thread.interrupted() || cancelled) return;
                     BlockPos wp = origin.offset(bx, -1, bz);
                     blockMap.put(wp, floor);

@@ -84,29 +84,29 @@ public final class PhantasiaTutorials {
         g.drawCenteredString(f, "✶ Phantasia", VW / 2, 8, C_ACCENT());
         g.drawCenteredString(f, "Multiblock machines, scenes, and guides", VW / 2, 20, C_DIM());
 
-        // Tabs — mirror real tab layout (tabY=32)
-        String[] tabLabels = { "Multiblocks", "Scenes", "Guides", "Tutorials" };
+        // Tabs — mirror real screen's renderTabs() layout exactly:
+        //   Multiblocks at gridX, Scenes at gridX+104 (hardcoded), rest use font.width+20 gaps
         int tx = gridX;
-        for (int i = 0; i < tabLabels.length; i++) {
-            int tw = f.width(tabLabels[i]) + 16;
-            boolean act = (i == activeTab);
-            g.fill(tx, 32, tx + tw, 48, act ? C_BTN_HOV() : C_BTN());
-            if (act) g.fill(tx, 46, tx + tw, 48, C_ACCENT());
-            g.drawString(f, tabLabels[i], tx + 8, 36, act ? C_ACCENT() : C_DIM(), false);
-            tx += tw + (i == 0 ? 0 : 4); // real layout: tab 1 is at tabStartX+104 hardcoded
-        }
+        renderMockTab(g, f, tx, 32, "Multiblocks", activeTab == 0);
+        tx = gridX + 104;
+        renderMockTab(g, f, tx, 32, "Scenes", activeTab == 1);
+        tx += f.width("Scenes") + 20;
+        renderMockTab(g, f, tx, 32, "Guides", activeTab == 2);
+        tx += f.width("Guides") + 20;
+        renderMockTab(g, f, tx, 32, "Tutorials", activeTab == 3);
 
-        // Search box (at HEADER_H + 4)
-        int searchY = SEL_HEADER_H + 4;
-        g.fill(gridX, searchY, gridX + SEL_GRID_W, searchY + 16, 0xFF0A0A14);
+        // Search box — SEARCH_H=24, matches real screen (not 16)
+        int searchY = SEL_HEADER_H;  // real: HEADER_H = 52
+        int searchH = 24;
+        g.fill(gridX, searchY, gridX + SEL_GRID_W, searchY + searchH, 0xFF0A0A14);
         g.fill(gridX, searchY, gridX + SEL_GRID_W, searchY + 1, 0xFF333355);
-        g.fill(gridX, searchY + 15, gridX + SEL_GRID_W, searchY + 16, 0xFF333355);
-        g.fill(gridX, searchY, gridX + 1, searchY + 16, 0xFF333355);
-        g.fill(gridX + SEL_GRID_W - 1, searchY, gridX + SEL_GRID_W, searchY + 16, 0xFF333355);
-        g.drawString(f, "Search...", gridX + 4, searchY + 4, 0xFF888888, false);
+        g.fill(gridX, searchY + searchH - 1, gridX + SEL_GRID_W, searchY + searchH, 0xFF333355);
+        g.fill(gridX, searchY, gridX + 1, searchY + searchH, 0xFF333355);
+        g.fill(gridX + SEL_GRID_W - 1, searchY, gridX + SEL_GRID_W, searchY + searchH, 0xFF333355);
+        g.drawString(f, "Search...", gridX + 4, searchY + 8, 0xFF888888, false);
 
-        // Cards
-        int cardsY = searchY + 20;
+        // Cards — real: HEADER_H + SEARCH_H + 6 = 52 + 24 + 6 = 82
+        int cardsY = searchY + searchH + 6;
         if (activeTab == 0) drawMachineCards(g, f, gridX, cardsY);
         else if (activeTab == 2) drawGuideCardsSelection(g, f, t, gridX, cardsY);
         else if (activeTab == 3) drawTutorialCardsSelection(g, f, t, gridX, cardsY);
@@ -116,6 +116,13 @@ public final class PhantasiaTutorials {
         g.fill(0, footerY, VW, VH, 0xCC0A0A14);
         g.fill(0, footerY, VW, footerY + 1, 0x33FFFFFF);
         g.drawCenteredString(f, "ESC to close  •  [P] near a machine to open directly", VW / 2, footerY + 9, C_DIM());
+    }
+
+    private static void renderMockTab(GuiGraphics g, Font f, int x, int y, String label, boolean active) {
+        int w = f.width(label) + 16;
+        g.fill(x, y, x + w, y + 16, active ? C_BTN_HOV() : C_BTN());
+        if (active) g.fill(x, y + 14, x + w, y + 16, C_ACCENT());
+        g.drawString(f, label, x + 8, y + 4, active ? C_ACCENT() : C_DIM(), false);
     }
 
     private static void drawMachineCards(GuiGraphics g, Font f, int gridX, int startY) {
@@ -209,8 +216,18 @@ public final class PhantasiaTutorials {
             g.drawString(f, playerTuts[i][0], cx + 4, startY + SEL_CARD_H - 22, C_TEXT(), false);
             g.drawString(f, playerTuts[i][1], cx + 4, startY + SEL_CARD_H - 10, C_DIM(), false);
         }
-        startY += SEL_CARD_H + 12;
+        startY += SEL_CARD_H + SEL_CARD_PAD;
         g.drawString(f, "For Pack Authors", gridX, startY, C_WARN(), false);
+        startY += 12;
+        String[][] devTuts = { { "Creating Guides", "Dev" }, { "Writing Scripts", "Dev" },
+                { "Writing Scenes", "Dev" } };
+        for (int i = 0; i < 3; i++) {
+            int cx = gridX + i * (SEL_CARD_W + SEL_CARD_PAD);
+            g.fill(cx, startY, cx + SEL_CARD_W, startY + SEL_CARD_H, (0xBB << 24) | (C_PANEL() & 0x00FFFFFF));
+            g.fill(cx, startY, cx + SEL_CARD_W, startY + 2, C_WARN());
+            g.drawString(f, devTuts[i][0], cx + 4, startY + SEL_CARD_H - 22, C_TEXT(), false);
+            g.drawString(f, devTuts[i][1], cx + 4, startY + SEL_CARD_H - 10, C_DIM(), false);
+        }
     }
 
     // ── Guide screen replica (PhantasiaGuideScreen) ───────────────────────────
@@ -265,10 +282,19 @@ public final class PhantasiaTutorials {
         }
         y += 4;
 
-        // Body text
+        // Body text — lines ending with → are rendered as link buttons
         if (body != null) {
-            for (var line : f.split(net.minecraft.network.chat.Component.literal(body), colW)) {
-                g.drawString(f, line, colX, y, C_TEXT(), false);
+            for (String rawLine : body.split("\n", -1)) {
+                if (y + f.lineHeight > VH - NAV_H - 4) break;
+                boolean isLink = rawLine.endsWith("→");
+                if (isLink) {
+                    int bW = f.width(rawLine) + 12;
+                    g.fill(colX, y - 1, colX + bW, y + f.lineHeight + 2, 0x22FFFFFF);
+                    g.fill(colX, y - 1, colX + 2, y + f.lineHeight + 2, C_ACCENT());
+                    g.drawString(f, rawLine, colX + 4, y, C_ACCENT(), false);
+                } else if (!rawLine.isEmpty()) {
+                    g.drawString(f, rawLine, colX, y, C_TEXT(), false);
+                }
                 y += f.lineHeight + 2;
             }
         }
@@ -816,11 +842,11 @@ public final class PhantasiaTutorials {
                                     int tab = (tick / 80) % 4;
                                     drawSelectionScreen(g, f, t, tick, tab);
                                 }))
-                                .cursor(0.238f, 0.133f, 20, 40, true)
-                                .cursor(0.371f, 0.133f, 15, 40, true)
-                                .cursor(0.485f, 0.133f, 15, 40, true)
-                                .cursor(0.615f, 0.133f, 15, 40, true)
-                                .highlight(0.158f, 0.107f, 0.525f, 0.053f, "Tab bar")
+                                .cursor(0.231f, 0.133f, 20, 40, true)
+                                .cursor(0.425f, 0.133f, 15, 40, true)
+                                .cursor(0.533f, 0.133f, 15, 40, true)
+                                .cursor(0.654f, 0.133f, 15, 40, true)
+                                .highlight(0.158f, 0.107f, 0.560f, 0.053f, "Tab bar")
                                 .build(),
 
                         TutorialSlide.of("You're Ready!",
@@ -847,8 +873,8 @@ public final class PhantasiaTutorials {
                                         "or lore page. It can have multiple pages you scroll through.\n\n" +
                                         "Find guides in /phantasia under the Guides tab.")
                                 .mock(mock((g, f, t, tick) -> drawSelectionScreen(g, f, t, tick, 2)))
-                                .cursor(0.485f, 0.130f, 20, 40, true)
-                                .highlight(0.433f, 0.107f, 0.104f, 0.053f, "Guides tab")
+                                .cursor(0.533f, 0.130f, 20, 40, true)
+                                .highlight(0.485f, 0.107f, 0.098f, 0.053f, "Guides tab")
                                 .build(),
 
                         TutorialSlide.of("Reading a Guide",
@@ -898,9 +924,9 @@ public final class PhantasiaTutorials {
                                         "Now that you understand the inputs and outputs,\nyou're ready to build the machine.\n\n" +
                                                 "Continue Reading →\n► View Automated Script →",
                                         3, 4)))
-                                .cursor(0.46f, 0.65f, 20, 30, true)
-                                .cursor(0.46f, 0.73f, 15, 30, true)
-                                .highlight(0.12f, 0.62f, 0.76f, 0.16f, "Cross-link buttons")
+                                .cursor(0.25f, 0.390f, 20, 30, true)
+                                .cursor(0.25f, 0.427f, 15, 30, true)
+                                .highlight(0.104f, 0.370f, 0.60f, 0.080f, "Cross-link buttons")
                                 .build()));
     }
 
@@ -988,7 +1014,7 @@ public final class PhantasiaTutorials {
                                                 "⚠ Coolant pipe required on Chemical Reactor south face\n" +
                                                 "✖ Power distribution overflow if EBF and Turbine share bus",
                                         2, 5)))
-                                .highlight(0.0f, 0.45f, 1.0f, 0.35f, "Mistake banners")
+                                .highlight(0.0f, 0.260f, 1.0f, 0.120f, "Mistake banners")
                                 .build()));
     }
 
@@ -1005,10 +1031,10 @@ public final class PhantasiaTutorials {
                                         "The editor opens with a blank guide ready to fill in.\n" +
                                         "Give it a unique ID (e.g. yourmod:my_guide), a title, and an icon.")
                                 .mock(mock((g, f, t, tick) -> drawSelectionScreen(g, f, t, tick, 2)))
-                                .cursor(0.485f, 0.130f, 20, 50, true)
-                                .cursor(0.267f, 0.397f, 20, 40, true)
-                                .highlight(0.433f, 0.107f, 0.104f, 0.055f, "Guides tab")
-                                .highlight(0.158f, 0.253f, 0.68f, 0.287f, "Guide cards area")
+                                .cursor(0.533f, 0.130f, 20, 50, true)
+                                .cursor(0.267f, 0.417f, 20, 40, true)
+                                .highlight(0.485f, 0.107f, 0.098f, 0.055f, "Guides tab")
+                                .highlight(0.158f, 0.273f, 0.68f, 0.287f, "Guide cards area")
                                 .build(),
 
                         TutorialSlide.of("The Guide Editor",
@@ -1040,7 +1066,7 @@ public final class PhantasiaTutorials {
                                 .cursor(0.62f, 0.147f, 20, 30, true)
                                 .cursor(0.62f, 0.213f, 15, 30, true)
                                 .cursor(0.92f, 0.037f, 20, 40, true)
-                                .highlight(0.54f, 0.090f, 0.46f, 0.24f, "Page list + Add Page")
+                                .highlight(0.550f, 0.090f, 0.44f, 0.290f, "Page list + Add Page")
                                 .build(),
 
                         TutorialSlide.of("Preview and Save",
@@ -1083,8 +1109,8 @@ public final class PhantasiaTutorials {
                                         "The script editor icon is in the right panel. A blank script\n" +
                                         "is created for you if none exists yet.")
                                 .mock(mock((g, f, t, tick) -> drawSelectionScreen(g, f, t, tick, 0)))
-                                .cursor(0.267f, 0.397f, 25, 50, true)
-                                .highlight(0.158f, 0.253f, 0.217f, 0.287f, "Open EBF card")
+                                .cursor(0.267f, 0.417f, 25, 50, true)
+                                .highlight(0.158f, 0.273f, 0.217f, 0.287f, "Open EBF card")
                                 .build(),
 
                         TutorialSlide.of("Adding Steps",
@@ -1111,7 +1137,7 @@ public final class PhantasiaTutorials {
                                 .build(),
 
                         TutorialSlide.of("Save and Test",
-                                "Click 'Save Script' (bottom-right of editor) to write to disk.\n\n" +
+                                "Click '💾 Save' (top-right of editor) to write to disk.\n\n" +
                                         "Then press [P] while looking at the real machine in the world\n" +
                                         "to run your script live — no restart needed.\n\n" +
                                         "Iterate fast: save → test in world → come back and tweak.")

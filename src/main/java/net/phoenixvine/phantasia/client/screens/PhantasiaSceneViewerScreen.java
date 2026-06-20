@@ -64,7 +64,7 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
     private boolean isPanning = false;
 
     // ── Playback ──────────────────────────────────────────────────────────────
-    private boolean playing = true;
+    private boolean playing = PhantasiaConfigs.INSTANCE == null || PhantasiaConfigs.INSTANCE.phantasiaUI.autoPlayScripts;
     private int playbackTick = 0;
     private float tickAccum = 0f;
     private float speed = 1f;
@@ -101,10 +101,11 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
 
             renderer = new PhantasiaWorldRenderer(level);
             if (pattern != null) {
-                renderer.setBaseplatePositions(pattern.allBaseplatePositions);
+                boolean showBP = PhantasiaConfigs.INSTANCE == null || PhantasiaConfigs.INSTANCE.phantasiaUI.showBaseplate;
+                renderer.setBaseplatePositions(showBP ? pattern.allBaseplatePositions : Set.of());
 
                 Set<BlockPos> fullBakeSet = new HashSet<>(level.renderedBlocks.keySet());
-                fullBakeSet.addAll(pattern.allBaseplatePositions);
+                if (showBP) fullBakeSet.addAll(pattern.allBaseplatePositions);
                 // Belt-and-suspenders: also pull positions from computeVisible(all)
                 PhantasiaSceneData.StepData allStep = new PhantasiaSceneData.StepData();
                 allStep.show = "all";
@@ -117,6 +118,7 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
 
             initCamera();
             applyVisibility();
+            applyActiveState(activeStep());
         }
     }
 
@@ -132,8 +134,8 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
         }
         float sumX = 0, sumZ = 0;
         for (var pe : pattern.placements) {
-            sumX += pe.offset.getX();
-            sumZ += pe.offset.getZ();
+            sumX += pe.centerX;
+            sumZ += pe.centerZ;
         }
         float midX = sumX / pattern.placements.size();
         float midZ = sumZ / pattern.placements.size();
@@ -159,6 +161,54 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
         Set<BlockPos> visible = pattern.computeVisible(step != null ? step : allStep(), data);
         renderer.setVisible(visible != null ? visible : Set.of());
         renderer.requestBake();
+    }
+
+    private void applyActiveState(PhantasiaSceneData.StepData step) {
+        if (level == null || pattern == null) return;
+        boolean globalWorking = step != null && step.working;
+
+        java.util.Map<BlockPos, Boolean> posWorking = new java.util.HashMap<>();
+        for (net.phoenixvine.phantasia.common.data.pattern.PhantasiaScenePattern.PlacementEntry pe : pattern.placements) {
+            boolean effective = step != null ? step.resolveWorking(pe.index) : globalWorking;
+            for (BlockPos wp : pe.worldPositions) posWorking.put(wp, effective);
+        }
+
+        try {
+            for (net.minecraft.world.level.block.entity.BlockEntity be : level.blockEntities.values()) {
+                if (!(be instanceof com.gregtechceu.gtceu.api.blockentity.MetaMachineBlockEntity mmbe)) continue;
+                var machine = mmbe.getMetaMachine();
+                if (!(machine instanceof com.gregtechceu.gtceu.api.machine.multiblock.WorkableMultiblockMachine workable)) continue;
+                boolean effective = posWorking.getOrDefault(be.getBlockPos(), globalWorking);
+                com.gregtechceu.gtceu.api.machine.trait.RecipeLogic logic = workable.getRecipeLogic();
+                if (logic != null)
+                    logic.setStatus(effective
+                            ? com.gregtechceu.gtceu.api.machine.trait.RecipeLogic.Status.WORKING
+                            : com.gregtechceu.gtceu.api.machine.trait.RecipeLogic.Status.IDLE);
+            }
+        } catch (Throwable ignored) {}
+
+        for (java.util.Map.Entry<BlockPos, com.lowdragmc.lowdraglib.utils.BlockInfo> e : pattern.mergedBlockMap.entrySet()) {
+            BlockState original = e.getValue().getBlockState();
+            if (original == null || original.isAir()) continue;
+            try {
+                BlockPos worldPos = e.getKey();
+                boolean effectiveWorking = posWorking.getOrDefault(worldPos, globalWorking);
+                BlockState current = level.getBlockState(worldPos);
+                if (current == null || current.isAir()) continue;
+                com.gregtechceu.gtceu.api.block.ActiveBlock ab;
+                var currentBlock = current.getBlock();
+                if (currentBlock instanceof com.gregtechceu.gtceu.api.block.ActiveBlock currentAb) {
+                    ab = currentAb;
+                } else {
+                    var origBlock = original.getBlock();
+                    if (!(origBlock instanceof com.gregtechceu.gtceu.api.block.ActiveBlock origAb)) continue;
+                    ab = origAb;
+                }
+                BlockState next = ab.changeActive(current, effectiveWorking);
+                if (next != current) level.setBlock(worldPos, next, 2);
+            } catch (Throwable ignored) {}
+        }
+        if (renderer != null) renderer.requestBake();
     }
 
     private PhantasiaSceneData.StepData activeStep() {
@@ -215,12 +265,13 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
             playing = false;
         }
 
-        // Apply camera and visibility on step change
+        // Apply camera, visibility, and working state on step change
         int si = activeStepIndex();
         if (si != lastStepIndex) {
             lastStepIndex = si;
             applyVisibility();
             PhantasiaSceneData.StepData step = activeStep();
+            applyActiveState(step);
             if (step != null && step.camera != null && camera != null) {
                 float zoom = step.camera.zoom > 0 ? step.camera.zoom : camera.getZoom();
                 LerpType lt = LerpType.fromString(step.camera.lerpType);
@@ -540,6 +591,7 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
         if (si != lastStepIndex) {
             lastStepIndex = si;
             applyVisibility();
+            applyActiveState(activeStep());
         }
     }
 
@@ -547,8 +599,8 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
         if (camera == null || pattern == null) return;
         float sumX = 0, sumZ = 0;
         for (var pe : pattern.placements) {
-            sumX += pe.offset.getX();
-            sumZ += pe.offset.getZ();
+            sumX += pe.centerX;
+            sumZ += pe.centerZ;
         }
         float midX = sumX / pattern.placements.size();
         float midZ = sumZ / pattern.placements.size();

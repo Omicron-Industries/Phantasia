@@ -10,6 +10,8 @@ import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 
+import net.phoenixvine.phantasia.Phantasia;
+
 public class PhantasiaTheme {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -179,7 +181,7 @@ public class PhantasiaTheme {
                     w.write(upper);
                 }
             } catch (Exception e) {
-                e.printStackTrace();
+                Phantasia.LOGGER.error("[Phantasia/Theme] {}", e.getMessage());
             }
         }
     }
@@ -315,7 +317,7 @@ public class PhantasiaTheme {
                         REGISTRY.put(name, loaded);
                     }
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    Phantasia.LOGGER.error("[Phantasia/Theme] {}", e.getMessage());
                 }
             }
         }
@@ -331,7 +333,7 @@ public class PhantasiaTheme {
                     }
                 }
             } catch (Exception e) {
-                e.printStackTrace();
+                Phantasia.LOGGER.error("[Phantasia/Theme] {}", e.getMessage());
             }
         }
     }
