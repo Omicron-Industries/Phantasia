@@ -80,7 +80,8 @@ public final class PhantasiaVariantState {
                     this.selections.putAll(loaded);
                 }
             } catch (Exception e) {
-                net.phoenixvine.phantasia.Phantasia.LOGGER.error("[Phantasia] Failed to load variant selections: {}", e.getMessage());
+                net.phoenixvine.phantasia.Phantasia.LOGGER.error("[Phantasia] Failed to load variant selections: {}",
+                        e.getMessage());
             }
         }
     }
@@ -92,7 +93,8 @@ public final class PhantasiaVariantState {
                 GSON.toJson(this.selections, writer);
             }
         } catch (Exception e) {
-            net.phoenixvine.phantasia.Phantasia.LOGGER.error("[Phantasia] Failed to save variant selections: {}", e.getMessage());
+            net.phoenixvine.phantasia.Phantasia.LOGGER.error("[Phantasia] Failed to save variant selections: {}",
+                    e.getMessage());
         }
     }
 

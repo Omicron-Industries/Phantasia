@@ -5,7 +5,6 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
@@ -14,7 +13,6 @@ import net.phoenixvine.phantasia.common.multisetup.IPhantasiaSetupRecipe;
 import net.phoenixvine.phantasia.common.multisetup.PhantasiaMultiSetupRegistry;
 
 import com.hollingsworth.arsnouveau.api.registry.RitualRegistry;
-
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
@@ -40,7 +38,12 @@ public class ArsNouveauRecipePickerScreen extends Screen {
     private final PhantasiaScriptData data;
     private final Consumer<String> onPick;
 
-    private enum Tab { APPARATUS, IMBUEMENT, RITUAL }
+    private enum Tab {
+        APPARATUS,
+        IMBUEMENT,
+        RITUAL
+    }
+
     private Tab activeTab = Tab.RITUAL;
 
     private EditBox searchBox;
@@ -64,7 +67,8 @@ public class ArsNouveauRecipePickerScreen extends Screen {
         px = (this.width - pw) / 2;
         py = (this.height - ph) / 2;
 
-        searchBox = addRenderableWidget(new EditBox(font, px + 8, py + HEADER_H + 24 + 2, pw - 16, 14, Component.empty()));
+        searchBox = addRenderableWidget(
+                new EditBox(font, px + 8, py + HEADER_H + 24 + 2, pw - 16, 14, Component.empty()));
         searchBox.setMaxLength(80);
         searchBox.setHint(Component.literal("Search…"));
         searchBox.setBordered(false);
@@ -279,5 +283,7 @@ public class ArsNouveauRecipePickerScreen extends Screen {
     }
 
     @Override
-    public boolean isPauseScreen() { return false; }
+    public boolean isPauseScreen() {
+        return false;
+    }
 }

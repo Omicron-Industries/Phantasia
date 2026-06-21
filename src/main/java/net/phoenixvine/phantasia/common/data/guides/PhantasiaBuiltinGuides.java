@@ -29,10 +29,11 @@ public final class PhantasiaBuiltinGuides {
 
         PhantasiaGuideData.PageData p2 = new PhantasiaGuideData.PageData();
         p2.headline = "Opening a Guide";
-        p2.text = "Hold §b[P]§r while looking at a multiblock machine in the world. " +
+        String kb = net.phoenixvine.phantasia.client.keybind.PhoenixKeybinds.keyDisplay();
+        p2.text = "Hold §b" + kb + "§r while looking at a multiblock machine in the world. " +
                 "A progress bar will appear at the bottom of the screen — keep " +
                 "holding until it fills and the guide opens automatically.\n\n" +
-                "Some items also have guides attached. Holding §b[P]§r while the item " +
+                "Some items also have guides attached. Holding §b" + kb + "§r while the item " +
                 "is in your hand works the same way.";
         guide.pages.add(p2);
 

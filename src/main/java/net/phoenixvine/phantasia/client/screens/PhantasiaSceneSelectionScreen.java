@@ -15,7 +15,6 @@ import net.minecraftforge.registries.ForgeRegistries;
 import net.phoenixvine.phantasia.client.screens.editors.PhantasiaGuideEditorScreen;
 import net.phoenixvine.phantasia.client.screens.editors.PhantasiaThemeEditorScreen;
 import net.phoenixvine.phantasia.client.tutorial.PhantasiaTutorials;
-import net.phoenixvine.phantasia.configs.PhantasiaConfigs;
 import net.phoenixvine.phantasia.client.tutorial.TutorialSequence;
 import net.phoenixvine.phantasia.common.data.guides.PhantasiaGuideData;
 import net.phoenixvine.phantasia.common.data.guides.PhantasiaGuideRegistry;
@@ -24,6 +23,7 @@ import net.phoenixvine.phantasia.common.data.scene.PhantasiaScenes;
 import net.phoenixvine.phantasia.common.data.script.PhantasiaScript;
 import net.phoenixvine.phantasia.common.data.script.PhantasiaScripts;
 import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockDefinition;
+import net.phoenixvine.phantasia.configs.PhantasiaConfigs;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -707,7 +707,7 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
         y += 8;                    // past border gap
         y += rh - 4;               // past section label
         int themeY = y;            // [8] theme editor button
-        return new int[]{camY, sensY, zoomY, dispY, ticksY, autoPlayY, baseplateY, streamY, themeY};
+        return new int[] { camY, sensY, zoomY, dispY, ticksY, autoPlayY, baseplateY, streamY, themeY };
     }
 
     /** Total pixel height of the settings content (used to cap scroll). */
@@ -742,10 +742,10 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
         com.mojang.blaze3d.platform.GlStateManager._enableScissorTest();
         double scale = Minecraft.getInstance().getWindow().getGuiScale();
         com.mojang.blaze3d.platform.GlStateManager._scissorBox(
-                (int)(panelX * scale),
-                (int)((this.height - panelYScreen - panelH) * scale),
-                (int)(panelW * scale),
-                (int)(panelH * scale));
+                (int) (panelX * scale),
+                (int) ((this.height - panelYScreen - panelH) * scale),
+                (int) (panelW * scale),
+                (int) (panelH * scale));
 
         // Virtual panelY is shifted upward by the scroll amount
         int panelY = panelYScreen - settingsScrollPx;
@@ -759,12 +759,12 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
         g.drawString(font, "Camera", rowX, panelY + 12, C_ACCENT(), false);
 
         renderToggleRow(g, mx, my, panelX, panelW, rowX, ys[0], "Camera follows steps", cfg.scriptLockCamera);
-        String camDesc = cfg.scriptLockCamera
-                ? "ON: scripts/steps drive the camera exclusively. The player cannot move it until they toggle the 🔒 lock button inside the viewer."
-                : "OFF: camera is always yours — scripts and steps never move it. Use the 🔒 lock button to give control back to scripts.";
+        String camDesc = cfg.scriptLockCamera ?
+                "ON: scripts/steps drive the camera exclusively. The player cannot move it until they toggle the 🔒 lock button inside the viewer." :
+                "OFF: camera is always yours — scripts and steps never move it. Use the 🔒 lock button to give control back to scripts.";
         int descMaxW = panelW - 28;
-        java.util.List<net.minecraft.util.FormattedCharSequence> descLines =
-                font.split(net.minecraft.network.chat.Component.literal(camDesc), descMaxW);
+        java.util.List<net.minecraft.util.FormattedCharSequence> descLines = font
+                .split(net.minecraft.network.chat.Component.literal(camDesc), descMaxW);
         int descY = ys[0] + rh;
         for (int li = 0; li < Math.min(descLines.size(), 3); li++) {
             g.drawString(font, descLines.get(li), rowX + 4, descY + li * (rh - 4), C_DIM(), false);
@@ -812,8 +812,8 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
         g.drawCenteredString(font, dispStr, dispX + dispW / 2, ys[3] + 3, C_TEXT());
         g.drawString(font, "►", dispX + dispW - arrowW + 4, ys[3] + 3, dispHovR ? C_ACCENT() : C_DIM(), false);
 
-        String tickLabel = "Activation hold  (" + cfg.activationTicks + " ticks = "
-                + String.format("%.1f", cfg.activationTicks / 20f) + "s)";
+        String tickLabel = "Activation hold  (" + cfg.activationTicks + " ticks = " +
+                String.format("%.1f", cfg.activationTicks / 20f) + "s)";
         g.drawString(font, tickLabel, rowX + 4, ys[4] + 2, C_TEXT(), false);
         String tickStr = String.valueOf(cfg.activationTicks);
         int tickW = arrowW + font.width(tickStr) + 8 + arrowW;
@@ -845,11 +845,11 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
         g.drawString(font, "►", streamX + streamW - arrowW + 4, ys[7] + 3, streamHovR ? C_ACCENT() : C_DIM(), false);
         String streamDesc = switch (cfg.streamingMode) {
             case PERFORMANCE -> "PERFORMANCE: starts displaying the scene sooner with fewer blocks baked. Reduces GPU spikes — best for weak hardware.";
-            case BALANCED    -> "BALANCED: waits for a moderate amount of baking before displaying. Good default for most machines.";
-            case QUALITY     -> "QUALITY: bakes as much as possible before displaying. Smoothest result but causes a longer initial load spike.";
+            case BALANCED -> "BALANCED: waits for a moderate amount of baking before displaying. Good default for most machines.";
+            case QUALITY -> "QUALITY: bakes as much as possible before displaying. Smoothest result but causes a longer initial load spike.";
         };
-        java.util.List<net.minecraft.util.FormattedCharSequence> streamDescLines =
-                font.split(net.minecraft.network.chat.Component.literal(streamDesc), descMaxW);
+        java.util.List<net.minecraft.util.FormattedCharSequence> streamDescLines = font
+                .split(net.minecraft.network.chat.Component.literal(streamDesc), descMaxW);
         int streamDescY = ys[7] + rh;
         for (int li = 0; li < Math.min(streamDescLines.size(), 2); li++) {
             g.drawString(font, streamDescLines.get(li), rowX + 4, streamDescY + li * (rh - 4), C_DIM(), false);
@@ -945,8 +945,8 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
         String dispStr = cfg.displayMode.name().replace('_', ' ');
         int dispW = arrowW + font.width(dispStr) + 8 + arrowW;
         int dispX = panelX + panelW - 12 - dispW;
-        PhantasiaConfigs.PhantasiaUIConfig.DisplayMode[] dmVals =
-                PhantasiaConfigs.PhantasiaUIConfig.DisplayMode.values();
+        PhantasiaConfigs.PhantasiaUIConfig.DisplayMode[] dmVals = PhantasiaConfigs.PhantasiaUIConfig.DisplayMode
+                .values();
         if (isOver(mx, my, dispX, ys[3], arrowW, 13)) {
             cfg.displayMode = dmVals[(cfg.displayMode.ordinal() - 1 + dmVals.length) % dmVals.length];
             savePhantasiaConfig();
@@ -989,8 +989,8 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
         }
 
         // [7] Streaming mode
-        PhantasiaConfigs.PhantasiaUIConfig.StreamingMode[] smVals =
-                PhantasiaConfigs.PhantasiaUIConfig.StreamingMode.values();
+        PhantasiaConfigs.PhantasiaUIConfig.StreamingMode[] smVals = PhantasiaConfigs.PhantasiaUIConfig.StreamingMode
+                .values();
         String streamStr = cfg.streamingMode.name();
         int streamW = arrowW + font.width(streamStr) + 8 + arrowW;
         int streamX = panelX + panelW - 12 - streamW;
@@ -1226,9 +1226,10 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
                 return true;
             }
         } else if (activeTab == Tab.TUTORIALS) {
-            if (hoveredCard >= 0 && hoveredCard < PhantasiaTutorials.ALL.size()) {
+            List<TutorialSequence> allTuts = PhantasiaTutorials.all();
+            if (hoveredCard >= 0 && hoveredCard < allTuts.size()) {
                 Minecraft.getInstance().setScreen(
-                        new PhantasiaTutorialScreen(this, PhantasiaTutorials.ALL.get(hoveredCard)));
+                        new PhantasiaTutorialScreen(this, allTuts.get(hoveredCard)));
                 return true;
             }
         }
@@ -1253,13 +1254,13 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
             int stride = CARD_H + CARD_PAD;
             int dir = delta > 0 ? -1 : 1;
             if (my < midY) {
-                long playerCount = PhantasiaTutorials.ALL.stream()
+                long playerCount = PhantasiaTutorials.all().stream()
                         .filter(t -> TutorialSequence.PLAYER.equals(t.category)).count();
                 int totalRows = (int) ((playerCount + COLS - 1) / COLS);
                 int panelRows = Math.max(1, (midY - 3 - (contentTop + labelH + 4)) / stride);
                 tutPlayerScroll = Math.max(0, Math.min(Math.max(0, totalRows - panelRows), tutPlayerScroll + dir));
             } else {
-                long devCount = PhantasiaTutorials.ALL.stream()
+                long devCount = PhantasiaTutorials.all().stream()
                         .filter(t -> TutorialSequence.DEV.equals(t.category)).count();
                 int totalRows = (int) ((devCount + COLS - 1) / COLS);
                 int panelRows = Math.max(1, (contentBot - (midY + 2 + labelH + 4)) / stride);
@@ -1306,9 +1307,10 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
     // ── Tutorial cards ────────────────────────────────────────────────────────
 
     private void renderTutorialCards(GuiGraphics g, int mx, int my) {
-        List<TutorialSequence> playerTuts = PhantasiaTutorials.ALL.stream()
+        List<TutorialSequence> allTuts = PhantasiaTutorials.all();
+        List<TutorialSequence> playerTuts = allTuts.stream()
                 .filter(t -> TutorialSequence.PLAYER.equals(t.category)).toList();
-        List<TutorialSequence> devTuts = PhantasiaTutorials.ALL.stream()
+        List<TutorialSequence> devTuts = allTuts.stream()
                 .filter(t -> TutorialSequence.DEV.equals(t.category)).toList();
 
         int totalW = COLS * CARD_W + (COLS - 1) * CARD_PAD;
@@ -1332,9 +1334,9 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
     }
 
     private void renderTutorialSection(GuiGraphics g, int mx, int my,
-            List<TutorialSequence> list, int indexOffset,
-            String label, int labelColor, boolean isDev,
-            int startX, int panelTop, int panelBot, int scroll) {
+                                       List<TutorialSequence> list, int indexOffset,
+                                       String label, int labelColor, boolean isDev,
+                                       int startX, int panelTop, int panelBot, int scroll) {
         int stride = CARD_H + CARD_PAD;
         int labelH = font.lineHeight + 4;
         int cardsTop = panelTop + labelH + 4;
@@ -1358,7 +1360,9 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
             g.fill(cx, cy, cx + CARD_W, cy + 1, isDev ? C_WARN() : C_ACCENT());
 
             ResourceLocation iconRL = null;
-            try { iconRL = new ResourceLocation(seq.iconItem); } catch (Exception ignored) {}
+            try {
+                iconRL = new ResourceLocation(seq.iconItem);
+            } catch (Exception ignored) {}
             if (iconRL != null) {
                 Item iconItem = net.minecraftforge.registries.ForgeRegistries.ITEMS.getValue(iconRL);
                 if (iconItem != null && iconItem != Items.AIR)
@@ -1368,8 +1372,8 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
             g.drawString(font, seq.title, cx + 22, cy + 6, isDev ? C_WARN() : C_ACCENT(), false);
 
             String desc = seq.description != null ? seq.description : "";
-            java.util.List<net.minecraft.util.FormattedCharSequence> lines =
-                    font.split(Component.literal(desc), CARD_W - 8);
+            java.util.List<net.minecraft.util.FormattedCharSequence> lines = font.split(Component.literal(desc),
+                    CARD_W - 8);
             int ty = cy + 20;
             for (int li = 0; li < Math.min(lines.size(), 3); li++)
                 g.drawString(font, lines.get(li), cx + 4, ty + li * 10, C_DIM(), false);

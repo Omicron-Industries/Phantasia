@@ -403,7 +403,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
 
         // REMOVED: hidePosBox initialization code was here
 
-
         lerpTicksBox = addW(new EditBox(font, 0, 0, 34, 12, Component.empty()));
         lerpTicksBox.setMaxLength(4);
         lerpTicksBox.setFilter(s -> s.matches("\\d*"));
@@ -1036,8 +1035,14 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         if (hideLayerBox != null) hideLayerBox.visible = false;
         if (lerpTicksBox != null) lerpTicksBox.visible = false;
         if (camZoomBox != null) camZoomBox.visible = false;
-        if (wiItemBox != null) { wiItemBox.visible = false; wiItemBox.active = false; }
-        if (wiSourceBox != null) { wiSourceBox.visible = false; wiSourceBox.active = false; }
+        if (wiItemBox != null) {
+            wiItemBox.visible = false;
+            wiItemBox.active = false;
+        }
+        if (wiSourceBox != null) {
+            wiSourceBox.visible = false;
+            wiSourceBox.active = false;
+        }
 
         // Explicitly handles dynamic mode boxes safely when they are null
         if (rangeMinBox != null) rangeMinBox.visible = false;
@@ -1146,8 +1151,8 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         // "can't easily draw a 3D overlay, so flash a subtle tint" approach.
         if (selectHoveredListPos != null && mx >= selViewW) {
             g.fill(0, TOP_BAR_H, selViewW, this.height - BOTTOM_H, 0x2200FF66);
-            String coordLabel = "  Selected: " + selectHoveredListPos[0] + ", " + selectHoveredListPos[1] + ", "
-                    + selectHoveredListPos[2];
+            String coordLabel = "  Selected: " + selectHoveredListPos[0] + ", " + selectHoveredListPos[1] + ", " +
+                    selectHoveredListPos[2];
             g.fill(2, TOP_BAR_H + 2, font.width(coordLabel) + 6, TOP_BAR_H + 14, 0xAA000000);
             g.drawString(font, coordLabel, 4, TOP_BAR_H + 4, C_GREEN(), false);
         }
@@ -1215,14 +1220,17 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
                 g.drawCenteredString(font, "\u2715", rbx + 5, ry + 2, rbHov ? 0xFFFF5555 : C_DIM());
                 final int fi = i;
                 btns.add(new Btn(rbx, ry + 1, 11, ROW - 2, () -> {
-                    checkpoint(); data.getGlobalMistakes().remove(fi); dirty = true;
+                    checkpoint();
+                    data.getGlobalMistakes().remove(fi);
+                    dirty = true;
                 }));
                 ry += ROW;
             }
             boolean addHov = isOver(mx, my, panelX + 2, ry + 1, panelW - 4, ROW - 2);
             g.fill(panelX + 2, ry + 1, panelX + panelW - 2, ry + ROW - 1, addHov ? C_BTN_HOV() : C_BTN());
             g.fill(panelX + 2, ry + 1, panelX + panelW - 2, ry + 2, C_WARN());
-            g.drawCenteredString(font, "+ Add Global Mistake", panelX + panelW / 2, ry + 3, addHov ? C_ACCENT() : C_DIM());
+            g.drawCenteredString(font, "+ Add Global Mistake", panelX + panelW / 2, ry + 3,
+                    addHov ? C_ACCENT() : C_DIM());
             btns.add(new Btn(panelX + 2, ry + 1, panelW - 4, ROW - 2, this::openGlobalMistakeInput));
         }
     }
@@ -1256,7 +1264,8 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
             BlockState bs = getResolvedState(world);
             if (bs != null && bs.getBlock() instanceof MetaMachineBlock) continue;
 
-            boolean hasEntry = entries.stream().anyMatch(wi -> wi.x == local.getX() && wi.y == local.getY() && wi.z == local.getZ());
+            boolean hasEntry = entries.stream()
+                    .anyMatch(wi -> wi.x == local.getX() && wi.y == local.getY() && wi.z == local.getZ());
             boolean isSelected = local.equals(wiBlock);
 
             float[] sc = projectToScreen(world.getX() + 0.5f, world.getY() + 0.5f, world.getZ() + 0.5f,
@@ -1279,7 +1288,8 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         // Banner hint
         if (wiBlock == null) {
             String beCount = entries.isEmpty() ? "" : " (" + entries.size() + " set)";
-            drawBanner(g, "Click a block entity to edit its item for this step — right-click to remove entry" + beCount, TOP_BAR_H + 4, C_DIM());
+            drawBanner(g, "Click a block entity to edit its item for this step — right-click to remove entry" + beCount,
+                    TOP_BAR_H + 4, C_DIM());
         }
 
         // Inline panel when a block is selected
@@ -1345,11 +1355,13 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
 
         // Row 2: hint
         int row2Y = panelY + 30;
-        g.drawString(font, "Leave Item blank to only set source. Leave Source blank to only set item. [Esc] deselects.", panelX + 4, row2Y + 2, C_DIM(), false);
+        g.drawString(font, "Leave Item blank to only set source. Leave Source blank to only set item. [Esc] deselects.",
+                panelX + 4, row2Y + 2, C_DIM(), false);
 
         // recipeId conflict note
         if (data.getRecipeId() != null && !data.getRecipeId().isBlank() && hasEntry) {
-            g.drawString(font, "⚠ recipeId is set — this entry overrides recipe-placed items at this position", panelX + 4, row2Y + 14, 0xFFFFAA44, false);
+            g.drawString(font, "⚠ recipeId is set — this entry overrides recipe-placed items at this position",
+                    panelX + 4, row2Y + 14, 0xFFFFAA44, false);
         }
     }
 
@@ -1357,12 +1369,16 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         if (wiBlock == null) return;
         String item = wiItemBox.getValue().trim();
         int sourceAmt = wiSourceBox.getValue().isBlank() ? -1 : parseIntSafe(wiSourceBox.getValue(), -1);
-        if (item.isBlank() && sourceAmt < 0) { wiBlock = null; return; }
+        if (item.isBlank() && sourceAmt < 0) {
+            wiBlock = null;
+            return;
+        }
 
         checkpoint();
         java.util.List<PhantasiaScriptData.WorldItemEntry> entries = step().worldItems;
         entries.removeIf(wi -> wi.x == wiBlock.getX() && wi.y == wiBlock.getY() && wi.z == wiBlock.getZ());
-        PhantasiaScriptData.WorldItemEntry entry = new PhantasiaScriptData.WorldItemEntry(wiBlock.getX(), wiBlock.getY(), wiBlock.getZ(), item);
+        PhantasiaScriptData.WorldItemEntry entry = new PhantasiaScriptData.WorldItemEntry(wiBlock.getX(),
+                wiBlock.getY(), wiBlock.getZ(), item);
         entry.sourceAmount = sourceAmt;
         entries.add(entry);
         dirty = true;
@@ -1393,7 +1409,8 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
 
         if (btn == 1) {
             // Right-click: remove entry
-            if (step().worldItems.removeIf(wi -> wi.x == local.getX() && wi.y == local.getY() && wi.z == local.getZ())) {
+            if (step().worldItems
+                    .removeIf(wi -> wi.x == local.getX() && wi.y == local.getY() && wi.z == local.getZ())) {
                 checkpoint();
                 dirty = true;
                 parentScene.refireShapeLoaded();
@@ -1408,24 +1425,29 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
                 .filter(wi -> wi.x == local.getX() && wi.y == local.getY() && wi.z == local.getZ())
                 .findFirst().orElse(null);
         wiItemBox.setValue(existing != null && existing.item != null ? existing.item : "");
-        wiSourceBox.setValue(existing != null && existing.sourceAmount >= 0 ? String.valueOf(existing.sourceAmount) : "");
+        wiSourceBox
+                .setValue(existing != null && existing.sourceAmount >= 0 ? String.valueOf(existing.sourceAmount) : "");
         setFocused(wiItemBox);
         return true;
     }
 
     private static int parseIntSafe(String s, int fallback) {
-        try { return Integer.parseInt(s.trim()); } catch (NumberFormatException e) { return fallback; }
+        try {
+            return Integer.parseInt(s.trim());
+        } catch (NumberFormatException e) {
+            return fallback;
+        }
     }
 
     private void openGlobalMistakeInput() {
         Minecraft.getInstance().setScreen(new PhantasiaTextInputScreen(
                 this, "Global Mistake Note", "e.g. Controller must face south", "", 256, v -> {
-            if (!v.isBlank()) {
-                checkpoint();
-                data.getGlobalMistakes().add(v.trim());
-                dirty = true;
-            }
-        }));
+                    if (!v.isBlank()) {
+                        checkpoint();
+                        data.getGlobalMistakes().add(v.trim());
+                        dirty = true;
+                    }
+                }));
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -1534,8 +1556,13 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
     // Layer slider
     // ─────────────────────────────────────────────────────────────────────────
 
-    private int localMinY() { return cachedLocalMinY; }
-    private int localMaxY() { return cachedLocalMaxY; }
+    private int localMinY() {
+        return cachedLocalMinY;
+    }
+
+    private int localMaxY() {
+        return cachedLocalMaxY;
+    }
 
     /** Clamps s.layer / s.layerMin / s.layerMax to local Y bounds in-place. */
     private void clampLayerValues(PhantasiaScriptData.StepData s) {
@@ -1728,10 +1755,10 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         btns.add(new Btn(x, y1, capW, 13, () -> Minecraft.getInstance().setScreen(
                 new PhantasiaTextInputScreen(this, "Step Caption", "What the viewer sees\u2026",
                         s.caption != null ? s.caption : "", 256, v -> {
-                    checkpoint();
-                    s.caption = v.isBlank() ? null : v;
-                    dirty = true;
-                }))));
+                            checkpoint();
+                            s.caption = v.isBlank() ? null : v;
+                            dirty = true;
+                        }))));
         x += capW + 8;
 
         g.fill(x, y1, x + 1, y1 + 14, 0x33FFFFFF);
@@ -1766,11 +1793,12 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
             if (recHov) pendingTooltip = "Click to search and pick a GregTech recipe ID";
             final PhantasiaScriptData.StepData fStep = s;
             btns.add(new Btn(x, y1, recBtnW, 13, () -> Minecraft.getInstance().setScreen(
-                    new net.phoenixvine.phantasia.compat.gtceu.GTRecipePickerScreen(this, fStep.fakeRecipeId, picked -> {
-                        checkpoint();
-                        fStep.fakeRecipeId = picked;
-                        dirty = true;
-                    }))));
+                    new net.phoenixvine.phantasia.compat.gtceu.GTRecipePickerScreen(this, fStep.fakeRecipeId,
+                            picked -> {
+                                checkpoint();
+                                fStep.fakeRecipeId = picked;
+                                dirty = true;
+                            }))));
             x += recBtnW + 4;
         }
 
@@ -1895,8 +1923,8 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         // Expandable shape stepper — for expandable multiblocks (data flag or auto-detected from shape variants)
         boolean isExpandable = data.isExpandable() || (parentScene != null && parentScene.computeHasRealSizeVariants());
         if (isExpandable) {
-            int maxShapes = (parentScene != null && parentScene.availableShapes != null)
-                    ? parentScene.availableShapes.size() : 0;
+            int maxShapes = (parentScene != null && parentScene.availableShapes != null) ?
+                    parentScene.availableShapes.size() : 0;
             // lc == -1 means "no override"; treat as shape 0 for display
             int curShape = s.layerCount > 0 ? s.layerCount : 1;
 
@@ -1929,14 +1957,16 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
                 int next = curShape - 1;
                 s.layerCount = (next <= 0) ? -1 : next;
                 if (layerCountBox != null) layerCountBox.setValue(s.layerCount > 0 ? String.valueOf(s.layerCount) : "");
-                dirty = true; rebuildVisibility();
+                dirty = true;
+                rebuildVisibility();
             }));
             btns.add(new Btn(x + arrowW + 4 + labelW + 4, y2, arrowW, 14, () -> {
                 checkpoint();
                 int next = curShape + 1;
                 s.layerCount = (fMaxShapes > 0 && next > fMaxShapes) ? fMaxShapes : next;
                 if (layerCountBox != null) layerCountBox.setValue(s.layerCount > 0 ? String.valueOf(s.layerCount) : "");
-                dirty = true; rebuildVisibility();
+                dirty = true;
+                rebuildVisibility();
             }));
             x += totalW + 3;
         }
@@ -2478,7 +2508,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         placeBox(scriptDurationBox, durX + durLabelW, tlY + 5, 46, 12);
         scriptDurationBox.visible = true;
         scriptDurationBox.active = true;
-
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -2822,13 +2851,28 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
             return true;
         }
         boolean ctrl = (mod & 2) != 0;
-        if (ctrl && kc == GLFW.GLFW_KEY_Z) { undo(); return true; }
-        if (ctrl && kc == 83) { save(); return true; }
-        if (ctrl && kc == 67) { copyStep(); return true; }
-        if (ctrl && kc == 86) { pasteStep(); return true; }
-        if (ctrl && kc == 68 && mode != Mode.SELECT) { duplicateStep(); return true; }
-        if (partsExprBox != null && partsExprBox.isFocused()
-                && (kc == GLFW.GLFW_KEY_ENTER || kc == GLFW.GLFW_KEY_KP_ENTER)) {
+        if (ctrl && kc == GLFW.GLFW_KEY_Z) {
+            undo();
+            return true;
+        }
+        if (ctrl && kc == 83) {
+            save();
+            return true;
+        }
+        if (ctrl && kc == 67) {
+            copyStep();
+            return true;
+        }
+        if (ctrl && kc == 86) {
+            pasteStep();
+            return true;
+        }
+        if (ctrl && kc == 68 && mode != Mode.SELECT) {
+            duplicateStep();
+            return true;
+        }
+        if (partsExprBox != null && partsExprBox.isFocused() &&
+                (kc == GLFW.GLFW_KEY_ENTER || kc == GLFW.GLFW_KEY_KP_ENTER)) {
             partsExprBox.setFocused(false);
             return true;
         }
@@ -2895,7 +2939,10 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
     // ─────────────────────────────────────────────────────────────────────────
 
     public void checkpoint() {
-        if (undoStack.size() >= MAX_UNDO) { undoStack.pollFirst(); undoStepStack.pollFirst(); }
+        if (undoStack.size() >= MAX_UNDO) {
+            undoStack.pollFirst();
+            undoStepStack.pollFirst();
+        }
         undoStack.addLast(data.copy());
         undoStepStack.addLast(selectedStep);
     }
@@ -3137,7 +3184,11 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
     private void populateInputsFromStep() {
         if (tickBox == null) return;
         isPopulating = true;
-        try { populateInputsFromStepImpl(); } finally { isPopulating = false; }
+        try {
+            populateInputsFromStepImpl();
+        } finally {
+            isPopulating = false;
+        }
     }
 
     private void populateInputsFromStepImpl() {

@@ -23,8 +23,9 @@ public final class PhantasiaServerEvents {
     public static void onPlayerJoin(PlayerEvent.PlayerLoggedInEvent event) {
         if (!(event.getEntity() instanceof ServerPlayer player)) return;
 
-        if (net.phoenixvine.phantasia.configs.PhantasiaConfigs.INSTANCE != null
-                && !net.phoenixvine.phantasia.configs.PhantasiaConfigs.INSTANCE.phantasiaUI.giveBookOnFirstJoin) return;
+        if (net.phoenixvine.phantasia.configs.PhantasiaConfigs.INSTANCE != null &&
+                !net.phoenixvine.phantasia.configs.PhantasiaConfigs.INSTANCE.phantasiaUI.giveBookOnFirstJoin)
+            return;
 
         CompoundTag data = player.getPersistentData();
         if (!data.getBoolean(NBT_KEY)) {

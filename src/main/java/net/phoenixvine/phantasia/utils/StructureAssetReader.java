@@ -1,13 +1,13 @@
 package net.phoenixvine.phantasia.utils;
 
+import net.phoenixvine.phantasia.Phantasia;
+
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
-
-import net.phoenixvine.phantasia.Phantasia;
 
 public class StructureAssetReader {
 

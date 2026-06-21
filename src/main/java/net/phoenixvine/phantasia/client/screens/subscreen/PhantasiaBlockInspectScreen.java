@@ -26,7 +26,6 @@ import net.phoenix.core.integration.phoenix_fission.common.data.block.FissionCoo
 import net.phoenix.core.integration.phoenix_fission.common.data.block.FissionFuelRodBlock;
 import net.phoenix.core.integration.phoenix_fission.common.data.block.FissionModeratorBlock;
 import net.phoenixvine.phantasia.client.screens.PhantasiaSceneScreen;
-import net.phoenixvine.phantasia.client.screens.PhantasiaScreen;
 import net.phoenixvine.phantasia.common.data.pattern.PhantasiaLoadedPattern;
 import net.phoenixvine.phantasia.common.data.variant.PhantasiaVariantState;
 

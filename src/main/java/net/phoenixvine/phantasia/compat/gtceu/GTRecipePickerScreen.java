@@ -203,10 +203,15 @@ public class GTRecipePickerScreen extends Screen {
 
     @Override
     public boolean keyPressed(int kc, int sc, int mod) {
-        if (kc == GLFW.GLFW_KEY_ESCAPE) { Minecraft.getInstance().setScreen(parent); return true; }
+        if (kc == GLFW.GLFW_KEY_ESCAPE) {
+            Minecraft.getInstance().setScreen(parent);
+            return true;
+        }
         return super.keyPressed(kc, sc, mod);
     }
 
     @Override
-    public boolean isPauseScreen() { return false; }
+    public boolean isPauseScreen() {
+        return false;
+    }
 }

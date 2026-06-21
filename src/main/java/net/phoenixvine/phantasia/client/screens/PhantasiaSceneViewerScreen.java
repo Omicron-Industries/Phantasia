@@ -64,7 +64,8 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
     private boolean isPanning = false;
 
     // ── Playback ──────────────────────────────────────────────────────────────
-    private boolean playing = PhantasiaConfigs.INSTANCE == null || PhantasiaConfigs.INSTANCE.phantasiaUI.autoPlayScripts;
+    private boolean playing = PhantasiaConfigs.INSTANCE == null ||
+            PhantasiaConfigs.INSTANCE.phantasiaUI.autoPlayScripts;
     private int playbackTick = 0;
     private float tickAccum = 0f;
     private float speed = 1f;
@@ -101,7 +102,8 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
 
             renderer = new PhantasiaWorldRenderer(level);
             if (pattern != null) {
-                boolean showBP = PhantasiaConfigs.INSTANCE == null || PhantasiaConfigs.INSTANCE.phantasiaUI.showBaseplate;
+                boolean showBP = PhantasiaConfigs.INSTANCE == null ||
+                        PhantasiaConfigs.INSTANCE.phantasiaUI.showBaseplate;
                 renderer.setBaseplatePositions(showBP ? pattern.allBaseplatePositions : Set.of());
 
                 Set<BlockPos> fullBakeSet = new HashSet<>(level.renderedBlocks.keySet());
@@ -177,17 +179,18 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
             for (net.minecraft.world.level.block.entity.BlockEntity be : level.blockEntities.values()) {
                 if (!(be instanceof com.gregtechceu.gtceu.api.blockentity.MetaMachineBlockEntity mmbe)) continue;
                 var machine = mmbe.getMetaMachine();
-                if (!(machine instanceof com.gregtechceu.gtceu.api.machine.multiblock.WorkableMultiblockMachine workable)) continue;
+                if (!(machine instanceof com.gregtechceu.gtceu.api.machine.multiblock.WorkableMultiblockMachine workable))
+                    continue;
                 boolean effective = posWorking.getOrDefault(be.getBlockPos(), globalWorking);
                 com.gregtechceu.gtceu.api.machine.trait.RecipeLogic logic = workable.getRecipeLogic();
                 if (logic != null)
-                    logic.setStatus(effective
-                            ? com.gregtechceu.gtceu.api.machine.trait.RecipeLogic.Status.WORKING
-                            : com.gregtechceu.gtceu.api.machine.trait.RecipeLogic.Status.IDLE);
+                    logic.setStatus(effective ? com.gregtechceu.gtceu.api.machine.trait.RecipeLogic.Status.WORKING :
+                            com.gregtechceu.gtceu.api.machine.trait.RecipeLogic.Status.IDLE);
             }
         } catch (Throwable ignored) {}
 
-        for (java.util.Map.Entry<BlockPos, com.lowdragmc.lowdraglib.utils.BlockInfo> e : pattern.mergedBlockMap.entrySet()) {
+        for (java.util.Map.Entry<BlockPos, com.lowdragmc.lowdraglib.utils.BlockInfo> e : pattern.mergedBlockMap
+                .entrySet()) {
             BlockState original = e.getValue().getBlockState();
             if (original == null || original.isAir()) continue;
             try {
@@ -451,7 +454,6 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
         // Time label
         g.drawString(font, formatTicks(playbackTick), tx + tw + 6, tlY + (TIMELINE_H - 8) / 2 + 2,
                 C_DIM(), false);
-
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -499,8 +501,8 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
         if (camera == null) return super.mouseDragged(mx, my, btn, dx, dy);
 
         if (btn == 0 && my > TOP_BAR_H && my < tlY) {
-            float orbitMult = net.phoenixvine.phantasia.configs.PhantasiaConfigs.INSTANCE != null
-                    ? net.phoenixvine.phantasia.configs.PhantasiaConfigs.INSTANCE.phantasiaUI.cameraSensitivity : 1f;
+            float orbitMult = net.phoenixvine.phantasia.configs.PhantasiaConfigs.INSTANCE != null ?
+                    net.phoenixvine.phantasia.configs.PhantasiaConfigs.INSTANCE.phantasiaUI.cameraSensitivity : 1f;
             camera.orbit((float) dx * CAM_ORBIT * orbitMult, (float) dy * CAM_ORBIT * orbitMult);
             return true;
         }
@@ -532,9 +534,9 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
     @Override
     public boolean mouseScrolled(double mx, double my, double delta) {
         if (my > TOP_BAR_H && my < this.height - TIMELINE_H && camera != null) {
-            float zoomMult = net.phoenixvine.phantasia.configs.PhantasiaConfigs.INSTANCE != null
-                    ? net.phoenixvine.phantasia.configs.PhantasiaConfigs.INSTANCE.phantasiaUI.scrollZoomSpeed : 1f;
-            float zIn  = 1f - (1f - ZOOM_IN)  * zoomMult;
+            float zoomMult = net.phoenixvine.phantasia.configs.PhantasiaConfigs.INSTANCE != null ?
+                    net.phoenixvine.phantasia.configs.PhantasiaConfigs.INSTANCE.phantasiaUI.scrollZoomSpeed : 1f;
+            float zIn = 1f - (1f - ZOOM_IN) * zoomMult;
             float zOut = 1f + (ZOOM_OUT - 1f) * zoomMult;
             camera.zoom(delta > 0 ? Math.max(0.5f, zIn) : Math.min(2f, zOut), 2f, 300f);
             return true;
@@ -544,7 +546,10 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
 
     @Override
     public boolean keyPressed(int kc, int sc, int mod) {
-        if (kc == 256) { onClose(); return true; }
+        if (kc == 256) {
+            onClose();
+            return true;
+        }
         List<PhantasiaSceneData.StepData> steps = data.steps;
         if (steps != null && !steps.isEmpty()) {
             if (kc == org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT) {
@@ -573,8 +578,8 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
             PhantasiaSceneData.StepData step = steps.get(idx);
             if (step.camera != null && camera != null) {
                 float zoom = step.camera.zoom > 0 ? step.camera.zoom : camera.getZoom();
-                net.phoenixvine.phantasia.client.camera.LerpType lt =
-                        net.phoenixvine.phantasia.client.camera.LerpType.fromString(step.camera.lerpType);
+                net.phoenixvine.phantasia.client.camera.LerpType lt = net.phoenixvine.phantasia.client.camera.LerpType
+                        .fromString(step.camera.lerpType);
                 camera.scriptDrive(step.camera.yaw, step.camera.pitch, zoom, lt,
                         step.camera.lerpTicks > 0 ? step.camera.lerpTicks : 20);
             }

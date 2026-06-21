@@ -349,10 +349,7 @@ public class PhantasiaTutorialScreen extends PhantasiaScreen {
 
         TutorialSlide slide = currentSlide();
 
-        // Slide title
-        g.drawString(font, slide.title, 16, panelY + 8, C_ACCENT(), false);
-
-        // Slide dots
+        // Slide dots — fixed position top-right of text panel
         int dotY = panelY + 8;
         int dotStartX = this.width / 2 - sequence.slides.size() * 6;
         for (int i = 0; i < sequence.slides.size(); i++) {
@@ -361,13 +358,23 @@ public class PhantasiaTutorialScreen extends PhantasiaScreen {
                     active ? C_ACCENT() : C_DIM());
         }
 
-        // Separator
-        g.fill(16, panelY + 20, this.width - 16, panelY + 21, 0x33FFFFFF);
+        // Slide title — wraps within left column so it never overlaps the dots
+        int maxTitleW = dotStartX - 28;
+        var titleLines = font.split(net.minecraft.network.chat.Component.literal(slide.title), maxTitleW);
+        int titleY = panelY + 6;
+        for (var line : titleLines) {
+            g.drawString(font, line, 16, titleY, C_ACCENT(), false);
+            titleY += font.lineHeight + 1;
+        }
+
+        // Separator adapts to title height
+        int sepY = Math.max(panelY + 20, titleY + 3);
+        g.fill(16, sepY, this.width - 16, sepY + 1, 0x33FFFFFF);
 
         // Typewriter text
         String fullText = slide.text;
         String shown = fullText.substring(0, Math.min(typeChars, fullText.length()));
-        int ty = panelY + 26;
+        int ty = sepY + 6;
         int maxW = this.width - 32;
         for (String line : shown.split("\n")) {
             if (ty + 10 > this.height - 28) break;

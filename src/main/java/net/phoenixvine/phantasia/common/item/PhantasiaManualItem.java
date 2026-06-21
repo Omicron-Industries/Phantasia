@@ -44,7 +44,7 @@ public class PhantasiaManualItem extends Item {
         lines.add(Component.literal("Right-click to open Phantasia.")
                 .withStyle(ChatFormatting.GRAY));
         lines.add(Component.empty());
-        lines.add(Component.literal("[P] ")
+        lines.add(Component.literal(net.phoenixvine.phantasia.client.keybind.PhoenixKeybinds.keyDisplay() + " ")
                 .withStyle(ChatFormatting.AQUA)
                 .append(Component.literal("Hold near any machine to open its guide.")
                         .withStyle(ChatFormatting.GRAY)));

@@ -40,8 +40,8 @@ import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockDefinitio
 import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockShape;
 import net.phoenixvine.phantasia.common.multiblock.PhantasiaMultiblockRegistry;
 import net.phoenixvine.phantasia.compat.arsnouveaucompat.ArsNouveauScriptEditorScreen;
-import net.phoenixvine.phantasia.integration.emi.PhantasiaEmiPlugin;
 import net.phoenixvine.phantasia.configs.PhantasiaConfigs;
+import net.phoenixvine.phantasia.integration.emi.PhantasiaEmiPlugin;
 import net.phoenixvine.phantasia.utils.PhantasiaThemeUtils;
 import net.phoenixvine.phantasia.utils.PhantasiaUIUtils;
 
@@ -162,7 +162,8 @@ public class PhantasiaSceneScreen extends Screen {
     // Playback
     // ─────────────────────────────────────────────────────────────────────────
 
-    private boolean playing = PhantasiaConfigs.INSTANCE == null || PhantasiaConfigs.INSTANCE.phantasiaUI.autoPlayScripts;
+    private boolean playing = PhantasiaConfigs.INSTANCE == null ||
+            PhantasiaConfigs.INSTANCE.phantasiaUI.autoPlayScripts;
     private int playbackTick = 0;
     private float tickAccum = 0f;
     private float playbackSpeed = 1.0f;
@@ -397,7 +398,8 @@ public class PhantasiaSceneScreen extends Screen {
             try {
                 p.postWriteTask.run();
             } catch (Exception e) {
-                net.phoenixvine.phantasia.Phantasia.LOGGER.error("[Phantasia] postWriteTask failed — continuing with finishPatternSetup", e);
+                net.phoenixvine.phantasia.Phantasia.LOGGER
+                        .error("[Phantasia] postWriteTask failed — continuing with finishPatternSetup", e);
             }
         }
 
@@ -482,7 +484,9 @@ public class PhantasiaSceneScreen extends Screen {
                 for (BlockInfo b : row) {
                     if (b == null) continue;
                     net.minecraft.world.level.block.state.BlockState s = b.getBlockState();
-                    if (s == null || s.isAir() || s.getRenderShape() == net.minecraft.world.level.block.RenderShape.INVISIBLE) continue;
+                    if (s == null || s.isAir() ||
+                            s.getRenderShape() == net.minecraft.world.level.block.RenderShape.INVISIBLE)
+                        continue;
                     n++;
                 }
         return n;
@@ -567,7 +571,6 @@ public class PhantasiaSceneScreen extends Screen {
         com.mojang.blaze3d.systems.RenderSystem.recordRenderCall(
                 () -> definition.onShapeLoaded(SHARED_LEVEL, origin, blockMap, localToWorld, scriptData));
     }
-
 
     private PhantasiaLoadedPattern finalisePattern(
                                                    BlockInfo[][][] raw,
@@ -833,7 +836,10 @@ public class PhantasiaSceneScreen extends Screen {
         if (!playing || scrubbing || buildOrderMode || script == null || viewFilter != ViewFilter.ALL) return;
         // Hold playback until the initial bake is fully uploaded so the script
         // doesn't advance before the multiblock is visible.
-        if (renderer != null && !renderer.isSceneReady()) { tickAccum = 0f; return; }
+        if (renderer != null && !renderer.isSceneReady()) {
+            tickAccum = 0f;
+            return;
+        }
 
         int prevTick = playbackTick;
         tickAccum += playbackSpeed;
@@ -888,9 +894,8 @@ public class PhantasiaSceneScreen extends Screen {
 
             // Expandable multiblock: layerCount in a step switches to the shape that
             // matches that layer count, triggering a full rebake.
-            if (step != null && step.layerCount() != -1 && definition != null
-                    && script != null && script.getSourceData().isExpandable()
-                    && availableShapes != null) {
+            if (step != null && step.layerCount() != -1 && definition != null && script != null &&
+                    script.getSourceData().isExpandable() && availableShapes != null) {
                 int targetIdx = definition.getShapeIndexForLayerCount(step.layerCount());
                 if (targetIdx != shapeIndex && targetIdx < availableShapes.size()) {
                     shapeIndex = targetIdx;
@@ -963,11 +968,11 @@ public class PhantasiaSceneScreen extends Screen {
             if (e.item != null && !e.item.isBlank()) {
                 try {
                     net.minecraft.resources.ResourceLocation rl = new net.minecraft.resources.ResourceLocation(e.item);
-                    net.minecraft.world.item.Item item = net.minecraftforge.registries.ForgeRegistries.ITEMS.getValue(rl);
-                    net.minecraft.world.item.ItemStack stack =
-                            (item == null || item == net.minecraft.world.item.Items.AIR)
-                                    ? net.minecraft.world.item.ItemStack.EMPTY
-                                    : new net.minecraft.world.item.ItemStack(item);
+                    net.minecraft.world.item.Item item = net.minecraftforge.registries.ForgeRegistries.ITEMS
+                            .getValue(rl);
+                    net.minecraft.world.item.ItemStack stack = (item == null ||
+                            item == net.minecraft.world.item.Items.AIR) ? net.minecraft.world.item.ItemStack.EMPTY :
+                                    new net.minecraft.world.item.ItemStack(item);
                     if (be instanceof net.minecraft.world.Container container) {
                         container.setItem(0, stack);
                         be.setChanged();
@@ -1685,8 +1690,8 @@ public class PhantasiaSceneScreen extends Screen {
         }
 
         // ── Expandable size stepper (only for expandable multiblocks) ─────────
-        if (script != null && script.getSourceData().isExpandable()
-                && availableShapes != null && availableShapes.size() > 1) {
+        if (script != null && script.getSourceData().isExpandable() && availableShapes != null &&
+                availableShapes.size() > 1) {
             int maxL = availableShapes.size();
             int curL = shapeIndex + 1;
             int teal = 0xFF4DB8B8;
@@ -1706,8 +1711,13 @@ public class PhantasiaSceneScreen extends Screen {
                     shapeIndex--;
                     if (definition != null)
                         PhantasiaVariantState.get().setShapeIndex(definition.getId().toString(), shapeIndex);
-                    if (renderer != null) { renderer.close(); renderer = null; }
-                    pattern = null; invalidateFilterSets(); init();
+                    if (renderer != null) {
+                        renderer.close();
+                        renderer = null;
+                    }
+                    pattern = null;
+                    invalidateFilterSets();
+                    init();
                 }
             });
             // Value display
@@ -1727,8 +1737,13 @@ public class PhantasiaSceneScreen extends Screen {
                     shapeIndex++;
                     if (definition != null)
                         PhantasiaVariantState.get().setShapeIndex(definition.getId().toString(), shapeIndex);
-                    if (renderer != null) { renderer.close(); renderer = null; }
-                    pattern = null; invalidateFilterSets(); init();
+                    if (renderer != null) {
+                        renderer.close();
+                        renderer = null;
+                    }
+                    pattern = null;
+                    invalidateFilterSets();
+                    init();
                 }
             });
             y += 20;
@@ -1824,7 +1839,8 @@ public class PhantasiaSceneScreen extends Screen {
             float targetZ = camera.getTargetZ();
 
             // Perform pure rotation
-            float orbitMult = PhantasiaConfigs.INSTANCE != null ? PhantasiaConfigs.INSTANCE.phantasiaUI.cameraSensitivity : 1f;
+            float orbitMult = PhantasiaConfigs.INSTANCE != null ?
+                    PhantasiaConfigs.INSTANCE.phantasiaUI.cameraSensitivity : 1f;
             camera.orbit((float) dx * CAM_ORBIT_SENSITIVITY * orbitMult,
                     (float) dy * CAM_ORBIT_SENSITIVITY * orbitMult);
 
@@ -1842,7 +1858,7 @@ public class PhantasiaSceneScreen extends Screen {
         if (mx >= this.width - getCurrentPanelWidth()) return false;
         if (camera == null || camera.isLocked()) return false;
         float zoomMult = PhantasiaConfigs.INSTANCE != null ? PhantasiaConfigs.INSTANCE.phantasiaUI.scrollZoomSpeed : 1f;
-        float zoomIn  = 1f - (1f - CAM_ZOOM_IN_FACTOR)  * zoomMult;
+        float zoomIn = 1f - (1f - CAM_ZOOM_IN_FACTOR) * zoomMult;
         float zoomOut = 1f + (CAM_ZOOM_OUT_FACTOR - 1f) * zoomMult;
         camera.zoom(delta > 0 ? Math.max(0.5f, zoomIn) : Math.min(2f, zoomOut),
                 CAM_ZOOM_MIN, camZoomMax());

@@ -3,9 +3,7 @@ package net.phoenixvine.phantasia.common.data.pattern;
 import com.lowdragmc.lowdraglib.utils.BlockInfo;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.block.EntityBlock;
-import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.phoenixvine.phantasia.client.render.PhantasiaTrackedDummyWorld;
 import net.phoenixvine.phantasia.common.data.script.PhantasiaScript;
@@ -207,7 +205,9 @@ public final class PhantasiaPatternLoader {
 
                     BlockState state = info.getBlockState();
                     // Skip air and invisible predicates (e.g. GTM "any" placeholder blocks).
-                    if (state == null || state.isAir() || state.getRenderShape() == net.minecraft.world.level.block.RenderShape.INVISIBLE) continue;
+                    if (state == null || state.isAir() ||
+                            state.getRenderShape() == net.minecraft.world.level.block.RenderShape.INVISIBLE)
+                        continue;
 
                     BlockPos lp = new BlockPos(x, y, z);
                     BlockPos wp = renderOrigin.offset(x, y, z);
@@ -229,8 +229,8 @@ public final class PhantasiaPatternLoader {
         phase = "Forming structure…";
         final Map<BlockPos, BlockInfo> blockMapSnapshot = Map.copyOf(blockMap);
         final Map<BlockPos, BlockPos> localToWorldSnapshot = Map.copyOf(localToWorld);
-        Runnable postWriteTask =
-                () -> definition.onShapeLoaded(sharedLevel, renderOrigin, blockMapSnapshot, localToWorldSnapshot);
+        Runnable postWriteTask = () -> definition.onShapeLoaded(sharedLevel, renderOrigin, blockMapSnapshot,
+                localToWorldSnapshot);
 
         return buildResult(raw, blockMap, localToWorld, baseplatePos, bePos, renderOrigin, script, postWriteTask);
     }
@@ -282,7 +282,9 @@ public final class PhantasiaPatternLoader {
                 for (BlockInfo b : row) {
                     if (b == null) continue;
                     net.minecraft.world.level.block.state.BlockState s = b.getBlockState();
-                    if (s == null || s.isAir() || s.getRenderShape() == net.minecraft.world.level.block.RenderShape.INVISIBLE) continue;
+                    if (s == null || s.isAir() ||
+                            s.getRenderShape() == net.minecraft.world.level.block.RenderShape.INVISIBLE)
+                        continue;
                     n++;
                 }
         return n;

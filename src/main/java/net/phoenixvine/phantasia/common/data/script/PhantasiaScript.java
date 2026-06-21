@@ -243,7 +243,10 @@ public class PhantasiaScript {
             List<Predicate<BlockPos>> preds = new ArrayList<>();
             for (String part : expr.split("\\|"))
                 preds.add(buildPartsExprPredicate(part.trim()));
-            return pos -> { for (Predicate<BlockPos> p : preds) if (p.test(pos)) return true; return false; };
+            return pos -> {
+                for (Predicate<BlockPos> p : preds) if (p.test(pos)) return true;
+                return false;
+            };
         }
 
         // AND chains
@@ -251,7 +254,10 @@ public class PhantasiaScript {
             List<Predicate<BlockPos>> preds = new ArrayList<>();
             for (String part : expr.split("&"))
                 preds.add(buildPartsExprPredicate(part.trim()));
-            return pos -> { for (Predicate<BlockPos> p : preds) if (!p.test(pos)) return false; return true; };
+            return pos -> {
+                for (Predicate<BlockPos> p : preds) if (!p.test(pos)) return false;
+                return true;
+            };
         }
 
         // @type() scopes
@@ -269,8 +275,8 @@ public class PhantasiaScript {
         if (expr.equals("@coil")) {
             return localPred(state -> {
                 try {
-                    for (java.util.function.Supplier<com.gregtechceu.gtceu.common.block.CoilBlock> s :
-                            com.gregtechceu.gtceu.api.GTCEuAPI.HEATING_COILS.values())
+                    for (java.util.function.Supplier<com.gregtechceu.gtceu.common.block.CoilBlock> s : com.gregtechceu.gtceu.api.GTCEuAPI.HEATING_COILS
+                            .values())
                         if (s != null && s.get() == state.getBlock()) return true;
                 } catch (Exception ignored) {}
                 return false;
@@ -281,8 +287,8 @@ public class PhantasiaScript {
         if ((expr.startsWith("@ability(") || expr.startsWith("@block(")) && expr.endsWith(")")) {
             String val = expr.substring(expr.indexOf('(') + 1, expr.length() - 1).trim().toLowerCase(Locale.ROOT);
             return localPred(state -> {
-                net.minecraft.resources.ResourceLocation key =
-                        net.minecraftforge.registries.ForgeRegistries.BLOCKS.getKey(state.getBlock());
+                net.minecraft.resources.ResourceLocation key = net.minecraftforge.registries.ForgeRegistries.BLOCKS
+                        .getKey(state.getBlock());
                 return key != null && key.toString().toLowerCase(Locale.ROOT).contains(val);
             });
         }
@@ -290,8 +296,8 @@ public class PhantasiaScript {
         // Plain keyword — match registry path
         String keyword = expr.toLowerCase(Locale.ROOT);
         return localPred(state -> {
-            net.minecraft.resources.ResourceLocation key =
-                    net.minecraftforge.registries.ForgeRegistries.BLOCKS.getKey(state.getBlock());
+            net.minecraft.resources.ResourceLocation key = net.minecraftforge.registries.ForgeRegistries.BLOCKS
+                    .getKey(state.getBlock());
             return key != null && key.toString().toLowerCase(Locale.ROOT).contains(keyword);
         });
     }

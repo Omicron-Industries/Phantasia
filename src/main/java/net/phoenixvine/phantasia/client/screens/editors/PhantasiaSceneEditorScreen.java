@@ -294,13 +294,15 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         wiItemBox = addW(new EditBox(font, 0, 0, 200, 12, Component.empty()));
         wiItemBox.setMaxLength(120);
         wiItemBox.setHint(Component.literal("namespace:item  (blank = clear slot)"));
-        wiItemBox.visible = false; wiItemBox.active = false;
+        wiItemBox.visible = false;
+        wiItemBox.active = false;
 
         wiSourceBox = addW(new EditBox(font, 0, 0, 54, 12, Component.empty()));
         wiSourceBox.setMaxLength(6);
         wiSourceBox.setHint(Component.literal("1-10k"));
         wiSourceBox.setFilter(v -> v.matches("\\d*"));
-        wiSourceBox.visible = false; wiSourceBox.active = false;
+        wiSourceBox.visible = false;
+        wiSourceBox.active = false;
 
         // Per-placement override boxes
         ovLayerBox = addW(new EditBox(font, 0, 0, 28, 12, Component.empty()));
@@ -399,8 +401,14 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         super.tick();
         if (camera != null) camera.tick();
         sceneSelectPulse += sceneSelectPulseUp ? 0.07f : -0.07f;
-        if (sceneSelectPulse >= 1f) { sceneSelectPulse = 1f; sceneSelectPulseUp = false; }
-        if (sceneSelectPulse <= 0f) { sceneSelectPulse = 0f; sceneSelectPulseUp = true; }
+        if (sceneSelectPulse >= 1f) {
+            sceneSelectPulse = 1f;
+            sceneSelectPulseUp = false;
+        }
+        if (sceneSelectPulse <= 0f) {
+            sceneSelectPulse = 0f;
+            sceneSelectPulseUp = true;
+        }
 
         if (previewing) {
             previewAccum += 1f;
@@ -463,18 +471,20 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
             for (net.minecraft.world.level.block.entity.BlockEntity be : editorLevel.blockEntities.values()) {
                 if (!(be instanceof com.gregtechceu.gtceu.api.blockentity.MetaMachineBlockEntity mmbe)) continue;
                 var machine = mmbe.getMetaMachine();
-                if (!(machine instanceof com.gregtechceu.gtceu.api.machine.multiblock.WorkableMultiblockMachine workable)) continue;
+                if (!(machine instanceof com.gregtechceu.gtceu.api.machine.multiblock.WorkableMultiblockMachine workable))
+                    continue;
                 Boolean effective = posWorking.get(be.getBlockPos());
                 if (effective == null) effective = globalWorking;
                 com.gregtechceu.gtceu.api.machine.trait.RecipeLogic logic = workable.getRecipeLogic();
                 if (logic != null)
-                    logic.setStatus(effective ? com.gregtechceu.gtceu.api.machine.trait.RecipeLogic.Status.WORKING
-                                              : com.gregtechceu.gtceu.api.machine.trait.RecipeLogic.Status.IDLE);
+                    logic.setStatus(effective ? com.gregtechceu.gtceu.api.machine.trait.RecipeLogic.Status.WORKING :
+                            com.gregtechceu.gtceu.api.machine.trait.RecipeLogic.Status.IDLE);
             }
         } catch (Throwable ignored) {}
 
         // Also toggle ActiveBlock state properties for coils, fireboxes, etc.
-        for (java.util.Map.Entry<net.minecraft.core.BlockPos, com.lowdragmc.lowdraglib.utils.BlockInfo> e : scenePattern.mergedBlockMap.entrySet()) {
+        for (java.util.Map.Entry<net.minecraft.core.BlockPos, com.lowdragmc.lowdraglib.utils.BlockInfo> e : scenePattern.mergedBlockMap
+                .entrySet()) {
             net.minecraft.world.level.block.state.BlockState original = e.getValue().getBlockState();
             if (original == null || original.isAir()) continue;
             try {
@@ -596,7 +606,10 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         if (showWorldItemPanel) g.fill(x, TOP_BAR_H - 3, x + wiTabW, TOP_BAR_H - 2, C_ACCENT());
         g.drawString(font, "▦ World", x + 5, (TOP_BAR_H - 8) / 2, showWorldItemPanel ? C_ACCENT() : C_DIM(), false);
         if (wiHov) pendingTooltip = "Place items in block entities per placement per step";
-        btns.add(new Btn(x, 3, wiTabW, TOP_BAR_H - 6, () -> { showWorldItemPanel = !showWorldItemPanel; wiBlock = null; }));
+        btns.add(new Btn(x, 3, wiTabW, TOP_BAR_H - 6, () -> {
+            showWorldItemPanel = !showWorldItemPanel;
+            wiBlock = null;
+        }));
         int leftEdge = x + wiTabW + 6;
 
         // Right buttons drawn first so we know where they end
@@ -739,24 +752,30 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         Vector3f fwd = new Vector3f(lookat).sub(eye).normalize();
         Vector3f rgt = new Vector3f(fwd).cross(new Vector3f(0, 1, 0)).normalize();
         Vector3f upv = new Vector3f(rgt).cross(fwd).normalize();
-        float fov = this.height / (2f * (float) Math.tan(Math.toRadians(net.phoenixvine.phantasia.client.camera.PhantasiaCamera.FOV)));
+        float fov = this.height /
+                (2f * (float) Math.tan(Math.toRadians(net.phoenixvine.phantasia.client.camera.PhantasiaCamera.FOV)));
         int sceneBottom = this.height - BOTTOM_H;
 
         if (selectedPlacement < 0 || selectedPlacement >= scenePattern.placements.size()) {
-            drawBanner(g, "Select a placement in the panel, then click a block entity to edit its item", TOP_BAR_H + 4, C_DIM());
+            drawBanner(g, "Select a placement in the panel, then click a block entity to edit its item", TOP_BAR_H + 4,
+                    C_DIM());
             return;
         }
 
         PhantasiaScenePattern.PlacementEntry pe = scenePattern.placements.get(selectedPlacement);
         PhantasiaSceneData.MachineOverride ov = step().getOverride(selectedPlacement);
-        java.util.List<PhantasiaScriptData.WorldItemEntry> entries = ov != null ? ov.worldItems : java.util.Collections.emptyList();
+        java.util.List<PhantasiaScriptData.WorldItemEntry> entries = ov != null ? ov.worldItems :
+                java.util.Collections.emptyList();
 
         for (BlockPos worldPos : pe.worldPositions) {
             if (editorLevel.getBlockEntity(worldPos) == null) continue;
-            if (editorLevel.getBlockState(worldPos).getBlock() instanceof com.gregtechceu.gtceu.api.block.MetaMachineBlock) continue;
+            if (editorLevel.getBlockState(worldPos)
+                    .getBlock() instanceof com.gregtechceu.gtceu.api.block.MetaMachineBlock)
+                continue;
 
             BlockPos local = worldPos.subtract(pe.offset);
-            boolean hasEntry = entries.stream().anyMatch(wi -> wi.x == local.getX() && wi.y == local.getY() && wi.z == local.getZ());
+            boolean hasEntry = entries.stream()
+                    .anyMatch(wi -> wi.x == local.getX() && wi.y == local.getY() && wi.z == local.getZ());
             boolean isSelected = local.equals(wiBlock) && wiPlacementIdx == selectedPlacement;
 
             float[] sc = projectToScreen(worldPos.getX() + 0.5f, worldPos.getY() + 0.5f, worldPos.getZ() + 0.5f,
@@ -778,7 +797,9 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
 
         if (wiBlock == null || wiPlacementIdx != selectedPlacement) {
             String beCount = entries.isEmpty() ? "" : " (" + entries.size() + " set)";
-            drawBanner(g, "Click a block entity to edit its item for this placement/step — right-click to remove" + beCount, TOP_BAR_H + 4, C_DIM());
+            drawBanner(g,
+                    "Click a block entity to edit its item for this placement/step — right-click to remove" + beCount,
+                    TOP_BAR_H + 4, C_DIM());
         }
 
         if (wiBlock != null && wiPlacementIdx == selectedPlacement) renderWorldItemPanel(g, mx, my);
@@ -792,8 +813,8 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         g.fill(panelX - 2, panelY - 2, panelX + panelW + 2, panelY + WI_PANEL_H + 2, 0xDD070712);
         g.fill(panelX - 2, panelY - 2, panelX + panelW + 2, panelY - 1, C_ACCENT());
 
-        String placement = wiPlacementIdx >= 0 && wiPlacementIdx < data.placements.size()
-                ? data.placements.get(wiPlacementIdx).machine : "?";
+        String placement = wiPlacementIdx >= 0 && wiPlacementIdx < data.placements.size() ?
+                data.placements.get(wiPlacementIdx).machine : "?";
         String label = "World Items — " + placement + " @ " + wiBlock.toShortString();
         if (editorLevel != null && scenePattern != null && wiPlacementIdx < scenePattern.placements.size()) {
             BlockPos worldPos = wiBlock.offset(scenePattern.placements.get(wiPlacementIdx).offset);
@@ -843,13 +864,17 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         if (wiBlock == null) return;
         String item = wiItemBox.getValue().trim();
         int sourceAmt = wiSourceBox.getValue().isBlank() ? -1 : parseSceneIntSafe(wiSourceBox.getValue(), -1);
-        if (item.isBlank() && sourceAmt < 0) { wiBlock = null; return; }
+        if (item.isBlank() && sourceAmt < 0) {
+            wiBlock = null;
+            return;
+        }
 
         checkpoint();
         PhantasiaSceneData.MachineOverride ov = ensureOverrideForPlacement(wiPlacementIdx);
         if (ov == null) return;
         ov.worldItems.removeIf(wi -> wi.x == wiBlock.getX() && wi.y == wiBlock.getY() && wi.z == wiBlock.getZ());
-        PhantasiaScriptData.WorldItemEntry entry = new PhantasiaScriptData.WorldItemEntry(wiBlock.getX(), wiBlock.getY(), wiBlock.getZ(), item);
+        PhantasiaScriptData.WorldItemEntry entry = new PhantasiaScriptData.WorldItemEntry(wiBlock.getX(),
+                wiBlock.getY(), wiBlock.getZ(), item);
         entry.sourceAmount = sourceAmt;
         ov.worldItems.add(entry);
         dirty = true;
@@ -876,7 +901,9 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         if (hoveredWorldPos == null || scenePattern == null || editorLevel == null) return false;
         if (editorLevel.getBlockEntity(hoveredWorldPos) == null) return false;
         if (scenePattern.allBaseplatePositions.contains(hoveredWorldPos)) return false;
-        if (editorLevel.getBlockState(hoveredWorldPos).getBlock() instanceof com.gregtechceu.gtceu.api.block.MetaMachineBlock) return false;
+        if (editorLevel.getBlockState(hoveredWorldPos)
+                .getBlock() instanceof com.gregtechceu.gtceu.api.block.MetaMachineBlock)
+            return false;
 
         // Find which placement this world position belongs to
         int foundPlacement = -1;
@@ -893,7 +920,8 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
 
         if (btn == 1) {
             PhantasiaSceneData.MachineOverride ov = step().getOverride(foundPlacement);
-            if (ov != null && ov.worldItems.removeIf(wi -> wi.x == local.getX() && wi.y == local.getY() && wi.z == local.getZ())) {
+            if (ov != null && ov.worldItems
+                    .removeIf(wi -> wi.x == local.getX() && wi.y == local.getY() && wi.z == local.getZ())) {
                 checkpoint();
                 dirty = true;
                 if (local.equals(wiBlock) && wiPlacementIdx == foundPlacement) wiBlock = null;
@@ -914,7 +942,8 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
                 .filter(wi -> wi.x == local.getX() && wi.y == local.getY() && wi.z == local.getZ())
                 .findFirst().orElse(null);
         wiItemBox.setValue(existing != null && existing.item != null ? existing.item : "");
-        wiSourceBox.setValue(existing != null && existing.sourceAmount >= 0 ? String.valueOf(existing.sourceAmount) : "");
+        wiSourceBox
+                .setValue(existing != null && existing.sourceAmount >= 0 ? String.valueOf(existing.sourceAmount) : "");
         setFocused(wiItemBox);
         return true;
     }
@@ -930,7 +959,11 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
     }
 
     private static int parseSceneIntSafe(String s, int fallback) {
-        try { return Integer.parseInt(s.trim()); } catch (NumberFormatException e) { return fallback; }
+        try {
+            return Integer.parseInt(s.trim());
+        } catch (NumberFormatException e) {
+            return fallback;
+        }
     }
 
     private float[] projectToScreen(float wx, float wy, float wz,

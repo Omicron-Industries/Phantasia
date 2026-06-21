@@ -9,8 +9,9 @@ import net.phoenixvine.phantasia.common.data.script.PhantasiaScript;
 
 import lombok.Getter;
 
-import javax.annotation.Nullable;
 import java.util.*;
+
+import javax.annotation.Nullable;
 
 public class PhantasiaLoadedPattern {
 

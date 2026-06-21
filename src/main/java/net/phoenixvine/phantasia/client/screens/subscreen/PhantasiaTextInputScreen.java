@@ -11,15 +11,14 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
+import net.phoenixvine.phantasia.client.screens.PhantasiaSceneScreen;
+import net.phoenixvine.phantasia.client.screens.PhantasiaScreen;
 
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
-
-import net.phoenixvine.phantasia.client.screens.PhantasiaSceneScreen;
-import net.phoenixvine.phantasia.client.screens.PhantasiaScreen;
 
 import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
 

@@ -16,7 +16,7 @@ import javax.annotation.Nullable;
  *
  * locked scriptDrive() result
  * ──────── ─────────────────────────────────────────────────────────────────
- * true  Lerp to script target. playerOwned cleared (unless softLock).
+ * true Lerp to script target. playerOwned cleared (unless softLock).
  * false Ignored — scripts never drive when unlocked, regardless of playerOwned.
  *
  * Any player input (orbit / zoom / pan) always sets playerOwned = true and

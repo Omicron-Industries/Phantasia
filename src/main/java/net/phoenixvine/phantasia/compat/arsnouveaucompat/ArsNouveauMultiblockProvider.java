@@ -13,9 +13,9 @@ import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockDefinitio
 import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockProvider;
 import net.phoenixvine.phantasia.common.multisetup.PhantasiaMultiSetupRegistry;
 
+import com.hollingsworth.arsnouveau.api.registry.RitualRegistry;
 import com.hollingsworth.arsnouveau.client.particle.ParticleColor;
 import com.hollingsworth.arsnouveau.client.particle.ParticleUtil;
-import com.hollingsworth.arsnouveau.api.registry.RitualRegistry;
 import com.hollingsworth.arsnouveau.common.block.tile.BasicSpellTurretTile;
 import com.hollingsworth.arsnouveau.common.block.tile.RitualBrazierTile;
 import com.hollingsworth.arsnouveau.common.block.tile.RotatingTurretTile;
@@ -487,8 +487,8 @@ public class ArsNouveauMultiblockProvider implements IPhantasiaMultiblockProvide
     }
 
     private static void activateBrazierWithScript(PhantasiaTrackedDummyWorld level,
-                                                   Map<BlockPos, BlockPos> localToWorld,
-                                                   @javax.annotation.Nullable PhantasiaScriptData script) {
+                                                  Map<BlockPos, BlockPos> localToWorld,
+                                                  @javax.annotation.Nullable PhantasiaScriptData script) {
         activateBrazier(level, localToWorld);
         if (script != null && script.getRecipeId() != null) {
             placeRitualTablet(level, localToWorld, script.getRecipeId());

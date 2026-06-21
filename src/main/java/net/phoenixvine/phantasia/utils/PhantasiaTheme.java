@@ -1,6 +1,7 @@
 package net.phoenixvine.phantasia.utils;
 
 import net.minecraft.util.Mth;
+import net.phoenixvine.phantasia.Phantasia;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -9,8 +10,6 @@ import java.io.*;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
-
-import net.phoenixvine.phantasia.Phantasia;
 
 public class PhantasiaTheme {
 

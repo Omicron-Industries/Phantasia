@@ -172,8 +172,8 @@ public class GTCEuMultiblockDefinition implements IPhantasiaMultiblockDefinition
      * stable across world restarts regardless of predicate ordering.
      */
     private List<PhantasiaVariantGroup> detectPredicateVariants(
-            String machinePrefix, PhantasiaLoadedPattern pattern, Set<String> excludeIds) {
-
+                                                                String machinePrefix, PhantasiaLoadedPattern pattern,
+                                                                Set<String> excludeIds) {
         com.gregtechceu.gtceu.api.pattern.BlockPattern blockPattern;
         try {
             var factory = definition.getPatternFactory();
@@ -211,10 +211,21 @@ public class GTCEuMultiblockDefinition implements IPhantasiaMultiblockDefinition
                     List<BlockInfo[]> componentCandidates = new ArrayList<>();
                     boolean valid = true;
                     for (var sp : tp.common) {
-                        if (sp.candidates == null) { valid = false; break; }
+                        if (sp.candidates == null) {
+                            valid = false;
+                            break;
+                        }
                         BlockInfo[] cands;
-                        try { cands = sp.candidates.get(); } catch (Exception ex) { valid = false; break; }
-                        if (cands == null || cands.length == 0) { valid = false; break; }
+                        try {
+                            cands = sp.candidates.get();
+                        } catch (Exception ex) {
+                            valid = false;
+                            break;
+                        }
+                        if (cands == null || cands.length == 0) {
+                            valid = false;
+                            break;
+                        }
                         componentCandidates.add(cands);
                     }
                     if (!valid || componentCandidates.size() < 2) continue;
@@ -284,22 +295,27 @@ public class GTCEuMultiblockDefinition implements IPhantasiaMultiblockDefinition
                 BlockPos world = pattern.localToWorld.get(local);
                 if (world == null) continue;
                 BlockInfo info = pattern.blockMap.get(world);
-                if (info == null || info.getBlockState() == null) { posMap.put(world, 0); continue; }
+                if (info == null || info.getBlockState() == null) {
+                    posMap.put(world, 0);
+                    continue;
+                }
                 Block loaded = info.getBlockState().getBlock();
 
                 int idx = 0;
                 outer:
                 for (int ci = 0; ci < componentCandidates.size(); ci++) {
                     for (BlockInfo bi : componentCandidates.get(ci)) {
-                        if (bi != null && bi.getBlockState() != null
-                                && bi.getBlockState().getBlock() == loaded) {
+                        if (bi != null && bi.getBlockState() != null && bi.getBlockState().getBlock() == loaded) {
                             idx = ci;
                             break outer;
                         }
                     }
                 }
                 posMap.put(world, idx);
-                if (!foundDefault) { defaultIdx = idx; foundDefault = true; }
+                if (!foundDefault) {
+                    defaultIdx = idx;
+                    foundDefault = true;
+                }
             }
             if (posMap.isEmpty()) continue;
 

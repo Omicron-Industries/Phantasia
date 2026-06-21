@@ -31,13 +31,17 @@ public final class PhantasiaTutorials {
     private static final int VW = 480;
     private static final int VH = 300;
 
-    public static final List<TutorialSequence> ALL = List.of(
-            gettingStarted(),
-            guides(),
-            scripts(),
-            scenes(),
-            devGuides(),
-            devScripts());
+    /** Builds the tutorial list fresh each call so keybind text reflects the player's current binding. */
+    public static List<TutorialSequence> all() {
+        return List.of(
+                gettingStarted(),
+                guides(),
+                scripts(),
+                scenes(),
+                devGuides(),
+                devScripts(),
+                devScenes());
+    }
 
     // ── Scale helper ──────────────────────────────────────────────────────────
 
@@ -60,6 +64,35 @@ public final class PhantasiaTutorials {
             task.run(g, f, t, tick);
             g.pose().popPose();
         };
+    }
+
+    // ── First registered machine helpers ─────────────────────────────────────
+
+    /** Full display name of the first registered multiblock scene, or a generic fallback. */
+    private static String firstMachineName() {
+        var machines = PhantasiaSceneSelectionScreen.PHANTASIA_SCENES;
+        if (!machines.isEmpty()) {
+            String name = machines.get(0).getDisplayName();
+            if (name == null || name.isEmpty())
+                name = machines.get(0).getId().getPath().replace('_', ' ');
+            return name;
+        }
+        return "Multiblock Machine";
+    }
+
+    /**
+     * Short label for the first machine (acronym of each word, e.g. "Electric Blast Furnace" → "EBF").
+     * Falls back to the first 6 characters if the name is a single word.
+     */
+    private static String firstMachineShortLabel() {
+        String name = firstMachineName();
+        String[] words = name.split("\\s+");
+        if (words.length > 1) {
+            StringBuilder sb = new StringBuilder();
+            for (String w : words) if (!w.isEmpty()) sb.append(Character.toUpperCase(w.charAt(0)));
+            return sb.toString();
+        }
+        return name.length() > 6 ? name.substring(0, 6) : name;
     }
 
     // ── Selection screen replica (PhantasiaSceneSelectionScreen) ─────────────
@@ -85,7 +118,7 @@ public final class PhantasiaTutorials {
         g.drawCenteredString(f, "Multiblock machines, scenes, and guides", VW / 2, 20, C_DIM());
 
         // Tabs — mirror real screen's renderTabs() layout exactly:
-        //   Multiblocks at gridX, Scenes at gridX+104 (hardcoded), rest use font.width+20 gaps
+        // Multiblocks at gridX, Scenes at gridX+104 (hardcoded), rest use font.width+20 gaps
         int tx = gridX;
         renderMockTab(g, f, tx, 32, "Multiblocks", activeTab == 0);
         tx = gridX + 104;
@@ -108,6 +141,7 @@ public final class PhantasiaTutorials {
         // Cards — real: HEADER_H + SEARCH_H + 6 = 52 + 24 + 6 = 82
         int cardsY = searchY + searchH + 6;
         if (activeTab == 0) drawMachineCards(g, f, gridX, cardsY);
+        else if (activeTab == 1) drawSceneCardsSelection(g, f, t, gridX, cardsY);
         else if (activeTab == 2) drawGuideCardsSelection(g, f, t, gridX, cardsY);
         else if (activeTab == 3) drawTutorialCardsSelection(g, f, t, gridX, cardsY);
 
@@ -115,7 +149,10 @@ public final class PhantasiaTutorials {
         int footerY = VH - 26;
         g.fill(0, footerY, VW, VH, 0xCC0A0A14);
         g.fill(0, footerY, VW, footerY + 1, 0x33FFFFFF);
-        g.drawCenteredString(f, "ESC to close  •  [P] near a machine to open directly", VW / 2, footerY + 9, C_DIM());
+        g.drawCenteredString(f,
+                "ESC to close  •  " + net.phoenixvine.phantasia.client.keybind.PhoenixKeybinds.keyDisplay() +
+                        " near a machine to open directly",
+                VW / 2, footerY + 9, C_DIM());
     }
 
     private static void renderMockTab(GuiGraphics g, Font f, int x, int y, String label, boolean active) {
@@ -129,8 +166,8 @@ public final class PhantasiaTutorials {
         var machines = PhantasiaSceneSelectionScreen.PHANTASIA_SCENES;
 
         // Fallback names if machines haven't loaded yet
-        String[] fallbackNames = { "Electric Blast Furnace", "Chemical Reactor", "Macerator",
-                "Large Boiler", "Pyrolyse Oven", "Large Turbine" };
+        String[] fallbackNames = { "Multiblock A", "Multiblock B", "Multiblock C",
+                "Multiblock D", "Multiblock E", "Multiblock F" };
         boolean[] fallbackSteps = { true, true, false, true, false, false };
 
         for (int i = 0; i < 6; i++) {
@@ -186,20 +223,69 @@ public final class PhantasiaTutorials {
         var guides = PhantasiaGuideRegistry.all().stream().limit(6).toList();
         String[] fallbackTitles = { "Getting Started", "Ore Processing", "Power Setup",
                 "EBF Basics", "Recipe Tips", "Material Guide" };
+        String[] fallbackIcons = { "minecraft:knowledge_book", "minecraft:iron_ore",
+                "minecraft:redstone", "minecraft:furnace", "minecraft:crafting_table", "minecraft:diamond" };
         for (int i = 0; i < 6; i++) {
             int col = i % 3, row = i / 3;
             int cx = gridX + col * (SEL_CARD_W + SEL_CARD_PAD);
             int cy = startY + row * (SEL_CARD_H + SEL_CARD_PAD);
             g.fill(cx, cy, cx + SEL_CARD_W, cy + SEL_CARD_H, (0xBB << 24) | (C_PANEL() & 0x00FFFFFF));
             g.fill(cx, cy, cx + SEL_CARD_W, cy + 2, C_BORDER());
-            // book icon placeholder
-            g.fill(cx + 36, cy + 8, cx + 68, cy + 36, C_BTN());
-            g.fill(cx + 36, cy + 8, cx + 68, cy + 9, C_ACCENT());
+            // Icon — real guide icon if available, fallback item otherwise
+            String iconRes = (i < guides.size() && guides.get(i).iconItem != null)
+                    ? guides.get(i).iconItem : fallbackIcons[i % fallbackIcons.length];
+            try {
+                var rl = iconRes.contains(":") ? new net.minecraft.resources.ResourceLocation(iconRes)
+                        : new net.minecraft.resources.ResourceLocation("minecraft", iconRes);
+                var item = net.minecraftforge.registries.ForgeRegistries.ITEMS.getValue(rl);
+                if (item != null && item != net.minecraft.world.item.Items.AIR) {
+                    g.pose().pushPose();
+                    g.pose().translate(cx + (SEL_CARD_W - 32) / 2f, cy + 8, 0);
+                    g.pose().scale(2f, 2f, 1f);
+                    g.renderItem(new net.minecraft.world.item.ItemStack(item), 0, 0);
+                    g.pose().popPose();
+                }
+            } catch (Exception ignored) {}
             String title = (i < guides.size()) ? guides.get(i).title : fallbackTitles[i];
-            if (title == null) title = fallbackTitles[i];
+            if (title == null) title = fallbackTitles[i % fallbackTitles.length];
             if (f.width(title) > SEL_CARD_W - 8)
                 title = f.plainSubstrByWidth(title, SEL_CARD_W - 8 - f.width("...")) + "...";
-            g.drawString(f, title, cx + 4, cy + SEL_CARD_H - 22, C_TEXT(), false);
+            g.drawString(f, title, cx + 4, cy + SEL_CARD_H - 33, C_TEXT(), false);
+            int pages = (i < guides.size() && guides.get(i).pages != null) ? guides.get(i).pages.size() : (i + 2);
+            g.drawString(f, pages + " page" + (pages == 1 ? "" : "s"), cx + 4, cy + SEL_CARD_H - 22, C_DIM(), false);
+        }
+    }
+
+    private static void drawSceneCardsSelection(GuiGraphics g, Font f, PhantasiaTheme t, int gridX, int startY) {
+        String[] fallbackTitles = { "Ore Processing Line", "Steel Production", "Power Grid",
+                "Blast Array", "Chemical Plant", "Material Loop" };
+        String[] fallbackIcons = { "minecraft:chest", "minecraft:blast_furnace", "minecraft:redstone_block",
+                "minecraft:iron_block", "minecraft:cauldron", "minecraft:hopper" };
+        int[] fallbackMachines = { 3, 2, 4, 5, 2, 3 };
+        for (int i = 0; i < 6; i++) {
+            int col = i % 3, row = i / 3;
+            int cx = gridX + col * (SEL_CARD_W + SEL_CARD_PAD);
+            int cy = startY + row * (SEL_CARD_H + SEL_CARD_PAD);
+            g.fill(cx, cy, cx + SEL_CARD_W, cy + SEL_CARD_H, (0xBB << 24) | (C_PANEL() & 0x00FFFFFF));
+            g.fill(cx, cy, cx + SEL_CARD_W, cy + 2, C_BORDER());
+            // Icon
+            try {
+                var rl = new net.minecraft.resources.ResourceLocation(fallbackIcons[i]);
+                var item = net.minecraftforge.registries.ForgeRegistries.ITEMS.getValue(rl);
+                if (item != null && item != net.minecraft.world.item.Items.AIR) {
+                    g.pose().pushPose();
+                    g.pose().translate(cx + (SEL_CARD_W - 32) / 2f, cy + 6, 0);
+                    g.pose().scale(2f, 2f, 1f);
+                    g.renderItem(new net.minecraft.world.item.ItemStack(item), 0, 0);
+                    g.pose().popPose();
+                }
+            } catch (Exception ignored) {}
+            String title = fallbackTitles[i];
+            if (f.width(title) > SEL_CARD_W - 8)
+                title = f.plainSubstrByWidth(title, SEL_CARD_W - 8 - f.width("...")) + "...";
+            g.drawString(f, title, cx + 4, cy + SEL_CARD_H - 34, C_TEXT(), false);
+            g.drawString(f, fallbackMachines[i] + " machines", cx + 4, cy + SEL_CARD_H - 23, C_DIM(), false);
+            g.fill(cx + SEL_CARD_W - 8, cy + 4, cx + SEL_CARD_W - 4, cy + 8, C_GREEN());
         }
     }
 
@@ -442,10 +528,10 @@ public final class PhantasiaTutorials {
                                          String machineName, int selectedStep,
                                          List<String> stepCaptions, int tick,
                                          boolean showCamPanel) {
-        final int TOP_H   = 22;
-        final int STEP_H  = 42;  // two sub-rows
-        final int TL_H    = 22;
-        final int BOT_H   = STEP_H + TL_H;
+        final int TOP_H = 22;
+        final int STEP_H = 42;  // two sub-rows
+        final int TL_H = 22;
+        final int BOT_H = STEP_H + TL_H;
         int vpH = VH - TOP_H - BOT_H;
 
         // ── Top bar ───────────────────────────────────────────────────────────
@@ -520,18 +606,50 @@ public final class PhantasiaTutorials {
         float pulse = 0.5f + 0.5f * (float) Math.sin(tick * 0.15f);
         int pa = (int) (35 * pulse);
         g.fill(cx2 - 4, cy2 - 4 - (selectedStep % 4) * 7,
-               cx2 + 48 + rot, cy2 + 14 - (selectedStep % 4) * 7,
-               (pa << 24) | (C_ACCENT() & 0xFFFFFF));
+                cx2 + 48 + rot, cy2 + 14 - (selectedStep % 4) * 7,
+                (pa << 24) | (C_ACCENT() & 0xFFFFFF));
 
-        // Camera panel floating overlay (top-right of viewport, 52px tall)
+        // Camera panel — floats above the step row, spanning most of the screen width (matches real editor)
         if (showCamPanel) {
-            int cpx = VW - 114, cpy = TOP_H + 4;
-            g.fill(cpx, cpy, VW - 4, cpy + 52, 0xEE0B0B18);
-            g.fill(cpx, cpy, VW - 4, cpy + 1, C_ACCENT());
-            g.drawString(f, "🎥 Camera", cpx + 4, cpy + 4, C_ACCENT(), false);
-            String[] camFields = { "Yaw   -135°", "Pitch  -30°", "Zoom   40.0", "Lerp   SPRING 25t" };
-            for (int ci = 0; ci < camFields.length; ci++)
-                g.drawString(f, camFields[ci], cpx + 4, cpy + 14 + ci * 9, C_TEXT(), false);
+            int cpH = 54, cpX = 6, cpW = VW - 12;
+            int cpY = VH - BOT_H - cpH - 4;
+            g.fill(cpX - 2, cpY - 2, cpX + cpW + 2, cpY + cpH + 2, 0xDD070712);
+            g.fill(cpX - 2, cpY - 2, cpX + cpW + 2, cpY - 1, C_ACCENT());
+            g.drawString(f, "🎥  Camera — step " + (selectedStep + 1), cpX + 4, cpY + 3, C_ACCENT(), false);
+            // Row 1: Capture Cam · Clear · live info
+            int r1Y = cpY + 14;
+            int bxc = cpX + 4;
+            int capBtnW = f.width("📷 Capture Cam") + 12;
+            g.fill(bxc, r1Y, bxc + capBtnW, r1Y + 14, C_BTN_ACT());
+            g.fill(bxc, r1Y, bxc + capBtnW, r1Y + 1, C_ACCENT());
+            g.drawString(f, "📷 Capture Cam", bxc + 6, r1Y + 3, C_ACCENT(), false);
+            bxc += capBtnW + 6;
+            int clrW = f.width("✕ Clear") + 10;
+            g.fill(bxc, r1Y, bxc + clrW, r1Y + 14, C_BTN());
+            g.drawString(f, "✕ Clear", bxc + 5, r1Y + 3, C_DIM(), false);
+            bxc += clrW + 10;
+            g.drawString(f, "Yaw -135.0°  Pitch -30.0°  Zoom 40.0", bxc, r1Y + 3, C_DIM(), false);
+            // Row 2: Zoom · lerp type · over · lerp ticks · ticks
+            int r2Y = cpY + 32;
+            bxc = cpX + 4;
+            g.drawString(f, "Zoom:", bxc, r2Y + 2, C_DIM(), false);
+            bxc += f.width("Zoom:") + 3;
+            g.fill(bxc, r2Y, bxc + 40, r2Y + 12, 0xFF0A0A14);
+            g.fill(bxc, r2Y, bxc + 40, r2Y + 1, 0xFF333355);
+            g.drawString(f, "40.0", bxc + 3, r2Y + 2, C_TEXT(), false);
+            bxc += 46;
+            int ltW = f.width("SPRING") + 16;
+            g.fill(bxc, r2Y, bxc + ltW, r2Y + 13, C_BTN());
+            g.fill(bxc, r2Y, bxc + ltW, r2Y + 1, C_ACCENT());
+            g.drawString(f, "SPRING", bxc + 8, r2Y + 2, C_ACCENT(), false);
+            bxc += ltW + 6;
+            g.drawString(f, "over", bxc, r2Y + 2, C_DIM(), false);
+            bxc += f.width("over") + 3;
+            g.fill(bxc, r2Y, bxc + 34, r2Y + 12, 0xFF0A0A14);
+            g.fill(bxc, r2Y, bxc + 34, r2Y + 1, 0xFF333355);
+            g.drawString(f, "25", bxc + 3, r2Y + 2, C_TEXT(), false);
+            bxc += 38;
+            g.drawString(f, "ticks", bxc, r2Y + 2, C_DIM(), false);
         }
 
         // ── Step row (STEP_H = 42, two sub-rows) ─────────────────────────────
@@ -550,7 +668,7 @@ public final class PhantasiaTutorials {
         bx3 += f.width(stepLbl) + 10;
 
         // Nav buttons: + − Dup ◄ ►
-        for (String nav : new String[]{ "+", "−", "Dup", "◄", "►" }) {
+        for (String nav : new String[] { "+", "−", "Dup", "◄", "►" }) {
             int nw = f.width(nav) + 8;
             g.fill(bx3, y1, bx3 + nw, y1 + 14, C_BTN());
             g.drawCenteredString(f, nav, bx3 + nw / 2, y1 + 3, C_TEXT());
@@ -569,7 +687,7 @@ public final class PhantasiaTutorials {
 
         // Caption button
         String cap = selectedStep < stepCaptions.size() ? stepCaptions.get(selectedStep) : "";
-        int capW = Math.min(180, VW / 2 - bx3 - 10);
+        int capW = Math.max(100, VW - bx3 - 130);
         g.fill(bx3, y1, bx3 + capW, y1 + 13, C_BTN());
         g.fill(bx3, y1, bx3 + capW, y1 + 1, 0x33FFFFFF);
         String capDisp = cap.isEmpty() ? "✎  Caption…" : f.plainSubstrByWidth(cap, capW - 16);
@@ -641,8 +759,8 @@ public final class PhantasiaTutorials {
                                         boolean panelExpanded, int activeStep,
                                         List<String> steps) {
         final int PANEL_W = panelExpanded ? 168 : 18;
-        final int TL_H    = 26;   // timeline height
-        final int CAP_H   = 38;   // caption strip height
+        final int TL_H = 26;   // timeline height
+        final int CAP_H = 38;   // caption strip height
         int vpW = VW - PANEL_W;
 
         // 3D viewport background
@@ -729,9 +847,8 @@ public final class PhantasiaTutorials {
         int capY = VH - TL_H - CAP_H;
         g.fill(0, capY, vpW, capY + CAP_H, 0xDD08080F);
         g.fill(0, capY, vpW, capY + 1, C_ACCENT());
-        String caption = (steps != null && activeStep < steps.size())
-                ? steps.get(activeStep)
-                : "Heating Coils — Place GregTech coil blocks in the center ring.";
+        String caption = (steps != null && activeStep < steps.size()) ? steps.get(activeStep) :
+                "Heating Coils — Place GregTech coil blocks in the center ring.";
         g.drawCenteredString(f, caption, vpW / 2, capY + (CAP_H - f.lineHeight) / 2, 0xFFDDDDDD);
 
         // ── Timeline bar (very bottom) ────────────────────────────────────────
@@ -764,6 +881,197 @@ public final class PhantasiaTutorials {
         g.fill(phX - 2, midY - 4, phX + 2, midY + 4, C_ACCENT());
     }
 
+    // ── Scene editor replica (PhantasiaSceneEditorScreen) ────────────────────
+    // Top bar: ⊞ Placements | ► Preview | 🎥 Camera | ▦ World | name (center) | ✕ Back | 💾 Save
+    // Left placements panel (220px) when open. Step row (50px) + Timeline (22px) at bottom.
+    // Camera panel floats above step row like script editor.
+
+    private static void drawSceneEditor(GuiGraphics g, Font f, PhantasiaTheme t,
+                                        String sceneName, boolean showPlacements,
+                                        boolean showCamPanel, int activeStep,
+                                        List<String> steps, int tick) {
+        final int TOP_H  = 22;
+        final int STEP_H = 50;
+        final int TL_H   = 22;
+        final int BOT_H  = STEP_H + TL_H;
+        final int PNL_W  = showPlacements ? 220 : 0;
+        int vpW = VW - PNL_W;
+        int vpH = VH - TOP_H - BOT_H;
+
+        // ── Top bar ───────────────────────────────────────────────────────────
+        g.fill(0, 0, VW, TOP_H, C_BAR());
+        g.fill(0, TOP_H - 1, VW, TOP_H, C_ACCENT());
+        int x = 6;
+        int ppW = f.width("⊞ Placements") + 12;
+        g.fill(x, 3, x + ppW, TOP_H - 3, showPlacements ? C_BTN_ACT() : C_BTN());
+        if (showPlacements) g.fill(x, TOP_H - 3, x + ppW, TOP_H - 2, C_ACCENT());
+        g.drawString(f, "⊞ Placements", x + 5, (TOP_H - 8) / 2, showPlacements ? C_ACCENT() : C_DIM(), false);
+        x += ppW + 4;
+        int pvW2 = f.width("► Preview") + 10;
+        g.fill(x, 3, x + pvW2, TOP_H - 3, C_BTN());
+        g.drawString(f, "► Preview", x + 5, (TOP_H - 8) / 2, C_DIM(), false);
+        x += pvW2 + 4;
+        int camTabW2 = 76;
+        g.fill(x, 3, x + camTabW2, TOP_H - 3, showCamPanel ? C_BTN_ACT() : C_BTN());
+        if (showCamPanel) g.fill(x, TOP_H - 3, x + camTabW2, TOP_H - 2, C_ACCENT());
+        g.drawString(f, "🎥 Camera", x + 5, (TOP_H - 8) / 2, showCamPanel ? C_ACCENT() : C_DIM(), false);
+        x += camTabW2 + 4;
+        int wiW = f.width("▦ World") + 10;
+        g.fill(x, 3, x + wiW, TOP_H - 3, C_BTN());
+        g.drawString(f, "▦ World", x + 5, (TOP_H - 8) / 2, C_DIM(), false);
+        int rx = VW - 4;
+        int bkW2 = f.width("✕ Back") + 10;
+        rx -= bkW2;
+        g.fill(rx, 3, rx + bkW2, TOP_H - 3, C_BTN());
+        g.drawString(f, "✕ Back", rx + 5, (TOP_H - 8) / 2, C_TEXT(), false);
+        rx -= 4;
+        int svW2 = f.width("💾 Save") + 10;
+        rx -= svW2;
+        g.fill(rx, 3, rx + svW2, TOP_H - 3, C_BTN());
+        g.fill(rx, TOP_H - 3, rx + svW2, TOP_H - 2, C_GREEN());
+        g.drawString(f, "💾 Save", rx + 5, (TOP_H - 8) / 2, C_GREEN(), false);
+        g.drawCenteredString(f, sceneName, VW / 2, (TOP_H - 8) / 2, C_DIM());
+
+        // ── Placements panel ─────────────────────────────────────────────────
+        if (showPlacements) {
+            g.fill(0, TOP_H, PNL_W, VH - BOT_H, C_PANEL());
+            g.fill(PNL_W - 1, TOP_H, PNL_W, VH - BOT_H, 0x44FFFFFF);
+            g.fill(0, TOP_H, PNL_W, TOP_H + 14, C_BAR());
+            g.drawString(f, "Placements", 6, TOP_H + 3, C_ACCENT(), false);
+            g.drawString(f, "Name:", 6, TOP_H + 18, C_DIM(), false);
+            int nfW2 = PNL_W - 44;
+            g.fill(40, TOP_H + 16, 40 + nfW2, TOP_H + 28, 0xFF0A0A14);
+            g.fill(40, TOP_H + 16, 40 + nfW2, TOP_H + 17, 0xFF333355);
+            String sn = sceneName.length() > 18 ? sceneName.substring(0, 15) + "..." : sceneName;
+            g.drawString(f, sn, 43, TOP_H + 18, C_TEXT(), false);
+            g.fill(4, TOP_H + 32, PNL_W - 4, TOP_H + 33, 0x22FFFFFF);
+            g.drawString(f, "Machines (" + 3 + "):", 6, TOP_H + 37, C_DIM(), false);
+            String[] mNames2 = { firstMachineName(), "Chemical Reactor", "Macerator" };
+            String[] offsets = { "0, 0, 0", "14, 0, 0", "28, 0, 0" };
+            for (int i = 0; i < 3; i++) {
+                int my = TOP_H + 50 + i * 28;
+                boolean sel = (i == activeStep % 3);
+                g.fill(4, my, PNL_W - 4, my + 22, sel ? C_BTN_HOV() : C_BTN());
+                if (sel) g.fill(4, my, 5, my + 22, C_ACCENT());
+                String mn = mNames2[i].length() > 18 ? mNames2[i].substring(0, 15) + "..." : mNames2[i];
+                g.drawString(f, mn, 8, my + 3, sel ? C_ACCENT() : C_TEXT(), false);
+                g.drawString(f, "offset: " + offsets[i], 8, my + 13, C_DIM(), false);
+            }
+            int addBtnY = TOP_H + 50 + 3 * 28 + 4;
+            g.fill(4, addBtnY, PNL_W - 4, addBtnY + 14, C_BTN());
+            g.drawCenteredString(f, "+ Add Machine", PNL_W / 2, addBtnY + 3, C_ACCENT());
+        }
+
+        // ── 3D viewport ───────────────────────────────────────────────────────
+        int vpX = PNL_W;
+        g.fill(vpX, TOP_H, VW, TOP_H + vpH, 0xFF07070F);
+        int cx = vpX + vpW / 2 - 44;
+        int cy = TOP_H + vpH / 2 - 20;
+        float angle = (tick % 360) / 360f * 2f * (float) Math.PI;
+        int rot = (int) (Math.cos(angle) * 5);
+        for (int m = 0; m < 3; m++) {
+            int ox = m * 16 + rot;
+            for (int layer = 0; layer < 3; layer++) {
+                for (int r = 0; r < 3; r++) {
+                    for (int c = 0; c < 3; c++) {
+                        boolean shell = layer == 0 || layer == 2 || r == 0 || r == 2 || c == 0 || c == 2;
+                        if (!shell) continue;
+                        int bx2 = cx + ox + c * 9 - r * 4;
+                        int by2 = cy - layer * 5 + r * 5 - c * 2 - m * 3;
+                        boolean hi = (m == activeStep % 3);
+                        int col = hi ? 0xFF2A4870 : (0xFF1A2A3E + (m * 8 + layer * 4 + r + c) % 8 * 0x010101);
+                        g.fill(bx2, by2, bx2 + 8, by2 + 8, col);
+                        g.fill(bx2, by2, bx2 + 8, by2 + 1, hi ? 0x66FFFFFF : 0x22FFFFFF);
+                    }
+                }
+            }
+        }
+
+        // ── Camera panel ─────────────────────────────────────────────────────
+        if (showCamPanel) {
+            int cpH2 = 54, cpX2 = vpX + 6, cpW2 = VW - vpX - 12;
+            int cpY2 = VH - BOT_H - cpH2 - 4;
+            g.fill(cpX2 - 2, cpY2 - 2, cpX2 + cpW2 + 2, cpY2 + cpH2 + 2, 0xDD070712);
+            g.fill(cpX2 - 2, cpY2 - 2, cpX2 + cpW2 + 2, cpY2 - 1, C_ACCENT());
+            g.drawString(f, "🎥  Camera — step " + (activeStep + 1), cpX2 + 4, cpY2 + 3, C_ACCENT(), false);
+            int r1Y2 = cpY2 + 14, bxc2 = cpX2 + 4;
+            int capBtnW2 = f.width("📷 Capture Cam") + 12;
+            g.fill(bxc2, r1Y2, bxc2 + capBtnW2, r1Y2 + 14, C_BTN_ACT());
+            g.fill(bxc2, r1Y2, bxc2 + capBtnW2, r1Y2 + 1, C_ACCENT());
+            g.drawString(f, "📷 Capture Cam", bxc2 + 6, r1Y2 + 3, C_ACCENT(), false);
+            bxc2 += capBtnW2 + 10;
+            g.drawString(f, "Yaw -90.0°  Pitch -20.0°  Zoom 60.0", bxc2, r1Y2 + 3, C_DIM(), false);
+            int r2Y2 = cpY2 + 32;
+            bxc2 = cpX2 + 4;
+            g.drawString(f, "Zoom:", bxc2, r2Y2 + 2, C_DIM(), false);
+            bxc2 += f.width("Zoom:") + 3;
+            g.fill(bxc2, r2Y2, bxc2 + 40, r2Y2 + 12, 0xFF0A0A14);
+            g.fill(bxc2, r2Y2, bxc2 + 40, r2Y2 + 1, 0xFF333355);
+            g.drawString(f, "60.0", bxc2 + 3, r2Y2 + 2, C_TEXT(), false);
+            bxc2 += 46;
+            int ltW2 = f.width("SPRING") + 16;
+            g.fill(bxc2, r2Y2, bxc2 + ltW2, r2Y2 + 13, C_BTN());
+            g.fill(bxc2, r2Y2, bxc2 + ltW2, r2Y2 + 1, C_ACCENT());
+            g.drawString(f, "SPRING", bxc2 + 8, r2Y2 + 2, C_ACCENT(), false);
+            bxc2 += ltW2 + 6;
+            g.drawString(f, "over 30 ticks", bxc2, r2Y2 + 2, C_DIM(), false);
+        }
+
+        // ── Step row ─────────────────────────────────────────────────────────
+        int rowY = VH - BOT_H;
+        g.fill(0, rowY, VW, rowY + STEP_H, C_BAR());
+        g.fill(0, rowY, VW, rowY + 1, C_ACCENT());
+        int y1 = rowY + 4, bx3 = 8;
+        String sLabel = (activeStep + 1) + "/" + (steps != null ? steps.size() : 3);
+        g.drawString(f, "Step", bx3, y1 - 2, 0xFF334455, false);
+        g.drawString(f, sLabel, bx3, y1 + 6, C_ACCENT(), false);
+        bx3 += f.width(sLabel) + 10;
+        for (String nav : new String[]{ "+", "−", "Dup", "◄", "►" }) {
+            int nw = f.width(nav) + 8;
+            g.fill(bx3, y1, bx3 + nw, y1 + 14, C_BTN());
+            g.drawCenteredString(f, nav, bx3 + nw / 2, y1 + 3, C_TEXT());
+            bx3 += nw + 4;
+        }
+        bx3 += 4;
+        String capText = (steps != null && activeStep < steps.size()) ? steps.get(activeStep) : "Overview";
+        int capW2 = Math.max(100, VW - bx3 - 130);
+        g.fill(bx3, y1, bx3 + capW2, y1 + 13, C_BTN());
+        g.fill(bx3, y1, bx3 + capW2, y1 + 1, 0x33FFFFFF);
+        g.drawString(f, f.plainSubstrByWidth(capText, capW2 - 12), bx3 + 4, y1 + 3, C_TEXT(), false);
+        // Row 2: per-machine visibility toggles
+        int y2 = rowY + STEP_H / 2 + 5;
+        bx3 = 8;
+        g.drawString(f, "Visible:", bx3, y2 + 2, C_DIM(), false);
+        bx3 += f.width("Visible:") + 4;
+        String[] vis = { firstMachineShortLabel(), "CR", "MAC" };
+        for (int m = 0; m < 3; m++) {
+            boolean act = (m <= activeStep % 3);
+            int mw2 = f.width(vis[m]) + 10;
+            g.fill(bx3, y2, bx3 + mw2, y2 + 14, act ? C_BTN_ACT() : C_BTN());
+            if (act) g.fill(bx3, y2, bx3 + mw2, y2 + 1, C_GREEN());
+            g.drawString(f, vis[m], bx3 + 5, y2 + 3, act ? C_GREEN() : C_DIM(), false);
+            bx3 += mw2 + 4;
+        }
+        bx3 += 8;
+        g.drawString(f, "Running: all", bx3, y2 + 2, C_DIM(), false);
+
+        // ── Timeline ─────────────────────────────────────────────────────────
+        int tlY2 = VH - TL_H;
+        g.fill(0, tlY2, VW, VH, C_PANEL());
+        g.fill(0, tlY2, VW, tlY2 + 1, 0x33FFFFFF);
+        int margin2 = 30, trackW2 = VW - margin2 * 2, midY2 = tlY2 + TL_H / 2;
+        g.fill(margin2, midY2 - 1, margin2 + trackW2, midY2 + 1, 0xFF1A2C3C);
+        int nSteps2 = steps != null ? steps.size() : 3;
+        for (int di = 0; di < nSteps2; di++) {
+            float frac = nSteps2 > 1 ? (float) di / (nSteps2 - 1) : 0f;
+            int dotX2 = margin2 + (int) (frac * trackW2);
+            boolean sel2 = di == activeStep;
+            g.fill(dotX2 - 5, midY2 - 5, dotX2 + 5, midY2 + 5, sel2 ? C_ACCENT() : 0xFF3A506A);
+            g.fill(dotX2 - 3, midY2 - 3, dotX2 + 3, midY2 + 3, sel2 ? 0xFF1A3C5C : 0xFF0A1520);
+            g.drawCenteredString(f, String.valueOf(di + 1), dotX2, midY2 - 3, sel2 ? C_ACCENT() : C_DIM());
+        }
+    }
+
     // ═════════════════════════════════════════════════════════════════════════
     // Tutorial sequences
     // ═════════════════════════════════════════════════════════════════════════
@@ -787,10 +1095,14 @@ public final class PhantasiaTutorials {
                                 .mock(mock((g, f, t, tick) -> drawSelectionScreen(g, f, t, tick, 0)))
                                 .build(),
 
-                        TutorialSlide.of("Hold [P] Near a Machine",
-                                "Point at any multiblock machine in the world and hold the P key.\n" +
-                                        "A progress bar appears at the bottom of your screen.\n\n" +
-                                        "Keep holding until it fills — the viewer opens automatically.")
+                        TutorialSlide
+                                .of("Hold " + net.phoenixvine.phantasia.client.keybind.PhoenixKeybinds.keyDisplay() +
+                                        " Near a Machine",
+                                        "Point at any multiblock machine in the world and hold the " +
+                                                net.phoenixvine.phantasia.client.keybind.PhoenixKeybinds.keyDisplay() +
+                                                " key.\n" +
+                                                "A progress bar appears at the bottom of your screen.\n\n" +
+                                                "Keep holding until it fills — the viewer opens automatically.")
                                 .mock(mock((g, f, t, tick) -> {
                                     // World scene with hold-bar overlay at bottom
                                     g.fill(0, 0, VW, VH, 0xFF060C14);
@@ -799,23 +1111,24 @@ public final class PhantasiaTutorials {
                                     g.fillGradient(0, 0, VW, VH / 2, 0xFF1A2840, 0xFF0A1420);
                                     g.fill(0, VH / 2, VW, VH, 0xFF0A0A08);
 
-                                    // EBF machine block in the world
+                                    // Machine block in the world — use first registered machine name
+                                    String mName = firstMachineName();
+                                    String mShort = firstMachineShortLabel();
                                     int bx = VW / 2 - 24, by = VH / 2 - 40;
                                     g.fill(bx, by, bx + 48, by + 48, 0xFF1E2C44);
                                     g.fill(bx, by, bx + 48, by + 1, 0x44FFFFFF);
                                     g.fill(bx, by, bx + 1, by + 48, 0x22FFFFFF);
                                     g.fill(bx + 4, by + 4, bx + 44, by + 44, 0xFF223355);
-                                    String ebfLabel = "EBF";
-                                    g.drawCenteredString(f, ebfLabel, bx + 24, by + 20, C_ACCENT());
+                                    g.drawCenteredString(f, mShort, bx + 24, by + 20, C_ACCENT());
 
                                     // Crosshair
                                     g.fill(VW / 2 - 4, VH / 2 - 1, VW / 2 + 4, VH / 2 + 1, 0x88FFFFFF);
                                     g.fill(VW / 2 - 1, VH / 2 - 4, VW / 2 + 1, VH / 2 + 4, 0x88FFFFFF);
 
                                     // Tooltip: machine name
-                                    int ttW = f.width("Electric Blast Furnace") + 8;
+                                    int ttW = Math.max(140, f.width(mName) + 24);
                                     g.fill(VW / 2 - ttW / 2, VH / 2 + 30, VW / 2 + ttW / 2, VH / 2 + 42, 0xCC07070E);
-                                    g.drawCenteredString(f, "Electric Blast Furnace", VW / 2, VH / 2 + 33, C_ACCENT());
+                                    g.drawCenteredString(f, mName, VW / 2, VH / 2 + 33, C_ACCENT());
 
                                     // Hold-to-phantasize bar (bottom of screen, like real keybind overlay)
                                     float pct = ((tick % 100) / 100f);
@@ -823,7 +1136,10 @@ public final class PhantasiaTutorials {
                                     int barX = (VW - barW) / 2, barY = VH - 44;
                                     g.fill(barX, barY, barX + barW, barY + barH, 0xCC0A0A14);
                                     g.fill(barX, barY, barX + barW, barY + 1, C_ACCENT());
-                                    g.drawString(f, "[P] Hold to Phantasize", barX + 8, barY + 5, C_TEXT(), false);
+                                    g.drawString(f,
+                                            net.phoenixvine.phantasia.client.keybind.PhoenixKeybinds.keyDisplay() +
+                                                    " Hold to Phantasize",
+                                            barX + 8, barY + 5, C_TEXT(), false);
                                     // Progress bar
                                     g.fill(barX + 8, barY + 18, barX + barW - 8, barY + 24, 0x33FFFFFF);
                                     g.fill(barX + 8, barY + 18, barX + 8 + (int) ((barW - 16) * pct), barY + 24,
@@ -833,19 +1149,98 @@ public final class PhantasiaTutorials {
                                 .highlight(0.292f, 0.853f, 0.417f, 0.093f, "Hold progress bar")
                                 .build(),
 
+                        TutorialSlide.of("Tooltip Display Modes",
+                                "The machine name can appear in three places — whichever you prefer.\n\n" +
+                                        "JADE: shown in the JADE HUD (top corner)\n" +
+                                        "TOOLTIP: shown on the item or block tooltip\n" +
+                                        "HOTBAR: shown above your hotbar\n\n" +
+                                        "Change the mode in Settings. Either way, " +
+                                        net.phoenixvine.phantasia.client.keybind.PhoenixKeybinds.keyDisplay() +
+                                        " always works.")
+                                .mock(mock((g, f, t, tick) -> {
+                                    g.fill(0, 0, VW, VH, 0xFF060C14);
+                                    g.fillGradient(0, 0, VW, VH / 2, 0xFF1A2840, 0xFF0A1420);
+                                    g.fill(0, VH / 2, VW, VH, 0xFF0A0A08);
+
+                                    // World block in center — use first registered machine name
+                                    String dmName = firstMachineName();
+                                    String dmShort = firstMachineShortLabel();
+                                    int bx = VW / 2 - 20, by = VH / 2 - 36;
+                                    g.fill(bx, by, bx + 40, by + 40, 0xFF1E2C44);
+                                    g.fill(bx, by, bx + 40, by + 1, 0x44FFFFFF);
+                                    g.fill(bx, by, bx + 1, by + 40, 0x22FFFFFF);
+                                    g.drawCenteredString(f, dmShort, bx + 20, by + 16, C_ACCENT());
+
+                                    // Crosshair
+                                    g.fill(VW / 2 - 4, VH / 2 - 14 - 1, VW / 2 + 4, VH / 2 - 14 + 1, 0x88FFFFFF);
+                                    g.fill(VW / 2 - 1, VH / 2 - 18, VW / 2 + 1, VH / 2 - 10, 0x88FFFFFF);
+
+                                    int mode = (tick / 100) % 3;
+                                    String modeLabel;
+
+                                    if (mode == 0) {
+                                        // JADE — top-left HUD corner
+                                        modeLabel = "JADE";
+                                        int jw = Math.max(130, f.width(dmName) + 14);
+                                        int jh = 18;
+                                        int jx = 8, jy = 8;
+                                        g.fill(jx, jy, jx + jw, jy + jh, 0xCC07070E);
+                                        g.fill(jx, jy, jx + jw, jy + 1, C_ACCENT());
+                                        g.fill(jx, jy, jx + 1, jy + jh, C_ACCENT());
+                                        g.drawString(f, dmName, jx + 5, jy + 5, C_ACCENT(), false);
+                                    } else if (mode == 1) {
+                                        // TOOLTIP — near cursor / crosshair
+                                        modeLabel = "TOOLTIP";
+                                        int ttW = Math.max(160, f.width(dmName) + 32);
+                                        int ttH = 22;
+                                        int ttX = VW / 2 - ttW / 2, ttY = VH / 2 - 6;
+                                        g.fill(ttX, ttY, ttX + ttW, ttY + ttH, 0xCC07070E);
+                                        g.fill(ttX, ttY, ttX + ttW, ttY + 1, C_ACCENT());
+                                        g.drawCenteredString(f, dmName, VW / 2, ttY + (ttH - 8) / 2, C_ACCENT());
+                                    } else {
+                                        // HOTBAR — above hotbar
+                                        modeLabel = "HOTBAR";
+                                        int hbW = Math.max(160, f.width(dmName) + 24);
+                                        int hbH = 16;
+                                        int hbX = (VW - hbW) / 2, hbY = VH - 44;
+                                        g.fill(hbX, hbY, hbX + hbW, hbY + hbH, 0xCC07070E);
+                                        g.fill(hbX, hbY, hbX + hbW, hbY + 1, C_ACCENT());
+                                        g.drawCenteredString(f, dmName, VW / 2, hbY + 4, C_ACCENT());
+                                        // Fake hotbar below
+                                        int htW = 182, htH = 22;
+                                        int htX = (VW - htW) / 2, htY = VH - 24;
+                                        g.fill(htX, htY, htX + htW, htY + htH, 0xBB1A1A2A);
+                                        g.fill(htX, htY, htX + htW, htY + 1, 0x55FFFFFF);
+                                    }
+
+                                    // Mode badge
+                                    int bW = f.width("Mode: " + modeLabel) + 8;
+                                    g.fill(VW - bW - 6, VH - 28, VW - 6, VH - 14, 0xCC0A0A14);
+                                    g.fill(VW - bW - 6, VH - 28, VW - 6, VH - 27, C_ACCENT());
+                                    g.drawString(f, "Mode: " + modeLabel, VW - bW - 2, VH - 24, C_DIM(), false);
+                                }))
+                                .highlight(0.0f, 0.0f, 0.33f, 0.12f, "JADE position")
+                                .highlight(0.29f, 0.40f, 0.42f, 0.10f, "TOOLTIP position")
+                                .highlight(0.21f, 0.80f, 0.58f, 0.10f, "HOTBAR position")
+                                .build(),
+
                         TutorialSlide.of("Browse Everything with /phantasia",
                                 "Type /phantasia to open a searchable list of every multiblock,\n" +
                                         "scene layout, and guide in this pack.\n\n" +
                                         "Use it any time — you don't need to be near a machine.\n" +
                                         "The Tutorials tab is also right here.")
                                 .mock(mock((g, f, t, tick) -> {
-                                    int tab = (tick / 80) % 4;
+                                    // WP0 travel=40 (covers reset sweep from Tutorials back to Multiblocks).
+                                    // WP1-3 travel=20. Cycle = (40+60)+(20+60)×3 = 340 ticks.
+                                    // Tab switches at cursor arrival: WP0@40, WP1@120, WP2@200, WP3@280.
+                                    int c = tick % 340;
+                                    int tab = c < 120 ? 0 : c < 200 ? 1 : c < 280 ? 2 : 3;
                                     drawSelectionScreen(g, f, t, tick, tab);
                                 }))
-                                .cursor(0.231f, 0.133f, 20, 40, true)
-                                .cursor(0.425f, 0.133f, 15, 40, true)
-                                .cursor(0.533f, 0.133f, 15, 40, true)
-                                .cursor(0.654f, 0.133f, 15, 40, true)
+                                .cursor(0.231f, 0.133f, 40, 60, true)
+                                .cursor(0.425f, 0.133f, 20, 60, true)
+                                .cursor(0.533f, 0.133f, 20, 60, true)
+                                .cursor(0.654f, 0.133f, 20, 60, true)
                                 .highlight(0.158f, 0.107f, 0.560f, 0.053f, "Tab bar")
                                 .build(),
 
@@ -874,7 +1269,7 @@ public final class PhantasiaTutorials {
                                         "Find guides in /phantasia under the Guides tab.")
                                 .mock(mock((g, f, t, tick) -> drawSelectionScreen(g, f, t, tick, 2)))
                                 .cursor(0.533f, 0.130f, 20, 40, true)
-                                .highlight(0.485f, 0.107f, 0.098f, 0.053f, "Guides tab")
+                                .highlight(0.506f, 0.107f, 0.090f, 0.053f, "Guides tab")
                                 .build(),
 
                         TutorialSlide.of("Reading a Guide",
@@ -943,8 +1338,8 @@ public final class PhantasiaTutorials {
                                         "It loads the machine into a virtual world preview, then walks you\n" +
                                         "through each layer with camera movements and instructions.\n\n" +
                                         "Open one from /phantasia → Multiblocks.")
-                                .mock(mock((g, f, t, tick) ->
-                                        drawSceneViewer(g, f, t, "Electric Blast Furnace", tick, false, 0, EBF_STEPS)))
+                                .mock(mock((g, f, t, tick) -> drawSceneViewer(g, f, t, "Electric Blast Furnace", tick,
+                                        false, 0, EBF_STEPS)))
                                 .highlight(0.0f, 0.0f, 0.963f, 0.787f, "3D viewport")
                                 .highlight(0.0f, 0.787f, 0.963f, 0.213f, "Caption + timeline")
                                 .build(),
@@ -966,8 +1361,8 @@ public final class PhantasiaTutorials {
                                 "The right panel holds machine-specific options.\n\n" +
                                         "Click ◀ to expand it — you'll find Show/Layer/Build controls\n" +
                                         "and extra tools. Your layer and build-order state persists.")
-                                .mock(mock((g, f, t, tick) ->
-                                        drawSceneViewer(g, f, t, "Electric Blast Furnace", tick, true, 0, EBF_STEPS)))
+                                .mock(mock((g, f, t, tick) -> drawSceneViewer(g, f, t, "Electric Blast Furnace", tick,
+                                        true, 0, EBF_STEPS)))
                                 .highlight(0.65f, 0.0f, 0.35f, 1.0f, "Right panel")
                                 .build()));
     }
@@ -1033,7 +1428,7 @@ public final class PhantasiaTutorials {
                                 .mock(mock((g, f, t, tick) -> drawSelectionScreen(g, f, t, tick, 2)))
                                 .cursor(0.533f, 0.130f, 20, 50, true)
                                 .cursor(0.267f, 0.417f, 20, 40, true)
-                                .highlight(0.485f, 0.107f, 0.098f, 0.055f, "Guides tab")
+                                .highlight(0.506f, 0.107f, 0.090f, 0.055f, "Guides tab")
                                 .highlight(0.158f, 0.273f, 0.68f, 0.287f, "Guide cards area")
                                 .build(),
 
@@ -1098,55 +1493,198 @@ public final class PhantasiaTutorials {
     // ── Dev: Writing Scripts ──────────────────────────────────────────────────
 
     static TutorialSequence devScripts() {
+        // VH=300, BOT_H=64(STEP_H42+TL22), TOP_H=22
+        // Step row starts at y = VH-BOT_H = 236  →  relY = 236/300 ≈ 0.787
+        // Row-1 centre ≈ y=243   → relY 0.810
+        // Row-2 centre ≈ y=257   → relY 0.857
+        // Timeline centre ≈ y=289 → relY 0.963
+        // Camera panel: cpY = VH-BOT_H-54-4 = 178  → relY 178/300 ≈ 0.593,  H=54 → 0.180
+        //   Camera button in top bar: x≈242, y≈11   → relX 242/480≈0.504  relY 0.037
         return new TutorialSequence(
                 "dev_scripts", "Writing Scripts",
-                "How to write step-by-step machine walkthroughs.",
+                "How to create step-by-step machine walkthroughs.",
                 "minecraft:writable_book", TutorialSequence.DEV,
                 List.of(
                         TutorialSlide.of("Opening the Script Editor",
-                                "Go to /phantasia → Multiblocks tab, find your machine (e.g.\n" +
-                                        "Electric Blast Furnace), and click to open the viewer.\n\n" +
-                                        "The script editor icon is in the right panel. A blank script\n" +
-                                        "is created for you if none exists yet.")
+                                "Go to /phantasia → Multiblocks tab, find your machine card\n" +
+                                        "and click it to open the scene viewer.\n\n" +
+                                        "In the top-right of the viewer you'll find the script editor\n" +
+                                        "button. A blank script is created automatically if none exists.")
                                 .mock(mock((g, f, t, tick) -> drawSelectionScreen(g, f, t, tick, 0)))
-                                .cursor(0.267f, 0.417f, 25, 50, true)
-                                .highlight(0.158f, 0.273f, 0.217f, 0.287f, "Open EBF card")
+                                .cursor(0.260f, 0.417f, 25, 60, true)
+                                .highlight(0.158f, 0.273f, 0.217f, 0.287f, "Machine card")
                                 .build(),
 
-                        TutorialSlide.of("Adding Steps",
-                                "Click '+ Add Step' at the bottom of the step list.\n\n" +
-                                        "Each step has a caption (the text shown to the player),\n" +
-                                        "a show mode (All / Layer / Range / Parts), and an optional\n" +
-                                        "camera animation. The EBF script uses one step per layer.")
-                                .mock(mock((g, f, t, tick) -> drawScriptEditor(g, f, t, "Electric Blast Furnace",
-                                        (tick / 50) % EBF_STEPS.size(), EBF_STEPS, tick)))
-                                .cursor(0.094f, 0.820f, 25, 40, true)
-                                .cursor(0.50f, 0.43f, 20, 40, false)
-                                .highlight(0.0f, 0.787f, 0.55f, 0.070f, "+ step controls row")
+                        TutorialSlide.of("Steps, Ticks, and Captions",
+                                "Each script is a list of Steps. Use the + / − / Dup buttons\n" +
+                                        "in the step row to add, remove, or duplicate steps.\n\n" +
+                                        "The Tick field sets how long the step lasts. The Caption\n" +
+                                        "field is the text shown to the player for that step.\n" +
+                                        "Use the ◄ ► arrows to reorder steps.")
+                                .mock(mock((g, f, t, tick) -> drawScriptEditor(g, f, t, firstMachineName(),
+                                        (tick / 60) % EBF_STEPS.size(), EBF_STEPS, tick)))
+                                // cursor clicks the + button (first nav button after step label)
+                                .cursor(0.094f, 0.810f, 25, 50, true)
+                                // then drifts to caption field
+                                .cursor(0.50f, 0.810f, 20, 50, false)
+                                .highlight(0.0f, 0.780f, 1.0f, 0.143f, "Step row")
                                 .build(),
 
-                        TutorialSlide.of("Setting the Camera",
+                        TutorialSlide.of("Show Modes",
+                                "Row 2 of the step row controls what's visible during the step.\n\n" +
+                                        "All — entire structure visible.\n" +
+                                        "Layer — only the selected Y-layer visible.\n" +
+                                        "Range — visible from layer A to layer B.\n" +
+                                        "Parts… — per-part toggle (useful for complex sub-assemblies).\n\n" +
+                                        "Use Layer mode one step per layer to walk players through\n" +
+                                        "building the machine from the ground up.")
+                                .mock(mock((g, f, t, tick) -> {
+                                    int s = (tick / 80) % EBF_STEPS.size();
+                                    drawScriptEditor(g, f, t, firstMachineName(), s, EBF_STEPS, tick);
+                                }))
+                                // cursor clicks the show-mode tabs in row 2 (y≈0.857)
+                                .cursor(0.275f, 0.857f, 20, 50, true)
+                                .cursor(0.340f, 0.857f, 15, 40, true)
+                                .cursor(0.405f, 0.857f, 15, 40, true)
+                                .highlight(0.0f, 0.840f, 0.55f, 0.083f, "Show mode tabs")
+                                .build(),
+
+                        TutorialSlide.of("Camera Overrides",
                                 "Click 🎥 Camera in the top bar to open the camera panel.\n\n" +
-                                        "Set per-step yaw, pitch, zoom, and lerp type here.\n" +
-                                        "SPRING easing gives natural movement between steps;\n" +
-                                        "20–30 lerp ticks is a good default.")
-                                .mock(mock((g, f, t, tick) -> drawScriptEditor(g, f, t, "Electric Blast Furnace", 2,
-                                        EBF_STEPS, tick, true)))
-                                .cursor(0.62f, 0.037f, 20, 40, true)
-                                .highlight(0.762f, 0.087f, 0.229f, 0.173f, "Camera panel")
+                                        "Each step can store its own camera angle: yaw, pitch,\n" +
+                                        "zoom, and lerp type. Click '📷 Capture Cam' to snapshot\n" +
+                                        "the current 3D viewport angle into this step.\n\n" +
+                                        "SPRING lerp eases smoothly between steps. Set 'over N ticks'\n" +
+                                        "to control how long the camera takes to travel — 20-30 is good.")
+                                .mock(mock((g, f, t, tick) -> drawScriptEditor(g, f, t, firstMachineName(),
+                                        (tick / 70) % EBF_STEPS.size(), EBF_STEPS, tick, true)))
+                                // cursor clicks Camera button in top bar (x≈323/480)
+                                .cursor(0.673f, 0.037f, 20, 60, true)
+                                // then moves into the camera panel (📷 Capture Cam button)
+                                .cursor(0.083f, 0.643f, 20, 50, true)
+                                .highlight(0.0f, 0.593f, 1.0f, 0.193f, "Camera panel")
+                                .build(),
+
+                        TutorialSlide.of("World Items (◦ World mode)",
+                                "Switch to ◦ World mode (top-left of editor) to place floating\n" +
+                                        "item markers directly inside the 3D viewport.\n\n" +
+                                        "These markers are visible only during the step you place them\n" +
+                                        "on, and show the player exactly what block or item goes where.\n\n" +
+                                        "Click a position in the viewport, then pick an item from the\n" +
+                                        "item picker that opens. Markers move with the camera.")
+                                .mock(mock((g, f, t, tick) -> {
+                                    int s = (tick / 70) % EBF_STEPS.size();
+                                    drawScriptEditor(g, f, t, firstMachineName(), s, EBF_STEPS, tick);
+                                }))
+                                // cursor clicks ◦ World button (third mode button)
+                                .cursor(0.398f, 0.037f, 20, 60, true)
+                                // then clicks into the viewport centre
+                                .cursor(0.50f, 0.43f, 20, 50, true)
+                                .highlight(0.0f, 0.000f, 0.30f, 0.073f, "Mode buttons")
                                 .build(),
 
                         TutorialSlide.of("Save and Test",
-                                "Click '💾 Save' (top-right of editor) to write to disk.\n\n" +
-                                        "Then press [P] while looking at the real machine in the world\n" +
-                                        "to run your script live — no restart needed.\n\n" +
-                                        "Iterate fast: save → test in world → come back and tweak.")
+                                "Click '💾 Save' (top-right) to write your script to disk.\n\n" +
+                                        "Then press " +
+                                        net.phoenixvine.phantasia.client.keybind.PhoenixKeybinds.keyDisplay() +
+                                        " while looking at the real machine in the world\n" +
+                                        "to run the script live — no restart needed.\n\n" +
+                                        "Iterate fast: save → test in world → tweak → repeat.\n" +
+                                        "Ctrl+S works too. If a step feels rushed, increase its tick count.")
                                 .mock(mock((g, f, t, tick) -> {
                                     int step = (tick / 40) % EBF_STEPS.size();
-                                    drawScriptEditor(g, f, t, "Electric Blast Furnace", step, EBF_STEPS, tick);
+                                    drawScriptEditor(g, f, t, firstMachineName(), step, EBF_STEPS, tick);
                                 }))
-                                .cursor(0.88f, 0.037f, 20, 40, true)
+                                .cursor(0.88f, 0.037f, 20, 50, true)
                                 .highlight(0.84f, 0.01f, 0.16f, 0.063f, "💾 Save")
+                                .build()));
+    }
+
+    // ── Dev: Writing Scenes ───────────────────────────────────────────────────
+
+    static TutorialSequence devScenes() {
+        // Scene editor layout: TOP_H=22, STEP_H=50, TL_H=22, BOT_H=72, PLACEMENTS_PANEL_W=220
+        // Step row starts at y=VH-BOT_H=228 → relY 0.760
+        // Row-1 centre ≈ y=235 → relY 0.783
+        // Row-2 centre ≈ y=253 → relY 0.843
+        // Camera panel: cpY=VH-BOT_H-54-4=170 → relY 0.567, H=54 → 0.180
+        // Placements panel: x=0..220 → relX 0..0.458
+        // Top bar: Placements(x=6,w≈84) center≈48/480=0.100
+        //          Preview(x≈94,w≈62) center≈125/480=0.260
+        //          Camera(x≈160,w=76) center≈198/480=0.413
+        //          Save ≈ relX 0.815
+        List<String> sceneSteps = List.of(
+                "Place outer casing",
+                "Add heating coils",
+                "Install output hatches",
+                "Place energy hatch",
+                "Add maintenance hatch"
+        );
+        return new TutorialSequence(
+                "dev_scenes", "Writing Scenes",
+                "How to create multi-machine Scene files.",
+                "minecraft:filled_map", TutorialSequence.DEV,
+                List.of(
+                        TutorialSlide.of("What is a Scene File?",
+                                "A Scene groups multiple machines together in a shared 3D space.\n\n" +
+                                        "Where a Script shows one machine at a time, a Scene can\n" +
+                                        "display a whole factory floor — each machine at its real\n" +
+                                        "relative offset from the others.\n\n" +
+                                        "Find Scenes in /phantasia under the Scenes tab.")
+                                .mock(mock((g, f, t, tick) -> drawSelectionScreen(g, f, t, tick, 1)))
+                                .cursor(0.425f, 0.130f, 20, 60, true)
+                                .highlight(0.404f, 0.107f, 0.095f, 0.053f, "Scenes tab")
+                                .build(),
+
+                        TutorialSlide.of("The Scene Editor",
+                                "Open the Scenes tab → click '+ New Scene' to create one.\n\n" +
+                                        "The ⊞ Placements panel (left) lists every machine in the scene.\n" +
+                                        "Click '+ Add Machine' to add one, then set its XYZ offset\n" +
+                                        "so it lines up with the others in the 3D viewport.\n\n" +
+                                        "The viewport rotates automatically — drag to reposition.")
+                                .mock(mock((g, f, t, tick) -> drawSceneEditor(g, f, t,
+                                        "Processing Line", true, false, (tick / 80) % 3, sceneSteps, tick)))
+                                // cursor clicks Placements button
+                                .cursor(0.100f, 0.037f, 20, 60, true)
+                                // then clicks + Add Machine
+                                .cursor(0.229f, 0.843f, 20, 50, true)
+                                .highlight(0.0f, 0.073f, 0.458f, 0.853f, "Placements panel")
+                                .build(),
+
+                        TutorialSlide.of("Scene Steps and Visibility",
+                                "Like scripts, scenes have steps — but each step controls which\n" +
+                                        "machines are visible, not which layer of one machine.\n\n" +
+                                        "Row 2 of the step row shows a toggle button for every machine\n" +
+                                        "in the scene. Turn machines on/off per-step to guide players\n" +
+                                        "through assembling a multi-machine setup in order.\n\n" +
+                                        "Use the Caption field to tell players what to build next.")
+                                .mock(mock((g, f, t, tick) -> {
+                                    int s = (tick / 80) % sceneSteps.size();
+                                    drawSceneEditor(g, f, t, "Processing Line", true, false, s, sceneSteps, tick);
+                                }))
+                                // cursor clicks step + button
+                                .cursor(0.094f, 0.783f, 25, 50, true)
+                                // then clicks a machine visibility toggle in row 2
+                                .cursor(0.270f, 0.843f, 15, 50, true)
+                                .highlight(0.0f, 0.747f, 1.0f, 0.157f, "Step row + visibility toggles")
+                                .build(),
+
+                        TutorialSlide.of("Camera and Save",
+                                "Click 🎥 Camera in the top bar to open the per-step camera panel.\n" +
+                                        "Works exactly like the script editor — capture yaw, pitch,\n" +
+                                        "zoom, and lerp type for each step.\n\n" +
+                                        "Click '💾 Save' when done. The scene appears immediately in\n" +
+                                        "/phantasia → Scenes for all players — no restart needed.\n\n" +
+                                        "Use ▦ World mode to place item markers inside the viewport.")
+                                .mock(mock((g, f, t, tick) -> drawSceneEditor(g, f, t,
+                                        "Processing Line", false, true, (tick / 70) % sceneSteps.size(),
+                                        sceneSteps, tick)))
+                                // cursor clicks Camera button in top bar
+                                .cursor(0.413f, 0.037f, 20, 60, true)
+                                // then clicks Save
+                                .cursor(0.815f, 0.037f, 20, 50, true)
+                                .highlight(0.0f, 0.567f, 1.0f, 0.193f, "Camera panel")
+                                .highlight(0.87f, 0.01f, 0.13f, 0.063f, "💾 Save")
                                 .build()));
     }
 }

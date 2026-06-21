@@ -166,14 +166,16 @@ public final class PhantasiaVariantGroup {
         try {
             result.addAll(definition.detectProviderVariants(data, pattern, machinePrefix, explicitIds));
         } catch (Exception e) {
-            net.phoenixvine.phantasia.Phantasia.LOGGER.warn("[Phantasia] Provider variant detection failed for {}: {}", definition.getId(), e.getMessage());
+            net.phoenixvine.phantasia.Phantasia.LOGGER.warn("[Phantasia] Provider variant detection failed for {}: {}",
+                    definition.getId(), e.getMessage());
         }
 
         // 3. Generic optional block detection — scans all shapes for positional variation
         try {
             result.addAll(detectOptionalBlocks(machinePrefix, definition.getAllShapes(), pattern, explicitIds));
         } catch (Exception e) {
-            net.phoenixvine.phantasia.Phantasia.LOGGER.warn("[Phantasia] Optional block detection failed for {}: {}", definition.getId(), e.getMessage());
+            net.phoenixvine.phantasia.Phantasia.LOGGER.warn("[Phantasia] Optional block detection failed for {}: {}",
+                    definition.getId(), e.getMessage());
         }
 
         return Collections.unmodifiableList(result);

@@ -64,7 +64,10 @@ public class PhantasiaScenePattern {
                 this.centerZ = offset.getZ();
             } else {
                 float sx = 0, sz = 0;
-                for (BlockPos p : worldPositions) { sx += p.getX() + 0.5f; sz += p.getZ() + 0.5f; }
+                for (BlockPos p : worldPositions) {
+                    sx += p.getX() + 0.5f;
+                    sz += p.getZ() + 0.5f;
+                }
                 this.centerX = sx / worldPositions.size();
                 this.centerZ = sz / worldPositions.size();
             }
@@ -111,7 +114,8 @@ public class PhantasiaScenePattern {
             PhantasiaSceneData.PlacementData pd = sceneData.placements.get(i);
             PlacementEntry entry = buildPlacement(i, pd, world, mergedMap, allBaseplates);
             if (entry == null) {
-                net.phoenixvine.phantasia.Phantasia.LOGGER.warn("[Phantasia/Scene] Could not build placement {} ({}) — skipping.", i, pd.machine);
+                net.phoenixvine.phantasia.Phantasia.LOGGER
+                        .warn("[Phantasia/Scene] Could not build placement {} ({}) — skipping.", i, pd.machine);
                 continue;
             }
             placements.add(entry);
@@ -274,7 +278,9 @@ public class PhantasiaScenePattern {
         // Resolve block: try GTCEu machine registry first, then Forge block registry
         BlockInfo blockInfo = resolveBlockInfo(pd.machine);
         if (blockInfo == null) {
-            net.phoenixvine.phantasia.Phantasia.LOGGER.warn("[Phantasia/Scene] Could not resolve block for singleblock placement {} ({}) — skipping.", index, pd.machine);
+            net.phoenixvine.phantasia.Phantasia.LOGGER.warn(
+                    "[Phantasia/Scene] Could not resolve block for singleblock placement {} ({}) — skipping.", index,
+                    pd.machine);
             return null;
         }
 
