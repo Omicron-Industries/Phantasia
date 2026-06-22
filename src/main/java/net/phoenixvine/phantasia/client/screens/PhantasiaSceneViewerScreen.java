@@ -55,6 +55,7 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
     // ── Core state ────────────────────────────────────────────────────────────
     private final Screen parent;
     private PhantasiaSceneData data;
+    private long openedAtMs = -1;
 
     private PhantasiaTrackedDummyWorld level;
     private PhantasiaWorldRenderer renderer;
@@ -76,6 +77,9 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
     // ── Hover ─────────────────────────────────────────────────────────────────
     private BlockPos hoveredPos = null;
 
+    // ── Mistakes overlay ──────────────────────────────────────────────────────
+    private boolean showMistakes = false;
+
     // ── Button registry ───────────────────────────────────────────────────────
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -95,6 +99,12 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
     @Override
     protected void init() {
         super.init();
+
+        if (openedAtMs < 0) {
+            openedAtMs = System.currentTimeMillis();
+            net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(
+                    new net.phoenixvine.phantasia.api.PhantasiaEvents.SceneViewerOpen(data.id, this));
+        }
 
         if (renderer == null) {
             level = new PhantasiaTrackedDummyWorld();
@@ -318,6 +328,8 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
 
         renderTopBar(g, mx, my);
         renderTimeline(g, mx, my);
+        if (showMistakes && data.mistakes != null && !data.mistakes.isEmpty())
+            renderMistakesOverlay(g);
 
         super.render(g, mx, my, partial);
 
@@ -361,6 +373,11 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
         if (hasGuideContent()) {
             rx = topBtnRight(g, mx, my, rx, "📖 Guide", this::openGuide);
         }
+        // Warnings button — only if the scene has defined mistakes
+        if (data.mistakes != null && !data.mistakes.isEmpty()) {
+            String wLabel = "⚠ Warnings (" + data.mistakes.size() + ")";
+            rx = topBtnRightActive(g, mx, my, rx, wLabel, showMistakes, () -> showMistakes = !showMistakes);
+        }
         topBtnRight(g, mx, my, rx, "⊕ Center", this::centerCamera);
     }
 
@@ -382,6 +399,74 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
         g.drawString(font, label, x + 5, (TOP_BAR_H - 8) / 2, hov ? C_ACCENT() : C_TEXT(), false);
         btns.add(new Btn(x, 3, w, h, action));
         return x - 4;
+    }
+
+    private int topBtnRightActive(GuiGraphics g, int mx, int my, int rx, String label,
+                                  boolean active, Runnable action) {
+        int w = font.width(label) + 10, h = TOP_BAR_H - 6;
+        int x = rx - w;
+        boolean hov = isOver(mx, my, x, 3, w, h);
+        g.fill(x, 3, x + w, 3 + h, active ? C_BTN_ACT() : (hov ? C_BTN_HOV() : C_BTN()));
+        int accentCol = 0xFFFFB74D; // amber for warnings
+        if (active) g.fill(x, 3, x + w, 4, accentCol);
+        else if (hov) g.fill(x, 3, x + w, 4, C_ACCENT());
+        g.drawString(font, label, x + 5, (TOP_BAR_H - 8) / 2,
+                active ? accentCol : (hov ? C_ACCENT() : C_TEXT()), false);
+        btns.add(new Btn(x, 3, w, h, action));
+        return x - 4;
+    }
+
+    // ── Mistakes overlay ──────────────────────────────────────────────────────
+
+    private void renderMistakesOverlay(GuiGraphics g) {
+        List<PhantasiaSceneData.SceneMistakeData> mistakes = data.mistakes;
+        if (mistakes == null || mistakes.isEmpty()) return;
+
+        int overlayW = Math.min(280, this.width - 20);
+        int ox = 8;
+        int oy = TOP_BAR_H + 6;
+
+        // Measure height: header + one row per mistake
+        int rowH = 10;
+        int totalH = 14 + mistakes.size() * (rowH + 14) + 4;
+
+        g.fill(ox - 2, oy - 2, ox + overlayW + 2, oy + totalH, 0xCC06060E);
+        g.fill(ox - 2, oy - 2, ox + overlayW + 2, oy - 1, 0xFFFFB74D); // amber top border
+
+        g.drawString(font, "⚠ Layout Warnings", ox + 2, oy + 2, 0xFFFFB74D, false);
+        oy += 14;
+
+        for (PhantasiaSceneData.SceneMistakeData m : mistakes) {
+            int col = PhantasiaSceneData.SceneMistakeData.severityColor(m.severity);
+            // Severity badge
+            String badge = m.severity != null ? m.severity.substring(0, 1) : "W";
+            int badgeW = font.width(badge) + 6;
+            g.fill(ox, oy, ox + badgeW, oy + rowH, col & 0x44FFFFFF | 0x44000000);
+            g.drawString(font, badge, ox + 3, oy + 1, col, false);
+
+            // ID
+            String idStr = m.id != null ? m.id : "";
+            g.drawString(font, idStr, ox + badgeW + 3, oy + 1, col, false);
+            oy += rowH + 2;
+
+            // Description (word-wrapped)
+            if (m.description != null && !m.description.isBlank()) {
+                var lines = font.split(net.minecraft.network.chat.Component.literal(m.description),
+                        overlayW - 6);
+                for (int li = 0; li < Math.min(lines.size(), 3); li++, oy += 9) {
+                    g.drawString(font, lines.get(li), ox + 4, oy, 0xFFCCCCCC, false);
+                }
+            }
+            // Placement badge
+            if (m.placements != null && !m.placements.isEmpty()) {
+                String pStr = "Placements: " + m.placements.toString().replace(" ", "");
+                g.drawString(font, pStr, ox + 4, oy, C_DIM(), false);
+                oy += 10;
+            }
+            oy += 2;
+            g.fill(ox, oy, ox + overlayW, oy + 1, 0x22FFFFFF);
+            oy += 3;
+        }
     }
 
     // ── Timeline strip ────────────────────────────────────────────────────────
@@ -637,6 +722,11 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
 
     @Override
     public void onClose() {
+        float secondsViewed = openedAtMs >= 0 ? (System.currentTimeMillis() - openedAtMs) / 1000f : 0f;
+        net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(
+                new net.phoenixvine.phantasia.api.PhantasiaEvents.SceneViewerClose(data.id, this, secondsViewed));
+        openedAtMs = -1;
+
         if (renderer != null) {
             renderer.close();
             renderer = null;

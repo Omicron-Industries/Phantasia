@@ -14,7 +14,6 @@ import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.phoenixvine.phantasia.client.PhantasiaClient;
 import net.phoenixvine.phantasia.client.keybind.PhoenixKeybinds;
 import net.phoenixvine.phantasia.configs.PhantasiaConfigs;
-import net.phoenixvine.phantasia.datagen.PhantasiaDatagen;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -28,7 +27,6 @@ public class Phantasia {
 
     public Phantasia() {
         PhantasiaConfigs.init();
-        PhantasiaDatagen.init();
 
         IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
 
@@ -45,6 +43,11 @@ public class Phantasia {
         // GTCEu integration — only loaded when the mod is present
         if (ModList.get().isLoaded("gtceu")) {
             net.phoenixvine.phantasia.compat.gtceu.PhantasiaGTCompat.init(modEventBus);
+        }
+
+        // PhoenixCore integration — only loaded when the mod is present
+        if (ModList.get().isLoaded("phoenixcore")) {
+            net.phoenixvine.phantasia.compat.phoenixcore.PhoenixCoreBlockInspectHelper.register();
         }
 
         // Ars Nouveau integration — only loaded when the mod is present

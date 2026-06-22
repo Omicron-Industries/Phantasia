@@ -134,6 +134,10 @@ public class PhantasiaSceneScreen extends Screen {
     public final IPhantasiaMultiblockDefinition definition;
     public PhantasiaScript script;
 
+    // ── API event timing ──────────────────────────────────────────────────────
+    /** System.currentTimeMillis() when the screen was first opened (not on sub-screen returns). */
+    private long openedAtMs = -1;
+
     private PhantasiaLoadedPattern pattern;
     /** Largest axis of the current pattern in blocks; drives zoom-max and pan-speed scaling. */
     private float patternMaxDim = 0f;
@@ -242,6 +246,7 @@ public class PhantasiaSceneScreen extends Screen {
             vs.loadGroups(this.script.getVariantGroups());
         }
         this.lastAppliedStep = null;
+        this.playbackTick = 0;
         applyVisibility();
     }
 
@@ -716,6 +721,13 @@ public class PhantasiaSceneScreen extends Screen {
         org.slf4j.LoggerFactory.getLogger("PhantasiaScreenCache")
                 .info("[Phantasia] Screen init triggered: Invalidating variant lookup cache maps.");
 
+        // Fire open event once per fresh open (not on sub-screen returns)
+        if (openedAtMs < 0) {
+            openedAtMs = System.currentTimeMillis();
+            net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(
+                    new net.phoenixvine.phantasia.api.PhantasiaEvents.ViewerOpen(definition, this));
+        }
+
         if (SHARED_LEVEL == null) {
             if (Minecraft.getInstance().level == null) {
                 onClose();
@@ -964,7 +976,7 @@ public class PhantasiaSceneScreen extends Screen {
                 } catch (Exception ignored) {}
             }
 
-            // Item slot — set on any Container BE
+            // Item slot — set on any Container BE, or via IItemHandler capability (GT hatches, etc.)
             if (e.item != null && !e.item.isBlank()) {
                 try {
                     net.minecraft.resources.ResourceLocation rl = new net.minecraft.resources.ResourceLocation(e.item);
@@ -977,6 +989,16 @@ public class PhantasiaSceneScreen extends Screen {
                         container.setItem(0, stack);
                         be.setChanged();
                         rebakePos.add(world);
+                    } else {
+                        net.minecraft.world.item.ItemStack finalStack = stack;
+                        be.getCapability(net.minecraftforge.common.capabilities.ForgeCapabilities.ITEM_HANDLER)
+                                .ifPresent(handler -> {
+                                    if (handler.getSlots() > 0 && handler.isItemValid(0, finalStack)) {
+                                        handler.insertItem(0, finalStack, false);
+                                        be.setChanged();
+                                        rebakePos.add(world);
+                                    }
+                                });
                     }
                 } catch (Exception ignored) {}
             }
@@ -2086,6 +2108,11 @@ public class PhantasiaSceneScreen extends Screen {
 
     @Override
     public void onClose() {
+        float secondsViewed = openedAtMs >= 0 ? (System.currentTimeMillis() - openedAtMs) / 1000f : 0f;
+        net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(
+                new net.phoenixvine.phantasia.api.PhantasiaEvents.ViewerClose(definition, this, secondsViewed));
+        openedAtMs = -1;
+
         if (asyncLoader != null) {
             asyncLoader.cancel();
             asyncLoader = null;

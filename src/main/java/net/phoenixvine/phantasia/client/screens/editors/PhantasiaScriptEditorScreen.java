@@ -633,9 +633,9 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
     // Visibility
     // ─────────────────────────────────────────────────────────────────────────
 
-    /** Schedules a visibility rebuild for the next tick. All rapid calls within one tick collapse to one. */
+    /** Computes and applies the visible set immediately, then clears any pending flag. */
     public void rebuildVisibility() {
-        rebuildPending = true;
+        flushVisibility();
     }
 
     /** Actually computes and pushes the visible set. Called at most once per tick from tick(). */
@@ -973,7 +973,8 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
             BlockHitResult hit = renderer.getLastHitResult();
             if (hit != null && hit.getType() == HitResult.Type.BLOCK) {
                 BlockPos hp = hit.getBlockPos();
-                hoveredWorldPos = renderer.isVisible(hp) ? hp : null;
+                // In SELECT mode allow hovering invisible blocks so the user can click to add them
+                hoveredWorldPos = (mode == Mode.SELECT || renderer.isVisible(hp)) ? hp : null;
             } else {
                 hoveredWorldPos = null;
             }
@@ -1484,7 +1485,13 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         }
 
         x = modeBtn(g, mx, my, x, Mode.ANNOTATE, "\u26A0 Annotate");
-        x = modeBtn(g, mx, my, x, Mode.WORLD, "\u25A6 World");
+        // GT machines use IItemHandler capability \u2014 their BEs don't expose a visual inventory,
+        // so the World item placer has no effect and should not be shown.
+        if (!machineId.startsWith("gtceu:")) {
+            x = modeBtn(g, mx, my, x, Mode.WORLD, "\u25A6 World");
+        } else if (mode == Mode.WORLD) {
+            mode = Mode.ANNOTATE;
+        }
         x += 6;
 
         // Preview
@@ -2966,7 +2973,7 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         mode = m;
         wiBlock = null;
         if (m == Mode.SELECT) {
-            selectPreviewMode = false; // always start in pick mode, like HidePos's init()
+            selectPreviewMode = true; // start showing filtered result, like HidePos's "always preview"
             syncSelectedFromStep();
             if (!"pos".equals(step().show)) {
                 step().show = "pos";
@@ -3000,8 +3007,10 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
 
         if (mode == Mode.SELECT) syncSelectedFromStep();
 
-        // 3. Apply the new step's working state to the scene world
+        // 3. Apply the new step's working state to the scene world, then rebake so active
+        // block textures (glows, active coils) immediately reflect the new state.
         if (parentScene != null) parentScene.applyActiveStateToWorld(step().working);
+        if (renderer != null) renderer.requestBake();
 
         // 4. Force-repaint the main world view instantly
         rebuildVisibility();

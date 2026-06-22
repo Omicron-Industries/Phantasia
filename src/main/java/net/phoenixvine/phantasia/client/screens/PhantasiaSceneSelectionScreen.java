@@ -1341,6 +1341,7 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
         int labelH = font.lineHeight + 4;
         int cardsTop = panelTop + labelH + 4;
         int panelRows = Math.max(1, (panelBot - cardsTop) / stride);
+        int totalRows = (list.size() + COLS - 1) / COLS;
 
         g.drawString(font, label, startX, panelTop + 2, labelColor, false);
 
@@ -1369,14 +1370,18 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
                     g.renderItem(new ItemStack(iconItem), cx + 4, cy + 4);
             }
 
-            g.drawString(font, seq.title, cx + 22, cy + 6, isDev ? C_WARN() : C_ACCENT(), false);
+            var titleLines = font.split(Component.literal(seq.title), CARD_W - 26);
+            int titleY = cy + 6;
+            for (int tl = 0; tl < Math.min(titleLines.size(), 2); tl++, titleY += 9)
+                g.drawString(font, titleLines.get(tl), cx + 22, titleY, isDev ? C_WARN() : C_ACCENT(), false);
 
             String desc = seq.description != null ? seq.description : "";
-            java.util.List<net.minecraft.util.FormattedCharSequence> lines = font.split(Component.literal(desc),
+            java.util.List<net.minecraft.util.FormattedCharSequence> descLines = font.split(Component.literal(desc),
                     CARD_W - 8);
-            int ty = cy + 20;
-            for (int li = 0; li < Math.min(lines.size(), 3); li++)
-                g.drawString(font, lines.get(li), cx + 4, ty + li * 10, C_DIM(), false);
+            int ty = titleLines.size() >= 2 ? cy + 26 : cy + 20;
+            int maxDescLines = titleLines.size() >= 2 ? 2 : 3;
+            for (int li = 0; li < Math.min(descLines.size(), maxDescLines); li++)
+                g.drawString(font, descLines.get(li), cx + 4, ty + li * 10, C_DIM(), false);
 
             g.drawString(font, seq.slides.size() + " slides", cx + 4, cy + CARD_H - 12, C_DIM(), false);
             if (isDev)
@@ -1392,6 +1397,16 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
             }
         }
         g.disableScissor();
+
+        // Scroll overflow indicators — rendered outside scissor so they're always visible
+        int totalW = COLS * CARD_W + (COLS - 1) * CARD_PAD;
+        int indicatorX = startX + totalW / 2;
+        if (scroll > 0) {
+            g.drawCenteredString(font, "▲", indicatorX, cardsTop - font.lineHeight - 1, 0x88FFFFFF);
+        }
+        if (scroll + panelRows < totalRows) {
+            g.drawCenteredString(font, "▼", indicatorX, panelBot - font.lineHeight - 1, 0x88FFFFFF);
+        }
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

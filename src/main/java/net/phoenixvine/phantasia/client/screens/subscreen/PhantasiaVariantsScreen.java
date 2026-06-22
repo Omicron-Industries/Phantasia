@@ -251,32 +251,8 @@ public class PhantasiaVariantsScreen extends Screen {
         int ddX = contentX + contentW - dropdownW;
         int numOptions = openGroup.getOptions().size();
 
-        // Find Y position of this group's row by precisely mimicking the render loop layout
-        int rowY = contentStartY - scrollY;
-        outer:
-        for (Map.Entry<PhantasiaVariantGroup.Category, List<PhantasiaVariantGroup>> entry : categorised.entrySet()) {
-            rowY += SECTION_HEADER_H + 2;
-            for (PhantasiaVariantGroup g2 : entry.getValue()) {
-                if (g2.getId().equals(openDropdownGroupId)) {
-                    break outer;
-                }
-                rowY += ROW_H + 2;
-            }
-            rowY += 4;
-        }
-
-        // Always position the dropdown list directly below the button row
-        int dropY = rowY + ROW_H - 1;
-
-        // Calculate heights
-        int totalListH = numOptions * DROPDOWN_ITEM_H;
-        int idealListH = Math.min(totalListH, maxDropdownHeight);
-
-        // Calculate max allowed height based on the bottom constraint of the UI panel
-        int maxAllowedH = (panelY + panelH - 4) - dropY;
-
-        // Combine constraints: use ideal height unless it blows past the panel edge
-        int visibleListH = Math.max(DROPDOWN_ITEM_H, Math.min(idealListH, maxAllowedH));
+        int[] bounds = dropdownBounds(openDropdownGroupId);
+        int dropY = bounds[0], visibleListH = bounds[1], totalListH = bounds[2];
 
         // Ensure dropdown scroll doesn't drift out of bounds
         int maxScroll = Math.max(0, totalListH - visibleListH);
@@ -362,26 +338,11 @@ public class PhantasiaVariantsScreen extends Screen {
                 int ddX = ((width - panelW) / 2) + PANEL_PADDING + (panelW - PANEL_PADDING * 2) - dropdownW;
 
                 // Recalculate dropY exactly like the render loop
-                int rowY = (20 + 20 + 4) - scrollY; // panelY + titleBarH + 4
-                outer:
-                for (Map.Entry<PhantasiaVariantGroup.Category, List<PhantasiaVariantGroup>> entry : categorised
-                        .entrySet()) {
-                    rowY += SECTION_HEADER_H + 2;
-                    for (PhantasiaVariantGroup g2 : entry.getValue()) {
-                        if (g2.getId().equals(openDropdownGroupId)) break outer;
-                        rowY += ROW_H + 2;
-                    }
-                    rowY += 4;
-                }
-                int dropY = rowY + ROW_H - 1;
+                int dropY = findGroupRowY(openDropdownGroupId) + ROW_H - 1;
 
                 // Recalculate heights
-                int totalListH = variantState.getGroups().stream()
-                        .filter(gr -> gr.getId().equals(openDropdownGroupId))
-                        .findFirst().map(gr -> gr.getOptions().size() * DROPDOWN_ITEM_H).orElse(0);
-                int idealListH = Math.min(totalListH, maxDropdownHeight);
-                int maxAllowedH = (20 + (height - 40) - 4) - dropY; // (panelY + panelH - 4) - dropY
-                int visibleListH = Math.max(DROPDOWN_ITEM_H, Math.min(idealListH, maxAllowedH));
+                int[] bounds = dropdownBounds(openDropdownGroupId);
+                int visibleListH = bounds[1];
 
                 boolean clickIsInsideDropdownArea = isOver((int) mx, (int) my, ddX, dropY, dropdownW, visibleListH);
 
@@ -438,8 +399,8 @@ public class PhantasiaVariantsScreen extends Screen {
                     .findFirst().orElse(null);
 
             if (openGroup != null) {
-                int totalListH = openGroup.getOptions().size() * DROPDOWN_ITEM_H;
-                int visibleListH = Math.min(totalListH, maxDropdownHeight);
+                int[] bounds = dropdownBounds(openDropdownGroupId);
+                int visibleListH = bounds[1], totalListH = bounds[2];
                 int maxScroll = Math.max(0, totalListH - visibleListH);
 
                 if (maxScroll > 0) {
@@ -482,6 +443,42 @@ public class PhantasiaVariantsScreen extends Screen {
         boolean hov = isOver(mx, my, x, y, w, h);
         PhantasiaThemeUtils.drawThemedBtn(g, font, x, y, w, h, label, hov, C_BTN());
         activeButtons.add(new PhantasiaUIUtils.ButtonAction(x, y, w, h, action));
+    }
+
+    /**
+     * Returns {dropY, visibleListH} for the dropdown belonging to {@code groupId}.
+     * Single source of truth used by both the renderer and mouseClicked.
+     */
+    private int[] dropdownBounds(String groupId) {
+        int dropY = findGroupRowY(groupId) + ROW_H - 1;
+        int panelY = 20, panelH = height - 40;
+        int numOptions = variantState.getGroups().stream()
+                .filter(gr -> gr.getId().equals(groupId))
+                .findFirst().map(gr -> gr.getOptions().size()).orElse(0);
+        int totalListH = numOptions * DROPDOWN_ITEM_H;
+        int idealListH = Math.min(totalListH, maxDropdownHeight);
+        int maxAllowedH = (panelY + panelH - 4) - dropY;
+        int visibleListH = Math.max(DROPDOWN_ITEM_H, Math.min(idealListH, maxAllowedH));
+        return new int[] { dropY, visibleListH, totalListH };
+    }
+
+    /**
+     * Walks the same layout as the render loop to find the screen-Y of the row
+     * that owns {@code groupId}. Returns the top of that row (before scroll adjustment
+     * is considered; scroll is already baked in via {@code scrollY}).
+     */
+    private int findGroupRowY(String groupId) {
+        int rowY = (20 + 20 + 4) - scrollY; // panelY=20 + titleBarH=20 + gap=4
+        outer:
+        for (Map.Entry<PhantasiaVariantGroup.Category, List<PhantasiaVariantGroup>> entry : categorised.entrySet()) {
+            rowY += SECTION_HEADER_H + 2;
+            for (PhantasiaVariantGroup g2 : entry.getValue()) {
+                if (g2.getId().equals(groupId)) break outer;
+                rowY += ROW_H + 2;
+            }
+            rowY += 4;
+        }
+        return rowY;
     }
 
     private boolean isOver(int mx, int my, int x, int y, int w, int h) {

@@ -232,11 +232,11 @@ public final class PhantasiaTutorials {
             g.fill(cx, cy, cx + SEL_CARD_W, cy + SEL_CARD_H, (0xBB << 24) | (C_PANEL() & 0x00FFFFFF));
             g.fill(cx, cy, cx + SEL_CARD_W, cy + 2, C_BORDER());
             // Icon — real guide icon if available, fallback item otherwise
-            String iconRes = (i < guides.size() && guides.get(i).iconItem != null)
-                    ? guides.get(i).iconItem : fallbackIcons[i % fallbackIcons.length];
+            String iconRes = (i < guides.size() && guides.get(i).iconItem != null) ? guides.get(i).iconItem :
+                    fallbackIcons[i % fallbackIcons.length];
             try {
-                var rl = iconRes.contains(":") ? new net.minecraft.resources.ResourceLocation(iconRes)
-                        : new net.minecraft.resources.ResourceLocation("minecraft", iconRes);
+                var rl = iconRes.contains(":") ? new net.minecraft.resources.ResourceLocation(iconRes) :
+                        new net.minecraft.resources.ResourceLocation("minecraft", iconRes);
                 var item = net.minecraftforge.registries.ForgeRegistries.ITEMS.getValue(rl);
                 if (item != null && item != net.minecraft.world.item.Items.AIR) {
                     g.pose().pushPose();
@@ -890,11 +890,11 @@ public final class PhantasiaTutorials {
                                         String sceneName, boolean showPlacements,
                                         boolean showCamPanel, int activeStep,
                                         List<String> steps, int tick) {
-        final int TOP_H  = 22;
+        final int TOP_H = 22;
         final int STEP_H = 50;
-        final int TL_H   = 22;
-        final int BOT_H  = STEP_H + TL_H;
-        final int PNL_W  = showPlacements ? 220 : 0;
+        final int TL_H = 22;
+        final int BOT_H = STEP_H + TL_H;
+        final int PNL_W = showPlacements ? 220 : 0;
         int vpW = VW - PNL_W;
         int vpH = VH - TOP_H - BOT_H;
 
@@ -1026,7 +1026,7 @@ public final class PhantasiaTutorials {
         g.drawString(f, "Step", bx3, y1 - 2, 0xFF334455, false);
         g.drawString(f, sLabel, bx3, y1 + 6, C_ACCENT(), false);
         bx3 += f.width(sLabel) + 10;
-        for (String nav : new String[]{ "+", "−", "Dup", "◄", "►" }) {
+        for (String nav : new String[] { "+", "−", "Dup", "◄", "►" }) {
             int nw = f.width(nav) + 8;
             g.fill(bx3, y1, bx3 + nw, y1 + 14, C_BTN());
             g.drawCenteredString(f, nav, bx3 + nw / 2, y1 + 3, C_TEXT());
@@ -1494,12 +1494,13 @@ public final class PhantasiaTutorials {
 
     static TutorialSequence devScripts() {
         // VH=300, BOT_H=64(STEP_H42+TL22), TOP_H=22
-        // Step row starts at y = VH-BOT_H = 236  →  relY = 236/300 ≈ 0.787
-        // Row-1 centre ≈ y=243   → relY 0.810
-        // Row-2 centre ≈ y=257   → relY 0.857
-        // Timeline centre ≈ y=289 → relY 0.963
-        // Camera panel: cpY = VH-BOT_H-54-4 = 178  → relY 178/300 ≈ 0.593,  H=54 → 0.180
-        //   Camera button in top bar: x≈242, y≈11   → relX 242/480≈0.504  relY 0.037
+        // Step row: botY=VH-BOT_H=236 → relY=236/300=0.787, relH=42/300=0.140
+        // Row-1 centre: y1=240, button centre y=247 → relY=0.823
+        // Row-2 centre: y2=262, button centre y=269 → relY=0.897
+        // Camera panel: cpY=VH-BOT_H-54-4=178, border at 176 → relY=0.587, H(with border)=58 → 0.193
+        // Capture Cam button: bxc=cpX+4=10, r1Y=cpY+14=192, centre y=199 → relY=0.663
+        // Camera tab in top bar (after 3 mode-tabs+gap+Preview): centre x≈293 → relX≈0.610
+        // Save button (rightmost): x≈430, w≈46, centre x=453 → relX=0.944
         return new TutorialSequence(
                 "dev_scripts", "Writing Scripts",
                 "How to create step-by-step machine walkthroughs.",
@@ -1515,6 +1516,52 @@ public final class PhantasiaTutorials {
                                 .highlight(0.158f, 0.273f, 0.217f, 0.287f, "Machine card")
                                 .build(),
 
+                        TutorialSlide.of("◈ Select Mode",
+                                "Select is the default mode — click any block in the 3D viewport\n" +
+                                        "to open the Block Inspector.\n\n" +
+                                        "The inspector shows the block's ID, blockstate properties,\n" +
+                                        "and — if GTCEu is loaded — coil specs, lamp info, or\n" +
+                                        "machine part roles.\n\n" +
+                                        "Use Select to verify your scene has the right blocks\n" +
+                                        "before writing the script.")
+                                .mock(mock((g, f, t, tick) -> drawScriptEditor(g, f, t, firstMachineName(),
+                                        (tick / 60) % EBF_STEPS.size(), EBF_STEPS, tick)))
+                                // Select tab: x=6, tw≈56, centre x=34→0.071
+                                .cursor(0.071f, 0.037f, 20, 60, true)
+                                .cursor(0.500f, 0.430f, 20, 50, true)
+                                .highlight(0.013f, 0.000f, 0.117f, 0.073f, "◈ Select")
+                                .build(),
+
+                        TutorialSlide.of("⚠ Annotate Mode",
+                                "Switch to ⚠ Annotate to place floating text labels inside\n" +
+                                        "the 3D viewport.\n\n" +
+                                        "Click any position in the viewport to drop a label there.\n" +
+                                        "Labels belong to the current step — they only appear while\n" +
+                                        "that step is active.\n\n" +
+                                        "Useful for calling out 'EV Energy Hatch here' or warning\n" +
+                                        "players about order-sensitive assembly steps.")
+                                .mock(mock((g, f, t, tick) -> drawScriptEditor(g, f, t, firstMachineName(),
+                                        (tick / 60) % EBF_STEPS.size(), EBF_STEPS, tick)))
+                                // Annotate tab: after Select (tw≈56+4=60 gap) → x=66, tw≈72, centre x=102→0.213
+                                .cursor(0.213f, 0.037f, 20, 60, true)
+                                .cursor(0.500f, 0.350f, 20, 50, true)
+                                .highlight(0.138f, 0.000f, 0.150f, 0.073f, "⚠ Annotate")
+                                .build(),
+
+                        TutorialSlide.of("► Preview Mode",
+                                "Click ► Preview to see your script exactly as a player would.\n\n" +
+                                        "Preview plays through each step automatically — applying\n" +
+                                        "camera positions, show modes, and captions in real time.\n" +
+                                        "The 3D view animates just like the live guide.\n\n" +
+                                        "Use Preview to check pacing: if a step feels too fast or\n" +
+                                        "too slow, go back and adjust its tick count.")
+                                .mock(mock((g, f, t, tick) -> drawScriptEditor(g, f, t, firstMachineName(),
+                                        (tick / 60) % EBF_STEPS.size(), EBF_STEPS, tick)))
+                                // Preview button: after 3 mode-tabs+gap → x≈200, pvW≈59, centre x=229→0.477
+                                .cursor(0.477f, 0.037f, 20, 60, true)
+                                .highlight(0.417f, 0.000f, 0.123f, 0.073f, "► Preview")
+                                .build(),
+
                         TutorialSlide.of("Steps, Ticks, and Captions",
                                 "Each script is a list of Steps. Use the + / − / Dup buttons\n" +
                                         "in the step row to add, remove, or duplicate steps.\n\n" +
@@ -1524,10 +1571,10 @@ public final class PhantasiaTutorials {
                                 .mock(mock((g, f, t, tick) -> drawScriptEditor(g, f, t, firstMachineName(),
                                         (tick / 60) % EBF_STEPS.size(), EBF_STEPS, tick)))
                                 // cursor clicks the + button (first nav button after step label)
-                                .cursor(0.094f, 0.810f, 25, 50, true)
+                                .cursor(0.094f, 0.823f, 25, 50, true)
                                 // then drifts to caption field
-                                .cursor(0.50f, 0.810f, 20, 50, false)
-                                .highlight(0.0f, 0.780f, 1.0f, 0.143f, "Step row")
+                                .cursor(0.50f, 0.823f, 20, 50, false)
+                                .highlight(0.0f, 0.787f, 1.0f, 0.140f, "Step row")
                                 .build(),
 
                         TutorialSlide.of("Show Modes",
@@ -1542,11 +1589,13 @@ public final class PhantasiaTutorials {
                                     int s = (tick / 80) % EBF_STEPS.size();
                                     drawScriptEditor(g, f, t, firstMachineName(), s, EBF_STEPS, tick);
                                 }))
-                                // cursor clicks the show-mode tabs in row 2 (y≈0.857)
-                                .cursor(0.275f, 0.857f, 20, 50, true)
-                                .cursor(0.340f, 0.857f, 15, 40, true)
-                                .cursor(0.405f, 0.857f, 15, 40, true)
-                                .highlight(0.0f, 0.840f, 0.55f, 0.083f, "Show mode tabs")
+                                // cursor clicks the show-mode tabs in row 2
+                                // "All" centre: bx4=38,sw=22→x=49→0.102; "Layer" sw=39→x=83→0.173; "Range"
+                                // sw=40→x=127→0.265
+                                .cursor(0.102f, 0.897f, 20, 50, true)
+                                .cursor(0.173f, 0.897f, 15, 40, true)
+                                .cursor(0.265f, 0.897f, 15, 40, true)
+                                .highlight(0.0f, 0.870f, 0.42f, 0.050f, "Show mode tabs")
                                 .build(),
 
                         TutorialSlide.of("Camera Overrides",
@@ -1558,11 +1607,12 @@ public final class PhantasiaTutorials {
                                         "to control how long the camera takes to travel — 20-30 is good.")
                                 .mock(mock((g, f, t, tick) -> drawScriptEditor(g, f, t, firstMachineName(),
                                         (tick / 70) % EBF_STEPS.size(), EBF_STEPS, tick, true)))
-                                // cursor clicks Camera button in top bar (x≈323/480)
-                                .cursor(0.673f, 0.037f, 20, 60, true)
-                                // then moves into the camera panel (📷 Capture Cam button)
-                                .cursor(0.083f, 0.643f, 20, 50, true)
-                                .highlight(0.0f, 0.593f, 1.0f, 0.193f, "Camera panel")
+                                // cursor clicks Camera button in top bar (after 3 mode-tabs+gap+Preview → centre≈0.610)
+                                .cursor(0.610f, 0.037f, 20, 60, true)
+                                // then moves into the camera panel (📷 Capture Cam button: bxc=10, r1Y=192, centre
+                                // y=0.663)
+                                .cursor(0.110f, 0.663f, 20, 50, true)
+                                .highlight(0.0f, 0.587f, 1.0f, 0.193f, "Camera panel")
                                 .build(),
 
                         TutorialSlide.of("World Items (◦ World mode)",
@@ -1576,11 +1626,12 @@ public final class PhantasiaTutorials {
                                     int s = (tick / 70) % EBF_STEPS.size();
                                     drawScriptEditor(g, f, t, firstMachineName(), s, EBF_STEPS, tick);
                                 }))
-                                // cursor clicks ◦ World button (third mode button)
-                                .cursor(0.398f, 0.037f, 20, 60, true)
+                                // ◦ World button: after ◈ Select(tw≈56+4) + ⚠ Annotate(tw≈72+4) = x=142, tw≈50,
+                                // centre=167→0.348
+                                .cursor(0.348f, 0.037f, 20, 60, true)
                                 // then clicks into the viewport centre
                                 .cursor(0.50f, 0.43f, 20, 50, true)
-                                .highlight(0.0f, 0.000f, 0.30f, 0.073f, "Mode buttons")
+                                .highlight(0.296f, 0.000f, 0.104f, 0.073f, "◦ World")
                                 .build(),
 
                         TutorialSlide.of("Save and Test",
@@ -1595,31 +1646,32 @@ public final class PhantasiaTutorials {
                                     int step = (tick / 40) % EBF_STEPS.size();
                                     drawScriptEditor(g, f, t, firstMachineName(), step, EBF_STEPS, tick);
                                 }))
-                                .cursor(0.88f, 0.037f, 20, 50, true)
-                                .highlight(0.84f, 0.01f, 0.16f, 0.063f, "💾 Save")
+                                // Save is rightmost button: x≈430, w≈46, centre x=453→0.944
+                                .cursor(0.944f, 0.037f, 20, 50, true)
+                                .highlight(0.896f, 0.010f, 0.096f, 0.053f, "💾 Save")
                                 .build()));
     }
 
     // ── Dev: Writing Scenes ───────────────────────────────────────────────────
 
     static TutorialSequence devScenes() {
-        // Scene editor layout: TOP_H=22, STEP_H=50, TL_H=22, BOT_H=72, PLACEMENTS_PANEL_W=220
-        // Step row starts at y=VH-BOT_H=228 → relY 0.760
-        // Row-1 centre ≈ y=235 → relY 0.783
-        // Row-2 centre ≈ y=253 → relY 0.843
-        // Camera panel: cpY=VH-BOT_H-54-4=170 → relY 0.567, H=54 → 0.180
-        // Placements panel: x=0..220 → relX 0..0.458
-        // Top bar: Placements(x=6,w≈84) center≈48/480=0.100
-        //          Preview(x≈94,w≈62) center≈125/480=0.260
-        //          Camera(x≈160,w=76) center≈198/480=0.413
-        //          Save ≈ relX 0.815
+        // Scene editor: TOP_H=22, STEP_H=50, TL_H=22, BOT_H=72, PNL_W=220
+        // Step row: rowY=VH-BOT_H=228 → relY=0.760, relH=50/300=0.167
+        // Row-1 centre: y1=232, button centre y=239 → relY=0.797
+        // Row-2 centre: y2=258, button centre y=265 → relY=0.883
+        // Camera panel (showPlacements=false, vpX=0): cpY2=300-72-54-4=170, border at 168 → relY=0.560, H(with
+        // border)=58 → 0.193
+        // Placements panel: x=0..220, y=TOP_H..rowY=22..228 → relX 0..0.458, relH=(228-22)/300=0.687
+        // addBtnY=TOP_H+50+3*28+4=160, centre y=167 → relY=0.557
+        // Top bar: Placements(x=6,ppW≈80) centre≈46/480=0.096
+        // Camera(hardcoded w=76, after Placements+Preview≈153) centre≈191/480=0.394
+        // Save(left of Back): x≈380, w≈46, centre x=403 → relX=0.840
         List<String> sceneSteps = List.of(
                 "Place outer casing",
                 "Add heating coils",
                 "Install output hatches",
                 "Place energy hatch",
-                "Add maintenance hatch"
-        );
+                "Add maintenance hatch");
         return new TutorialSequence(
                 "dev_scenes", "Writing Scenes",
                 "How to create multi-machine Scene files.",
@@ -1644,11 +1696,11 @@ public final class PhantasiaTutorials {
                                         "The viewport rotates automatically — drag to reposition.")
                                 .mock(mock((g, f, t, tick) -> drawSceneEditor(g, f, t,
                                         "Processing Line", true, false, (tick / 80) % 3, sceneSteps, tick)))
-                                // cursor clicks Placements button
-                                .cursor(0.100f, 0.037f, 20, 60, true)
-                                // then clicks + Add Machine
-                                .cursor(0.229f, 0.843f, 20, 50, true)
-                                .highlight(0.0f, 0.073f, 0.458f, 0.853f, "Placements panel")
+                                // cursor clicks Placements button (x=6,w≈80, centre x=46→0.096)
+                                .cursor(0.096f, 0.037f, 20, 60, true)
+                                // then clicks + Add Machine (addBtnY=160, centre y=167→0.557; x=PNL_W/2=110→0.229)
+                                .cursor(0.229f, 0.557f, 20, 50, true)
+                                .highlight(0.0f, 0.073f, 0.458f, 0.687f, "Placements panel")
                                 .build(),
 
                         TutorialSlide.of("Scene Steps and Visibility",
@@ -1662,11 +1714,11 @@ public final class PhantasiaTutorials {
                                     int s = (tick / 80) % sceneSteps.size();
                                     drawSceneEditor(g, f, t, "Processing Line", true, false, s, sceneSteps, tick);
                                 }))
-                                // cursor clicks step + button
-                                .cursor(0.094f, 0.783f, 25, 50, true)
-                                // then clicks a machine visibility toggle in row 2
-                                .cursor(0.270f, 0.843f, 15, 50, true)
-                                .highlight(0.0f, 0.747f, 1.0f, 0.157f, "Step row + visibility toggles")
+                                // cursor clicks step + button (y1=232, centre y=239→0.797)
+                                .cursor(0.094f, 0.797f, 25, 50, true)
+                                // then clicks a machine visibility toggle in row 2 (y2=258, centre y=265→0.883)
+                                .cursor(0.200f, 0.883f, 15, 50, true)
+                                .highlight(0.0f, 0.760f, 1.0f, 0.167f, "Step row + visibility toggles")
                                 .build(),
 
                         TutorialSlide.of("Camera and Save",
@@ -1679,12 +1731,12 @@ public final class PhantasiaTutorials {
                                 .mock(mock((g, f, t, tick) -> drawSceneEditor(g, f, t,
                                         "Processing Line", false, true, (tick / 70) % sceneSteps.size(),
                                         sceneSteps, tick)))
-                                // cursor clicks Camera button in top bar
-                                .cursor(0.413f, 0.037f, 20, 60, true)
-                                // then clicks Save
-                                .cursor(0.815f, 0.037f, 20, 50, true)
-                                .highlight(0.0f, 0.567f, 1.0f, 0.193f, "Camera panel")
-                                .highlight(0.87f, 0.01f, 0.13f, 0.063f, "💾 Save")
+                                // cursor clicks Camera button in top bar (hardcoded w=76, centre≈0.394)
+                                .cursor(0.394f, 0.037f, 20, 60, true)
+                                // then clicks Save (left of Back: x≈380, w≈46, centre≈0.840)
+                                .cursor(0.840f, 0.037f, 20, 50, true)
+                                .highlight(0.0f, 0.560f, 1.0f, 0.193f, "Camera panel")
+                                .highlight(0.792f, 0.010f, 0.096f, 0.053f, "💾 Save")
                                 .build()));
     }
 }

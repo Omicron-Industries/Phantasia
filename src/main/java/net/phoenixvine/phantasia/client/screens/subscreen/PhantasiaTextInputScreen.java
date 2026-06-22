@@ -49,8 +49,12 @@ public class PhantasiaTextInputScreen extends Screen {
 
     private CustomTextArea inputBox;
 
+    private static final int COLOR_BOX_SIZE = 12;
+    private static final int COLOR_BOX_GAP = 3;
+
     private int pw, ph, px, py;
     private int btnY;
+    private int colorPickerBoxX, colorPickerY;
 
     public PhantasiaTextInputScreen(Screen parent, String title, String hint,
                                     String initial, int maxLength,
@@ -73,6 +77,8 @@ public class PhantasiaTextInputScreen extends Screen {
         this.px = (this.width - this.pw) / 2;
         this.py = (this.height - this.ph) / 2;
         this.btnY = this.py + this.ph - 22;
+        this.colorPickerY = this.btnY - 20;
+        this.colorPickerBoxX = this.px + 8 + font.width("Colors: ");
 
         inputBox = addRenderableWidget(new CustomTextArea(px + 8, py + 24, pw - 16, ph - 70, Component.empty()));
         inputBox.setValue(initial);
@@ -105,22 +111,15 @@ public class PhantasiaTextInputScreen extends Screen {
     }
 
     private void renderColorPicker(GuiGraphics g, int mx, int my) {
-        int labelWidth = font.width("Colors: ");
-        int startX = px + 8;
-        int pickerY = btnY - 20;
-
-        g.drawString(font, "Colors: ", startX, pickerY + 2, C_DIM());
-
-        int boxX = startX + labelWidth;
-        int size = 12;
-        int gap = 3;
+        g.drawString(font, "Colors: ", px + 8, colorPickerY + 2, C_DIM());
 
         for (int i = 0; i < COLOR_CODES.length; i++) {
-            int cx = boxX + i * (size + gap);
-            boolean hov = mx >= cx && mx < cx + size && my >= pickerY && my < pickerY + size;
+            int cx = colorPickerBoxX + i * (COLOR_BOX_SIZE + COLOR_BOX_GAP);
+            boolean hov = mx >= cx && mx < cx + COLOR_BOX_SIZE && my >= colorPickerY &&
+                    my < colorPickerY + COLOR_BOX_SIZE;
 
-            g.fill(cx, pickerY, cx + size, pickerY + size, COLOR_VALUES[i]);
-            g.renderOutline(cx, pickerY, size, size, hov ? C_ACCENT() : 0xFF444444);
+            g.fill(cx, colorPickerY, cx + COLOR_BOX_SIZE, colorPickerY + COLOR_BOX_SIZE, COLOR_VALUES[i]);
+            g.renderOutline(cx, colorPickerY, COLOR_BOX_SIZE, COLOR_BOX_SIZE, hov ? C_ACCENT() : 0xFF444444);
 
             if (hov) {
                 g.renderTooltip(font,
@@ -155,15 +154,9 @@ public class PhantasiaTextInputScreen extends Screen {
             return true;
         }
 
-        int labelWidth = font.width("Colors: ");
-        int boxX = px + 8 + labelWidth;
-        int pickerY = btnY - 20;
-        int size = 12;
-        int gap = 3;
-
         for (int i = 0; i < COLOR_CODES.length; i++) {
-            int cx = boxX + i * (size + gap);
-            if (mx >= cx && mx < cx + size && my >= pickerY && my < pickerY + size) {
+            int cx = colorPickerBoxX + i * (COLOR_BOX_SIZE + COLOR_BOX_GAP);
+            if (mx >= cx && mx < cx + COLOR_BOX_SIZE && my >= colorPickerY && my < colorPickerY + COLOR_BOX_SIZE) {
                 setInitialFocus(inputBox);
                 inputBox.forceInsertBypassingFilters("§" + COLOR_CODES[i]);
                 return true;

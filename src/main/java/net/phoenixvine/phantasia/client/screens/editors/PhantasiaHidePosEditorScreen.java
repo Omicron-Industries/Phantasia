@@ -41,6 +41,10 @@ public class PhantasiaHidePosEditorScreen extends Screen {
     private static final int ROW_H = 20;
     private static final int PANEL_W = 260; // right panel width
 
+    private int viewportW() {
+        return this.width - PANEL_W;
+    }
+
     // ── Context (abstracts script-editor vs scene-placement-editor parent) ───────
     private final PhantasiaHidePosContext ctx;
 
@@ -55,9 +59,6 @@ public class PhantasiaHidePosEditorScreen extends Screen {
     private int[] hoveredListPos = null;
     /** World-space pos hovered in the viewport (for click-to-add), or null. */
     private BlockPos hoveredViewportPos = null;
-
-    // ── Preview toggle (scene placement pos mode only) ───────────────────────
-    private boolean previewMode = false;
 
     // ── Scroll ────────────────────────────────────────────────────────────────
     private int scrollOffset = 0;
@@ -90,8 +91,8 @@ public class PhantasiaHidePosEditorScreen extends Screen {
     protected void init() {
         super.init();
 
-        // Let the context show all blocks for picking (scene placement "pos" mode needs this)
-        ctx.showAllForPickingMode();
+        // Apply the current pos filter immediately so blocks hide as soon as the screen opens
+        ctx.previewVisibility();
 
         // Clone the parent camera so we start at the same view angle
         if (camera == null && ctx.getParentCamera() != null) {
@@ -134,7 +135,7 @@ public class PhantasiaHidePosEditorScreen extends Screen {
 
         g.fill(0, 0, this.width, this.height, C_BG());
 
-        int viewW = this.width - PANEL_W;
+        int viewW = viewportW();
         int viewH = this.height - TOP_BAR_H;
 
         // ── 3-D Viewport ──────────────────────────────────────────────────────
@@ -172,9 +173,7 @@ public class PhantasiaHidePosEditorScreen extends Screen {
         g.fill(0, 0, this.width, TOP_BAR_H, C_BAR());
         g.fill(0, TOP_BAR_H - 1, this.width, TOP_BAR_H, C_ACCENT());
 
-        g.drawCenteredString(font,
-                "Hide Positions — " + ctx.getHidePosLabel() + "  (" + ctx.getHidePositions().size() + " hidden)",
-                (this.width - PANEL_W) / 2, (TOP_BAR_H - 8) / 2, C_ACCENT());
+        // Title is in the right-panel header — top bar holds hint text + buttons only.
 
         // Done button
         int doneW = font.width(Component.translatable("screen.phantasia.hide_pos_editor.btn_done").getString()) + 12;
@@ -197,25 +196,10 @@ public class PhantasiaHidePosEditorScreen extends Screen {
         g.drawString(font, Component.translatable("screen.phantasia.hide_pos_editor.btn_clear").getString(), clrX + 6,
                 (TOP_BAR_H - 8) / 2, clrHov ? C_RED() : C_TEXT(), false);
         btns.add(new Btn(clrX, 3, clrW, TOP_BAR_H - 6, () -> {
-            previewMode = false;
             ctx.checkpoint();
             ctx.getHidePositions().clear();
             ctx.markDirty();
-            ctx.showAllForPickingMode();
-        }));
-
-        // Preview toggle (shows pos-filtered result vs all-blocks pick mode)
-        String prevLabel = previewMode ? "◉ Preview" : "○ Preview";
-        int prevW = font.width(prevLabel) + 10;
-        int prevX = clrX - 4 - prevW;
-        boolean prevHov = isOver(mx, my, prevX, 3, prevW, TOP_BAR_H - 6);
-        g.fill(prevX, 3, prevX + prevW, TOP_BAR_H - 3, previewMode ? C_BTN_ACT() : (prevHov ? C_BTN_HOV() : C_BTN()));
-        if (previewMode) g.fill(prevX, 3, prevX + prevW, 4, C_ACCENT());
-        g.drawString(font, prevLabel, prevX + 5, (TOP_BAR_H - 8) / 2, previewMode ? C_ACCENT() : C_TEXT(), false);
-        btns.add(new Btn(prevX, 3, prevW, TOP_BAR_H - 6, () -> {
-            previewMode = !previewMode;
-            if (previewMode) ctx.previewVisibility();
-            else ctx.showAllForPickingMode();
+            ctx.rebuildVisibility();
         }));
 
         // Hint: click block in viewport to hide it
@@ -236,10 +220,11 @@ public class PhantasiaHidePosEditorScreen extends Screen {
         g.fill(px, TOP_BAR_H, this.width, this.height, C_PANEL());
         g.fill(px, TOP_BAR_H, px + 1, this.height, C_ACCENT());
 
-        // Panel header
+        // Panel header — shows full title with step label and hidden count
         g.fill(px, TOP_BAR_H, this.width, TOP_BAR_H + 14, C_BAR());
-        g.drawString(font, Component.translatable("screen.phantasia.hide_pos_editor.section_positions").getString(),
-                px + 6, TOP_BAR_H + 3, C_ACCENT(), false);
+        String panelTitle = "Hide Positions — " + ctx.getHidePosLabel()
+                + "  (" + ctx.getHidePositions().size() + " hidden)";
+        g.drawString(font, panelTitle, px + 6, TOP_BAR_H + 3, C_ACCENT(), false);
 
         renderList(g, mx, my, px);
         renderBottomStrip(g, mx, my, px);
@@ -311,13 +296,12 @@ public class PhantasiaHidePosEditorScreen extends Screen {
                     rbHov ? C_RED() : C_DIM());
             final int fi = i;
             btns.add(new Btn(rbx, ry + 3, 16, ROW_H - 6, () -> {
-                previewMode = false;
                 ctx.checkpoint();
                 List<int[]> hp = ctx.getHidePositions();
                 if (fi >= 0 && fi < hp.size()) {
                     hp.remove(fi);
                     ctx.markDirty();
-                    ctx.showAllForPickingMode();
+                    ctx.rebuildVisibility();
                     if (scrollOffset > 0 && scrollOffset >= hp.size())
                         scrollOffset--;
                 }
@@ -355,7 +339,7 @@ public class PhantasiaHidePosEditorScreen extends Screen {
      * and a "click to hide" label when the cursor is over a visible block.
      */
     private void renderViewportOverlays(GuiGraphics g, int mx, int my) {
-        int viewW = this.width - PANEL_W;
+        int viewW = viewportW();
 
         // Viewport click hint
         if (hoveredViewportPos != null && mx < viewW && my > TOP_BAR_H) {
@@ -470,7 +454,6 @@ public class PhantasiaHidePosEditorScreen extends Screen {
             if (p.length >= 3 && p[0] == local[0] && p[1] == local[1] && p[2] == local[2])
                 return; // already in list
 
-        previewMode = false; // exit preview so all blocks stay clickable after add
         ctx.checkpoint();
         positions.add(local);
         ctx.markDirty();
@@ -506,7 +489,7 @@ public class PhantasiaHidePosEditorScreen extends Screen {
         }
         if (super.mouseClicked(mx, my, btn)) return true;
 
-        int viewW = this.width - PANEL_W;
+        int viewW = viewportW();
 
         // Left-click in viewport → add hovered block to hide list
         if (btn == 0 && mx < viewW && my > TOP_BAR_H && hoveredViewportPos != null) {
@@ -526,7 +509,7 @@ public class PhantasiaHidePosEditorScreen extends Screen {
     @Override
     public boolean mouseDragged(double mx, double my, int btn, double dx, double dy) {
         if (camera == null) return super.mouseDragged(mx, my, btn, dx, dy);
-        int viewW = this.width - PANEL_W;
+        int viewW = viewportW();
         if (mx >= viewW) return super.mouseDragged(mx, my, btn, dx, dy);
 
         if (btn == 0) {
@@ -554,7 +537,7 @@ public class PhantasiaHidePosEditorScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mx, double my, double delta) {
-        int viewW = this.width - PANEL_W;
+        int viewW = viewportW();
         if (mx < viewW && my > TOP_BAR_H) {
             // Zoom
             if (camera != null) camera.zoom(delta > 0 ? 0.9f : 1.1f, 2f, 300f);

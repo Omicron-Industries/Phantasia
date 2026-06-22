@@ -43,8 +43,8 @@ public class PhantasiaGuideScreen extends PhantasiaScreen {
 
     private static final int NAV_H = 30;
     private static final int COL_W = 360;
-    private static final int CARD_W = 94;
-    private static final int CARD_H = 90;
+    private static final int CARD_W = 68;
+    private static final int CARD_H = 70;
     private static final int CARD_GAP = 6;
 
     private CardEntry preview3DCard = null;
@@ -147,18 +147,17 @@ public class PhantasiaGuideScreen extends PhantasiaScreen {
                     cards.addAll(resolveCards(pd.items));
             }
 
-            List<PhantasiaSceneData.SceneMistakeData> pageErrors = sceneMistakes.stream()
-                    .filter(m -> m.placements == null || m.placements.isEmpty())
-                    .toList();
-
             boolean hasContent = (step.caption != null && !step.caption.isBlank()) ||
-                    (step.description != null && !step.description.isBlank()) || !cards.isEmpty() ||
-                    !pageErrors.isEmpty();
+                    (step.description != null && !step.description.isBlank()) || !cards.isEmpty();
 
             if (hasContent) {
-                // Scene steps don't have default sub-script links
-                pages.add(new GuidePage(step.caption, step.description, cards, pageErrors, null, null, null, sd));
+                pages.add(new GuidePage(step.caption, step.description, cards, List.of(), null, null, null, sd));
             }
+        }
+
+        // Mistakes get their own final page so they don't clutter every step.
+        if (!sceneMistakes.isEmpty()) {
+            pages.add(new GuidePage("Layout Notes", null, List.of(), sceneMistakes, null, null, null, sd));
         }
     }
 
@@ -217,7 +216,7 @@ public class PhantasiaGuideScreen extends PhantasiaScreen {
 
         g.enableScissor(0, areaTop, width, areaBottom);
 
-        int y = areaTop + 14 - scrollY;
+        int y = areaTop + 28 - scrollY;
 
         // Headline
         if (page.headline() != null && !page.headline().isBlank()) {
@@ -343,7 +342,7 @@ public class PhantasiaGuideScreen extends PhantasiaScreen {
         g.disableScissor();
 
         // Content Scrollbar Calculations
-        lastContentH = (y + scrollY) - (areaTop + 14);
+        lastContentH = (y + scrollY) - (areaTop + 28);
         int areaH = areaBottom - areaTop;
         if (lastContentH > areaH) {
             int sbX = width - 5;
@@ -369,17 +368,17 @@ public class PhantasiaGuideScreen extends PhantasiaScreen {
             g.fill(cx, cy + CARD_H - 1, cx + CARD_W, cy + CARD_H, accent);
         }
 
-        int iconSize = 32;
+        int iconSize = 24;
         int iconX = cx + (CARD_W - iconSize) / 2;
-        int iconY = cy + 8;
+        int iconY = cy + 5;
         if (!ce.stack().isEmpty()) {
             g.pose().pushPose();
             g.pose().translate(iconX, iconY, 100);
-            g.pose().scale(2f, 2f, 1f);
+            g.pose().scale(1.5f, 1.5f, 1f);
             g.renderItem(ce.stack(), 0, 0);
             g.pose().popPose();
         } else {
-            g.fill(iconX + 2, iconY + 2, iconX + iconSize - 2, iconY + iconSize - 2, 0x44FF0000);
+            g.fill(iconX + 1, iconY + 1, iconX + iconSize - 1, iconY + iconSize - 1, 0x44FF0000);
             g.drawCenteredString(font, "?", cx + CARD_W / 2, iconY + iconSize / 2 - 4, 0xFFFF5252);
         }
 

@@ -1578,10 +1578,20 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
 
     // ── Timeline ─────────────────────────────────────────────────────────────
 
+    private static final int TL_MARGIN = 30;
+
+    private int tlY() {
+        return this.height - TIMELINE_H;
+    }
+
+    private int tlTrackW() {
+        return this.width - TL_MARGIN * 2;
+    }
+
     private void renderTimeline(GuiGraphics g, int mx, int my) {
-        int tlY = this.height - TIMELINE_H;
-        int margin = 30;
-        int trackW = this.width - margin * 2;
+        int tlY = tlY();
+        int margin = TL_MARGIN;
+        int trackW = tlTrackW();
         int total = computeTotalTicks();
         int midY = tlY + TIMELINE_H / 2;
 
@@ -1852,8 +1862,8 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         if (super.mouseClicked(mx, my, btn)) return true;
 
         // Timeline
-        int tlY = this.height - TIMELINE_H;
-        int margin = 30, trackW = this.width - margin * 2;
+        int tlY = tlY();
+        int margin = TL_MARGIN, trackW = tlTrackW();
         int total = computeTotalTicks();
         int midY = tlY + TIMELINE_H / 2;
         boolean onTimeline = isOver(mx, my, 0, tlY, this.width, TIMELINE_H);
@@ -1894,8 +1904,8 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
     }
 
     private boolean startTimelineDotDrag(double mx, double my) {
-        int tlY = this.height - TIMELINE_H;
-        int margin = 30, trackW = this.width - margin * 2;
+        int tlY = tlY();
+        int margin = TL_MARGIN, trackW = tlTrackW();
         int total = computeTotalTicks();
         int midY = tlY + TIMELINE_H / 2;
         for (int i = 0; i < data.steps.size(); i++) {
@@ -1916,7 +1926,7 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
     @Override
     public boolean mouseDragged(double mx, double my, int btn, double dx, double dy) {
         if (draggingTimelineDot >= 0 && draggingTimelineDot < data.steps.size()) {
-            int margin = 30, trackW = this.width - margin * 2;
+            int margin = TL_MARGIN, trackW = tlTrackW();
             int total = computeTotalTicks();
             float t = Mth.clamp((float) (mx - margin) / trackW, 0f, 1f);
             data.steps.get(draggingTimelineDot).tick = Math.max(0, Math.round(t * total));

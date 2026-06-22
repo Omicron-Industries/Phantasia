@@ -1,11 +1,5 @@
 package net.phoenixvine.phantasia.client.screens.subscreen;
 
-import com.gregtechceu.gtceu.api.block.ICoilType;
-import com.gregtechceu.gtceu.api.block.MetaMachineBlock;
-import com.gregtechceu.gtceu.api.machine.multiblock.PartAbility;
-import com.gregtechceu.gtceu.common.block.CoilBlock;
-import com.gregtechceu.gtceu.common.block.LampBlock;
-
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -19,18 +13,12 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.Property;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
-import net.minecraftforge.fml.loading.LoadingModList;
 import net.minecraftforge.registries.ForgeRegistries;
-import net.phoenix.core.integration.phoenix_fission.common.data.block.FissionBlanketBlock;
-import net.phoenix.core.integration.phoenix_fission.common.data.block.FissionCoolerBlock;
-import net.phoenix.core.integration.phoenix_fission.common.data.block.FissionFuelRodBlock;
-import net.phoenix.core.integration.phoenix_fission.common.data.block.FissionModeratorBlock;
 import net.phoenixvine.phantasia.client.screens.PhantasiaSceneScreen;
 import net.phoenixvine.phantasia.common.data.pattern.PhantasiaLoadedPattern;
 import net.phoenixvine.phantasia.common.data.variant.PhantasiaVariantState;
+import net.phoenixvine.phantasia.compat.PhantasiaBlockInspectCompat;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -80,130 +68,8 @@ public class PhantasiaBlockInspectScreen extends Screen {
 
         if (pattern.controllerWorldPos != null && pos.equals(pattern.controllerWorldPos)) {
             machineRole = Component.translatable("role.phantasia.controller");
-        } else if (block instanceof CoilBlock coilBlock) {
-            ICoilType type = coilBlock.coilType;
-            machineRole = Component.translatable("role.phantasia.heating_coil", type.getName().toUpperCase());
-
-            infoLines.add(Component.empty());
-            infoLines.add(Component.translatable("spec.phantasia.tech_specs").withStyle(ChatFormatting.AQUA));
-
-            infoLines.add(Component.translatable("spec.phantasia.max_heat",
-                    Component.literal(type.getCoilTemperature() + "K").withStyle(ChatFormatting.GOLD))
-                    .withStyle(ChatFormatting.GRAY));
-
-            infoLines.add(Component.translatable("spec.phantasia.material",
-                    Component.literal(type.getMaterial().getName()).withStyle(ChatFormatting.WHITE))
-                    .withStyle(ChatFormatting.GRAY));
-
-            infoLines.add(Component.translatable("spec.phantasia.energy_discount",
-                    Component.literal(type.getEnergyDiscount() + "x").withStyle(ChatFormatting.GREEN))
-                    .withStyle(ChatFormatting.GRAY));
         }
-        if (LoadingModList.get().getModFileById("phoenixcore") != null) {
-            tryAppendPhoenixData(block, infoLines);
-        } else if (block instanceof LampBlock) {
-            machineRole = Component.translatable("role.phantasia.lamp");
-        } else if (block instanceof MetaMachineBlock) {
-            try {
-                for (Field field : PartAbility.class.getDeclaredFields()) {
-                    if (Modifier.isStatic(field.getModifiers()) && field.getType() == PartAbility.class) {
-                        PartAbility ability = (PartAbility) field.get(null);
-                        if (ability != null && ability.isApplicable(block)) {
-                            machineRole = Component.literal(ability.getName().toUpperCase().replace("_", " "));
-                            break;
-                        }
-                    }
-                }
-            } catch (Exception ignored) {}
-        }
-    }
-
-    private void tryAppendPhoenixData(net.minecraft.world.level.block.Block block, List<Component> infoLines) {
-        if (block instanceof FissionFuelRodBlock rodBlock) {
-            var type = rodBlock.getFuelRodType();
-            this.machineRole = Component.translatable("role.phantasia.fission_fuel_rod", type.getTier());
-
-            infoLines.add(Component.empty());
-            infoLines.add(Component.translatable("spec.phantasia.core_analysis").withStyle(ChatFormatting.AQUA,
-                    ChatFormatting.BOLD));
-
-            infoLines.add(Component.translatable("spec.phantasia.base_heat",
-                    Component.translatable("spec.phantasia.unit.hu_per_tick", type.getBaseHeatProduction())
-                            .withStyle(ChatFormatting.RED))
-                    .withStyle(ChatFormatting.GRAY));
-
-            String biasSign = type.getNeutronBias() >= 0 ? "+" : "";
-            infoLines.add(Component.translatable("spec.phantasia.neutron_bias",
-                    Component.translatable("spec.phantasia.unit.percent", biasSign + type.getNeutronBias())
-                            .withStyle(ChatFormatting.LIGHT_PURPLE))
-                    .withStyle(ChatFormatting.GRAY));
-
-            infoLines.add(Component.translatable("spec.phantasia.cycle",
-                    Component.translatable("spec.phantasia.unit.pellets_cycle", type.getAmountPerCycle(),
-                            type.getDurationTicks() / 20.0).withStyle(ChatFormatting.WHITE))
-                    .withStyle(ChatFormatting.GRAY));
-        } else if (block instanceof FissionCoolerBlock coolerBlock) {
-            var type = coolerBlock.getCoolerType();
-            this.machineRole = Component.translatable("role.phantasia.thermal_coolant");
-
-            infoLines.add(Component.empty());
-            infoLines.add(Component.translatable("spec.phantasia.cooling_data").withStyle(ChatFormatting.AQUA,
-                    ChatFormatting.BOLD));
-
-            infoLines.add(Component.translatable("spec.phantasia.cooling_power",
-                    Component.translatable("spec.phantasia.unit.hu_per_tick_negative", type.getCoolerTemperature())
-                            .withStyle(ChatFormatting.BLUE))
-                    .withStyle(ChatFormatting.GRAY));
-
-            infoLines.add(Component.translatable("spec.phantasia.consumption",
-                    Component.translatable("spec.phantasia.unit.mb_per_tick", type.getCoolantUsagePerTick())
-                            .withStyle(ChatFormatting.LIGHT_PURPLE))
-                    .withStyle(ChatFormatting.GRAY));
-        } else if (block instanceof FissionModeratorBlock moderatorBlock) {
-            var type = moderatorBlock.getModeratorType();
-            this.machineRole = Component.translatable("role.phantasia.neutron_moderator");
-
-            infoLines.add(Component.empty());
-            infoLines.add(Component.translatable("spec.phantasia.moderation_stats").withStyle(ChatFormatting.AQUA,
-                    ChatFormatting.BOLD));
-
-            infoLines.add(Component.translatable("spec.phantasia.energy_boost",
-                    Component.translatable("spec.phantasia.unit.percent_positive", type.getEUBoost())
-                            .withStyle(ChatFormatting.GREEN))
-                    .withStyle(ChatFormatting.GRAY));
-
-            infoLines.add(Component.translatable("spec.phantasia.fuel_discount",
-                    Component.translatable("spec.phantasia.unit.percent", type.getFuelDiscount())
-                            .withStyle(ChatFormatting.YELLOW))
-                    .withStyle(ChatFormatting.GRAY));
-        } else if (block instanceof FissionBlanketBlock blanketBlock) {
-            var type = blanketBlock.getBlanketType();
-            this.machineRole = Component.translatable("role.phantasia.breeder_blanket");
-
-            infoLines.add(Component.empty());
-            infoLines.add(Component.translatable("spec.phantasia.transformation_data").withStyle(ChatFormatting.AQUA,
-                    ChatFormatting.BOLD));
-
-            infoLines.add(Component.translatable("spec.phantasia.target_cycle",
-                    Component.translatable("spec.phantasia.unit.seconds", type.getDurationTicks() / 20.0)
-                            .withStyle(ChatFormatting.GOLD))
-                    .withStyle(ChatFormatting.GRAY));
-
-            var outs = type.getOutputs();
-            if (!outs.isEmpty()) {
-                infoLines.add(
-                        Component.translatable("spec.phantasia.primary_byproducts").withStyle(ChatFormatting.GRAY));
-                for (int i = 0; i < Math.min(outs.size(), 2); i++) {
-                    var out = outs.get(i);
-                    infoLines.add(
-                            Component.translatable("ui.phantasia.bullet_prefix").withStyle(ChatFormatting.DARK_GRAY)
-                                    .append(FissionFuelRodBlock.getRegistryDisplayName(out.key()).copy()
-                                            .withStyle(ChatFormatting.WHITE))
-                                    .append(Component.translatable("spec.phantasia.unit.weight_suffix", out.weight())
-                                            .withStyle(ChatFormatting.DARK_AQUA)));
-                }
-            }
-        }
+        PhantasiaBlockInspectCompat.apply(block, infoLines, role -> this.machineRole = role);
     }
 
     @Override
@@ -295,37 +161,29 @@ public class PhantasiaBlockInspectScreen extends Screen {
             }
         }
 
-        int bw = 120, bh = 20;
-        int bxClose = this.width - bw - 30;
-        int by = this.height - 40;
+        int[] bl = btnLayout();
+        int bxClose = bl[0], bxEmi = bl[1], by = bl[2];
 
         ItemStack stack = new ItemStack(state.getBlock().asItem());
         if (!stack.isEmpty()) {
-            bxClose = this.width - (bw * 2) - 40;
-            int bxEmi = this.width - bw - 30;
-
-            boolean emiHov = isOver(mx, my, bxEmi, by, bw, bh);
-            drawThemedBtn(g, font, bxEmi, by, bw, bh,
+            boolean emiHov = isOver(mx, my, bxEmi, by, BTN_W, BTN_H);
+            drawThemedBtn(g, font, bxEmi, by, BTN_W, BTN_H,
                     Component.translatable("screen.phantasia.block_inspector.btn_emi").getString(), emiHov, C_BTN());
         }
 
-        boolean hov = isOver(mx, my, bxClose, by, bw, bh);
-        drawThemedBtn(g, font, bxClose, by, bw, bh,
+        boolean hov = isOver(mx, my, bxClose, by, BTN_W, BTN_H);
+        drawThemedBtn(g, font, bxClose, by, BTN_W, BTN_H,
                 Component.translatable("screen.phantasia.block_inspector.btn_close").getString(), hov, C_BTN());
     }
 
     @Override
     public boolean mouseClicked(double mx, double my, int btn) {
-        int bw = 120, bh = 20;
-        int bxClose = this.width - bw - 30;
-        int by = this.height - 40;
+        int[] bl = btnLayout();
+        int bxClose = bl[0], bxEmi = bl[1], by = bl[2];
 
         ItemStack itemStack = new ItemStack(state.getBlock().asItem());
         if (!itemStack.isEmpty()) {
-            bxClose = this.width - (bw * 2) - 40;
-            int bxEmi = this.width - bw - 30;
-
-            if (isOver((int) mx, (int) my, bxEmi, by, bw, bh)) {
+            if (isOver((int) mx, (int) my, bxEmi, by, BTN_W, BTN_H)) {
                 var emiStack = dev.emi.emi.api.stack.EmiStack.of(itemStack);
                 var manager = dev.emi.emi.api.EmiApi.getRecipeManager();
 
@@ -340,7 +198,7 @@ public class PhantasiaBlockInspectScreen extends Screen {
             }
         }
 
-        if (isOver((int) mx, (int) my, bxClose, by, bw, bh)) {
+        if (isOver((int) mx, (int) my, bxClose, by, BTN_W, BTN_H)) {
             onClose();
             return true;
         }
@@ -358,6 +216,18 @@ public class PhantasiaBlockInspectScreen extends Screen {
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
+
+    private static final int BTN_W = 120;
+    private static final int BTN_H = 20;
+
+    /** Returns {bxClose, bxEmi, by}. bxEmi is meaningful only when the block has an item form. */
+    private int[] btnLayout() {
+        int bxEmi = this.width - BTN_W - 30;
+        int bxClose = new ItemStack(state.getBlock().asItem()).isEmpty() ? this.width - BTN_W - 30 :
+                this.width - BTN_W * 2 - 40;
+        int by = this.height - 40;
+        return new int[] { bxClose, bxEmi, by };
+    }
 
     private boolean isOver(int mx, int my, int x, int y, int w, int h) {
         return mx >= x && mx < x + w && my >= y && my < y + h;
