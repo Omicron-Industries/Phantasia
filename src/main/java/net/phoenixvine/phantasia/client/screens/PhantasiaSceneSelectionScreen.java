@@ -756,7 +756,8 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
         int arrowW = font.width("◄") + 8;
 
         // ── Camera section ────────────────────────────────────────────────────
-        g.drawString(font, "Camera", rowX, panelY + 12, C_ACCENT(), false);
+        g.drawString(font, Component.translatable("screen.phantasia.scene_selection.section_camera").getString(), rowX,
+                panelY + 12, C_ACCENT(), false);
 
         renderToggleRow(g, mx, my, panelX, panelW, rowX, ys[0], "Camera follows steps", cfg.scriptLockCamera);
         String camDesc = cfg.scriptLockCamera ?
@@ -799,9 +800,11 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
         // ── Display section ───────────────────────────────────────────────────
         int borderY1 = ys[2] + rh + 8;  // matches settingsRowYs: zoomY + rh + 8
         g.fill(panelX + 6, borderY1, panelX + panelW - 6, borderY1 + 1, C_BORDER());
-        g.drawString(font, "Display & Playback", rowX, borderY1 + 8, C_ACCENT(), false);
+        g.drawString(font, Component.translatable("screen.phantasia.scene_selection.section_display").getString(), rowX,
+                borderY1 + 8, C_ACCENT(), false);
 
-        g.drawString(font, "Display mode", rowX + 4, ys[3] + 2, C_TEXT(), false);
+        g.drawString(font, Component.translatable("screen.phantasia.scene_selection.label_display_mode").getString(),
+                rowX + 4, ys[3] + 2, C_TEXT(), false);
         String dispStr = cfg.displayMode.name().replace('_', ' ');
         int dispW = arrowW + font.width(dispStr) + 8 + arrowW;
         int dispX = panelX + panelW - 12 - dispW;
@@ -831,9 +834,11 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
         // ── Performance section ───────────────────────────────────────────────
         int borderY2 = ys[6] + rh + 8;
         g.fill(panelX + 6, borderY2, panelX + panelW - 6, borderY2 + 1, C_BORDER());
-        g.drawString(font, "Performance", rowX, borderY2 + 8, C_ACCENT(), false);
+        g.drawString(font, Component.translatable("screen.phantasia.scene_selection.section_performance").getString(),
+                rowX, borderY2 + 8, C_ACCENT(), false);
 
-        g.drawString(font, "Scene streaming", rowX + 4, ys[7] + 2, C_TEXT(), false);
+        g.drawString(font, Component.translatable("screen.phantasia.scene_selection.label_scene_streaming").getString(),
+                rowX + 4, ys[7] + 2, C_TEXT(), false);
         String streamStr = cfg.streamingMode.name();
         int streamW = arrowW + font.width(streamStr) + 8 + arrowW;
         int streamX = panelX + panelW - 12 - streamW;
@@ -858,7 +863,8 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
         // ── Appearance section ────────────────────────────────────────────────
         int borderY3 = ys[7] + rh + 2 * (rh - 4) + 8;  // matches settingsRowYs
         g.fill(panelX + 6, borderY3, panelX + panelW - 6, borderY3 + 1, C_BORDER());
-        g.drawString(font, "Appearance", rowX, borderY3 + 8, C_ACCENT(), false);
+        g.drawString(font, Component.translatable("screen.phantasia.scene_selection.section_appearance").getString(),
+                rowX, borderY3 + 8, C_ACCENT(), false);
 
         String themeLabel = "🎨 Open Theme Editor →";
         int themeBtnW = font.width(themeLabel) + 16;
@@ -1051,7 +1057,9 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
                 activeTab == Tab.GUIDES ? filteredGuides.size() + 1 : filteredManualScenes.size() + 1;
         int totalRows = (itemCount + COLS - 1) / COLS;
         if (totalRows > visibleRows())
-            g.drawCenteredString(font, "\u25B2 \u25BC  scroll to see more", this.width / 2, fy + 4, C_DIM());
+            g.drawCenteredString(font,
+                    Component.translatable("screen.phantasia.scene_selection.hint_scroll").getString(), this.width / 2,
+                    fy + 4, C_DIM());
 
         // Back button \u2014 on Settings tab this returns to Multiblocks, otherwise closes the screen
         String backLabel = activeTab == Tab.SETTINGS ? "\u2190 Back to List" : "\u2190 Back";
@@ -1385,7 +1393,10 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
 
             g.drawString(font, seq.slides.size() + " slides", cx + 4, cy + CARD_H - 12, C_DIM(), false);
             if (isDev)
-                g.drawString(font, "DEV", cx + CARD_W - font.width("DEV") - 4, cy + CARD_H - 12, C_DIM(), false);
+                g.drawString(font, Component.translatable("screen.phantasia.scene_selection.badge_dev").getString(),
+                        cx + CARD_W - font.width(
+                                Component.translatable("screen.phantasia.scene_selection.badge_dev").getString()) - 4,
+                        cy + CARD_H - 12, C_DIM(), false);
 
             if (hov) {
                 String btnLabel = "▶ Start";

@@ -19,7 +19,6 @@ import net.phoenixvine.phantasia.client.render.PhantasiaWorldRenderer;
 import net.phoenixvine.phantasia.client.screens.editors.PhantasiaSceneEditorScreen;
 import net.phoenixvine.phantasia.common.data.pattern.PhantasiaScenePattern;
 import net.phoenixvine.phantasia.common.data.scene.PhantasiaSceneData;
-import net.phoenixvine.phantasia.configs.PhantasiaConfigs;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import org.joml.Vector3f;
@@ -55,7 +54,6 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
     // ── Core state ────────────────────────────────────────────────────────────
     private final Screen parent;
     private PhantasiaSceneData data;
-    private long openedAtMs = -1;
 
     private PhantasiaTrackedDummyWorld level;
     private PhantasiaWorldRenderer renderer;
@@ -65,8 +63,7 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
     private boolean isPanning = false;
 
     // ── Playback ──────────────────────────────────────────────────────────────
-    private boolean playing = PhantasiaConfigs.INSTANCE == null ||
-            PhantasiaConfigs.INSTANCE.phantasiaUI.autoPlayScripts;
+    private boolean playing = true;
     private int playbackTick = 0;
     private float tickAccum = 0f;
     private float speed = 1f;
@@ -76,9 +73,6 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
 
     // ── Hover ─────────────────────────────────────────────────────────────────
     private BlockPos hoveredPos = null;
-
-    // ── Mistakes overlay ──────────────────────────────────────────────────────
-    private boolean showMistakes = false;
 
     // ── Button registry ───────────────────────────────────────────────────────
 
@@ -100,24 +94,16 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
     protected void init() {
         super.init();
 
-        if (openedAtMs < 0) {
-            openedAtMs = System.currentTimeMillis();
-            net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(
-                    new net.phoenixvine.phantasia.api.PhantasiaEvents.SceneViewerOpen(data.id, this));
-        }
-
         if (renderer == null) {
             level = new PhantasiaTrackedDummyWorld();
             pattern = PhantasiaScenePattern.build(data, level);
 
             renderer = new PhantasiaWorldRenderer(level);
             if (pattern != null) {
-                boolean showBP = PhantasiaConfigs.INSTANCE == null ||
-                        PhantasiaConfigs.INSTANCE.phantasiaUI.showBaseplate;
-                renderer.setBaseplatePositions(showBP ? pattern.allBaseplatePositions : Set.of());
+                renderer.setBaseplatePositions(pattern.allBaseplatePositions);
 
                 Set<BlockPos> fullBakeSet = new HashSet<>(level.renderedBlocks.keySet());
-                if (showBP) fullBakeSet.addAll(pattern.allBaseplatePositions);
+                fullBakeSet.addAll(pattern.allBaseplatePositions);
                 // Belt-and-suspenders: also pull positions from computeVisible(all)
                 PhantasiaSceneData.StepData allStep = new PhantasiaSceneData.StepData();
                 allStep.show = "all";
@@ -130,24 +116,18 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
 
             initCamera();
             applyVisibility();
-            applyActiveState(activeStep());
         }
     }
 
     private void initCamera() {
         if (pattern == null || pattern.placements.isEmpty()) {
             camera = new PhantasiaCamera(-135f, -30f, 30f, 0f, 5f, 0f);
-            if (PhantasiaConfigs.INSTANCE != null) {
-                boolean follow = PhantasiaConfigs.INSTANCE.phantasiaUI.scriptLockCamera;
-                camera.setLocked(follow);
-                if (!follow) camera.setPlayerOwned(true);
-            }
             return;
         }
         float sumX = 0, sumZ = 0;
         for (var pe : pattern.placements) {
-            sumX += pe.centerX;
-            sumZ += pe.centerZ;
+            sumX += pe.offset.getX();
+            sumZ += pe.offset.getZ();
         }
         float midX = sumX / pattern.placements.size();
         float midZ = sumZ / pattern.placements.size();
@@ -156,11 +136,6 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
         float dist = 20f + Math.max(0, spanH - 6) * 2f;
         camera = new PhantasiaCamera(-135f, -30f, dist, midX, midY, midZ);
         camera.setFloorY(pattern.minY + 0.5f);
-        if (PhantasiaConfigs.INSTANCE != null) {
-            boolean follow = PhantasiaConfigs.INSTANCE.phantasiaUI.scriptLockCamera;
-            camera.setLocked(follow);
-            if (!follow) camera.setPlayerOwned(true);
-        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -172,56 +147,6 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
         PhantasiaSceneData.StepData step = activeStep();
         Set<BlockPos> visible = pattern.computeVisible(step != null ? step : allStep(), data);
         renderer.setVisible(visible != null ? visible : Set.of());
-        renderer.requestBake();
-    }
-
-    private void applyActiveState(PhantasiaSceneData.StepData step) {
-        if (level == null || pattern == null) return;
-        boolean globalWorking = step != null && step.working;
-
-        java.util.Map<BlockPos, Boolean> posWorking = new java.util.HashMap<>();
-        for (net.phoenixvine.phantasia.common.data.pattern.PhantasiaScenePattern.PlacementEntry pe : pattern.placements) {
-            boolean effective = step != null ? step.resolveWorking(pe.index) : globalWorking;
-            for (BlockPos wp : pe.worldPositions) posWorking.put(wp, effective);
-        }
-
-        try {
-            for (net.minecraft.world.level.block.entity.BlockEntity be : level.blockEntities.values()) {
-                if (!(be instanceof com.gregtechceu.gtceu.api.blockentity.MetaMachineBlockEntity mmbe)) continue;
-                var machine = mmbe.getMetaMachine();
-                if (!(machine instanceof com.gregtechceu.gtceu.api.machine.multiblock.WorkableMultiblockMachine workable))
-                    continue;
-                boolean effective = posWorking.getOrDefault(be.getBlockPos(), globalWorking);
-                com.gregtechceu.gtceu.api.machine.trait.RecipeLogic logic = workable.getRecipeLogic();
-                if (logic != null)
-                    logic.setStatus(effective ? com.gregtechceu.gtceu.api.machine.trait.RecipeLogic.Status.WORKING :
-                            com.gregtechceu.gtceu.api.machine.trait.RecipeLogic.Status.IDLE);
-            }
-        } catch (Throwable ignored) {}
-
-        for (java.util.Map.Entry<BlockPos, com.lowdragmc.lowdraglib.utils.BlockInfo> e : pattern.mergedBlockMap
-                .entrySet()) {
-            BlockState original = e.getValue().getBlockState();
-            if (original == null || original.isAir()) continue;
-            try {
-                BlockPos worldPos = e.getKey();
-                boolean effectiveWorking = posWorking.getOrDefault(worldPos, globalWorking);
-                BlockState current = level.getBlockState(worldPos);
-                if (current == null || current.isAir()) continue;
-                com.gregtechceu.gtceu.api.block.ActiveBlock ab;
-                var currentBlock = current.getBlock();
-                if (currentBlock instanceof com.gregtechceu.gtceu.api.block.ActiveBlock currentAb) {
-                    ab = currentAb;
-                } else {
-                    var origBlock = original.getBlock();
-                    if (!(origBlock instanceof com.gregtechceu.gtceu.api.block.ActiveBlock origAb)) continue;
-                    ab = origAb;
-                }
-                BlockState next = ab.changeActive(current, effectiveWorking);
-                if (next != current) level.setBlock(worldPos, next, 2);
-            } catch (Throwable ignored) {}
-        }
-        if (renderer != null) renderer.requestBake();
     }
 
     private PhantasiaSceneData.StepData activeStep() {
@@ -278,13 +203,12 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
             playing = false;
         }
 
-        // Apply camera, visibility, and working state on step change
+        // Apply camera and visibility on step change
         int si = activeStepIndex();
         if (si != lastStepIndex) {
             lastStepIndex = si;
             applyVisibility();
             PhantasiaSceneData.StepData step = activeStep();
-            applyActiveState(step);
             if (step != null && step.camera != null && camera != null) {
                 float zoom = step.camera.zoom > 0 ? step.camera.zoom : camera.getZoom();
                 LerpType lt = LerpType.fromString(step.camera.lerpType);
@@ -328,8 +252,6 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
 
         renderTopBar(g, mx, my);
         renderTimeline(g, mx, my);
-        if (showMistakes && data.mistakes != null && !data.mistakes.isEmpty())
-            renderMistakesOverlay(g);
 
         super.render(g, mx, my, partial);
 
@@ -361,24 +283,23 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
         g.drawCenteredString(font, title, this.width / 2, (TOP_BAR_H - 8) / 2, C_ACCENT());
 
         // Left: Back
-        topBtn(g, mx, my, 4, "← Back", this::onClose);
+        topBtn(g, mx, my, 4, Component.translatable("screen.phantasia.scene_viewer.btn_back").getString(),
+                this::onClose);
 
         // Right: Edit (admin only), then camera reset
         int rx = this.width - 4;
         Minecraft mc = Minecraft.getInstance();
         if (mc.player != null && mc.player.getAbilities().instabuild) {
-            rx = topBtnRight(g, mx, my, rx, "✏ Edit", this::openEditor);
+            rx = topBtnRight(g, mx, my, rx,
+                    Component.translatable("screen.phantasia.scene_viewer.btn_edit").getString(), this::openEditor);
         }
         // Show Guide button whenever there is guide content
         if (hasGuideContent()) {
-            rx = topBtnRight(g, mx, my, rx, "📖 Guide", this::openGuide);
+            rx = topBtnRight(g, mx, my, rx,
+                    Component.translatable("screen.phantasia.scene_viewer.btn_guide").getString(), this::openGuide);
         }
-        // Warnings button — only if the scene has defined mistakes
-        if (data.mistakes != null && !data.mistakes.isEmpty()) {
-            String wLabel = "⚠ Warnings (" + data.mistakes.size() + ")";
-            rx = topBtnRightActive(g, mx, my, rx, wLabel, showMistakes, () -> showMistakes = !showMistakes);
-        }
-        topBtnRight(g, mx, my, rx, "⊕ Center", this::centerCamera);
+        topBtnRight(g, mx, my, rx, Component.translatable("screen.phantasia.scene_viewer.btn_center").getString(),
+                this::centerCamera);
     }
 
     private void topBtn(GuiGraphics g, int mx, int my, int x, String label, Runnable action) {
@@ -399,74 +320,6 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
         g.drawString(font, label, x + 5, (TOP_BAR_H - 8) / 2, hov ? C_ACCENT() : C_TEXT(), false);
         btns.add(new Btn(x, 3, w, h, action));
         return x - 4;
-    }
-
-    private int topBtnRightActive(GuiGraphics g, int mx, int my, int rx, String label,
-                                  boolean active, Runnable action) {
-        int w = font.width(label) + 10, h = TOP_BAR_H - 6;
-        int x = rx - w;
-        boolean hov = isOver(mx, my, x, 3, w, h);
-        g.fill(x, 3, x + w, 3 + h, active ? C_BTN_ACT() : (hov ? C_BTN_HOV() : C_BTN()));
-        int accentCol = 0xFFFFB74D; // amber for warnings
-        if (active) g.fill(x, 3, x + w, 4, accentCol);
-        else if (hov) g.fill(x, 3, x + w, 4, C_ACCENT());
-        g.drawString(font, label, x + 5, (TOP_BAR_H - 8) / 2,
-                active ? accentCol : (hov ? C_ACCENT() : C_TEXT()), false);
-        btns.add(new Btn(x, 3, w, h, action));
-        return x - 4;
-    }
-
-    // ── Mistakes overlay ──────────────────────────────────────────────────────
-
-    private void renderMistakesOverlay(GuiGraphics g) {
-        List<PhantasiaSceneData.SceneMistakeData> mistakes = data.mistakes;
-        if (mistakes == null || mistakes.isEmpty()) return;
-
-        int overlayW = Math.min(280, this.width - 20);
-        int ox = 8;
-        int oy = TOP_BAR_H + 6;
-
-        // Measure height: header + one row per mistake
-        int rowH = 10;
-        int totalH = 14 + mistakes.size() * (rowH + 14) + 4;
-
-        g.fill(ox - 2, oy - 2, ox + overlayW + 2, oy + totalH, 0xCC06060E);
-        g.fill(ox - 2, oy - 2, ox + overlayW + 2, oy - 1, 0xFFFFB74D); // amber top border
-
-        g.drawString(font, "⚠ Layout Warnings", ox + 2, oy + 2, 0xFFFFB74D, false);
-        oy += 14;
-
-        for (PhantasiaSceneData.SceneMistakeData m : mistakes) {
-            int col = PhantasiaSceneData.SceneMistakeData.severityColor(m.severity);
-            // Severity badge
-            String badge = m.severity != null ? m.severity.substring(0, 1) : "W";
-            int badgeW = font.width(badge) + 6;
-            g.fill(ox, oy, ox + badgeW, oy + rowH, col & 0x44FFFFFF | 0x44000000);
-            g.drawString(font, badge, ox + 3, oy + 1, col, false);
-
-            // ID
-            String idStr = m.id != null ? m.id : "";
-            g.drawString(font, idStr, ox + badgeW + 3, oy + 1, col, false);
-            oy += rowH + 2;
-
-            // Description (word-wrapped)
-            if (m.description != null && !m.description.isBlank()) {
-                var lines = font.split(net.minecraft.network.chat.Component.literal(m.description),
-                        overlayW - 6);
-                for (int li = 0; li < Math.min(lines.size(), 3); li++, oy += 9) {
-                    g.drawString(font, lines.get(li), ox + 4, oy, 0xFFCCCCCC, false);
-                }
-            }
-            // Placement badge
-            if (m.placements != null && !m.placements.isEmpty()) {
-                String pStr = "Placements: " + m.placements.toString().replace(" ", "");
-                g.drawString(font, pStr, ox + 4, oy, C_DIM(), false);
-                oy += 10;
-            }
-            oy += 2;
-            g.fill(ox, oy, ox + overlayW, oy + 1, 0x22FFFFFF);
-            oy += 3;
-        }
     }
 
     // ── Timeline strip ────────────────────────────────────────────────────────
@@ -505,18 +358,6 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
         btns.add(new Btn(spdX, tlY + 4, spdW, TIMELINE_H - 8,
                 () -> speed = speed == 1f ? 2f : speed == 2f ? 0.5f : 1f));
 
-        // Camera lock
-        boolean lk = camera != null && camera.isLocked();
-        String lkLbl = lk ? "🔒" : "🔓";
-        int lkX = spdX + spdW + 4;
-        int lkW = font.width(lkLbl) + 8;
-        boolean lkHov = isOver(mx, my, lkX, tlY + 4, lkW, TIMELINE_H - 8);
-        g.fill(lkX, tlY + 4, lkX + lkW, tlY + TIMELINE_H - 4, lk ? C_BTN_ACT() : (lkHov ? C_BTN_HOV() : C_BTN()));
-        if (lk) g.fill(lkX, tlY + 4, lkX + lkW, tlY + 5, C_ACCENT());
-        g.drawString(font, lkLbl, lkX + 4, tlY + (TIMELINE_H - 8) / 2 + 2, lk ? C_ACCENT() : C_DIM(), false);
-        if (lkHov) pendingTooltip = lk ? "Camera locked — click to allow free orbit" : "Camera free — click to lock";
-        btns.add(new Btn(lkX, tlY + 4, lkW, TIMELINE_H - 8, () -> { if (camera != null) camera.toggleLocked(); }));
-
         // Track
         g.fill(tx, midY - 1, tx + tw, midY + 1, 0xFF1A2C3C);
 
@@ -539,6 +380,9 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
         // Time label
         g.drawString(font, formatTicks(playbackTick), tx + tw + 6, tlY + (TIMELINE_H - 8) / 2 + 2,
                 C_DIM(), false);
+
+        // Scrub zone button
+        btns.add(new Btn(tx, tlY, tw, TIMELINE_H, () -> {})); // handled in mouseClicked
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -586,9 +430,7 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
         if (camera == null) return super.mouseDragged(mx, my, btn, dx, dy);
 
         if (btn == 0 && my > TOP_BAR_H && my < tlY) {
-            float orbitMult = net.phoenixvine.phantasia.configs.PhantasiaConfigs.INSTANCE != null ?
-                    net.phoenixvine.phantasia.configs.PhantasiaConfigs.INSTANCE.phantasiaUI.cameraSensitivity : 1f;
-            camera.orbit((float) dx * CAM_ORBIT * orbitMult, (float) dy * CAM_ORBIT * orbitMult);
+            camera.orbit((float) dx * CAM_ORBIT, (float) dy * CAM_ORBIT);
             return true;
         }
         if (btn == 2 && isPanning) {
@@ -619,11 +461,7 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
     @Override
     public boolean mouseScrolled(double mx, double my, double delta) {
         if (my > TOP_BAR_H && my < this.height - TIMELINE_H && camera != null) {
-            float zoomMult = net.phoenixvine.phantasia.configs.PhantasiaConfigs.INSTANCE != null ?
-                    net.phoenixvine.phantasia.configs.PhantasiaConfigs.INSTANCE.phantasiaUI.scrollZoomSpeed : 1f;
-            float zIn = 1f - (1f - ZOOM_IN) * zoomMult;
-            float zOut = 1f + (ZOOM_OUT - 1f) * zoomMult;
-            camera.zoom(delta > 0 ? Math.max(0.5f, zIn) : Math.min(2f, zOut), 2f, 300f);
+            camera.zoom(delta > 0 ? ZOOM_IN : ZOOM_OUT, 2f, 300f);
             return true;
         }
         return false;
@@ -634,41 +472,8 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
         if (kc == 256) {
             onClose();
             return true;
-        }
-        List<PhantasiaSceneData.StepData> steps = data.steps;
-        if (steps != null && !steps.isEmpty()) {
-            if (kc == org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT) {
-                int cur = activeStepIndex();
-                if (cur + 1 < steps.size()) jumpToStep(cur + 1);
-                return true;
-            }
-            if (kc == org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT) {
-                int cur = activeStepIndex();
-                if (cur > 0) jumpToStep(cur - 1);
-                return true;
-            }
-        }
+        } // ESC
         return super.keyPressed(kc, sc, mod);
-    }
-
-    private void jumpToStep(int idx) {
-        List<PhantasiaSceneData.StepData> steps = data.steps;
-        if (steps == null || idx < 0 || idx >= steps.size()) return;
-        playing = false;
-        playbackTick = steps.get(idx).tick;
-        tickAccum = 0f;
-        if (idx != lastStepIndex) {
-            lastStepIndex = idx;
-            applyVisibility();
-            PhantasiaSceneData.StepData step = steps.get(idx);
-            if (step.camera != null && camera != null) {
-                float zoom = step.camera.zoom > 0 ? step.camera.zoom : camera.getZoom();
-                net.phoenixvine.phantasia.client.camera.LerpType lt = net.phoenixvine.phantasia.client.camera.LerpType
-                        .fromString(step.camera.lerpType);
-                camera.scriptDrive(step.camera.yaw, step.camera.pitch, zoom, lt,
-                        step.camera.lerpTicks > 0 ? step.camera.lerpTicks : 20);
-            }
-        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -681,7 +486,6 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
         if (si != lastStepIndex) {
             lastStepIndex = si;
             applyVisibility();
-            applyActiveState(activeStep());
         }
     }
 
@@ -689,8 +493,8 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
         if (camera == null || pattern == null) return;
         float sumX = 0, sumZ = 0;
         for (var pe : pattern.placements) {
-            sumX += pe.centerX;
-            sumZ += pe.centerZ;
+            sumX += pe.offset.getX();
+            sumZ += pe.offset.getZ();
         }
         float midX = sumX / pattern.placements.size();
         float midZ = sumZ / pattern.placements.size();
@@ -722,11 +526,6 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
 
     @Override
     public void onClose() {
-        float secondsViewed = openedAtMs >= 0 ? (System.currentTimeMillis() - openedAtMs) / 1000f : 0f;
-        net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(
-                new net.phoenixvine.phantasia.api.PhantasiaEvents.SceneViewerClose(data.id, this, secondsViewed));
-        openedAtMs = -1;
-
         if (renderer != null) {
             renderer.close();
             renderer = null;

@@ -226,7 +226,8 @@ public class PhantasiaScriptStepItemEditorScreen extends PhantasiaScreen {
         cy += 18;
 
         // Item ID
-        cy = labeledBox(g, "Item:", px, cy, pw, itemIdBox);
+        cy = labeledBox(g, Component.translatable("screen.phantasia.script_step_item_editor.label_item").getString(),
+                px, cy, pw, itemIdBox);
 
         // Count + Label
         g.drawString(font, Component.translatable("screen.phantasia.script_step_item_editor.label_count").getString(),
@@ -387,7 +388,9 @@ public class PhantasiaScriptStepItemEditorScreen extends PhantasiaScreen {
             }
             cy += 16;
 
-            cy = labeledBox(g, "Item:", px, cy, pw, itemIdBox);
+            cy = labeledBox(g,
+                    Component.translatable("screen.phantasia.script_step_item_editor.label_item").getString(), px, cy,
+                    pw, itemIdBox);
 
             g.drawString(font,
                     Component.translatable("screen.phantasia.script_step_item_editor.label_count").getString(), px + 8,

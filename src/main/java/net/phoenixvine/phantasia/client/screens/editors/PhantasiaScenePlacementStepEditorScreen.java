@@ -315,14 +315,17 @@ public class PhantasiaScenePlacementStepEditorScreen extends PhantasiaScreen
         cy += 14;
 
         // ── Show mode ─────────────────────────────────────────────────────────
-        g.drawString(font, "Show:", px + 6, cy + 2, C_DIM(), false);
+        g.drawString(font, Component.translatable("screen.phantasia.placement_step_editor.label_show").getString(),
+                px + 6, cy + 2, C_DIM(), false);
         // "Global" button (inherit from step)
-        int bx = px + 6 + font.width("Show:") + 4;
+        int bx = px + 6 +
+                font.width(Component.translatable("screen.phantasia.placement_step_editor.label_show").getString()) + 4;
         boolean gSel = (curShow == null);
         boolean gHov = isOver(mx, my, bx, cy, 40, 13);
         g.fill(bx, cy, bx + 40, cy + 13, gSel ? C_BTN_ACT() : (gHov ? C_BTN_HOV() : C_BTN()));
         if (gSel) g.fill(bx, cy, bx + 40, cy + 1, C_DIM());
-        g.drawString(font, "Global", bx + 3, cy + 3, gSel ? C_DIM() : C_TEXT(), false);
+        g.drawString(font, Component.translatable("screen.phantasia.placement_step_editor.btn_global").getString(),
+                bx + 3, cy + 3, gSel ? C_DIM() : C_TEXT(), false);
         if (gHov) pendingTooltip = "Inherit the step's global show mode for this placement";
         btns.add(new Btn(bx, cy, 40, 13, () -> {
             parent.checkpoint();
@@ -386,12 +389,19 @@ public class PhantasiaScenePlacementStepEditorScreen extends PhantasiaScreen
             cy += ITEM_H + 2;
         }
         if ("layers".equals(curShow) && ov != null) {
-            g.drawString(font, "min:", px + 6, cy + 2, C_DIM(), false);
-            int mxLeft = px + 6 + font.width("min:") + 4;
+            g.drawString(font, Component.translatable("screen.phantasia.placement_step_editor.label_min").getString(),
+                    px + 6, cy + 2, C_DIM(), false);
+            int mxLeft = px + 6 +
+                    font.width(Component.translatable("screen.phantasia.placement_step_editor.label_min").getString()) +
+                    4;
             placeBox(layerMinBox, mxLeft, cy, 30, 12);
             int mxRight = mxLeft + 34;
-            g.drawString(font, "max:", mxRight, cy + 2, C_DIM(), false);
-            placeBox(layerMaxBox, mxRight + font.width("max:") + 4, cy, 30, 12);
+            g.drawString(font, Component.translatable("screen.phantasia.placement_step_editor.label_max").getString(),
+                    mxRight, cy + 2, C_DIM(), false);
+            placeBox(layerMaxBox,
+                    mxRight + font.width(
+                            Component.translatable("screen.phantasia.placement_step_editor.label_max").getString()) + 4,
+                    cy, 30, 12);
             cy += ITEM_H + 2;
         }
         if ("pos".equals(curShow)) {
@@ -401,7 +411,9 @@ public class PhantasiaScenePlacementStepEditorScreen extends PhantasiaScreen
             g.fill(px + 6, cy, px + 6 + pbW, cy + ITEM_H,
                     pbHov ? C_BTN_HOV() : C_BTN());
             if (pbHov) g.fill(px + 6, cy, px + 6 + pbW, cy + 1, C_ACCENT());
-            g.drawCenteredString(font, "✎ Edit Positions (" + posCount + ")",
+            g.drawCenteredString(font,
+                    String.format(Component.translatable("screen.phantasia.placement_step_editor.btn_edit_positions")
+                            .getString(), posCount),
                     px + 6 + pbW / 2, cy + 3,
                     pbHov ? C_ACCENT() : C_DIM());
             if (pbHov) pendingTooltip = "Open the block-position picker for this placement on this step";
@@ -414,7 +426,8 @@ public class PhantasiaScenePlacementStepEditorScreen extends PhantasiaScreen
         cy += 8;
 
         // ── Working state ─────────────────────────────────────────────────────
-        g.drawString(font, "Working:", px + 6, cy + 2, C_DIM(), false);
+        g.drawString(font, Component.translatable("screen.phantasia.placement_step_editor.label_working").getString(),
+                px + 6, cy + 2, C_DIM(), false);
         Boolean curW = ov != null ? ov.machineWorking : null;
         String[] wLabels = { "Global", "Idle", "Active" };
         Boolean[] wVals = { null, false, true };
@@ -446,13 +459,15 @@ public class PhantasiaScenePlacementStepEditorScreen extends PhantasiaScreen
         cy += 8;
 
         // ── Fake recipe ───────────────────────────────────────────────────────
-        g.drawString(font, "Recipe:", px + 6, cy + 2, C_DIM(), false);
+        g.drawString(font, Component.translatable("screen.phantasia.placement_step_editor.label_recipe").getString(),
+                px + 6, cy + 2, C_DIM(), false);
         cy += 12;
         placeBox(fakeRecipeBox, px + 6, cy, PANEL_W - 14, 12);
         cy += 16;
 
         // ── Particles ─────────────────────────────────────────────────────────
-        g.drawString(font, "Particles:", px + 6, cy + 2, C_DIM(), false);
+        g.drawString(font, Component.translatable("screen.phantasia.placement_step_editor.label_particles").getString(),
+                px + 6, cy + 2, C_DIM(), false);
         cy += 12;
         placeBox(particlesBox, px + 6, cy, PANEL_W - 14, 12);
         cy += 16;
@@ -465,7 +480,8 @@ public class PhantasiaScenePlacementStepEditorScreen extends PhantasiaScreen
         boolean epHov = isOver(mx, my, px + 6, cy, epW, ITEM_H);
         g.fill(px + 6, cy, px + 6 + epW, cy + ITEM_H, epHov ? C_BTN_HOV() : C_BTN());
         if (epHov) g.fill(px + 6, cy, px + 6 + epW, cy + 1, C_ACCENT());
-        g.drawCenteredString(font, "✎ Edit placement / items →",
+        g.drawCenteredString(font,
+                Component.translatable("screen.phantasia.placement_step_editor.btn_edit_placement").getString(),
                 px + 6 + epW / 2, cy + 3, epHov ? C_ACCENT() : C_DIM());
         if (epHov) pendingTooltip = "Open the placement editor (machine ID, offset, item conditions)";
         btns.add(new Btn(px + 6, cy, epW, ITEM_H, () -> Minecraft.getInstance().setScreen(
@@ -478,7 +494,8 @@ public class PhantasiaScenePlacementStepEditorScreen extends PhantasiaScreen
             int cbW = PANEL_W - 14;
             boolean cbHov = isOver(mx, my, px + 6, cy, cbW, 12);
             g.fill(px + 6, cy, px + 6 + cbW, cy + 12, cbHov ? 0xFF3A1010 : C_BTN());
-            g.drawCenteredString(font, "✕ Clear override",
+            g.drawCenteredString(font,
+                    Component.translatable("screen.phantasia.placement_step_editor.btn_clear_override").getString(),
                     px + 6 + cbW / 2, cy + 2, cbHov ? C_RED() : C_DIM());
             if (cbHov) pendingTooltip = "Remove all overrides for this placement on this step";
             btns.add(new Btn(px + 6, cy, cbW, 12, () -> {
@@ -515,8 +532,10 @@ public class PhantasiaScenePlacementStepEditorScreen extends PhantasiaScreen
         int sliderH = sceneBottom - sceneTop - 24, sliderY = sceneTop + 12;
         int range = Math.max(1, maxY - minY);
 
-        g.drawString(font, "Layer", sliderX - 2, sliderY - 20, C_DIM(), false);
-        g.drawString(font, "filter", sliderX - 2, sliderY - 11, C_DIM(), false);
+        g.drawString(font, Component.translatable("screen.phantasia.placement_step_editor.label_layer").getString(),
+                sliderX - 2, sliderY - 20, C_DIM(), false);
+        g.drawString(font, Component.translatable("screen.phantasia.placement_step_editor.label_filter").getString(),
+                sliderX - 2, sliderY - 11, C_DIM(), false);
         g.fill(sliderX + 3, sliderY, sliderX + 7, sliderY + sliderH, 0x44FFFFFF);
         g.drawString(font, "Y=" + maxY, sliderX + 16, sliderY - 1, C_DIM(), false);
         g.drawString(font, "Y=" + minY, sliderX + 16, sliderY + sliderH - 1, C_DIM(), false);

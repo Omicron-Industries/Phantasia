@@ -122,10 +122,15 @@ public final class PhantasiaWelcomeOverlay {
 
         var font = mc.font;
         int lx = tx + 8;
-        g.drawString(font, "Phantasia is installed!", lx, ty + 6, bdrColor, false);
-        g.drawString(font, "Press " + net.phoenixvine.phantasia.client.keybind.PhoenixKeybinds.keyDisplay() +
-                " near a machine, or /phantasia to browse.", lx, ty + 17, txtColor, false);
-        g.drawString(font, "Click here to open Getting Started →", lx, ty + 29, dimColor, false);
+        g.drawString(font,
+                net.minecraft.network.chat.Component.translatable("ui.phantasia.welcome.installed").getString(), lx,
+                ty + 6, bdrColor, false);
+        g.drawString(font,
+                net.minecraft.network.chat.Component.translatable("ui.phantasia.welcome.instruction").getString(), lx,
+                ty + 17, txtColor, false);
+        g.drawString(font,
+                net.minecraft.network.chat.Component.translatable("ui.phantasia.welcome.open_guide").getString(), lx,
+                ty + 29, dimColor, false);
     }
 
     private static int withAlpha(int argb, int a) {

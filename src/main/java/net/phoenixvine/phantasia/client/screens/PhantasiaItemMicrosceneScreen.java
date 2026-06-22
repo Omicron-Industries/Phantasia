@@ -315,7 +315,8 @@ public class PhantasiaItemMicrosceneScreen extends PhantasiaScreen {
         boolean closeHov = isOver(mx, my, closeX, closeY, 44, 14);
         g.fill(closeX, closeY, closeX + 44, closeY + 14, closeHov ? C_BTN_HOV() : C_BTN());
         if (closeHov) g.fill(closeX, closeY, closeX + 44, closeY + 1, C_ACCENT());
-        g.drawCenteredString(font, "\u2190 Back", closeX + 22, closeY + 3, closeHov ? C_ACCENT() : C_TEXT());
+        g.drawCenteredString(font, Component.translatable("screen.phantasia.item_microscene.btn_back").getString(),
+                closeX + 22, closeY + 3, closeHov ? C_ACCENT() : C_TEXT());
         btns.add(new Btn(closeX, closeY, 44, 14, this::goBack));
 
         // Click anywhere outside card to close

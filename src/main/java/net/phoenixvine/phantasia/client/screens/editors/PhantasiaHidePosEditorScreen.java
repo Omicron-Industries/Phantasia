@@ -222,8 +222,8 @@ public class PhantasiaHidePosEditorScreen extends Screen {
 
         // Panel header — shows full title with step label and hidden count
         g.fill(px, TOP_BAR_H, this.width, TOP_BAR_H + 14, C_BAR());
-        String panelTitle = "Hide Positions — " + ctx.getHidePosLabel()
-                + "  (" + ctx.getHidePositions().size() + " hidden)";
+        String panelTitle = "Hide Positions — " + ctx.getHidePosLabel() + "  (" + ctx.getHidePositions().size() +
+                " hidden)";
         g.drawString(font, panelTitle, px + 6, TOP_BAR_H + 3, C_ACCENT(), false);
 
         renderList(g, mx, my, px);

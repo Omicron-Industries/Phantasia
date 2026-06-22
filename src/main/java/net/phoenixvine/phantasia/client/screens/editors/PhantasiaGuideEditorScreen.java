@@ -59,6 +59,8 @@ public class PhantasiaGuideEditorScreen extends Screen {
     private int activeTextFocus = 1;
     private int cursorLine = 0;
     private int cursorColumn = 0;
+    private int anchorLine = 0;
+    private int anchorColumn = 0;
     private int frameTickCounter = 0;
 
     // Wrapped Lines Cache for rendering/input calculations
@@ -148,6 +150,8 @@ public class PhantasiaGuideEditorScreen extends Screen {
         }
         cursorLine = 0;
         cursorColumn = 0;
+        anchorLine = 0;
+        anchorColumn = 0;
         clearItemInputs();
     }
 
@@ -242,13 +246,13 @@ public class PhantasiaGuideEditorScreen extends Screen {
         if (codePoint >= 32 && codePoint != 127 && !data.pages.isEmpty()) {
             List<String> lines = getEditableLines();
             ensureCursorBounds(lines);
+            if (hasSelection()) deleteSelection(lines);
 
             String targetLine = lines.get(cursorLine);
-            String left = targetLine.substring(0, cursorColumn);
-            String right = targetLine.substring(cursorColumn);
-
-            lines.set(cursorLine, left + codePoint + right);
+            lines.set(cursorLine,
+                    targetLine.substring(0, cursorColumn) + codePoint + targetLine.substring(cursorColumn));
             cursorColumn++;
+            collapseSelection();
             saveEditableLines(lines);
             return true;
         }
@@ -262,60 +266,137 @@ public class PhantasiaGuideEditorScreen extends Screen {
 
         List<String> lines = getEditableLines();
         ensureCursorBounds(lines);
+        boolean shift = Screen.hasShiftDown();
 
-        if (keyCode == InputConstants.KEY_BACKSPACE) {
-            if (cursorColumn > 0) {
-                String targetLine = lines.get(cursorLine);
-                String left = targetLine.substring(0, cursorColumn - 1);
-                String right = targetLine.substring(cursorColumn);
-                lines.set(cursorLine, left + right);
-                cursorColumn--;
-                saveEditableLines(lines);
+        // ── Ctrl shortcuts ───────────────��─────────────────────────────────
+        if ((modifiers & GLFW.GLFW_MOD_CONTROL) != 0) {
+            if (keyCode == GLFW.GLFW_KEY_A) {
+                anchorLine = 0;
+                anchorColumn = 0;
+                cursorLine = lines.size() - 1;
+                cursorColumn = lines.get(cursorLine).length();
                 return true;
-            } else if (cursorLine > 0) {
-                int previousLineIdx = cursorLine - 1;
-                String previousLine = lines.get(previousLineIdx);
-                cursorColumn = previousLine.length();
+            }
+            if (keyCode == GLFW.GLFW_KEY_C) {
+                if (hasSelection()) Minecraft.getInstance().keyboardHandler.setClipboard(getSelectedText(lines));
+                return true;
+            }
+            if (keyCode == GLFW.GLFW_KEY_X) {
+                if (hasSelection()) {
+                    checkpoint();
+                    Minecraft.getInstance().keyboardHandler.setClipboard(getSelectedText(lines));
+                    deleteSelection(lines);
+                    saveEditableLines(lines);
+                }
+                return true;
+            }
+            if (keyCode == GLFW.GLFW_KEY_V) {
+                String clip = Minecraft.getInstance().keyboardHandler.getClipboard();
+                if (clip != null && !clip.isEmpty()) {
+                    checkpoint();
+                    if (hasSelection()) deleteSelection(lines);
+                    String[] clipLines = clip.replace("\r\n", "\n").split("\n", -1);
+                    String cur = lines.get(cursorLine);
+                    String before = cur.substring(0, cursorColumn);
+                    String after = cur.substring(cursorColumn);
+                    if (clipLines.length == 1) {
+                        lines.set(cursorLine, before + clipLines[0] + after);
+                        cursorColumn += clipLines[0].length();
+                    } else {
+                        lines.set(cursorLine, before + clipLines[0]);
+                        for (int i = 1; i < clipLines.length - 1; i++) lines.add(cursorLine + i, clipLines[i]);
+                        int lastIdx = cursorLine + clipLines.length - 1;
+                        lines.add(lastIdx, clipLines[clipLines.length - 1] + after);
+                        cursorLine = lastIdx;
+                        cursorColumn = clipLines[clipLines.length - 1].length();
+                    }
+                    collapseSelection();
+                    saveEditableLines(lines);
+                }
+                return true;
+            }
+            if (keyCode == GLFW.GLFW_KEY_S) {
+                save();
+                return true;
+            }
+            if (keyCode == GLFW.GLFW_KEY_Z) {
+                undo();
+                return true;
+            }
+        }
 
-                lines.set(previousLineIdx, previousLine + lines.get(cursorLine));
+        // ── Backspace / Delete ────────────���───────────────────────���────────
+        if (keyCode == InputConstants.KEY_BACKSPACE) {
+            if (hasSelection()) {
+                checkpoint();
+                deleteSelection(lines);
+                saveEditableLines(lines);
+            } else if (cursorColumn > 0) {
+                String targetLine = lines.get(cursorLine);
+                lines.set(cursorLine, targetLine.substring(0, cursorColumn - 1) + targetLine.substring(cursorColumn));
+                cursorColumn--;
+                collapseSelection();
+                saveEditableLines(lines);
+            } else if (cursorLine > 0) {
+                String prevLine = lines.get(cursorLine - 1);
+                cursorColumn = prevLine.length();
+                lines.set(cursorLine - 1, prevLine + lines.get(cursorLine));
                 lines.remove(cursorLine);
                 cursorLine--;
+                collapseSelection();
                 saveEditableLines(lines);
-                return true;
-            }
-        }
-
-        if (keyCode == InputConstants.KEY_DELETE) {
-            String targetLine = lines.get(cursorLine);
-            if (cursorColumn < targetLine.length()) {
-                String left = targetLine.substring(0, cursorColumn);
-                String right = targetLine.substring(cursorColumn + 1);
-                lines.set(cursorLine, left + right);
-                saveEditableLines(lines);
-                return true;
-            } else if (cursorLine < lines.size() - 1) {
-                lines.set(cursorLine, targetLine + lines.get(cursorLine + 1));
-                lines.remove(cursorLine + 1);
-                saveEditableLines(lines);
-                return true;
-            }
-        }
-
-        if (keyCode == InputConstants.KEY_LEFT) {
-            if (cursorColumn > 0) cursorColumn--;
-            else if (cursorLine > 0) {
-                cursorLine--;
-                cursorColumn = lines.get(cursorLine).length();
             }
             return true;
         }
-        if (keyCode == InputConstants.KEY_RIGHT) {
-            String targetLine = lines.get(cursorLine);
-            if (cursorColumn < targetLine.length()) cursorColumn++;
-            else if (cursorLine < lines.size() - 1) {
-                cursorLine++;
-                cursorColumn = 0;
+        if (keyCode == InputConstants.KEY_DELETE) {
+            if (hasSelection()) {
+                checkpoint();
+                deleteSelection(lines);
+                saveEditableLines(lines);
+            } else {
+                String targetLine = lines.get(cursorLine);
+                if (cursorColumn < targetLine.length()) {
+                    lines.set(cursorLine,
+                            targetLine.substring(0, cursorColumn) + targetLine.substring(cursorColumn + 1));
+                    saveEditableLines(lines);
+                } else if (cursorLine < lines.size() - 1) {
+                    lines.set(cursorLine, targetLine + lines.get(cursorLine + 1));
+                    lines.remove(cursorLine + 1);
+                    saveEditableLines(lines);
+                }
             }
+            return true;
+        }
+
+        // ── Arrow keys ────────────────────────────────���────────────────────
+        if (keyCode == InputConstants.KEY_LEFT) {
+            if (!shift && hasSelection()) {
+                int[] s = selStart(lines);
+                cursorLine = s[0];
+                cursorColumn = s[1];
+            } else if (cursorColumn > 0) {
+                cursorColumn--;
+            } else if (cursorLine > 0) {
+                cursorLine--;
+                cursorColumn = lines.get(cursorLine).length();
+            }
+            if (!shift) collapseSelection();
+            return true;
+        }
+        if (keyCode == InputConstants.KEY_RIGHT) {
+            if (!shift && hasSelection()) {
+                int[] e = selEnd(lines);
+                cursorLine = e[0];
+                cursorColumn = e[1];
+            } else {
+                String targetLine = lines.get(cursorLine);
+                if (cursorColumn < targetLine.length()) cursorColumn++;
+                else if (cursorLine < lines.size() - 1) {
+                    cursorLine++;
+                    cursorColumn = 0;
+                }
+            }
+            if (!shift) collapseSelection();
             return true;
         }
         if (keyCode == InputConstants.KEY_UP) {
@@ -327,7 +408,10 @@ public class PhantasiaGuideEditorScreen extends Screen {
                 lines = getEditableLines();
                 cursorLine = lines.size() - 1;
                 cursorColumn = lines.get(cursorLine).length();
+                collapseSelection();
+                return true;
             }
+            if (!shift) collapseSelection();
             return true;
         }
         if (keyCode == InputConstants.KEY_DOWN) {
@@ -338,42 +422,40 @@ public class PhantasiaGuideEditorScreen extends Screen {
                 activeTextFocus = 1;
                 cursorLine = 0;
                 cursorColumn = 0;
+                collapseSelection();
+                return true;
             }
+            if (!shift) collapseSelection();
             return true;
         }
-
         if (keyCode == InputConstants.KEY_HOME) {
             cursorColumn = 0;
+            if (!shift) collapseSelection();
             return true;
         }
         if (keyCode == InputConstants.KEY_END) {
             cursorColumn = lines.get(cursorLine).length();
+            if (!shift) collapseSelection();
             return true;
         }
 
         if (keyCode == InputConstants.KEY_RETURN || keyCode == InputConstants.KEY_NUMPADENTER) {
+            if (hasSelection()) {
+                checkpoint();
+                deleteSelection(lines);
+            }
             String targetLine = lines.get(cursorLine);
-            String left = targetLine.substring(0, cursorColumn);
-            String right = targetLine.substring(cursorColumn);
-
-            lines.set(cursorLine, left);
-            lines.add(cursorLine + 1, right);
+            lines.set(cursorLine, targetLine.substring(0, cursorColumn));
+            lines.add(cursorLine + 1, targetLine.substring(cursorColumn));
             cursorLine++;
             cursorColumn = 0;
+            collapseSelection();
             saveEditableLines(lines);
             return true;
         }
 
         if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
             onClose();
-            return true;
-        }
-        if (keyCode == GLFW.GLFW_KEY_S && (modifiers & GLFW.GLFW_MOD_CONTROL) != 0) {
-            save();
-            return true;
-        }
-        if (keyCode == GLFW.GLFW_KEY_Z && (modifiers & GLFW.GLFW_MOD_CONTROL) != 0) {
-            undo();
             return true;
         }
 
@@ -384,6 +466,60 @@ public class PhantasiaGuideEditorScreen extends Screen {
         if (lines.isEmpty()) lines.add("");
         cursorLine = Math.max(0, Math.min(cursorLine, lines.size() - 1));
         cursorColumn = Math.max(0, Math.min(cursorColumn, lines.get(cursorLine).length()));
+    }
+
+    private boolean hasSelection() {
+        return cursorLine != anchorLine || cursorColumn != anchorColumn;
+    }
+
+    private void collapseSelection() {
+        anchorLine = cursorLine;
+        anchorColumn = cursorColumn;
+    }
+
+    private int[] selStart(List<String> lines) {
+        int ca = absoluteOffset(lines, cursorLine, cursorColumn);
+        int aa = absoluteOffset(lines, anchorLine, anchorColumn);
+        return ca <= aa ? new int[] { cursorLine, cursorColumn } : new int[] { anchorLine, anchorColumn };
+    }
+
+    private int[] selEnd(List<String> lines) {
+        int ca = absoluteOffset(lines, cursorLine, cursorColumn);
+        int aa = absoluteOffset(lines, anchorLine, anchorColumn);
+        return ca >= aa ? new int[] { cursorLine, cursorColumn } : new int[] { anchorLine, anchorColumn };
+    }
+
+    private int absoluteOffset(List<String> lines, int line, int col) {
+        int abs = 0;
+        for (int i = 0; i < line && i < lines.size(); i++) abs += lines.get(i).length() + 1;
+        return abs + col;
+    }
+
+    private String getSelectedText(List<String> lines) {
+        if (!hasSelection()) return "";
+        int[] s = selStart(lines), e = selEnd(lines);
+        StringBuilder sb = new StringBuilder();
+        for (int l = s[0]; l <= e[0] && l < lines.size(); l++) {
+            String ln = lines.get(l);
+            int from = l == s[0] ? s[1] : 0;
+            int to = l == e[0] ? e[1] : ln.length();
+            sb.append(ln, from, to);
+            if (l < e[0]) sb.append('\n');
+        }
+        return sb.toString();
+    }
+
+    private void deleteSelection(List<String> lines) {
+        if (!hasSelection()) return;
+        int[] s = selStart(lines), e = selEnd(lines);
+        String startPart = lines.get(s[0]).substring(0, s[1]);
+        String endPart = e[0] < lines.size() ? lines.get(e[0]).substring(e[1]) : "";
+        for (int l = e[0]; l > s[0]; l--) lines.remove(l);
+        lines.set(s[0], startPart + endPart);
+        cursorLine = s[0];
+        cursorColumn = s[1];
+        anchorLine = cursorLine;
+        anchorColumn = cursorColumn;
     }
 
     @Override
@@ -476,6 +612,8 @@ public class PhantasiaGuideEditorScreen extends Screen {
         int hlRenderY = y + 14;
         g.enableScissor(colX - 2, y, colX + colW + 2, y + hlBoxHeight);
 
+        int[] hlSel0 = hlFocused && hasSelection() ? selStart(headlineLines) : null;
+        int[] hlSel1 = hlFocused && hasSelection() ? selEnd(headlineLines) : null;
         for (int i = 0; i < headlineLines.size(); i++) {
             String rawLine = headlineLines.get(i);
 
@@ -484,6 +622,16 @@ public class PhantasiaGuideEditorScreen extends Screen {
 
             if (hlFocused && cursorLine == i && pixelOffset > colW - 12) {
                 scrollOffsetX = pixelOffset - (colW - 12);
+            }
+
+            if (hlSel0 != null && i >= hlSel0[0] && i <= hlSel1[0]) {
+                int from = Math.min((i == hlSel0[0]) ? hlSel0[1] : 0, rawLine.length());
+                int to = Math.min((i == hlSel1[0]) ? hlSel1[1] : rawLine.length(), rawLine.length());
+                if (to > from) {
+                    int hx1 = colX + 4 + font.width(rawLine.substring(0, from)) - scrollOffsetX;
+                    int hx2 = colX + 4 + font.width(rawLine.substring(0, to)) - scrollOffsetX;
+                    g.fill(hx1, hlRenderY - 1, hx2, hlRenderY + font.lineHeight, 0x882244AA);
+                }
             }
 
             g.drawString(font, rawLine, colX + 4 - scrollOffsetX, hlRenderY, 0xFFFFFF, false);
@@ -501,12 +649,14 @@ public class PhantasiaGuideEditorScreen extends Screen {
         if (over(mx, my, colX - 4, y, colW + 8, hlBoxHeight)) {
             final int boxYStart = y + 14;
             btns.add(new Btn(colX - 4, y, colW + 8, hlBoxHeight, () -> {
+                boolean focusChanged = activeTextFocus != 0;
                 activeTextFocus = 0;
                 int relativeClickY = my - boxYStart;
                 int targetLineIdx = relativeClickY / (font.lineHeight + 2);
                 List<String> currentLines = getEditableLines();
                 cursorLine = Math.max(0, Math.min(targetLineIdx, currentLines.size() - 1));
                 cursorColumn = findClosestColumnIndex(currentLines.get(cursorLine), mx, colX + 4);
+                if (focusChanged || !Screen.hasShiftDown()) collapseSelection();
             }));
         }
 
@@ -531,10 +681,35 @@ public class PhantasiaGuideEditorScreen extends Screen {
         int bodyRenderY = y + 15;
         g.enableScissor(colX - 2, y, colX + colW + 2, y + bodyAreaHeight);
 
+        int[] bodySel0 = bodyFocused && hasSelection() ? selStart(bodyLines) : null;
+        int[] bodySel1 = bodyFocused && hasSelection() ? selEnd(bodyLines) : null;
+
         for (int i = 0; i < cachedWrappedLines.size(); i++) {
             if (bodyRenderY + font.lineHeight > y + bodyAreaHeight - 4) break;
 
             WrappedLineMapping wrappedLine = cachedWrappedLines.get(i);
+
+            if (bodySel0 != null) {
+                int origLine = wrappedLine.originalLineIdx;
+                int segStart = wrappedLine.originalCharStart;
+                int segEnd = segStart + wrappedLine.text.length();
+                boolean inRange = (origLine > bodySel0[0] && origLine < bodySel1[0]) ||
+                        (origLine == bodySel0[0] && origLine == bodySel1[0] && segEnd > bodySel0[1] &&
+                                segStart < bodySel1[1]) ||
+                        (origLine == bodySel0[0] && origLine < bodySel1[0] && segEnd > bodySel0[1]) ||
+                        (origLine > bodySel0[0] && origLine == bodySel1[0] && segStart < bodySel1[1]);
+                if (inRange) {
+                    int localFrom = (origLine == bodySel0[0]) ? Math.max(0, bodySel0[1] - segStart) : 0;
+                    int localTo = (origLine == bodySel1[0]) ?
+                            Math.min(wrappedLine.text.length(), bodySel1[1] - segStart) : wrappedLine.text.length();
+                    if (localTo > localFrom) {
+                        int hx1 = colX + 4 + font.width(wrappedLine.text.substring(0, localFrom));
+                        int hx2 = colX + 4 + font.width(wrappedLine.text.substring(0, localTo));
+                        g.fill(hx1, bodyRenderY - 1, hx2, bodyRenderY + font.lineHeight, 0x882244AA);
+                    }
+                }
+            }
+
             g.drawString(font, wrappedLine.text, colX + 4, bodyRenderY, 0xFFFFFF, false);
 
             if (bodyFocused && cursorLine == wrappedLine.originalLineIdx) {
@@ -558,6 +733,7 @@ public class PhantasiaGuideEditorScreen extends Screen {
         if (over(mx, my, colX - 4, y, colW + 8, bodyAreaHeight)) {
             final int boxYStart = y + 15;
             btns.add(new Btn(colX - 4, y, colW + 8, bodyAreaHeight, () -> {
+                boolean focusChanged = activeTextFocus != 1;
                 activeTextFocus = 1;
                 int relativeClickY = my - boxYStart;
                 int wrappedLineIdx = relativeClickY / (font.lineHeight + 2);
@@ -568,6 +744,7 @@ public class PhantasiaGuideEditorScreen extends Screen {
                     int localCol = findClosestColumnIndex(targetWrapped.text, mx, colX + 4);
                     cursorColumn = targetWrapped.originalCharStart + localCol;
                 }
+                if (focusChanged || !Screen.hasShiftDown()) collapseSelection();
             }));
         }
 
@@ -681,7 +858,10 @@ public class PhantasiaGuideEditorScreen extends Screen {
         if (data.pages.isEmpty()) return;
 
         // ── ITEMS LIST ROW HEADER ──
-        g.drawString(font, "Items Configuration (" + page().items.size() + "):", px + 4, y, C_DIM(), false);
+        g.drawString(font,
+                String.format(Component.translatable("screen.phantasia.guide_editor.section_items").getString(),
+                        page().items.size()),
+                px + 4, y, C_DIM(), false);
         int addItemW = font.width(Component.translatable("screen.phantasia.guide_editor.btn_add_item").getString()) + 8;
         boolean aiHov = over(mx, my, width - addItemW - 4, y - 1, addItemW, 12);
         g.fill(width - addItemW - 4, y - 1, width - 4, y + 11, aiHov ? C_BTN_HOV() : C_BTN());
@@ -790,16 +970,18 @@ public class PhantasiaGuideEditorScreen extends Screen {
                 PhantasiaGuideRegistry.get(page().guideId) != null ? page().guideId : "None";
         boolean glHov = over(mx, my, px + 4, y, rightWidth - 8, 14);
         g.fill(px + 4, y, width - 4, y + 14, glHov ? C_BTN_HOV() : C_BTN());
-        String guideBtnLabel = "Guide: " + gl;
+        String guideBtnLabel = String
+                .format(Component.translatable("screen.phantasia.guide_editor.btn_guide_link").getString(), gl);
         if (font.width(guideBtnLabel) > rightWidth - 12)
             guideBtnLabel = font.plainSubstrByWidth(guideBtnLabel, rightWidth - 16) + "…";
         g.drawCenteredString(font, guideBtnLabel, px + rightWidth / 2, y + 3, glHov ? C_ACCENT() : C_TEXT());
         btns.add(new Btn(px + 4, y, rightWidth - 8, 14, () -> {
             List<String> guideIds = PhantasiaGuideRegistry.all().stream().map(guide -> guide.id).toList();
-            Minecraft.getInstance().setScreen(new RegistrySearchScreen(this, "Select Guide Link", guideIds, id -> {
-                page().guideId = id;
-                dirty = true;
-            }));
+            Minecraft.getInstance().setScreen(new RegistrySearchScreen(this,
+                    Component.translatable("screen.phantasia.guide_editor.picker_guide").getString(), guideIds, id -> {
+                        page().guideId = id;
+                        dirty = true;
+                    }));
         }));
         y += 18;
 
@@ -808,16 +990,18 @@ public class PhantasiaGuideEditorScreen extends Screen {
                         "None";
         boolean slHov = over(mx, my, px + 4, y, rightWidth - 8, 14);
         g.fill(px + 4, y, width - 4, y + 14, slHov ? C_BTN_HOV() : C_BTN());
-        String sceneBtnLabel = "Scene: " + sl;
+        String sceneBtnLabel = String
+                .format(Component.translatable("screen.phantasia.guide_editor.btn_scene_link").getString(), sl);
         if (font.width(sceneBtnLabel) > rightWidth - 12)
             sceneBtnLabel = font.plainSubstrByWidth(sceneBtnLabel, rightWidth - 16) + "…";
         g.drawCenteredString(font, sceneBtnLabel, px + rightWidth / 2, y + 3, slHov ? C_ACCENT() : C_TEXT());
         btns.add(new Btn(px + 4, y, rightWidth - 8, 14, () -> {
             List<String> sceneIds = PhantasiaScenes.all().stream().map(scene -> scene.id).toList();
-            Minecraft.getInstance().setScreen(new RegistrySearchScreen(this, "Select Scene Link", sceneIds, id -> {
-                page().sceneId = id;
-                dirty = true;
-            }));
+            Minecraft.getInstance().setScreen(new RegistrySearchScreen(this,
+                    Component.translatable("screen.phantasia.guide_editor.picker_scene").getString(), sceneIds, id -> {
+                        page().sceneId = id;
+                        dirty = true;
+                    }));
         }));
         y += 18;
 
@@ -827,7 +1011,8 @@ public class PhantasiaGuideEditorScreen extends Screen {
                                 page().scriptId : "None";
         boolean slkHov = over(mx, my, px + 4, y, rightWidth - 8, 14);
         g.fill(px + 4, y, width - 4, y + 14, slkHov ? C_BTN_HOV() : C_BTN());
-        String scriptBtnLabel = "Script: " + slk;
+        String scriptBtnLabel = String
+                .format(Component.translatable("screen.phantasia.guide_editor.btn_script_link").getString(), slk);
         if (font.width(scriptBtnLabel) > rightWidth - 12)
             scriptBtnLabel = font.plainSubstrByWidth(scriptBtnLabel, rightWidth - 16) + "…";
         g.drawCenteredString(font, scriptBtnLabel, px + rightWidth / 2, y + 3, slkHov ? C_ACCENT() : C_TEXT());
@@ -838,17 +1023,23 @@ public class PhantasiaGuideEditorScreen extends Screen {
                     .filter(def -> PhantasiaScripts.has(def))
                     .map(def -> def.getId().toString())
                     .toList();
-            Minecraft.getInstance().setScreen(new RegistrySearchScreen(this, "Select Script Link", scriptIds, id -> {
-                page().scriptId = id;
-                dirty = true;
-            }));
+            Minecraft.getInstance()
+                    .setScreen(new RegistrySearchScreen(this,
+                            Component.translatable("screen.phantasia.guide_editor.picker_script").getString(),
+                            scriptIds, id -> {
+                                page().scriptId = id;
+                                dirty = true;
+                            }));
         }));
         y += 18;
 
         // ── GUIDE-LEVEL TOOLTIP ITEMS ──────────────────────────────────────────
         g.fill(px, y, width, y + 1, 0x22FFFFFF);
         y += 5;
-        g.drawString(font, "Tooltip Items (" + data.tooltipItems.size() + "):", px + 4, y, C_DIM(), false);
+        g.drawString(font,
+                String.format(Component.translatable("screen.phantasia.guide_editor.section_tooltip_items").getString(),
+                        data.tooltipItems.size()),
+                px + 4, y, C_DIM(), false);
         y += font.lineHeight + 2;
 
         if (data.tooltipItems != null) {
@@ -876,10 +1067,11 @@ public class PhantasiaGuideEditorScreen extends Screen {
         placeBox(tooltipItemBox, px + 4, y - 1, rightWidth - 56, 12);
         tooltipItemBox.visible = true;
         tooltipItemBox.active = true;
-        int addTiW = font.width("+ Add") + 8;
+        String addTiLabel = Component.translatable("ui.phantasia.btn_add").getString();
+        int addTiW = font.width(addTiLabel) + 8;
         boolean addTiHov = over(mx, my, width - addTiW - 4, y - 1, addTiW, 12);
         g.fill(width - addTiW - 4, y - 1, width - 4, y + 11, addTiHov ? C_BTN_HOV() : C_BTN());
-        g.drawString(font, "+ Add", width - addTiW - 1, y + 1, addTiHov ? C_ACCENT() : C_DIM(), false);
+        g.drawString(font, addTiLabel, width - addTiW - 1, y + 1, addTiHov ? C_ACCENT() : C_DIM(), false);
         btns.add(new Btn(width - addTiW - 4, y - 1, addTiW, 12, () -> {
             String v = tooltipItemBox.getValue().trim();
             if (!v.isBlank() && !data.tooltipItems.contains(v)) {
@@ -1111,7 +1303,7 @@ public class PhantasiaGuideEditorScreen extends Screen {
 
     // ── Registry Search Screen (Self-Contained Lookup Window) ──────────────────
 
-    static class RegistrySearchScreen extends Screen {
+    private static class RegistrySearchScreen extends Screen {
 
         private final Screen parent;
         private final String titleText;

@@ -100,7 +100,8 @@ public class PhantasiaContextualSelectionScreen extends PhantasiaScreen {
         boolean bHov = mx >= bx && mx < bx + bw && my >= by && my < by + bh;
         g.fill(bx, by, bx + bw, by + bh, bHov ? C_BTN_HOV() : C_BTN());
         if (bHov) g.fill(bx, by, bx + bw, by + 1, C_ACCENT());
-        g.drawCenteredString(font, "✕ Close", this.width / 2, by + 4, bHov ? C_ACCENT() : C_TEXT());
+        g.drawCenteredString(font, Component.translatable("ui.phantasia.btn_close").getString(), this.width / 2, by + 4,
+                bHov ? C_ACCENT() : C_TEXT());
     }
 
     private void renderContextCard(GuiGraphics g, int mx, int my, ContextItem item, int cx, int cy, boolean hovered) {

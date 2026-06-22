@@ -9,9 +9,6 @@ public class PhantasiaLangHandler {
         provider.add("key.categories.phantasia", "Phantasia");
         provider.add("key.phantasia.phantasia_menu", "Open Phantasia Menu");
 
-        // Items
-        provider.add("item.phantasia.phantasia_manual", "Phantasia Manual");
-
         // --- Screen: Block Inspector ---
         provider.add("screen.phantasia.block_inspector.title", "Block Inspector");
         provider.add("screen.phantasia.block_inspector.header", "TECHNICAL BLOCK INSPECTOR");
@@ -302,6 +299,136 @@ public class PhantasiaLangHandler {
         provider.add("ui.phantasia.raw_value", "%s");
         provider.add("screen.phantasia.script_step_item.title", "Step Items — Step %s");
         provider.add("ui.phantasia.bullet_prefix", "   - ");
+
+        // --- Shared UI buttons ---
+        provider.add("ui.phantasia.btn_close", "✕ Close");
+        provider.add("ui.phantasia.btn_close_plain", "Close");
+        provider.add("ui.phantasia.btn_add", "+ Add");
+
+        // --- Welcome overlay ---
+        provider.add("ui.phantasia.welcome.installed", "Phantasia is installed!");
+        provider.add("ui.phantasia.welcome.instruction", "Press [P] near a machine, or /phantasia to browse.");
+        provider.add("ui.phantasia.welcome.open_guide", "Click here to open Getting Started →");
+
+        // --- Screen: scene_selection (new keys) ---
+        provider.add("screen.phantasia.scene_selection.badge_dev", "DEV");
+        provider.add("screen.phantasia.scene_selection.section_camera", "Camera");
+        provider.add("screen.phantasia.scene_selection.section_display", "Display & Playback");
+        provider.add("screen.phantasia.scene_selection.label_display_mode", "Display mode");
+        provider.add("screen.phantasia.scene_selection.section_performance", "Performance");
+        provider.add("screen.phantasia.scene_selection.label_scene_streaming", "Scene streaming");
+        provider.add("screen.phantasia.scene_selection.section_appearance", "Appearance");
+        provider.add("screen.phantasia.scene_selection.hint_scroll", "▲ ▼  scroll to see more");
+
+        // --- Screen: guide_editor (new keys) ---
+        provider.add("screen.phantasia.guide_editor.section_items", "Items Configuration (%d):");
+        provider.add("screen.phantasia.guide_editor.section_tooltip_items", "Tooltip Items (%d):");
+        provider.add("screen.phantasia.guide_editor.btn_guide_link", "Guide: %s");
+        provider.add("screen.phantasia.guide_editor.btn_scene_link", "Scene: %s");
+        provider.add("screen.phantasia.guide_editor.btn_script_link", "Script: %s");
+        provider.add("screen.phantasia.guide_editor.picker_guide", "Select Guide Link");
+        provider.add("screen.phantasia.guide_editor.picker_scene", "Select Scene Link");
+        provider.add("screen.phantasia.guide_editor.picker_script", "Select Script Link");
+
+        // --- Screen: scene (viewer) labels ---
+        provider.add("screen.phantasia.scene.label_size", "Size:");
+
+        // --- Screen: scene_editor (new keys) ---
+        provider.add("screen.phantasia.scene_editor.section_tooltip_items", "Tooltip Items (%d):");
+        provider.add("screen.phantasia.scene_editor.label_item", "Item:");
+        provider.add("screen.phantasia.scene_editor.label_source", "Source:");
+        provider.add("screen.phantasia.scene_editor.hint_item_blank",
+                "Leave Item blank to only set source. Leave Source blank to only set item. [Esc] deselects.");
+
+        // --- Screen: script_step_item_editor (new keys) ---
+        provider.add("screen.phantasia.script_step_item_editor.label_item", "Item:");
+
+        // --- Screen: script_editor (new keys) ---
+        provider.add("screen.phantasia.script_editor.tab_parts", "Parts…");
+        provider.add("screen.phantasia.script_editor.tab_items", "Items…");
+        provider.add("screen.phantasia.script_editor.label_item", "Item:");
+        provider.add("screen.phantasia.script_editor.label_source", "Source:");
+        provider.add("screen.phantasia.script_editor.hint_item_blank",
+                "Leave Item blank to only set source. Leave Source blank to only set item. [Esc] deselects.");
+        provider.add("screen.phantasia.script_editor.warn_recipe_override",
+                "⚠ recipeId is set — this entry overrides recipe-placed items at this position");
+        provider.add("screen.phantasia.script_editor.btn_add_global_mistake", "+ Add Global Mistake");
+        provider.add("screen.phantasia.script_editor.section_global_mistakes", "⚠ Global Mistakes");
+
+        // --- Screen: placement_step_editor ---
+        provider.add("screen.phantasia.placement_step_editor.label_show", "Show:");
+        provider.add("screen.phantasia.placement_step_editor.btn_global", "Global");
+        provider.add("screen.phantasia.placement_step_editor.label_min", "min:");
+        provider.add("screen.phantasia.placement_step_editor.label_max", "max:");
+        provider.add("screen.phantasia.placement_step_editor.btn_edit_positions", "✎ Edit Positions (%d)");
+        provider.add("screen.phantasia.placement_step_editor.label_working", "Working:");
+        provider.add("screen.phantasia.placement_step_editor.label_recipe", "Recipe:");
+        provider.add("screen.phantasia.placement_step_editor.label_particles", "Particles:");
+        provider.add("screen.phantasia.placement_step_editor.btn_edit_placement", "✎ Edit placement / items →");
+        provider.add("screen.phantasia.placement_step_editor.btn_clear_override", "✕ Clear override");
+        provider.add("screen.phantasia.placement_step_editor.label_layer", "Layer");
+        provider.add("screen.phantasia.placement_step_editor.label_filter", "filter");
+
+        // --- Screen: block_filter ---
+        provider.add("screen.phantasia.block_filter.title_count", "Block Filter — %d block types");
+        provider.add("screen.phantasia.block_filter.hint_select", "Select which blocks to highlight");
+        provider.add("screen.phantasia.block_filter.label_heatmap", "Heatmap Layers:");
+        provider.add("screen.phantasia.block_filter.hint_inspect", "Click a block in the Shopping tab to inspect it.");
+        provider.add("screen.phantasia.block_filter.msg_no_block", "No block at this position.");
+        provider.add("screen.phantasia.block_filter.header_coords", "COORDINATES");
+        provider.add("screen.phantasia.block_filter.header_specs", "SPECIFICATIONS & UTILITY");
+        provider.add("screen.phantasia.block_filter.feat_block_entity", "⚡ Has Block Entity");
+        provider.add("screen.phantasia.block_filter.feat_controller", "★ Multiblock Controller");
+        provider.add("screen.phantasia.block_filter.feat_hatch", "🔗 Component: Hatch / Bus");
+        provider.add("screen.phantasia.block_filter.feat_energy", "⚡ System: Energy I/O");
+        provider.add("screen.phantasia.block_filter.header_blockstate", "BLOCKSTATE PROPERTIES");
+
+        // --- Screen: footprint ---
+        provider.add("screen.phantasia.footprint.label_layer", "Layer (Y):");
+        provider.add("screen.phantasia.footprint.label_jump_to", "Jump to:");
+        provider.add("screen.phantasia.footprint.label_inspecting", "Inspecting:");
+        provider.add("screen.phantasia.footprint.feat_block_entity", "⚡ Block Entity");
+        provider.add("screen.phantasia.footprint.feat_controller", "★ Controller");
+        provider.add("screen.phantasia.footprint.label_layer_blocks", "Layer blocks:");
+
+        // --- Screen: material_cost ---
+        provider.add("screen.phantasia.material_cost.hint_search", "Search recipe type... (e.g. blast)");
+        provider.add("screen.phantasia.material_cost.title_count", "Material Cost  —  %d block types");
+        provider.add("screen.phantasia.material_cost.emi_syncing", "EMI Synchronizing...");
+        provider.add("screen.phantasia.material_cost.label_direct", "direct");
+        provider.add("screen.phantasia.material_cost.msg_no_ingredients", "No ingredients found.");
+        provider.add("screen.phantasia.material_cost.msg_no_totals", "No totals yet.");
+        provider.add("screen.phantasia.material_cost.hint_leaf_costs",
+                "Current leaf costs — expand items in Ingredients to break down further");
+        provider.add("screen.phantasia.material_cost.msg_copied", "✔ Copied to clipboard!");
+        provider.add("screen.phantasia.material_cost.hint_controls", "▶ expand  •  ▼ right-click collapse  •  ↺ cycle");
+        provider.add("screen.phantasia.material_cost.btn_copy_list", "Copy List");
+
+        // --- Screen: variants (new keys) ---
+        provider.add("screen.phantasia.variants.label_variants", "§bVariants");
+        provider.add("screen.phantasia.variants.msg_no_variants", "§7No variants available for this machine.");
+
+        // --- Screen: text_input ---
+        provider.add("screen.phantasia.text_input.label_colors", "Colors: ");
+
+        // --- Screen: scene_viewer ---
+        provider.add("screen.phantasia.scene_viewer.btn_back", "← Back");
+        provider.add("screen.phantasia.scene_viewer.btn_edit", "✏ Edit");
+        provider.add("screen.phantasia.scene_viewer.btn_guide", "📖 Guide");
+        provider.add("screen.phantasia.scene_viewer.btn_center", "⊕ Center");
+
+        // --- Screen: scene_mistakes_editor (additional keys) ---
+        provider.add("screen.phantasia.scene_mistakes_editor.header", "⚠ Layout Mistakes  —  %d defined");
+        provider.add("screen.phantasia.scene_mistakes_editor.bottom_hint",
+                "Mistakes flag incorrect machine placements in the scene viewer  —  %d placement(s) available");
+
+        // --- Screen: placement_editor (additional keys) ---
+        provider.add("screen.phantasia.placement_editor.btn_back", "← Back");
+        provider.add("screen.phantasia.placement_editor.section_recipe_items", "Recipe Item Conditions");
+        provider.add("screen.phantasia.placement_editor.section_recipe_items_hint",
+                "(displayed in scene viewer alongside this machine)");
+        provider.add("screen.phantasia.placement_editor.no_items", "No items yet.");
+        provider.add("screen.phantasia.placement_editor.section_add_item", "+ Add Item");
     }
 
     public static void multiLang(RegistrateLangProvider provider, String key, String... values) {

@@ -7,9 +7,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.phoenixvine.phantasia.client.screens.PhantasiaScreen;
-import net.phoenixvine.phantasia.client.screens.subscreen.PhantasiaTextInputScreen;
 import net.phoenixvine.phantasia.common.data.scene.PhantasiaSceneData;
-import net.phoenixvine.phantasia.common.data.scene.PhantasiaScenes;
 
 import org.lwjgl.glfw.GLFW;
 
@@ -238,7 +236,8 @@ public class PhantasiaPlacementEditorScreen extends PhantasiaScreen {
         g.drawCenteredString(font, title, width / 2, (TOP_BAR_H - 8) / 2, C_DIM());
 
         int rx = width - 4;
-        rx = topBtn(g, mx, my, rx, "\u2190 Back", C_BTN(), "Return to the scene editor", this::goBack);
+        rx = topBtn(g, mx, my, rx, Component.translatable("screen.phantasia.placement_editor.btn_back").getString(),
+                C_BTN(), "Return to the scene editor", this::goBack);
     }
 
     // ── Main panel ────────────────────────────────────────────────────────────
@@ -278,7 +277,8 @@ public class PhantasiaPlacementEditorScreen extends PhantasiaScreen {
                 g.fill(px + pw - 48, cy, px + pw - 8, cy + 1, C_GREEN());
                 pendingTooltip = "Apply new machine ID and rebuild the scene";
             }
-            g.drawString(font, "\u2713 Apply", px + pw - 44, cy + 2, applyHov ? C_GREEN() : C_DIM(), false);
+            g.drawString(font, Component.translatable("screen.phantasia.placement_editor.btn_apply").getString(),
+                    px + pw - 44, cy + 2, applyHov ? C_GREEN() : C_DIM(), false);
             btns.add(new Btn(px + pw - 48, cy, 40, 12, this::applyMachineId));
         }
         cy += 16;
@@ -304,7 +304,8 @@ public class PhantasiaPlacementEditorScreen extends PhantasiaScreen {
             ox += 46;
             boolean offHov = isOver(mx, my, ox, cy, 50, 12);
             g.fill(ox, cy, ox + 50, cy + 12, offHov ? C_BTN_HOV() : C_BTN());
-            g.drawString(font, "\u2713 Move", ox + 4, cy + 2, offHov ? C_ACCENT() : C_DIM(), false);
+            g.drawString(font, Component.translatable("screen.phantasia.placement_editor.btn_move").getString(), ox + 4,
+                    cy + 2, offHov ? C_ACCENT() : C_DIM(), false);
             if (offHov) pendingTooltip = "Apply new XYZ offset and rebuild the scene";
             btns.add(new Btn(ox, cy, 50, 12, this::applyOffset));
         }
@@ -316,9 +317,12 @@ public class PhantasiaPlacementEditorScreen extends PhantasiaScreen {
         cy += 8;
 
         // ── Recipe item conditions ────────────────────────────────────────────
-        drawIfVisible(g, "Recipe Item Conditions", px + 8, cy + 2, C_ACCENT(), clipTop, clipBottom);
+        drawIfVisible(g, Component.translatable("screen.phantasia.placement_editor.section_recipe_items").getString(),
+                px + 8, cy + 2, C_ACCENT(), clipTop, clipBottom);
         cy += 12;
-        drawIfVisible(g, "(displayed in scene viewer alongside this machine)", px + 8, cy, C_DIM(), clipTop,
+        drawIfVisible(g,
+                Component.translatable("screen.phantasia.placement_editor.section_recipe_items_hint").getString(),
+                px + 8, cy, C_DIM(), clipTop,
                 clipBottom);
         cy += 14;
 
@@ -330,7 +334,8 @@ public class PhantasiaPlacementEditorScreen extends PhantasiaScreen {
         }
 
         if (p.items.isEmpty()) {
-            drawIfVisible(g, "No items yet.", px + 12, cy + 2, C_DIM(), clipTop, clipBottom);
+            drawIfVisible(g, Component.translatable("screen.phantasia.placement_editor.no_items").getString(), px + 12,
+                    cy + 2, C_DIM(), clipTop, clipBottom);
             cy += 14;
         }
 
@@ -339,7 +344,8 @@ public class PhantasiaPlacementEditorScreen extends PhantasiaScreen {
         if (inClip(cy, clipTop, clipBottom))
             g.fill(px + 4, cy - 2, px + pw - 4, cy + 1, 0x22FFFFFF);
         cy += 6;
-        drawIfVisible(g, "+ Add Item", px + 8, cy, C_ACCENT(), clipTop, clipBottom);
+        drawIfVisible(g, Component.translatable("screen.phantasia.placement_editor.section_add_item").getString(),
+                px + 8, cy, C_ACCENT(), clipTop, clipBottom);
         cy += 12;
 
         // Type selector for new item
@@ -432,44 +438,32 @@ public class PhantasiaPlacementEditorScreen extends PhantasiaScreen {
         }
         cy += 16;
 
-        // Description — opens terminal editor
+        // Description
         if (inClip(cy, clipTop, clipBottom)) {
-            String descLbl = Component.translatable("screen.phantasia.placement_editor.label_desc").getString();
-            g.drawString(font, descLbl, px + 8, cy + 2, C_DIM(), false);
-            int descBx = px + 8 + font.width(descLbl) + 4;
-            int descBw = pw - 20 - font.width(descLbl) - 4;
-            String descVal = addItemDescBox.getValue();
-            boolean descHov = isOver(mx, my, descBx, cy, descBw, 12);
-            g.fill(descBx, cy, descBx + descBw, cy + 12, descHov ? C_BTN_HOV() : C_BTN());
-            g.fill(descBx, cy, descBx + descBw, cy + 1, 0x22FFFFFF);
-            g.drawString(font, descVal.isEmpty() ? "✎  Description…" : trunc(descVal, descBw - 8),
-                    descBx + 4, cy + 2, descVal.isEmpty() ? C_DIM() : C_TEXT(), false);
-            if (descHov) pendingTooltip = "Click to edit item description";
-            btns.add(new Btn(descBx, cy, descBw, 12, () -> Minecraft.getInstance().setScreen(
-                    new PhantasiaTextInputScreen(this, "Item Description",
-                            "Displayed when the player inspects this item…",
-                            addItemDescBox.getValue(), 256, v -> addItemDescBox.setValue(v)))));
+            g.drawString(font, Component.translatable("screen.phantasia.placement_editor.label_desc").getString(),
+                    px + 8, cy + 2, C_DIM(), false);
+            place(addItemDescBox, px + 8 +
+                    font.width(Component.translatable("screen.phantasia.placement_editor.label_desc").getString()) + 4,
+                    cy,
+                    pw - 20 - font.width(
+                            Component.translatable("screen.phantasia.placement_editor.label_desc").getString()) - 4,
+                    12);
         }
         cy += 16;
 
-        // Microscene — opens scene picker
+        // Microscene ID
         if (inClip(cy, clipTop, clipBottom)) {
-            String sceneLbl = Component.translatable("screen.phantasia.placement_editor.label_scene").getString();
-            g.drawString(font, sceneLbl, px + 8, cy + 2, C_DIM(), false);
-            int sceneBx = px + 8 + font.width(sceneLbl) + 4;
-            int sceneBw = pw - 20 - font.width(sceneLbl) - 4;
-            String sceneVal = addItemMicrosceneBox.getValue();
-            boolean sceneHov = isOver(mx, my, sceneBx, cy, sceneBw, 12);
-            g.fill(sceneBx, cy, sceneBx + sceneBw, cy + 12, sceneHov ? C_BTN_HOV() : C_BTN());
-            g.fill(sceneBx, cy, sceneBx + sceneBw, cy + 1, 0x22FFFFFF);
-            g.drawString(font, sceneVal.isEmpty() ? "✎  phantasia:scene_id (optional)" : trunc(sceneVal, sceneBw - 8),
-                    sceneBx + 4, cy + 2, sceneVal.isEmpty() ? C_DIM() : C_ACCENT(), false);
-            if (sceneHov) pendingTooltip = "Click to pick a microscene to open when this item is clicked";
-            btns.add(new Btn(sceneBx, cy, sceneBw, 12, () -> {
-                java.util.List<String> ids = PhantasiaScenes.all().stream().map(s -> s.id).toList();
-                Minecraft.getInstance().setScreen(new PhantasiaGuideEditorScreen.RegistrySearchScreen(
-                        this, "Select Scene Link", ids, id -> addItemMicrosceneBox.setValue(id)));
-            }));
+            g.drawString(font, Component.translatable("screen.phantasia.placement_editor.label_scene").getString(),
+                    px + 8, cy + 2, C_DIM(), false);
+            place(addItemMicrosceneBox,
+                    px + 8 + font.width(
+                            Component.translatable("screen.phantasia.placement_editor.label_scene").getString()) + 4,
+                    cy,
+                    pw - 20 - font.width(
+                            Component.translatable("screen.phantasia.placement_editor.label_scene").getString()) - 4,
+                    12);
+            if (isOver(mx, my, px + 8, cy, pw - 16, 12))
+                pendingTooltip = "Optional microscene ID to open when the player clicks this item";
         }
         cy += 16;
 
@@ -482,7 +476,9 @@ public class PhantasiaPlacementEditorScreen extends PhantasiaScreen {
                 g.fill(px + 8, cy, px + 8 + addBtnW, cy + 1, C_GREEN());
                 pendingTooltip = "Add this item to the placement";
             }
-            g.drawCenteredString(font, "\u2713 Add Item", px + 8 + addBtnW / 2, cy + 3, addHov ? C_GREEN() : C_TEXT());
+            g.drawCenteredString(font,
+                    Component.translatable("screen.phantasia.placement_editor.btn_add_item").getString(),
+                    px + 8 + addBtnW / 2, cy + 3, addHov ? C_GREEN() : C_TEXT());
             btns.add(new Btn(px + 8, cy, addBtnW, 14, this::commitAddItem));
         }
         cy += 18;
@@ -687,45 +683,30 @@ public class PhantasiaPlacementEditorScreen extends PhantasiaScreen {
         }
         cy += 16;
 
-        // Description — opens terminal editor
+        // Description
         if (inClip(cy, clipTop, clipBottom)) {
-            String descLbl2 = Component.translatable("screen.phantasia.placement_editor.label_desc").getString();
-            g.drawString(font, descLbl2, px + 8, cy + 2, C_DIM(), false);
-            int descBx2 = px + 8 + font.width(descLbl2) + 4;
-            int descBw2 = pw - 20 - font.width(descLbl2) - 4;
-            String descVal2 = editItemDescBox.getValue();
-            boolean descHov2 = isOver(mx, my, descBx2, cy, descBw2, 12);
-            g.fill(descBx2, cy, descBx2 + descBw2, cy + 12, descHov2 ? C_BTN_HOV() : C_BTN());
-            g.fill(descBx2, cy, descBx2 + descBw2, cy + 1, 0x22FFFFFF);
-            g.drawString(font, descVal2.isEmpty() ? "✎  Description…" : trunc(descVal2, descBw2 - 8),
-                    descBx2 + 4, cy + 2, descVal2.isEmpty() ? C_DIM() : C_TEXT(), false);
-            if (descHov2) pendingTooltip = "Click to edit item description";
-            btns.add(new Btn(descBx2, cy, descBw2, 12, () -> Minecraft.getInstance().setScreen(
-                    new PhantasiaTextInputScreen(this, "Item Description",
-                            "Displayed when the player inspects this item…",
-                            editItemDescBox.getValue(), 256, v -> editItemDescBox.setValue(v)))));
+            g.drawString(font, Component.translatable("screen.phantasia.placement_editor.label_desc").getString(),
+                    px + 8, cy + 2, C_DIM(), false);
+            place(editItemDescBox, px + 8 +
+                    font.width(Component.translatable("screen.phantasia.placement_editor.label_desc").getString()) + 4,
+                    cy,
+                    pw - 20 - font.width(
+                            Component.translatable("screen.phantasia.placement_editor.label_desc").getString()) - 4,
+                    12);
         }
         cy += 16;
 
-        // Microscene — opens scene picker
+        // Microscene ID
         if (inClip(cy, clipTop, clipBottom)) {
-            String sceneLbl2 = Component.translatable("screen.phantasia.placement_editor.label_scene").getString();
-            g.drawString(font, sceneLbl2, px + 8, cy + 2, C_DIM(), false);
-            int sceneBx2 = px + 8 + font.width(sceneLbl2) + 4;
-            int sceneBw2 = pw - 20 - font.width(sceneLbl2) - 4;
-            String sceneVal2 = editItemMicrosceneBox.getValue();
-            boolean sceneHov2 = isOver(mx, my, sceneBx2, cy, sceneBw2, 12);
-            g.fill(sceneBx2, cy, sceneBx2 + sceneBw2, cy + 12, sceneHov2 ? C_BTN_HOV() : C_BTN());
-            g.fill(sceneBx2, cy, sceneBx2 + sceneBw2, cy + 1, 0x22FFFFFF);
-            g.drawString(font,
-                    sceneVal2.isEmpty() ? "✎  phantasia:scene_id (optional)" : trunc(sceneVal2, sceneBw2 - 8),
-                    sceneBx2 + 4, cy + 2, sceneVal2.isEmpty() ? C_DIM() : C_ACCENT(), false);
-            if (sceneHov2) pendingTooltip = "Click to pick a microscene to open when this item is clicked";
-            btns.add(new Btn(sceneBx2, cy, sceneBw2, 12, () -> {
-                java.util.List<String> ids2 = PhantasiaScenes.all().stream().map(s -> s.id).toList();
-                Minecraft.getInstance().setScreen(new PhantasiaGuideEditorScreen.RegistrySearchScreen(
-                        this, "Select Scene Link", ids2, id -> editItemMicrosceneBox.setValue(id)));
-            }));
+            g.drawString(font, Component.translatable("screen.phantasia.placement_editor.label_scene").getString(),
+                    px + 8, cy + 2, C_DIM(), false);
+            place(editItemMicrosceneBox,
+                    px + 8 + font.width(
+                            Component.translatable("screen.phantasia.placement_editor.label_scene").getString()) + 4,
+                    cy,
+                    pw - 20 - font.width(
+                            Component.translatable("screen.phantasia.placement_editor.label_scene").getString()) - 4,
+                    12);
         }
         cy += 16;
 
@@ -738,7 +719,9 @@ public class PhantasiaPlacementEditorScreen extends PhantasiaScreen {
                 g.fill(px + 8, cy, px + 8 + applyW, cy + 1, C_ACCENT());
                 pendingTooltip = "Save changes to this item";
             }
-            g.drawCenteredString(font, "\u2713 Apply & close", px + 8 + applyW / 2, cy + 2,
+            g.drawCenteredString(font,
+                    Component.translatable("screen.phantasia.placement_editor.btn_apply_close").getString(),
+                    px + 8 + applyW / 2, cy + 2,
                     applyHov ? C_ACCENT() : C_TEXT());
             btns.add(new Btn(px + 8, cy, applyW, 12, () -> {
                 // Checkpoint before any mutation so undo captures the pre-edit state
@@ -778,7 +761,6 @@ public class PhantasiaPlacementEditorScreen extends PhantasiaScreen {
         pd().machine = id;
         parent.dirty = true;
         parent.rebuildWorld();
-        parent.save();
     }
 
     private void applyOffset() {

@@ -1209,7 +1209,9 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
             int panelY = this.height - BOTTOM_H - panelH - 4;
             g.fill(panelX, panelY, panelX + panelW, panelY + panelH, C_PANEL());
             g.fill(panelX, panelY, panelX + panelW, panelY + 1, C_WARN());
-            g.drawString(font, "\u26A0 Global Mistakes", panelX + 5, panelY + 4, C_WARN(), false);
+            g.drawString(font,
+                    Component.translatable("screen.phantasia.script_editor.section_global_mistakes").getString(),
+                    panelX + 5, panelY + 4, C_WARN(), false);
             int ry = panelY + 16;
             for (int i = 0; i < gm.size(); i++) {
                 String w = gm.get(i);
@@ -1230,7 +1232,9 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
             boolean addHov = isOver(mx, my, panelX + 2, ry + 1, panelW - 4, ROW - 2);
             g.fill(panelX + 2, ry + 1, panelX + panelW - 2, ry + ROW - 1, addHov ? C_BTN_HOV() : C_BTN());
             g.fill(panelX + 2, ry + 1, panelX + panelW - 2, ry + 2, C_WARN());
-            g.drawCenteredString(font, "+ Add Global Mistake", panelX + panelW / 2, ry + 3,
+            g.drawCenteredString(font,
+                    Component.translatable("screen.phantasia.script_editor.btn_add_global_mistake").getString(),
+                    panelX + panelW / 2, ry + 3,
                     addHov ? C_ACCENT() : C_DIM());
             btns.add(new Btn(panelX + 2, ry + 1, panelW - 4, ROW - 2, this::openGlobalMistakeInput));
         }
@@ -1322,23 +1326,26 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         int x = panelX + 4;
 
         // Item field
-        g.drawString(font, "Item:", x, row1Y + 2, C_DIM(), false);
-        x += font.width("Item:") + 4;
+        g.drawString(font, Component.translatable("screen.phantasia.script_editor.label_item").getString(), x,
+                row1Y + 2, C_DIM(), false);
+        x += font.width(Component.translatable("screen.phantasia.script_editor.label_item").getString()) + 4;
         placeBox(wiItemBox, x, row1Y, panelW - 200, 12);
         x += panelW - 200 + 8;
 
         // Source field
-        g.drawString(font, "Source:", x, row1Y + 2, C_DIM(), false);
-        x += font.width("Source:") + 4;
+        g.drawString(font, Component.translatable("screen.phantasia.script_editor.label_source").getString(), x,
+                row1Y + 2, C_DIM(), false);
+        x += font.width(Component.translatable("screen.phantasia.script_editor.label_source").getString()) + 4;
         placeBox(wiSourceBox, x, row1Y, 54, 12);
         x += 62;
 
         // Confirm button
-        int confirmW = font.width("✓ Confirm") + 12;
+        int confirmW = font.width(Component.translatable("ui.phantasia.btn_confirm").getString()) + 12;
         boolean confHov = isOver(mx, my, x, row1Y, confirmW, 13);
         g.fill(x, row1Y, x + confirmW, row1Y + 13, confHov ? C_BTN_HOV() : C_GREEN());
         if (confHov) g.fill(x, row1Y, x + confirmW, row1Y + 1, C_ACCENT());
-        g.drawString(font, "✓ Confirm", x + 6, row1Y + 2, confHov ? C_ACCENT() : C_TEXT(), false);
+        g.drawString(font, Component.translatable("ui.phantasia.btn_confirm").getString(), x + 6, row1Y + 2,
+                confHov ? C_ACCENT() : C_TEXT(), false);
         btns.add(new Btn(x, row1Y, confirmW, 13, this::confirmWorldItemEntry));
         x += confirmW + 4;
 
@@ -1347,21 +1354,23 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         boolean hasEntry = wiBlock != null && entries.stream().anyMatch(
                 wi -> wi.x == wiBlock.getX() && wi.y == wiBlock.getY() && wi.z == wiBlock.getZ());
         if (hasEntry) {
-            int remW = font.width("✕ Remove") + 12;
+            int remW = font.width(Component.translatable("ui.phantasia.btn_remove").getString()) + 12;
             boolean remHov = isOver(mx, my, x, row1Y, remW, 13);
             g.fill(x, row1Y, x + remW, row1Y + 13, remHov ? C_BTN_HOV() : C_BTN());
-            g.drawString(font, "✕ Remove", x + 6, row1Y + 2, remHov ? C_RED() : C_DIM(), false);
+            g.drawString(font, Component.translatable("ui.phantasia.btn_remove").getString(), x + 6, row1Y + 2,
+                    remHov ? C_RED() : C_DIM(), false);
             btns.add(new Btn(x, row1Y, remW, 13, this::removeWorldItemEntry));
         }
 
         // Row 2: hint
         int row2Y = panelY + 30;
-        g.drawString(font, "Leave Item blank to only set source. Leave Source blank to only set item. [Esc] deselects.",
+        g.drawString(font, Component.translatable("screen.phantasia.script_editor.hint_item_blank").getString(),
                 panelX + 4, row2Y + 2, C_DIM(), false);
 
         // recipeId conflict note
         if (data.getRecipeId() != null && !data.getRecipeId().isBlank() && hasEntry) {
-            g.drawString(font, "⚠ recipeId is set — this entry overrides recipe-placed items at this position",
+            g.drawString(font,
+                    Component.translatable("screen.phantasia.script_editor.warn_recipe_override").getString(),
                     panelX + 4, row2Y + 14, 0xFFFFAA44, false);
         }
     }

@@ -130,7 +130,10 @@ public class PhantasiaBlockFilterScreen extends Screen {
         // Header
         g.fill(0, 0, this.width, 22, C_PANEL());
         g.fill(0, 21, this.width, 22, C_ACCENT());
-        g.drawString(font, "Block Filter — " + pattern.shoppingList.size() + " block types", 8, 7, C_ACCENT(), false);
+        g.drawString(font,
+                String.format(Component.translatable("screen.phantasia.block_filter.title_count").getString(),
+                        pattern.shoppingList.size()),
+                8, 7, C_ACCENT(), false);
 
         renderTabBar(g, mx, my);
 
@@ -164,9 +167,10 @@ public class PhantasiaBlockFilterScreen extends Screen {
 
     private void renderFilterTab(GuiGraphics g, int mx, int my) {
         int y = 50;
-        int bw = Math.min(200, this.width - 20), x = (this.width - bw) / 2;
+        int bw = 200, x = (this.width - bw) / 2;
 
-        g.drawCenteredString(font, "Select which blocks to highlight", this.width / 2, y, C_DIM());
+        g.drawCenteredString(font, Component.translatable("screen.phantasia.block_filter.hint_select").getString(),
+                this.width / 2, y, C_DIM());
         y += 18;
 
         PhantasiaSceneScreen.ViewFilter[] vfs = PhantasiaSceneScreen.ViewFilter.values();
@@ -204,7 +208,8 @@ public class PhantasiaBlockFilterScreen extends Screen {
 
         // Heatmap tiers
         if (!script.getHeatmapTiers().isEmpty()) {
-            g.drawString(font, "Heatmap Layers:", x + 6, y, C_DIM(), false);
+            g.drawString(font, Component.translatable("screen.phantasia.block_filter.label_heatmap").getString(), x + 6,
+                    y, C_DIM(), false);
             y += 12;
             int sel = parent instanceof PhantasiaSceneScreen pss ? pss.selectedTierIndex : -1;
             for (int i = 0; i < script.getHeatmapTiers().size(); i++) {
@@ -276,7 +281,7 @@ public class PhantasiaBlockFilterScreen extends Screen {
         int y = 55;
 
         if (inspectedWorldPos == null) {
-            g.drawCenteredString(font, "Click a block in the Shopping tab to inspect it.",
+            g.drawCenteredString(font, Component.translatable("screen.phantasia.block_filter.hint_inspect").getString(),
                     this.width / 2, y + 20, C_DIM());
             return;
         }
@@ -289,7 +294,8 @@ public class PhantasiaBlockFilterScreen extends Screen {
         } catch (Exception ignored) {}
 
         if (state == null || state.isAir()) {
-            g.drawCenteredString(font, "No block at this position.", this.width / 2, y + 20, C_DIM());
+            g.drawCenteredString(font, Component.translatable("screen.phantasia.block_filter.msg_no_block").getString(),
+                    this.width / 2, y + 20, C_DIM());
             return;
         }
 
@@ -323,7 +329,8 @@ public class PhantasiaBlockFilterScreen extends Screen {
         }
 
         y += 16;
-        g.drawString(font, "COORDINATES", leftCol, y, C_ACCENT(), false);
+        g.drawString(font, Component.translatable("screen.phantasia.block_filter.header_coords").getString(), leftCol,
+                y, C_ACCENT(), false);
         y += 12;
         g.drawString(font, "X: " + inspectedWorldPos.getX(), leftCol, y, C_TEXT(), false);
         g.drawString(font, "Y: " + inspectedWorldPos.getY(), leftCol + 40, y, C_TEXT(), false);
@@ -331,23 +338,28 @@ public class PhantasiaBlockFilterScreen extends Screen {
 
         // --- RIGHT COLUMN: ATTRIBUTES, TOOLTIPS, & EMI ACTION ---
         y = 60;
-        g.drawString(font, "SPECIFICATIONS & UTILITY", rightCol, y - 15, C_ACCENT(), false);
+        g.drawString(font, Component.translatable("screen.phantasia.block_filter.header_specs").getString(), rightCol,
+                y - 15, C_ACCENT(), false);
 
         // Dynamic Tag/Role Badges
         if (pattern.hasBlockEntity(inspectedWorldPos)) {
-            g.drawString(font, "⚡ Has Block Entity", rightCol, y, C_WARN(), false);
+            g.drawString(font, Component.translatable("screen.phantasia.block_filter.feat_block_entity").getString(),
+                    rightCol, y, C_WARN(), false);
             y += 12;
         }
         if (inspectedWorldPos.equals(pattern.controllerWorldPos)) {
-            g.drawString(font, "★ Multiblock Controller", rightCol, y, C_ACCENT(), false);
+            g.drawString(font, Component.translatable("screen.phantasia.block_filter.feat_controller").getString(),
+                    rightCol, y, C_ACCENT(), false);
             y += 12;
         }
         if (hatchBusSet.contains(inspectedWorldPos)) {
-            g.drawString(font, "\uD83D\uDD17 Component: Hatch / Bus", rightCol, y, C_GREEN(), false);
+            g.drawString(font, Component.translatable("screen.phantasia.block_filter.feat_hatch").getString(), rightCol,
+                    y, C_GREEN(), false);
             y += 12;
         }
         if (energySet.contains(inspectedWorldPos)) {
-            g.drawString(font, "\u26A1 System: Energy I/O", rightCol, y, C_WARN(), false);
+            g.drawString(font, Component.translatable("screen.phantasia.block_filter.feat_energy").getString(),
+                    rightCol, y, C_WARN(), false);
             y += 12;
         }
 
@@ -373,7 +385,8 @@ public class PhantasiaBlockFilterScreen extends Screen {
         if (!state.getProperties().isEmpty()) {
             g.fill(rightCol, y, rightCol + 120, y + 1, 0x22FFFFFF);
             y += 8;
-            g.drawString(font, "BLOCKSTATE PROPERTIES", rightCol, y, C_DIM(), false);
+            g.drawString(font, Component.translatable("screen.phantasia.block_filter.header_blockstate").getString(),
+                    rightCol, y, C_DIM(), false);
             y += 12;
 
             for (Property<?> prop : state.getProperties()) {
@@ -428,7 +441,7 @@ public class PhantasiaBlockFilterScreen extends Screen {
 
         switch (tab) {
             case FILTER -> {
-                int fw = Math.min(200, this.width - 20), fx = (this.width - fw) / 2;
+                int fw = 200, fx = (this.width - fw) / 2;
                 int y = 68;
 
                 PhantasiaSceneScreen.ViewFilter[] vfs = PhantasiaSceneScreen.ViewFilter.values();

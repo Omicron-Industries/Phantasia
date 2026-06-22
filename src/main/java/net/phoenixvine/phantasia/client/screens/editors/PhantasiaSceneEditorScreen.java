@@ -826,21 +826,24 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         int row1Y = panelY + 14;
         int x = panelX + 4;
 
-        g.drawString(font, "Item:", x, row1Y + 2, C_DIM(), false);
-        x += font.width("Item:") + 4;
+        g.drawString(font, Component.translatable("screen.phantasia.scene_editor.label_item").getString(), x, row1Y + 2,
+                C_DIM(), false);
+        x += font.width(Component.translatable("screen.phantasia.scene_editor.label_item").getString()) + 4;
         placeBox(wiItemBox, x, row1Y, 200, 12);
         x += 208;
 
-        g.drawString(font, "Source:", x, row1Y + 2, C_DIM(), false);
-        x += font.width("Source:") + 4;
+        g.drawString(font, Component.translatable("screen.phantasia.scene_editor.label_source").getString(), x,
+                row1Y + 2, C_DIM(), false);
+        x += font.width(Component.translatable("screen.phantasia.scene_editor.label_source").getString()) + 4;
         placeBox(wiSourceBox, x, row1Y, 54, 12);
         x += 62;
 
-        int confirmW = font.width("✓ Confirm") + 12;
+        int confirmW = font.width(Component.translatable("ui.phantasia.btn_confirm").getString()) + 12;
         boolean confHov = isOver(mx, my, x, row1Y, confirmW, 13);
         g.fill(x, row1Y, x + confirmW, row1Y + 13, confHov ? C_BTN_HOV() : C_GREEN());
         if (confHov) g.fill(x, row1Y, x + confirmW, row1Y + 1, C_ACCENT());
-        g.drawString(font, "✓ Confirm", x + 6, row1Y + 2, confHov ? C_ACCENT() : C_TEXT(), false);
+        g.drawString(font, Component.translatable("ui.phantasia.btn_confirm").getString(), x + 6, row1Y + 2,
+                confHov ? C_ACCENT() : C_TEXT(), false);
         btns.add(new Btn(x, row1Y, confirmW, 13, this::confirmWorldItemEntry));
         x += confirmW + 4;
 
@@ -848,15 +851,16 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         boolean hasEntry = ov != null && wiBlock != null && ov.worldItems.stream().anyMatch(
                 wi -> wi.x == wiBlock.getX() && wi.y == wiBlock.getY() && wi.z == wiBlock.getZ());
         if (hasEntry) {
-            int remW = font.width("✕ Remove") + 12;
+            int remW = font.width(Component.translatable("ui.phantasia.btn_remove").getString()) + 12;
             boolean remHov = isOver(mx, my, x, row1Y, remW, 13);
             g.fill(x, row1Y, x + remW, row1Y + 13, remHov ? C_BTN_HOV() : C_BTN());
-            g.drawString(font, "✕ Remove", x + 6, row1Y + 2, remHov ? C_RED() : C_DIM(), false);
+            g.drawString(font, Component.translatable("ui.phantasia.btn_remove").getString(), x + 6, row1Y + 2,
+                    remHov ? C_RED() : C_DIM(), false);
             btns.add(new Btn(x, row1Y, remW, 13, this::removeWorldItemEntry));
         }
 
         int row2Y = panelY + 30;
-        g.drawString(font, "Leave Item blank to only set source. Leave Source blank to only set item. [Esc] deselects.",
+        g.drawString(font, Component.translatable("screen.phantasia.scene_editor.hint_item_blank").getString(),
                 panelX + 4, row2Y + 2, C_DIM(), false);
     }
 
@@ -1019,7 +1023,9 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         int tiY = py + 48;
         g.fill(px + 4, tiY, px + pw - 4, tiY + 1, 0x22FFFFFF);
         tiY += 4;
-        g.drawString(font, "Tooltip Items (" + (data.tooltipItems != null ? data.tooltipItems.size() : 0) + "):",
+        g.drawString(font,
+                String.format(Component.translatable("screen.phantasia.scene_editor.section_tooltip_items").getString(),
+                        data.tooltipItems != null ? data.tooltipItems.size() : 0),
                 px + 6, tiY, C_DIM(), false);
         tiY += font.lineHeight + 2;
 
@@ -1044,13 +1050,14 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         }
 
         // Add tooltip item input row
-        int addTiW = font.width("+ Add") + 8;
+        int addTiW = font.width(Component.translatable("ui.phantasia.btn_add").getString()) + 8;
         placeBox(tooltipItemBox, px + 4, tiY - 1, pw - addTiW - 14, 12);
         tooltipItemBox.visible = true;
         tooltipItemBox.active = true;
         boolean addTiHov = isOver(mx, my, px + pw - addTiW - 6, tiY - 1, addTiW, 12);
         g.fill(px + pw - addTiW - 6, tiY - 1, px + pw - 6, tiY + 11, addTiHov ? C_BTN_HOV() : C_BTN());
-        g.drawString(font, "+ Add", px + pw - addTiW - 3, tiY + 1, addTiHov ? C_ACCENT() : C_DIM(), false);
+        g.drawString(font, Component.translatable("ui.phantasia.btn_add").getString(), px + pw - addTiW - 3, tiY + 1,
+                addTiHov ? C_ACCENT() : C_DIM(), false);
         btns.add(new Btn(px + pw - addTiW - 6, tiY - 1, addTiW, 12, () -> {
             String v = tooltipItemBox.getValue().trim();
             if (!v.isBlank()) {

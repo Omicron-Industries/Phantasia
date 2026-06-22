@@ -1624,7 +1624,8 @@ public class PhantasiaSceneScreen extends Screen {
 
         int bW = 20, lW = pw - 60, lX = px + 30;
 
-        g.drawString(font, "Show:", px + 10, y, C_DIM(), false);
+        g.drawString(font, Component.translatable("screen.phantasia.scene.label_show").getString(), px + 10, y, C_DIM(),
+                false);
         y += 12;
         ViewFilter[] vfs = ViewFilter.values();
         int fw = (pw - 25) / 2;
@@ -1645,7 +1646,8 @@ public class PhantasiaSceneScreen extends Screen {
 
         // ── Layer navigation (only shown when NOT in build mode) ──────────────
         if (!buildOrderMode && pattern != null) {
-            g.drawString(font, "Layer:", px + 10, y + 4, C_DIM(), false);
+            g.drawString(font, Component.translatable("screen.phantasia.scene.label_layer").getString(), px + 10, y + 4,
+                    C_DIM(), false);
             String layerLabel = manualLayer >= 0 ? "Y=" + manualLayer : "All";
             // ◀ button
             regBtn(g, mx, my, px + 10, y + 14, bW, 14, "◀",
@@ -1671,7 +1673,8 @@ public class PhantasiaSceneScreen extends Screen {
         // ── Build-order step buttons (only shown when IN build mode) ──────────
         if (buildOrderMode && pattern != null) {
             int totalGroups = pattern.buildOrder.size();
-            g.drawString(font, "Build Step:", px + 10, y + 4, C_DIM(), false);
+            g.drawString(font, Component.translatable("screen.phantasia.scene.label_build_step").getString(), px + 10,
+                    y + 4, C_DIM(), false);
             String stepLabel = (buildOrderGroup + 1) + " / " + totalGroups;
             regBtn(g, mx, my, px + 10, y + 14, bW, 14, "◀",
                     () -> buildOrderStep(-1));
@@ -1719,8 +1722,9 @@ public class PhantasiaSceneScreen extends Screen {
             int teal = 0xFF4DB8B8;
             int tealDim = 0xFF1A3A3A;
             // Label
-            g.drawString(font, "Size:", px + 10, y + 4, teal, false);
-            int lblW = font.width("Size:") + 4;
+            g.drawString(font, Component.translatable("screen.phantasia.scene.label_size").getString(), px + 10, y + 4,
+                    teal, false);
+            int lblW = font.width(Component.translatable("screen.phantasia.scene.label_size").getString()) + 4;
             // "−" button
             int minX = px + 10 + lblW;
             int btnH = 14;
