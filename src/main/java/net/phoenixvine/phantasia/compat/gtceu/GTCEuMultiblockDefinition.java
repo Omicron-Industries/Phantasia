@@ -8,8 +8,6 @@ import com.gregtechceu.gtceu.api.machine.multiblock.PartAbility;
 import com.gregtechceu.gtceu.api.machine.multiblock.WorkableMultiblockMachine;
 import com.gregtechceu.gtceu.api.machine.trait.RecipeLogic;
 
-import com.lowdragmc.lowdraglib.utils.BlockInfo;
-
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
@@ -21,6 +19,7 @@ import net.phoenixvine.phantasia.common.data.script.PhantasiaScriptData;
 import net.phoenixvine.phantasia.common.data.variant.PhantasiaVariantGroup;
 import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockDefinition;
 import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockShape;
+import net.phoenixvine.phantasia.utils.PhantasiaBlockInfo;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import org.slf4j.Logger;
@@ -93,7 +92,7 @@ public class GTCEuMultiblockDefinition implements IPhantasiaMultiblockDefinition
      */
     @Override
     public void onShapeLoaded(PhantasiaTrackedDummyWorld level, BlockPos origin,
-                              Map<BlockPos, BlockInfo> blockMap,
+                              Map<BlockPos, PhantasiaBlockInfo> blockMap,
                               Map<BlockPos, BlockPos> localToWorld) {
         List<IMultiPart> parts = new ArrayList<>();
         MultiblockControllerMachine controller = null;
@@ -196,8 +195,8 @@ public class GTCEuMultiblockDefinition implements IPhantasiaMultiblockDefinition
         // Signature → list of local positions that share the same predicate candidate set.
         // Using LinkedHashMap for deterministic iteration order.
         Map<String, List<BlockPos>> sigToLocal = new LinkedHashMap<>();
-        // Signature → ordered list of candidate BlockInfo[] per SimplePredicate component.
-        Map<String, List<BlockInfo[]>> sigToCandidates = new LinkedHashMap<>();
+        // Signature → ordered list of candidate PhantasiaBlockInfo[] per SimplePredicate component.
+        Map<String, List<PhantasiaBlockInfo[]>> sigToCandidates = new LinkedHashMap<>();
 
         for (int x = 0; x < grid.length; x++) {
             if (grid[x] == null) continue;
@@ -208,16 +207,26 @@ public class GTCEuMultiblockDefinition implements IPhantasiaMultiblockDefinition
                     if (tp == null || tp.common == null || tp.common.size() < 2) continue;
 
                     // Collect candidate blocks per component; skip if any has no candidates.
-                    List<BlockInfo[]> componentCandidates = new ArrayList<>();
+                    List<PhantasiaBlockInfo[]> componentCandidates = new ArrayList<>();
                     boolean valid = true;
                     for (var sp : tp.common) {
                         if (sp.candidates == null) {
                             valid = false;
                             break;
                         }
-                        BlockInfo[] cands;
+                        PhantasiaBlockInfo[] cands;
                         try {
-                            cands = sp.candidates.get();
+                            com.lowdragmc.lowdraglib.utils.BlockInfo[] rawCands = sp.candidates.get();
+                            if (rawCands == null) {
+                                valid = false;
+                                break;
+                            }
+                            cands = new PhantasiaBlockInfo[rawCands.length];
+                            for (int ci = 0; ci < rawCands.length; ci++) {
+                                cands[ci] = rawCands[ci] != null ?
+                                        PhantasiaBlockInfo.fromBlockState(rawCands[ci].getBlockState()) :
+                                        PhantasiaBlockInfo.EMPTY;
+                            }
                         } catch (Exception ex) {
                             valid = false;
                             break;
@@ -232,9 +241,9 @@ public class GTCEuMultiblockDefinition implements IPhantasiaMultiblockDefinition
 
                     // Build a deterministic signature from sorted block IDs across all components.
                     List<String> sigParts = new ArrayList<>();
-                    for (BlockInfo[] cands : componentCandidates) {
+                    for (PhantasiaBlockInfo[] cands : componentCandidates) {
                         List<String> ids = new ArrayList<>();
-                        for (BlockInfo bi : cands) {
+                        for (PhantasiaBlockInfo bi : cands) {
                             if (bi == null || bi.getBlockState() == null) continue;
                             var rl = net.minecraftforge.registries.ForgeRegistries.BLOCKS
                                     .getKey(bi.getBlockState().getBlock());
@@ -261,14 +270,14 @@ public class GTCEuMultiblockDefinition implements IPhantasiaMultiblockDefinition
             String groupId = machinePrefix + "::predicate_" + Integer.toUnsignedString(sig.hashCode(), 16);
             if (excludeIds.contains(groupId)) continue;
 
-            List<BlockInfo[]> componentCandidates = sigToCandidates.get(sig);
+            List<PhantasiaBlockInfo[]> componentCandidates = sigToCandidates.get(sig);
             List<BlockState> options = new ArrayList<>();
             List<String> labels = new ArrayList<>();
 
             // Use the first candidate of each component as the representative block state.
-            for (BlockInfo[] cands : componentCandidates) {
+            for (PhantasiaBlockInfo[] cands : componentCandidates) {
                 BlockState rep = null;
-                for (BlockInfo bi : cands) {
+                for (PhantasiaBlockInfo bi : cands) {
                     if (bi != null && bi.getBlockState() != null && !bi.getBlockState().isAir()) {
                         rep = bi.getBlockState();
                         break;
@@ -294,7 +303,7 @@ public class GTCEuMultiblockDefinition implements IPhantasiaMultiblockDefinition
             for (BlockPos local : entry.getValue()) {
                 BlockPos world = pattern.localToWorld.get(local);
                 if (world == null) continue;
-                BlockInfo info = pattern.blockMap.get(world);
+                PhantasiaBlockInfo info = pattern.blockMap.get(world);
                 if (info == null || info.getBlockState() == null) {
                     posMap.put(world, 0);
                     continue;
@@ -304,7 +313,7 @@ public class GTCEuMultiblockDefinition implements IPhantasiaMultiblockDefinition
                 int idx = 0;
                 outer:
                 for (int ci = 0; ci < componentCandidates.size(); ci++) {
-                    for (BlockInfo bi : componentCandidates.get(ci)) {
+                    for (PhantasiaBlockInfo bi : componentCandidates.get(ci)) {
                         if (bi != null && bi.getBlockState() != null && bi.getBlockState().getBlock() == loaded) {
                             idx = ci;
                             break outer;

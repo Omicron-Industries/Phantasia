@@ -4,11 +4,10 @@ import com.gregtechceu.gtceu.api.machine.multiblock.MultiblockControllerMachine;
 import com.gregtechceu.gtceu.api.pattern.MultiblockState;
 import com.gregtechceu.gtceu.api.pattern.MultiblockWorldSavedData;
 
-import com.lowdragmc.lowdraglib.utils.BlockInfo;
-
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.state.BlockState;
+import net.phoenixvine.phantasia.utils.PhantasiaBlockInfo;
 
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
@@ -49,7 +48,7 @@ public class PatternState {
     protected CheckState state = CheckState.UNINITIALIZED;
 
     @Getter
-    protected final Long2ObjectMap<BlockInfo> cache = new Long2ObjectOpenHashMap<>();
+    protected final Long2ObjectMap<PhantasiaBlockInfo> cache = new Long2ObjectOpenHashMap<>();
 
     public void setController(MultiblockControllerMachine controller, BlockPos controllerPos) {
         this.controller = controller;

@@ -1,9 +1,8 @@
 package net.phoenixvine.phantasia.common.multiblock;
 
-import com.lowdragmc.lowdraglib.utils.BlockInfo;
-
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.state.BlockState;
+import net.phoenixvine.phantasia.utils.PhantasiaBlockInfo;
 
 import java.util.List;
 import java.util.Optional;
@@ -28,11 +27,11 @@ public interface IPhantasiaMultiblockProvider {
     Optional<IPhantasiaMultiblockDefinition> resolve(String machineId);
 
     /**
-     * Resolve an id string to a {@link BlockInfo} for single-block placements.
+     * Resolve an id string to a {@link PhantasiaBlockInfo} for single-block placements.
      * Falls through to the Forge block registry automatically in
      * {@link PhantasiaMultiblockRegistry}.
      */
-    Optional<BlockInfo> resolveBlock(String id);
+    Optional<PhantasiaBlockInfo> resolveBlock(String id);
 
     /** All multiblock definitions this provider exposes (used to populate PHANTASIA_SCENES). */
     List<IPhantasiaMultiblockDefinition> getAllDefinitions();

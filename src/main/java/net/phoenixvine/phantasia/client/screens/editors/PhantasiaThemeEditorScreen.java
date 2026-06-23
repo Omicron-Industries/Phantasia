@@ -25,6 +25,7 @@ public class PhantasiaThemeEditorScreen extends Screen {
     private EditBox nameInput;
     private EditBox baseplateBox;
     private int scrollOffset = 0;
+    private int lastPreviewPTop = 28; // synced from renderPreviewArea so mouseClicked uses the same Y layout
 
     // ── Staging Area for Deferred Deletions ──
     private final List<String> pendingDeletions = new ArrayList<>();
@@ -154,7 +155,7 @@ public class PhantasiaThemeEditorScreen extends Screen {
     private void addSettingField(String label, PhantasiaTheme.ThemeColor target, int x, int y, int boxWidth) {
         EditBox box = new EditBox(this.font, x + 65, y, boxWidth, 16, Component.literal(label));
         box.setMaxLength(16);
-        box.setValue(target.hex);
+        box.setValue(target.getHex());
         box.setResponder(str -> {
             if (!isUndoing) {
                 pushUndoSnapshot();
@@ -180,18 +181,18 @@ public class PhantasiaThemeEditorScreen extends Screen {
         if (!themeId.isEmpty()) {
             PhantasiaTheme active = PhantasiaTheme.current();
             PhantasiaTheme newTheme = new PhantasiaTheme(
-                    getBoxValue("BG Color", active.bg.hex),
-                    getBoxValue("Panel Color", active.panel.hex),
-                    getBoxValue("Accent", active.accent.hex),
-                    getBoxValue("Btn Color", active.btn.hex),
-                    getBoxValue("Btn Hover", active.btnHov.hex),
-                    active.btnAct.hex,
-                    getBoxValue("Text Color", active.text.hex),
-                    getBoxValue("Dim Color", active.dim.hex),
-                    active.tlBg.hex,
-                    getBoxValue("Progress", active.prog.hex),
-                    active.warn.hex,
-                    getBoxValue("Highlight", active.hilight.hex),
+                    getBoxValue("BG Color", active.bg.getHex()),
+                    getBoxValue("Panel Color", active.panel.getHex()),
+                    getBoxValue("Accent", active.accent.getHex()),
+                    getBoxValue("Btn Color", active.btn.getHex()),
+                    getBoxValue("Btn Hover", active.btnHov.getHex()),
+                    active.btnAct.getHex(),
+                    getBoxValue("Text Color", active.text.getHex()),
+                    getBoxValue("Dim Color", active.dim.getHex()),
+                    active.tlBg.getHex(),
+                    getBoxValue("Progress", active.prog.getHex()),
+                    active.warn.getHex(),
+                    getBoxValue("Highlight", active.hilight.getHex()),
                     baseplateBox != null ? baseplateBox.getValue().trim() : active.baseplateBlock);
 
             // If user overwrites a theme they previously marked for deletion, drop it from staging
@@ -279,8 +280,16 @@ public class PhantasiaThemeEditorScreen extends Screen {
     }
 
     private ThemeSnapshot createSnapshotInline(PhantasiaTheme theme, String currentName) {
-        return new ThemeSnapshot(theme.bg.hex, theme.panel.hex, theme.accent.hex, theme.btn.hex, theme.btnHov.hex,
-                theme.text.hex, theme.dim.hex, theme.prog.hex, theme.hilight.hex, theme.baseplateBlock, currentName);
+        return new ThemeSnapshot(theme.bg.getHex(),
+                theme.panel.getHex(),
+                theme.accent.getHex(),
+                theme.btn.getHex(),
+                theme.btnHov.getHex(),
+                theme.text.getHex(),
+                theme.dim.getHex(),
+                theme.prog.getHex(),
+                theme.hilight.getHex(),
+                theme.baseplateBlock, currentName);
     }
 
     private void restoreSnapshot(ThemeSnapshot target) {
@@ -367,6 +376,7 @@ public class PhantasiaThemeEditorScreen extends Screen {
         }
 
         int pTop = Math.max(28, animY + 4);
+        lastPreviewPTop = pTop;
         int pHeight = (this.height > 360) ? 80 : 60;
         g.fill(15, pTop, leftW, pTop + pHeight, PhantasiaThemeUtils.C_PANEL());
         PhantasiaThemeUtils.drawBorderRect(g, 15, pTop, leftW - 15, pHeight, PhantasiaThemeUtils.C_BORDER());
@@ -442,7 +452,7 @@ public class PhantasiaThemeEditorScreen extends Screen {
             int sidebarWidth = Math.max(175, this.width / 4);
             int leftW = this.width - sidebarWidth - 10;
 
-            int pTop = 28;
+            int pTop = lastPreviewPTop;
             int pHeight = (this.height > 360) ? 80 : 60;
             int btnTitleY = pTop + pHeight + 10;
             int btnY = btnTitleY + 14;
@@ -500,7 +510,7 @@ public class PhantasiaThemeEditorScreen extends Screen {
         int sidebarWidth = Math.max(175, this.width / 4);
         if (mouseX < this.width - sidebarWidth - 5) {
             List<String> registryNames = getVisibleRegistryNames();
-            int pTop = 28;
+            int pTop = lastPreviewPTop;
             int pHeight = (this.height > 360) ? 80 : 60;
             int btnTitleY = pTop + pHeight + 10;
             int btnY = btnTitleY + 14;

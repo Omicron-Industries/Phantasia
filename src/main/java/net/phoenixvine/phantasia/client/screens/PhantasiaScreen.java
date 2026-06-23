@@ -197,6 +197,23 @@ public abstract class PhantasiaScreen extends Screen {
         g.drawString(font, text, tx + 10, y + 4, C_DIM(), false);
     }
 
+    public void drawBannerWrapped(GuiGraphics g, String text, int y, int accentColor) {
+        int maxLineW = Math.min(this.width - 40, 420);
+        var lines = font.split(net.minecraft.network.chat.Component.literal(text), maxLineW);
+        if (lines.isEmpty()) return;
+        int lineH = 11;
+        int innerW = 0;
+        for (var line : lines) innerW = Math.max(innerW, font.width(line));
+        int tw = innerW + 20;
+        int tx = (this.width - tw) / 2;
+        int totalH = lines.size() * lineH + 8;
+        g.fill(tx, y, tx + tw, y + totalH, 0xBB0C0C1A);
+        g.fill(tx, y, tx + tw, y + 1, accentColor);
+        for (int i = 0; i < lines.size(); i++) {
+            g.drawString(font, lines.get(i), tx + 10, y + 4 + i * lineH, C_DIM(), false);
+        }
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // Widget helpers
     // ─────────────────────────────────────────────────────────────────────────

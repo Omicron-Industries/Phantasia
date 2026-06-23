@@ -1,7 +1,5 @@
 package net.phoenixvine.phantasia.compat.arsnouveaucompat;
 
-import com.lowdragmc.lowdraglib.utils.BlockInfo;
-
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.core.BlockPos;
@@ -15,6 +13,7 @@ import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockDefinitio
 import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockShape;
 import net.phoenixvine.phantasia.common.multisetup.IPhantasiaMultiSetup;
 import net.phoenixvine.phantasia.common.multisetup.IPhantasiaSetupRecipe;
+import net.phoenixvine.phantasia.utils.PhantasiaBlockInfo;
 
 import com.hollingsworth.arsnouveau.common.block.tile.EnchantingApparatusTile;
 import com.hollingsworth.arsnouveau.common.block.tile.ImbuementTile;
@@ -87,7 +86,7 @@ public class ArsNouveauSetupDefinition implements IPhantasiaMultiblockDefinition
 
     @Override
     public void onShapeLoaded(PhantasiaTrackedDummyWorld level, BlockPos origin,
-                              Map<BlockPos, BlockInfo> blockMap,
+                              Map<BlockPos, PhantasiaBlockInfo> blockMap,
                               Map<BlockPos, BlockPos> localToWorld,
                               @Nullable net.phoenixvine.phantasia.common.data.script.PhantasiaScriptData script) {
         List<IPhantasiaSetupRecipe> recipes = setup.getRecipes();

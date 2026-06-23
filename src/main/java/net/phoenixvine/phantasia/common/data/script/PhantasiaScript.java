@@ -21,23 +21,24 @@ import javax.annotation.Nullable;
 public class PhantasiaScript {
 
     public record Step(
-                       int tickOffset,
-                       String caption,
-                       Predicate<BlockPos> filter,
-                       boolean working,
-                       int forceShape,
-                       int forceCoil,
-                       float yaw,
-                       float pitch,
-                       float zoom,
-                       boolean useCam,
-                       LerpType lerpType,
-                       int lerpTicks,
-                       @Nullable String fakeRecipeId,
-                       List<PhantasiaParticleEffect> particleEffects,
-                       @Nullable String hold,
-                       int layerCount,
-                       List<PhantasiaScriptData.WorldItemEntry> worldItems) {
+            int tickOffset,
+            String caption,
+            Predicate<BlockPos> filter,
+            boolean working,
+            int forceShape,
+            int forceCoil,
+            float yaw,
+            float pitch,
+            float zoom,
+            boolean useCam,
+            LerpType lerpType,
+            int lerpTicks,
+            @Nullable String fakeRecipeId,
+            List<PhantasiaParticleEffect> particleEffects,
+            @Nullable String hold,
+            int layerCount,
+            List<PhantasiaScriptData.WorldItemEntry> worldItems,
+            List<LocalWarning> mistakes) {
 
         public boolean hasCamera() {
             return useCam;
@@ -62,32 +63,37 @@ public class PhantasiaScript {
 
     private final List<Step> steps;
     private final int totalTicks;
-    private final List<LocalWarning> commonMistakes;
     private final List<String> globalMistakes;
     private final List<HeatmapTier> heatmapTiers;
     private final List<PhantasiaVariantGroup> variantGroups;
 
     private PhantasiaScript(PhantasiaScriptData data,
                             List<Step> steps,
-                            List<LocalWarning> commonMistakes,
                             List<String> globalMistakes,
                             List<HeatmapTier> heatmapTiers,
                             List<PhantasiaVariantGroup> variantGroups) {
         this.sourceData = data;
         this.steps = Collections.unmodifiableList(steps);
-        this.commonMistakes = Collections.unmodifiableList(commonMistakes);
         this.globalMistakes = Collections.unmodifiableList(globalMistakes);
         this.heatmapTiers = Collections.unmodifiableList(heatmapTiers);
         this.variantGroups = Collections.unmodifiableList(variantGroups);
         this.totalTicks = steps.isEmpty() ? 60 : steps.get(steps.size() - 1).tickOffset() + 60;
     }
 
-    public boolean hasMistakes() {
-        return !commonMistakes.isEmpty() || !globalMistakes.isEmpty();
+    /** True if the currently active step (at the given tick) has any local mistake markers. */
+    public boolean hasCommonMistakes(int currentTick) {
+        Step active = getActiveStep(currentTick);
+        return active != null && !active.mistakes().isEmpty();
     }
 
-    public boolean hasCommonMistakes() {
-        return !commonMistakes.isEmpty();
+    /** Local mistake markers for whichever step is active at the given tick. Empty if none. */
+    public List<LocalWarning> getCommonMistakes(int currentTick) {
+        Step active = getActiveStep(currentTick);
+        return active != null ? active.mistakes() : List.of();
+    }
+
+    public boolean hasMistakes(int currentTick) {
+        return hasCommonMistakes(currentTick) || !globalMistakes.isEmpty();
     }
 
     public boolean hasHeatmap() {
@@ -122,14 +128,10 @@ public class PhantasiaScript {
         for (PhantasiaScriptData.StepData sd : data.getSteps())
             steps.add(compileStep(sd));
 
-        List<LocalWarning> mistakes = new ArrayList<>();
-        for (PhantasiaScriptData.MistakeData md : data.getMistakes())
-            mistakes.add(new LocalWarning(new BlockPos(md.x, md.y, md.z), md.label, md.colorArgb()));
-
         List<String> globalMistakes = new ArrayList<>(data.getGlobalMistakes());
         List<HeatmapTier> tiers = new ArrayList<>();
         // Variant groups require a loaded pattern — compiled later via withVariants().
-        return new PhantasiaScript(data, steps, mistakes, globalMistakes, tiers,
+        return new PhantasiaScript(data, steps, globalMistakes, tiers,
                 Collections.emptyList());
     }
 
@@ -155,7 +157,7 @@ public class PhantasiaScript {
     public PhantasiaScript withVariants(IPhantasiaMultiblockDefinition definition,
                                         PhantasiaLoadedPattern pattern) {
         List<PhantasiaVariantGroup> groups = PhantasiaVariantGroup.compile(sourceData, definition, pattern);
-        return new PhantasiaScript(sourceData, steps, commonMistakes, globalMistakes,
+        return new PhantasiaScript(sourceData, steps, globalMistakes,
                 heatmapTiers, groups);
     }
 
@@ -185,12 +187,17 @@ public class PhantasiaScript {
             lerpTicks = sd.camera.lerpTicks;
         }
 
+        List<LocalWarning> mistakes = new ArrayList<>();
+        for (PhantasiaScriptData.MistakeData md : sd.mistakes)
+            mistakes.add(new LocalWarning(new BlockPos(md.x, md.y, md.z), md.label, md.colorArgb()));
+
         return new Step(sd.tick, sd.caption, filter,
                 sd.working, -1, -1,
                 yaw, pitch, zoom, useCam, lerpType, lerpTicks,
                 sd.fakeRecipeId, Collections.unmodifiableList(new ArrayList<>(particleFx)),
                 sd.hold, sd.layerCount,
-                Collections.unmodifiableList(new ArrayList<>(sd.worldItems)));
+                Collections.unmodifiableList(new ArrayList<>(sd.worldItems)),
+                Collections.unmodifiableList(mistakes));
     }
 
     private static Predicate<BlockPos> buildShowPredicate(PhantasiaScriptData.StepData sd) {
@@ -481,12 +488,12 @@ public class PhantasiaScript {
         }
 
         public Builder mistake(int x, int y, int z, String label) {
-            data.getMistakes().add(new PhantasiaScriptData.MistakeData(x, y, z, label));
+            step().mistakes.add(new PhantasiaScriptData.MistakeData(x, y, z, label));
             return this;
         }
 
         public Builder mistake(int x, int y, int z, String label, int argb) {
-            data.getMistakes().add(new PhantasiaScriptData.MistakeData(x, y, z, label,
+            step().mistakes.add(new PhantasiaScriptData.MistakeData(x, y, z, label,
                     String.format("%06X", argb & 0xFFFFFF)));
             return this;
         }
@@ -506,12 +513,9 @@ public class PhantasiaScript {
                 compiled.add(compileStepWithParticles(sd, fx));
                 i++;
             }
-            List<LocalWarning> mistakes = new ArrayList<>();
-            for (PhantasiaScriptData.MistakeData md : data.getMistakes())
-                mistakes.add(new LocalWarning(new BlockPos(md.x, md.y, md.z), md.label, md.colorArgb()));
             List<String> globalMistakes = new ArrayList<>(data.getGlobalMistakes());
             // Variant groups require a pattern — not available from the Builder path.
-            return new PhantasiaScript(data, compiled, mistakes, globalMistakes, List.of(),
+            return new PhantasiaScript(data, compiled, globalMistakes, List.of(),
                     List.of());
         }
 

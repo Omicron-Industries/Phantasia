@@ -121,6 +121,11 @@ public class PhantasiaBlockFilterScreen extends Screen {
         this.tab = Tab.INSPECT;
     }
 
+    /** Tick to evaluate per-step mistakes against — mirrors the parent scene's current playback position. */
+    private int activeTick() {
+        return parent instanceof PhantasiaSceneScreen pss ? pss.getPlaybackTick() : 0;
+    }
+
     // ── Rendering ─────────────────────────────────────────────────────────────
 
     @Override
@@ -197,7 +202,7 @@ public class PhantasiaBlockFilterScreen extends Screen {
         y += 8;
 
         // Common mistakes toggle
-        if (script.hasCommonMistakes()) {
+        if (script.hasCommonMistakes(activeTick())) {
             boolean showM = parent instanceof PhantasiaSceneScreen pss && pss.showMistakes;
             boolean hov = isOver(mx, my, x, y, bw, 18);
 
@@ -458,7 +463,7 @@ public class PhantasiaBlockFilterScreen extends Screen {
                 y += 16; // separator
 
                 // Common mistakes toggle
-                if (script.hasCommonMistakes()) {
+                if (script.hasCommonMistakes(activeTick())) {
                     if (isOver((int) mx, (int) my, fx, y, fw, 18)) {
                         if (parent instanceof PhantasiaSceneScreen pss) pss.showMistakes = !pss.showMistakes;
                         return true;

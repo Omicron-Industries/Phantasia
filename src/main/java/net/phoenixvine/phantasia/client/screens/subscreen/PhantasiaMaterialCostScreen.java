@@ -1,7 +1,5 @@
 package net.phoenixvine.phantasia.client.screens.subscreen;
 
-import com.lowdragmc.lowdraglib.utils.BlockInfo;
-
 import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -15,6 +13,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.phoenixvine.phantasia.common.data.pattern.PhantasiaLoadedPattern;
+import net.phoenixvine.phantasia.utils.PhantasiaBlockInfo;
 
 import dev.emi.emi.api.EmiApi;
 import dev.emi.emi.api.recipe.EmiRecipe;
@@ -175,7 +174,7 @@ public class PhantasiaMaterialCostScreen extends Screen {
         this.closePicker();
 
         Map<String, Block> nameToBlock = new LinkedHashMap<>();
-        for (BlockInfo info : pattern.blockMap.values()) {
+        for (PhantasiaBlockInfo info : pattern.blockMap.values()) {
             BlockState state = info.getBlockState();
             if (state == null || state.isAir()) continue;
             Block block = state.getBlock();

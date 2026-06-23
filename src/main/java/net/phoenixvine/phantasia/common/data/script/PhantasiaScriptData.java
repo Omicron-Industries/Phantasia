@@ -58,9 +58,6 @@ public class PhantasiaScriptData {
     @SerializedName("items")
     private List<PhantasiaSceneData.ItemConditionData> items = new ArrayList<>();
 
-    @SerializedName("mistakes")
-    private List<MistakeData> mistakes = new ArrayList<>();
-
     @SerializedName("globalMistakes")
     private List<String> globalMistakes = new ArrayList<>();
 
@@ -125,6 +122,14 @@ public class PhantasiaScriptData {
         public boolean autoDetected = false;
 
         /**
+         * Additional block alternatives beyond the binary primary/fallback pair.
+         * E.g. for the beacon: ["minecraft:gold_block", "minecraft:diamond_block", ...].
+         * When present, the variant dropdown will include primary + fallback (if set) + these.
+         */
+        @SerializedName("additionalBlocks")
+        public List<String> additionalBlocks = new ArrayList<>();
+
+        /**
          * All positions (in local pattern coords) that belong to this group.
          * Each entry can optionally override {@code primaryBlock}/{@code fallbackBlock}
          * for that specific position.
@@ -147,6 +152,7 @@ public class PhantasiaScriptData {
             c.primaryBlock = primaryBlock;
             c.fallbackBlock = fallbackBlock;
             c.autoDetected = autoDetected;
+            c.additionalBlocks.addAll(additionalBlocks);
             for (VariantPositionData p : positions) c.positions.add(p.copy());
             return c;
         }
@@ -273,6 +279,15 @@ public class PhantasiaScriptData {
         @SerializedName("camera")
         public CameraData camera = null;
 
+        /**
+         * Mistake markers active during this step only. Each entry highlights a
+         * specific local-space block position as commonly built wrong. Scoped to
+         * the step (not global to the whole script) since the relevant mistake
+         * usually only matters while that part of the build is on screen.
+         */
+        @SerializedName("mistakes")
+        public List<MistakeData> mistakes = new ArrayList<>();
+
         public StepData() {}
 
         public StepData(int tick, String caption) {
@@ -298,6 +313,7 @@ public class PhantasiaScriptData {
             for (int[] p : positions) c.positions.add(new int[] { p[0], p[1], p[2] });
             for (int[] p : hidePositions) c.hidePositions.add(new int[] { p[0], p[1], p[2] });
             for (WorldItemEntry wi : worldItems) c.worldItems.add(wi.copy());
+            for (MistakeData m : mistakes) c.mistakes.add(new MistakeData(m.x, m.y, m.z, m.label, m.color));
             return c;
         }
     }
@@ -480,6 +496,10 @@ public class PhantasiaScriptData {
         this.machine = machine;
     }
 
+    public void addStep(StepData step) {
+        steps.add(step);
+    }
+
     public static PhantasiaScriptData defaultFor(String machine) {
         PhantasiaScriptData d = new PhantasiaScriptData(machine);
         StepData s = new StepData(0, null);
@@ -504,10 +524,8 @@ public class PhantasiaScriptData {
         c.recipeId = recipeId;
         for (StepData s : steps) c.steps.add(s.copy());
         for (PhantasiaSceneData.ItemConditionData it : items) c.items.add(it.copy());
-        for (MistakeData m : mistakes) {
-            c.mistakes.add(new MistakeData(m.x, m.y, m.z, m.label, m.color));
-        }
         c.globalMistakes.addAll(globalMistakes);
+        for (OptionalGroupData g : optionalGroups) c.optionalGroups.add(g.copy());
         return c;
     }
 

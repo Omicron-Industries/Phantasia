@@ -1004,8 +1004,8 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
 
         super.render(g, mx, my, partial);
 
-        // Block name + local XYZ tooltip (all modes, not just SELECT)
-        if (hoveredWorldPos != null && SHARED_LEVEL != null && pattern != null) {
+        // Block name + local XYZ tooltip (all modes except SELECT, which draws its own)
+        if (mode != Mode.SELECT && hoveredWorldPos != null && SHARED_LEVEL != null && pattern != null) {
             try {
                 BlockState bs = getResolvedState(hoveredWorldPos);
 
@@ -1073,7 +1073,8 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
     }
 
     private void renderMistakeMarkers(GuiGraphics g) {
-        if (data.getMistakes().isEmpty() || pattern == null || camera == null) return;
+        List<PhantasiaScriptData.MistakeData> mistakes = step().mistakes;
+        if (mistakes.isEmpty() || pattern == null || camera == null) return;
         hoveredMistakeIndex = -1;
         CameraView view = camera.getView(0f);
         Vector3f eye = view.eyePos(), lookat = view.lookAt();
@@ -1082,8 +1083,8 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         Vector3f upv = new Vector3f(rgt).cross(fwd).normalize();
         float fov = this.height / (2f * (float) Math.tan(Math.toRadians(PhantasiaCamera.FOV)));
 
-        for (int i = 0; i < data.getMistakes().size(); i++) {
-            PhantasiaScriptData.MistakeData m = data.getMistakes().get(i);
+        for (int i = 0; i < mistakes.size(); i++) {
+            PhantasiaScriptData.MistakeData m = mistakes.get(i);
             BlockPos local = new BlockPos(m.x, m.y, m.z);
             BlockPos world = pattern.localToWorld.get(local);
             if (world == null) continue;
@@ -1198,7 +1199,7 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
             return;
         }
         String hint = hoveredMistakeIndex >= 0 ? "Right-click marker to remove  |  Left-click block to add" :
-                "Left-click any block to add a mistake marker";
+                "Left-click any block to add a mistake marker for this step";
         drawBanner(g, hint, TOP_BAR_H + 4, C_WARN());
         if (mode == Mode.ANNOTATE) {
             java.util.List<String> gm = data.getGlobalMistakes();
@@ -1452,12 +1453,12 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
     private void openGlobalMistakeInput() {
         Minecraft.getInstance().setScreen(new PhantasiaTextInputScreen(
                 this, "Global Mistake Note", "e.g. Controller must face south", "", 256, v -> {
-                    if (!v.isBlank()) {
-                        checkpoint();
-                        data.getGlobalMistakes().add(v.trim());
-                        dirty = true;
-                    }
-                }));
+            if (!v.isBlank()) {
+                checkpoint();
+                data.getGlobalMistakes().add(v.trim());
+                dirty = true;
+            }
+        }));
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -1771,10 +1772,10 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         btns.add(new Btn(x, y1, capW, 13, () -> Minecraft.getInstance().setScreen(
                 new PhantasiaTextInputScreen(this, "Step Caption", "What the viewer sees\u2026",
                         s.caption != null ? s.caption : "", 256, v -> {
-                            checkpoint();
-                            s.caption = v.isBlank() ? null : v;
-                            dirty = true;
-                        }))));
+                    checkpoint();
+                    s.caption = v.isBlank() ? null : v;
+                    dirty = true;
+                }))));
         x += capW + 8;
 
         g.fill(x, y1, x + 1, y1 + 14, 0x33FFFFFF);
@@ -2430,7 +2431,7 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
 
     private void renderTimeline(GuiGraphics g, int mx, int my) {
         int tlY = this.height - TIMELINE_H;
-        int margin = 30, trackW = this.width - margin * 2;
+        int margin = 30, trackW = timelineTrackWidth(margin);
         int total = computeTotalTicks();
         int midY = tlY + TIMELINE_H / 2;
 
@@ -2647,7 +2648,7 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         if (startLayerSliderDrag(mx, my)) return true;
 
         int tlY = this.height - TIMELINE_H, midY = tlY + TIMELINE_H / 2;
-        int margin = 30, trackW = this.width - margin * 2, total = computeTotalTicks();
+        int margin = 30, trackW = timelineTrackWidth(margin), total = computeTotalTicks();
         boolean onTimeline = isOver(mx, my, 0, tlY, this.width, TIMELINE_H);
         if (onTimeline) {
             if (btn == 1) {
@@ -2699,7 +2700,7 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
 
     private boolean startTimelineDotDrag(double mx, double my) {
         int tlY = this.height - TIMELINE_H, midY = tlY + TIMELINE_H / 2;
-        int margin = 30, trackW = this.width - margin * 2, total = computeTotalTicks();
+        int margin = 30, trackW = timelineTrackWidth(margin), total = computeTotalTicks();
         for (int i = 0; i < data.getSteps().size(); i++) {
             PhantasiaScriptData.StepData s = data.getSteps().get(i);
             float t = total > 0 ? (float) s.tick / total : 0f;
@@ -2746,7 +2747,7 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
     private boolean handleAnnotateClick(double mx, double my, int btn) {
         if (btn == 1 && hoveredMistakeIndex >= 0) {
             checkpoint();
-            data.getMistakes().remove(hoveredMistakeIndex);
+            step().mistakes.remove(hoveredMistakeIndex);
             hoveredMistakeIndex = -1;
             dirty = true;
             return true;
@@ -2792,6 +2793,21 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
             dirty = true;
             // Defer rebuildVisibility() to mouseReleased — rebuilding per-pixel during drag
             // is a full VBO bake on every event, which tanks framerate on large machines.
+            return true;
+        }
+
+        // Timeline node drag — move the selected step along the track by re-deriving
+        // its tick from the mouse X position. Re-sorting and visibility rebuild are
+        // deferred to mouseReleased for the same reason as the layer slider above.
+        if (draggingTimelineDot >= 0) {
+            if (Math.abs(mx - dotDragStartMX) > 1) dotDragMoved = true;
+            int margin = 30, trackW = timelineTrackWidth(margin), total = computeTotalTicks();
+            int newTick = total > 0 ? Math.round((float) (mx - margin) / trackW * total) : 0;
+            newTick = Math.max(0, newTick);
+            data.getSteps().get(draggingTimelineDot).tick = newTick;
+            if (selectedStep == draggingTimelineDot && tickBox != null && !tickBox.isFocused())
+                tickBox.setValue(String.valueOf(newTick));
+            dirty = true;
             return true;
         }
 
@@ -3131,9 +3147,9 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
             checkpoint();
             BlockPos lp = pendingAnnotationLocalPos;
             String colorHex = String.format("%06X", MISTAKE_COLORS[selectedMistakeColor] & 0xFFFFFF);
-            data.getMistakes().removeIf(m -> m.x == lp.getX() && m.y == lp.getY() && m.z == lp.getZ());
-            data.getMistakes()
-                    .add(new PhantasiaScriptData.MistakeData(lp.getX(), lp.getY(), lp.getZ(), label, colorHex));
+            List<PhantasiaScriptData.MistakeData> mistakes = step().mistakes;
+            mistakes.removeIf(m -> m.x == lp.getX() && m.y == lp.getY() && m.z == lp.getZ());
+            mistakes.add(new PhantasiaScriptData.MistakeData(lp.getX(), lp.getY(), lp.getZ(), label, colorHex));
             dirty = true;
         }
         pendingAnnotationLocalPos = null;
@@ -3181,6 +3197,18 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         int dur = data.getScriptDuration();
         if (dur > 0) return dur;
         return data.getSteps().isEmpty() ? 60 : data.getSteps().get(data.getSteps().size() - 1).tick + 60;
+    }
+
+    /**
+     * Width of the scrubbable timeline track, in pixels, reserving space on the
+     * right for the total-duration edit box so the track ends before it instead
+     * of rendering (and accepting clicks) underneath it.
+     */
+    private int timelineTrackWidth(int margin) {
+        int durLabelW = font.width(Component.translatable("screen.phantasia.script_editor.label_total").getString()) +
+                4;
+        int durBoxAreaW = durLabelW + 46 + 12; // label + box + breathing room before the track
+        return (this.width - durBoxAreaW) - margin * 2;
     }
 
     private void syncSelectedFromStep() {

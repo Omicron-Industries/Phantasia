@@ -20,29 +20,36 @@ public final class PhantasiaWelcomeOverlay {
 
     private PhantasiaWelcomeOverlay() {}
 
-    private static final File SEEN_FILE = new File("phantasia/seen_welcome.txt");
-    private static final int SHOW_TICKS = 280;
+    private static final java.io.File SEEN_DIR = new java.io.File("phantasia/seen_worlds");
+    // Duration is read from config at show-time; FADE_TICKS is always fixed.
     private static final int FADE_TICKS = 40;
 
     private static boolean active = false;
+    private static boolean playerHasMoved = false; // true once movement is detected; starts the countdown
     private static int timer = 0;
     private static boolean wasClicking = false;
 
     // Toast bounds updated each render frame for click-hit detection.
     private static int toastX, toastY;
     private static final int TOAST_W = 248;
-    private static final int TOAST_H = 46;
+    private static int TOAST_H = 46; // recalculated each frame based on wrapped content
 
-    /** Call on world join. Shows the toast exactly once, ever. */
-    public static void checkFirstRun() {
-        if (!SEEN_FILE.exists()) {
+    /** Call on world join with a world identifier. Shows the toast once per world, unless disabled in config. */
+    public static void checkFirstRun(String worldId) {
+        if (!net.phoenixvine.phantasia.configs.PhantasiaConfigs.INSTANCE.phantasiaUI.showWelcomeToast) return;
+        String safe = worldId.replaceAll("[^a-zA-Z0-9._\\-]", "_");
+        java.io.File seenFile = new java.io.File(SEEN_DIR, safe + ".txt");
+        if (!seenFile.exists()) {
+            int duration = net.phoenixvine.phantasia.configs.PhantasiaConfigs.INSTANCE.phantasiaUI.welcomeToastDuration;
+            if (duration <= 0) return;
             active = true;
-            timer = SHOW_TICKS;
+            playerHasMoved = false;
+            timer = duration;
             try {
-                SEEN_FILE.getParentFile().mkdirs();
-                SEEN_FILE.createNewFile();
+                SEEN_DIR.mkdirs();
+                seenFile.createNewFile();
             } catch (Exception e) {
-                Phantasia.LOGGER.warn("[Phantasia] Could not write seen_welcome.txt: {}", e.getMessage());
+                Phantasia.LOGGER.warn("[Phantasia] Could not write seen_worlds/{}.txt: {}", safe, e.getMessage());
             }
         }
     }
@@ -51,22 +58,35 @@ public final class PhantasiaWelcomeOverlay {
     public static void onTick(TickEvent.ClientTickEvent event) {
         if (event.phase != TickEvent.Phase.END || !active) return;
 
-        if (timer > 0) {
-            timer--;
-        } else {
-            active = false;
-            wasClicking = false;
-            return;
-        }
-
         Minecraft mc = Minecraft.getInstance();
         if (mc.screen != null) {
             wasClicking = false;
             return;
         }
 
-        // Click detection via GLFW — no Forge input event needed.
         long window = mc.getWindow().getWindow();
+
+        // Detect first movement — any WASD / jump / sneak key starts the countdown.
+        if (!playerHasMoved) {
+            var opt = mc.options;
+            if (opt.keyUp.isDown() || opt.keyDown.isDown() || opt.keyLeft.isDown() || opt.keyRight.isDown() ||
+                    opt.keyJump.isDown() || opt.keyShift.isDown()) {
+                playerHasMoved = true;
+            }
+        }
+
+        // Only count down once the player has moved.
+        if (playerHasMoved) {
+            if (timer > 0) {
+                timer--;
+            } else {
+                active = false;
+                wasClicking = false;
+                return;
+            }
+        }
+
+        // Click detection — toast click opens the getting-started guide.
         boolean clicking = org.lwjgl.glfw.GLFW.glfwGetMouseButton(
                 window, org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_LEFT) == org.lwjgl.glfw.GLFW.GLFW_PRESS;
 
@@ -89,7 +109,7 @@ public final class PhantasiaWelcomeOverlay {
 
     @SubscribeEvent
     public static void onRender(RenderGuiOverlayEvent.Pre event) {
-        if (!active || timer <= 0) return;
+        if (!active) return;
         Minecraft mc = Minecraft.getInstance();
         if (mc.screen != null) return;
         renderToast(event.getGuiGraphics(), mc);
@@ -97,12 +117,29 @@ public final class PhantasiaWelcomeOverlay {
 
     private static void renderToast(GuiGraphics g, Minecraft mc) {
         int sw = mc.getWindow().getGuiScaledWidth();
-        int sh = mc.getWindow().getGuiScaledHeight();
 
-        float alpha = timer < FADE_TICKS ? (float) timer / FADE_TICKS : 1.0f;
+        // Before movement: fully opaque. After movement starts: fade out as timer runs down.
+        float alpha = (!playerHasMoved || timer >= FADE_TICKS) ? 1.0f : (float) timer / FADE_TICKS;
 
-        int tx = (sw - TOAST_W) / 2;
-        int ty = sh - 84;
+        var font = mc.font;
+        int innerW = TOAST_W - 16; // 8px padding each side
+        int lineH = font.lineHeight + 2;
+
+        String title = net.minecraft.network.chat.Component.translatable("ui.phantasia.welcome.installed").getString();
+        String instruction = net.minecraft.network.chat.Component.translatable("ui.phantasia.welcome.instruction")
+                .getString();
+        String openGuide = net.minecraft.network.chat.Component.translatable("ui.phantasia.welcome.open_guide")
+                .getString();
+
+        var instrLines = font.split(net.minecraft.network.chat.Component.literal(instruction), innerW);
+        var guideLines = font.split(net.minecraft.network.chat.Component.literal(openGuide), innerW);
+
+        // Height: 6px top pad + title + 3px gap + instruction lines + 3px gap + guide lines + 6px bottom pad
+        int contentH = lineH + 3 + instrLines.size() * lineH + 3 + guideLines.size() * lineH;
+        TOAST_H = 6 + contentH + 6;
+
+        int tx = sw - TOAST_W - 8;
+        int ty = 8;
         toastX = tx;
         toastY = ty;
 
@@ -112,25 +149,23 @@ public final class PhantasiaWelcomeOverlay {
         int txtColor = withAlpha(theme.text(), (int) (0xFF * alpha));
         int dimColor = withAlpha(theme.dim(), (int) (0xAA * alpha));
 
-        // Background panel
         g.fill(tx, ty, tx + TOAST_W, ty + TOAST_H, bgColor);
-        // Top accent stripe
         g.fill(tx, ty, tx + TOAST_W, ty + 1, bdrColor);
-        // Subtle bottom border
-        g.fill(tx, ty + TOAST_H - 1, tx + TOAST_W, ty + TOAST_H,
-                withAlpha(theme.accent(), (int) (0x44 * alpha)));
+        g.fill(tx, ty + TOAST_H - 1, tx + TOAST_W, ty + TOAST_H, withAlpha(theme.accent(), (int) (0x44 * alpha)));
 
-        var font = mc.font;
         int lx = tx + 8;
-        g.drawString(font,
-                net.minecraft.network.chat.Component.translatable("ui.phantasia.welcome.installed").getString(), lx,
-                ty + 6, bdrColor, false);
-        g.drawString(font,
-                net.minecraft.network.chat.Component.translatable("ui.phantasia.welcome.instruction").getString(), lx,
-                ty + 17, txtColor, false);
-        g.drawString(font,
-                net.minecraft.network.chat.Component.translatable("ui.phantasia.welcome.open_guide").getString(), lx,
-                ty + 29, dimColor, false);
+        int y = ty + 6;
+        g.drawString(font, title, lx, y, bdrColor, false);
+        y += lineH + 3;
+        for (var line : instrLines) {
+            g.drawString(font, line, lx, y, txtColor, false);
+            y += lineH;
+        }
+        y += 3;
+        for (var line : guideLines) {
+            g.drawString(font, line, lx, y, dimColor, false);
+            y += lineH;
+        }
     }
 
     private static int withAlpha(int argb, int a) {

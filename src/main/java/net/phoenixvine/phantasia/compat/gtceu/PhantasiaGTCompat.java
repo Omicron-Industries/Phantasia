@@ -31,7 +31,6 @@ public final class PhantasiaGTCompat {
     public static void init(IEventBus modEventBus) {
         GTCEuBlockInspectHelper.register();
         PHANTASIA_REGISTRATE.registerRegistrate();
-        net.phoenixvine.phantasia.datagen.PhantasiaDatagen.init();
 
         // Register our GTCEu provider so Phantasia can resolve GT machines
         PhantasiaMultiblockRegistry.register(new GTCEuMultiblockProvider());

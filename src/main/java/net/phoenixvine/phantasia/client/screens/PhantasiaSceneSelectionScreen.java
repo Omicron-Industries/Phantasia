@@ -18,7 +18,9 @@ import net.phoenixvine.phantasia.client.tutorial.PhantasiaTutorials;
 import net.phoenixvine.phantasia.client.tutorial.TutorialSequence;
 import net.phoenixvine.phantasia.common.data.guides.PhantasiaGuideData;
 import net.phoenixvine.phantasia.common.data.guides.PhantasiaGuideRegistry;
+import net.phoenixvine.phantasia.client.screens.editors.PhantasiaSceneEditorScreen;
 import net.phoenixvine.phantasia.common.data.scene.PhantasiaSceneData;
+import net.phoenixvine.phantasia.common.data.scene.PhantasiaSceneLoader;
 import net.phoenixvine.phantasia.common.data.scene.PhantasiaScenes;
 import net.phoenixvine.phantasia.common.data.script.PhantasiaScript;
 import net.phoenixvine.phantasia.common.data.script.PhantasiaScripts;
@@ -1035,7 +1037,6 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
             yaml.append("phantasiaUI:\n");
             yaml.append("  displayMode: ").append(ui.displayMode.name()).append("\n\n");
             yaml.append("  activationTicks: ").append(ui.activationTicks).append("\n\n");
-            yaml.append("  baseplateBlock: ").append(ui.baseplateBlock).append("\n\n");
             yaml.append("  scriptLockCamera: ").append(ui.scriptLockCamera).append("\n\n");
             yaml.append("  autoPlayScripts: ").append(ui.autoPlayScripts).append("\n\n");
             yaml.append("  showBaseplate: ").append(ui.showBaseplate).append("\n\n");
@@ -1197,7 +1198,11 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
             }
         } else if (activeTab == Tab.SCENES) {
             if (hoveredCard == -2) {
-                Minecraft.getInstance().setScreen(new PhantasiaSceneCreateScreen(this));
+                PhantasiaSceneData blank = PhantasiaSceneData.blank(
+                        "phantasia:new_scene_" + System.currentTimeMillis(),
+                        "New Scene",
+                        "minecraft:chest");
+                Minecraft.getInstance().setScreen(new PhantasiaSceneEditorScreen(this, blank));
                 return true;
             }
             if (hoveredCard >= 0 && hoveredCard < filteredManualScenes.size()) {

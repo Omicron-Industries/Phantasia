@@ -63,6 +63,11 @@ public class PhantasiaGuideEditorScreen extends Screen {
     private int anchorColumn = 0;
     private int frameTickCounter = 0;
 
+    // Layout tracking for text dragging selection
+    private int hlBoxY = 0;
+    private int bodyBoxY = 0;
+    private int leftTextStartX = 0;
+
     // Wrapped Lines Cache for rendering/input calculations
     private final List<WrappedLineMapping> cachedWrappedLines = new ArrayList<>();
 
@@ -268,7 +273,7 @@ public class PhantasiaGuideEditorScreen extends Screen {
         ensureCursorBounds(lines);
         boolean shift = Screen.hasShiftDown();
 
-        // ── Ctrl shortcuts ───────────────��─────────────────────────────────
+        // ── Ctrl shortcuts ─────────────────────────────────────────────────
         if ((modifiers & GLFW.GLFW_MOD_CONTROL) != 0) {
             if (keyCode == GLFW.GLFW_KEY_A) {
                 anchorLine = 0;
@@ -325,7 +330,7 @@ public class PhantasiaGuideEditorScreen extends Screen {
             }
         }
 
-        // ── Backspace / Delete ────────────���───────────────────────���────────
+        // ── Backspace / Delete ────────────────────────────────────────────────
         if (keyCode == InputConstants.KEY_BACKSPACE) {
             if (hasSelection()) {
                 checkpoint();
@@ -368,7 +373,7 @@ public class PhantasiaGuideEditorScreen extends Screen {
             return true;
         }
 
-        // ── Arrow keys ────────────────────────────────���────────────────────
+        // ── Arrow keys ──────────────────────────────────────────────────────
         if (keyCode == InputConstants.KEY_LEFT) {
             if (!shift && hasSelection()) {
                 int[] s = selStart(lines);
@@ -604,6 +609,10 @@ public class PhantasiaGuideEditorScreen extends Screen {
         int hlBoxBg = hlFocused ? 0xFF0D1C2A : 0xBB0D131A;
         int hlBoxHeight = 16 + (headlineLines.size() * (font.lineHeight + 2));
 
+        // Cache layout positions for drag tracking
+        this.hlBoxY = y;
+        this.leftTextStartX = colX + 4;
+
         g.fill(colX - 4, y, colX + colW + 4, y + hlBoxHeight, hlBoxBg);
         g.renderOutline(colX - 4, y, colW + 8, hlBoxHeight, hlFocused ? C_ACCENT() : 0xFF223544);
         g.drawString(font, Component.translatable("screen.phantasia.guide_editor.headline_editor_label").getString(),
@@ -672,6 +681,9 @@ public class PhantasiaGuideEditorScreen extends Screen {
         int bodyBoxBg = bodyFocused ? 0xFF091612 : 0xBB0A0F0D;
         int bodyAreaHeight = height - y - 120;
         if (bodyAreaHeight < 90) bodyAreaHeight = 90;
+
+        // Cache layout positions for drag tracking
+        this.bodyBoxY = y;
 
         g.fill(colX - 4, y, colX + colW + 4, y + bodyAreaHeight, bodyBoxBg);
         g.renderOutline(colX - 4, y, colW + 8, bodyAreaHeight, bodyFocused ? C_GREEN() : 0xFF1B2B24);
@@ -913,7 +925,7 @@ public class PhantasiaGuideEditorScreen extends Screen {
         g.drawString(font, Component.translatable("screen.phantasia.guide_editor.label_item_id").getString(), px + 4, y,
                 C_DIM(), false);
         placeBox(itemIdBox, px + 4 +
-                font.width(Component.translatable("screen.phantasia.guide_editor.label_item_id").getString()) + 3,
+                        font.width(Component.translatable("screen.phantasia.guide_editor.label_item_id").getString()) + 3,
                 y - 1,
                 rightWidth - 8 -
                         font.width(Component.translatable("screen.phantasia.guide_editor.label_item_id").getString()) -
@@ -979,15 +991,15 @@ public class PhantasiaGuideEditorScreen extends Screen {
             List<String> guideIds = PhantasiaGuideRegistry.all().stream().map(guide -> guide.id).toList();
             Minecraft.getInstance().setScreen(new RegistrySearchScreen(this,
                     Component.translatable("screen.phantasia.guide_editor.picker_guide").getString(), guideIds, id -> {
-                        page().guideId = id;
-                        dirty = true;
-                    }));
+                page().guideId = id;
+                dirty = true;
+            }));
         }));
         y += 18;
 
         String sl = page().sceneId != null && !page().sceneId.isBlank() &&
                 PhantasiaScenes.all().stream().anyMatch(scene -> scene.id.equals(page().sceneId)) ? page().sceneId :
-                        "None";
+                "None";
         boolean slHov = over(mx, my, px + 4, y, rightWidth - 8, 14);
         g.fill(px + 4, y, width - 4, y + 14, slHov ? C_BTN_HOV() : C_BTN());
         String sceneBtnLabel = String
@@ -999,16 +1011,16 @@ public class PhantasiaGuideEditorScreen extends Screen {
             List<String> sceneIds = PhantasiaScenes.all().stream().map(scene -> scene.id).toList();
             Minecraft.getInstance().setScreen(new RegistrySearchScreen(this,
                     Component.translatable("screen.phantasia.guide_editor.picker_scene").getString(), sceneIds, id -> {
-                        page().sceneId = id;
-                        dirty = true;
-                    }));
+                page().sceneId = id;
+                dirty = true;
+            }));
         }));
         y += 18;
 
         String slk = page().scriptId != null && !page().scriptId.isBlank() &&
                 net.phoenixvine.phantasia.common.multiblock.PhantasiaMultiblockRegistry.getAllDefinitions().stream()
                         .anyMatch(def -> PhantasiaScripts.has(def) && def.getId().toString().equals(page().scriptId)) ?
-                                page().scriptId : "None";
+                page().scriptId : "None";
         boolean slkHov = over(mx, my, px + 4, y, rightWidth - 8, 14);
         g.fill(px + 4, y, width - 4, y + 14, slkHov ? C_BTN_HOV() : C_BTN());
         String scriptBtnLabel = String
@@ -1027,9 +1039,9 @@ public class PhantasiaGuideEditorScreen extends Screen {
                     .setScreen(new RegistrySearchScreen(this,
                             Component.translatable("screen.phantasia.guide_editor.picker_script").getString(),
                             scriptIds, id -> {
-                                page().scriptId = id;
-                                dirty = true;
-                            }));
+                        page().scriptId = id;
+                        dirty = true;
+                    }));
         }));
         y += 18;
 
@@ -1210,6 +1222,36 @@ public class PhantasiaGuideEditorScreen extends Screen {
             rightWidth = Math.max(160, Math.min(width - 100, newWidth));
             return true;
         }
+
+        // Handle drag-to-select logic for custom multi-line fields
+        if (btn == 0 && !data.pages.isEmpty()) {
+            if (activeTextFocus == 0) {
+                // Dragging selection inside Headline field
+                int boxYStart = this.hlBoxY + 14;
+                int relativeClickY = (int) (my - boxYStart);
+                int targetLineIdx = relativeClickY / (font.lineHeight + 2);
+                List<String> currentLines = getEditableLines();
+
+                this.cursorLine = Math.max(0, Math.min(targetLineIdx, currentLines.size() - 1));
+                this.cursorColumn = findClosestColumnIndex(currentLines.get(this.cursorLine), mx, this.leftTextStartX);
+                return true;
+            } else if (activeTextFocus == 1) {
+                // Dragging selection inside Body Text field
+                int boxYStart = this.bodyBoxY + 15;
+                int relativeClickY = (int) (my - boxYStart);
+                int wrappedLineIdx = relativeClickY / (font.lineHeight + 2);
+
+                if (!cachedWrappedLines.isEmpty()) {
+                    wrappedLineIdx = Math.max(0, Math.min(wrappedLineIdx, cachedWrappedLines.size() - 1));
+                    WrappedLineMapping targetWrapped = cachedWrappedLines.get(wrappedLineIdx);
+                    this.cursorLine = targetWrapped.originalLineIdx;
+                    int localCol = findClosestColumnIndex(targetWrapped.text, mx, this.leftTextStartX);
+                    this.cursorColumn = targetWrapped.originalCharStart + localCol;
+                }
+                return true;
+            }
+        }
+
         return super.mouseDragged(mx, my, btn, dx, dy);
     }
 

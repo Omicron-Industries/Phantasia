@@ -83,6 +83,10 @@ public class PhantasiaKeybind {
             }
         }
 
+        // Not a multiblock component — clear any stale multiblock tooltip target so guide/scene
+        // tooltip items aren't shadowed by a previously hovered script icon.
+        tooltipTarget = null;
+
         ResourceLocation itemId = ForgeRegistries.ITEMS.getKey(stack.getItem());
         if (itemId != null) {
             String itemKey = itemId.toString();
@@ -122,17 +126,19 @@ public class PhantasiaKeybind {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || mc.player == null) return;
 
-        String currentItemTarget = getTargetItemId(mc);
-        if (currentItemTarget == null) currentItemTarget = tooltipItemTarget;
-        if (currentItemTarget == null) tooltipItemTarget = null;
+        // Multiblock crosshair takes priority over tooltip-item keybind.
+        IPhantasiaMultiblockDefinition currentTarget = getTargetDefinition(mc);
+        if (currentTarget == null) currentTarget = tooltipTarget;
+        if (currentTarget == null) tooltipTarget = null;
 
-        IPhantasiaMultiblockDefinition currentTarget = null;
-        if (currentItemTarget == null) {
-            currentTarget = getTargetDefinition(mc);
-            if (currentTarget == null) currentTarget = tooltipTarget;
-            if (currentTarget == null) tooltipTarget = null;
+        String currentItemTarget = null;
+        if (currentTarget == null) {
+            // No multiblock in sight — fall back to held/looked-at tooltip item.
+            currentItemTarget = getTargetItemId(mc);
+            if (currentItemTarget == null) currentItemTarget = tooltipItemTarget;
+            if (currentItemTarget == null) tooltipItemTarget = null;
         } else {
-            tooltipTarget = null;
+            tooltipItemTarget = null;
         }
 
         boolean hasAnyTarget = (currentTarget != null) || (currentItemTarget != null);
@@ -159,17 +165,21 @@ public class PhantasiaKeybind {
 
     private static void openForMultiblock(Minecraft mc, IPhantasiaMultiblockDefinition defToOpen) {
         String targetId = defToOpen.getId().getPath().toLowerCase(java.util.Locale.ROOT);
+        // Also match scenes/guides that listed the controller's icon item in their tooltipItems.
+        ResourceLocation iconKey = ForgeRegistries.ITEMS.getKey(defToOpen.getIcon().getItem());
+        String iconItemKey = iconKey != null ? iconKey.toString() : null;
+
         java.util.List<net.phoenixvine.phantasia.common.data.scene.PhantasiaSceneData> matchingScenes = new java.util.ArrayList<>();
         for (var scene : net.phoenixvine.phantasia.common.data.scene.PhantasiaScenes.all()) {
-            if (scene.id != null && scene.id.toLowerCase(java.util.Locale.ROOT).contains(targetId)) {
-                matchingScenes.add(scene);
-            }
+            boolean idMatch = scene.id != null && scene.id.toLowerCase(java.util.Locale.ROOT).contains(targetId);
+            boolean itemMatch = iconItemKey != null && scene.tooltipItems != null && scene.tooltipItems.contains(iconItemKey);
+            if (idMatch || itemMatch) matchingScenes.add(scene);
         }
         java.util.List<net.phoenixvine.phantasia.common.data.guides.PhantasiaGuideData> matchingGuides = new java.util.ArrayList<>();
         for (var guide : net.phoenixvine.phantasia.common.data.guides.PhantasiaGuideRegistry.all()) {
-            if (guide.id != null && guide.id.toLowerCase(java.util.Locale.ROOT).contains(targetId)) {
-                matchingGuides.add(guide);
-            }
+            boolean idMatch = guide.id != null && guide.id.toLowerCase(java.util.Locale.ROOT).contains(targetId);
+            boolean itemMatch = iconItemKey != null && guide.tooltipItems != null && guide.tooltipItems.contains(iconItemKey);
+            if (idMatch || itemMatch) matchingGuides.add(guide);
         }
         boolean hasScript = PhantasiaSceneSelectionScreen.PHANTASIA_SCENES.contains(defToOpen);
         int totalMatches = (hasScript ? 1 : 0) + matchingScenes.size() + matchingGuides.size();
@@ -191,19 +201,27 @@ public class PhantasiaKeybind {
     private static void openForItemKey(Minecraft mc, String itemKey) {
         java.util.List<net.phoenixvine.phantasia.common.data.scene.PhantasiaSceneData> matchingScenes = new java.util.ArrayList<>();
         for (var scene : net.phoenixvine.phantasia.common.data.scene.PhantasiaScenes.all()) {
-            if (scene.tooltipItems != null && scene.tooltipItems.contains(itemKey)) {
-                matchingScenes.add(scene);
-            }
+            if (scene.tooltipItems != null && scene.tooltipItems.contains(itemKey)) matchingScenes.add(scene);
         }
         java.util.List<net.phoenixvine.phantasia.common.data.guides.PhantasiaGuideData> matchingGuides = new java.util.ArrayList<>();
         for (var guide : net.phoenixvine.phantasia.common.data.guides.PhantasiaGuideRegistry.all()) {
-            if (guide.tooltipItems != null && guide.tooltipItems.contains(itemKey)) {
-                matchingGuides.add(guide);
+            if (guide.tooltipItems != null && guide.tooltipItems.contains(itemKey)) matchingGuides.add(guide);
+        }
+        // Also find any script whose multiblock definition icon item matches this key.
+        IPhantasiaMultiblockDefinition matchingScript = null;
+        for (var def : PhantasiaSceneSelectionScreen.PHANTASIA_SCENES) {
+            ResourceLocation iconKey = ForgeRegistries.ITEMS.getKey(def.getIcon().getItem());
+            if (iconKey != null && iconKey.toString().equals(itemKey)) {
+                matchingScript = def;
+                break;
             }
         }
-        int totalMatches = matchingScenes.size() + matchingGuides.size();
+        boolean hasScript = matchingScript != null;
+        int totalMatches = matchingScenes.size() + matchingGuides.size() + (hasScript ? 1 : 0);
         if (totalMatches == 1) {
-            if (!matchingScenes.isEmpty()) {
+            if (hasScript) {
+                mc.setScreen(new PhantasiaSceneScreen(matchingScript, null));
+            } else if (!matchingScenes.isEmpty()) {
                 mc.setScreen(new net.phoenixvine.phantasia.client.screens.PhantasiaSceneViewerScreen(null,
                         matchingScenes.get(0)));
             } else {
@@ -211,7 +229,7 @@ public class PhantasiaKeybind {
                         new net.phoenixvine.phantasia.client.screens.PhantasiaGuideScreen(null, matchingGuides.get(0)));
             }
         } else if (totalMatches > 1) {
-            mc.setScreen(new PhantasiaContextualSelectionScreen(null, matchingScenes, matchingGuides, false));
+            mc.setScreen(new PhantasiaContextualSelectionScreen(matchingScript, matchingScenes, matchingGuides, hasScript));
         }
     }
 

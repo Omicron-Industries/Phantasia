@@ -1,7 +1,5 @@
 package net.phoenixvine.phantasia.client.web;
 
-import com.lowdragmc.lowdraglib.utils.BlockInfo;
-
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
@@ -18,6 +16,7 @@ import net.phoenixvine.phantasia.common.data.scene.PhantasiaSceneData;
 import net.phoenixvine.phantasia.common.data.scene.PhantasiaScenes;
 import net.phoenixvine.phantasia.common.data.script.PhantasiaScript;
 import net.phoenixvine.phantasia.common.data.script.PhantasiaScripts;
+import net.phoenixvine.phantasia.utils.PhantasiaBlockInfo;
 
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
@@ -121,7 +120,7 @@ public class PhantasiaWebExport {
                     if (defOpt.isPresent()) {
                         var shapes = defOpt.get().getMatchingShapes();
                         if (shapes != null && !shapes.isEmpty()) {
-                            BlockInfo[][][] raw = shapes.get(0).getBlocks();
+                            PhantasiaBlockInfo[][][] raw = shapes.get(0).getBlocks();
                             JsonArray patternBlocks = serializeRawPattern(raw, seenBlockIds);
                             blockCount += patternBlocks.size();
                             Path patFile = scriptPatsDir.resolve(safeId + ".json");
@@ -252,9 +251,9 @@ public class PhantasiaWebExport {
     private static JsonArray serializeBlockMap(PhantasiaScenePattern pattern, Set<String> seenBlockIds) {
         JsonArray blocks = new JsonArray();
 
-        for (Map.Entry<BlockPos, BlockInfo> e : pattern.mergedBlockMap.entrySet()) {
+        for (Map.Entry<BlockPos, PhantasiaBlockInfo> e : pattern.mergedBlockMap.entrySet()) {
             BlockPos pos = e.getKey();
-            BlockInfo info = e.getValue();
+            PhantasiaBlockInfo info = e.getValue();
             BlockState state = info.getBlockState();
             if (state == null || state.isAir()) continue;
 
@@ -296,16 +295,16 @@ public class PhantasiaWebExport {
         return blocks;
     }
 
-    // ── Raw BlockInfo[][][] → flat block list (for scripts) ───────────────────
+    // ── Raw PhantasiaBlockInfo[][][] → flat block list (for scripts) ───────────────────
 
-    private static JsonArray serializeRawPattern(BlockInfo[][][] raw, Set<String> seenBlockIds) {
+    private static JsonArray serializeRawPattern(PhantasiaBlockInfo[][][] raw, Set<String> seenBlockIds) {
         JsonArray blocks = new JsonArray();
         for (int x = 0; x < raw.length; x++) {
             if (raw[x] == null) continue;
             for (int y = 0; y < raw[x].length; y++) {
                 if (raw[x][y] == null) continue;
                 for (int z = 0; z < raw[x][y].length; z++) {
-                    BlockInfo info = raw[x][y][z];
+                    PhantasiaBlockInfo info = raw[x][y][z];
                     if (info == null) continue;
                     BlockState state = info.getBlockState();
                     if (state == null || state.isAir()) continue;

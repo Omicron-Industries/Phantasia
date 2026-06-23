@@ -1,11 +1,10 @@
 package net.phoenixvine.phantasia.compat.arsnouveaucompat;
 
-import com.lowdragmc.lowdraglib.utils.BlockInfo;
-
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.phoenixvine.phantasia.common.multisetup.IPhantasiaSetupRecipe;
+import net.phoenixvine.phantasia.utils.PhantasiaBlockInfo;
 
 import java.util.List;
 import java.util.Map;
@@ -17,7 +16,7 @@ public class ArsNouveauSetupRecipe implements IPhantasiaSetupRecipe {
     private final ItemStack output;
     private final List<ItemStack> inputs;
     private final int sourceCost;
-    private final BlockInfo[][][] layout;
+    private final PhantasiaBlockInfo[][][] layout;
     private final Map<BlockPos, ItemStack> itemPlacements;
 
     public ArsNouveauSetupRecipe(
@@ -25,7 +24,7 @@ public class ArsNouveauSetupRecipe implements IPhantasiaSetupRecipe {
                                  ItemStack output,
                                  List<ItemStack> inputs,
                                  int sourceCost,
-                                 BlockInfo[][][] layout,
+                                 PhantasiaBlockInfo[][][] layout,
                                  Map<BlockPos, ItemStack> itemPlacements) {
         this.id = id;
         this.output = output;
@@ -56,7 +55,7 @@ public class ArsNouveauSetupRecipe implements IPhantasiaSetupRecipe {
     }
 
     @Override
-    public BlockInfo[][][] getLayout() {
+    public PhantasiaBlockInfo[][][] getLayout() {
         return layout;
     }
 

@@ -1,10 +1,9 @@
 package net.phoenixvine.phantasia.common.multisetup;
 
-import com.lowdragmc.lowdraglib.utils.BlockInfo;
-
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
+import net.phoenixvine.phantasia.utils.PhantasiaBlockInfo;
 
 import java.util.List;
 import java.util.Map;
@@ -33,7 +32,7 @@ public interface IPhantasiaSetupRecipe {
      * so the existing renderer can display it directly.
      * Indexed [x][y][z]; null cells are air.
      */
-    BlockInfo[][][] getLayout();
+    PhantasiaBlockInfo[][][] getLayout();
 
     /** Source/mana cost, 0 for mods that don't use it. */
     int getSourceCost();

@@ -13,6 +13,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.List;
 
 public class PhantasiaScriptLoader {
 
@@ -99,7 +100,19 @@ public class PhantasiaScriptLoader {
     private static void discoverAllMultiblocks() {
         var scenes = PhantasiaSceneSelectionScreen.PHANTASIA_SCENES;
 
-        for (IPhantasiaMultiblockDefinition def : PhantasiaMultiblockRegistry.getAllDefinitions()) {
+        List<IPhantasiaMultiblockDefinition> all = PhantasiaMultiblockRegistry.getAllDefinitions();
+        // Show vanilla (minecraft:*) entries last, unless there are no non-vanilla entries.
+        boolean hasNonVanilla = all.stream().anyMatch(d -> !"minecraft".equals(d.getId().getNamespace()));
+        if (hasNonVanilla) {
+            all.sort((a, b) -> {
+                boolean av = "minecraft".equals(a.getId().getNamespace());
+                boolean bv = "minecraft".equals(b.getId().getNamespace());
+                if (av == bv) return 0;
+                return av ? 1 : -1;
+            });
+        }
+
+        for (IPhantasiaMultiblockDefinition def : all) {
             if (!scenes.contains(def)) {
                 scenes.add(def);
             }
@@ -108,6 +121,18 @@ public class PhantasiaScriptLoader {
             Path path = pathFor(machineId);
             if (!Files.exists(path)) {
                 writeDefaultScript(def, machineId, path);
+            } else {
+                // Overwrite if the on-disk script has no steps but the default provides some —
+                // this upgrades old generated files without touching user-authored scripts that already have steps.
+                PhantasiaScriptData defaultData = def.getDefaultScriptData();
+                if (defaultData != null && !defaultData.getSteps().isEmpty()) {
+                    try {
+                        PhantasiaScriptData onDisk = PhantasiaScriptData.fromJson(Files.newBufferedReader(path, java.nio.charset.StandardCharsets.UTF_8));
+                        if (onDisk.getSteps().isEmpty()) {
+                            writeDefaultScript(def, machineId, path);
+                        }
+                    } catch (Exception ignored) {}
+                }
             }
         }
 

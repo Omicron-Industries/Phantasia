@@ -37,6 +37,20 @@ public class PhantasiaClientEvents {
 
     @SubscribeEvent
     public static void onLogin(ClientPlayerNetworkEvent.LoggingIn event) {
-        net.minecraft.client.Minecraft.getInstance().tell(PhantasiaWelcomeOverlay::checkFirstRun);
+        net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+        mc.tell(() -> {
+            String worldId;
+            if (mc.isLocalServer() && mc.getSingleplayerServer() != null) {
+                var server = mc.getSingleplayerServer();
+                String name = server.getWorldData().getLevelName();
+                long seed = server.overworld().getSeed();
+                worldId = name + "_" + seed;
+            } else if (mc.getCurrentServer() != null) {
+                worldId = mc.getCurrentServer().ip;
+            } else {
+                worldId = "unknown";
+            }
+            PhantasiaWelcomeOverlay.checkFirstRun(worldId);
+        });
     }
 }

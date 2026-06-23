@@ -4,11 +4,7 @@ import com.gregtechceu.gtceu.api.blockentity.MetaMachineBlockEntity;
 import com.gregtechceu.gtceu.api.machine.MetaMachine;
 import com.gregtechceu.gtceu.client.renderer.machine.DynamicRender;
 
-import com.lowdragmc.lowdraglib.Platform;
 import com.lowdragmc.lowdraglib.client.scene.WorldSceneRenderer;
-import com.lowdragmc.lowdraglib.client.utils.glu.Project;
-import com.lowdragmc.lowdraglib.utils.BlockInfo;
-import com.lowdragmc.lowdraglib.utils.TrackedDummyWorld;
 
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
@@ -31,6 +27,7 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.phoenixvine.phantasia.client.camera.CameraView;
 import net.phoenixvine.phantasia.common.data.variant.PhantasiaVariantState;
+import net.phoenixvine.phantasia.utils.PhantasiaBlockInfo;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.*;
@@ -199,6 +196,12 @@ public final class PhantasiaWorldRenderer {
     /** Set by close() so that queued recordRenderCall lambdas discard rather than upload. */
     private volatile boolean closed = false;
     private volatile Set<BlockPos> partialBakePositions = Collections.emptySet();
+    /**
+     * Inactive (pre-active) block states to restore inside the partial bake thread after
+     * bucket() has read the active states. Ensures the subsequent full bake sees inactive
+     * states in the world so front[] never bakes in active-face geometry.
+     */
+    private volatile Map<BlockPos, PhantasiaBlockInfo> pendingActiveStateRevert = null;
 
     private final AtomicInteger pendingUploads = new AtomicInteger(0);
 
@@ -252,7 +255,7 @@ public final class PhantasiaWorldRenderer {
 
     // ── Scene state ───────────────────────────────────────────────────────────
 
-    private final TrackedDummyWorld world;
+    private final PhantasiaTrackedDummyWorld world;
     @Nullable
     private BlockPos controllerWorldPos = null;
     private BlockPos slotOrigin = BlockPos.ZERO;
@@ -327,7 +330,7 @@ public final class PhantasiaWorldRenderer {
 
     // ── Constructor ───────────────────────────────────────────────────────────
 
-    public PhantasiaWorldRenderer(TrackedDummyWorld world) {
+    public PhantasiaWorldRenderer(PhantasiaTrackedDummyWorld world) {
         this.world = world;
         this.cameraEntity = new PhantasiaCameraEntity(world);
         this.camera = new Camera();
@@ -383,6 +386,15 @@ public final class PhantasiaWorldRenderer {
         animateTickList = tickEntries.isEmpty() ? Collections.emptyList() : Collections.unmodifiableList(tickEntries);
         animateTickIdx = 0;
 
+        // If any positions were removed, the overlay may contain stale active-face geometry for them.
+        // Clear it immediately so it stops rendering before the rebake completes.
+        for (BlockPos pos : old) {
+            if (!next.contains(pos) && !baseplatePositions.contains(pos)) {
+                clearOverlay();
+                break;
+            }
+        }
+
         int appearing = 0;
         for (BlockPos pos : newVisible) if (!old.contains(pos)) appearing++;
         if (appearing > 0 && appearing <= TRANSITION_THRESHOLD) {
@@ -393,7 +405,7 @@ public final class PhantasiaWorldRenderer {
                     BlockState state = world.getBlockState(pos);
                     List<RenderType> layers = new ArrayList<>(2);
                     for (RenderType layer : LAYERS) {
-                        if (WorldSceneRenderer.canRenderInLayer(brd, state, pos, world, layer, random)) {
+                        if (canRenderInLayer(brd, state, pos, world, layer, random)) {
                             layers.add(layer);
                             break;
                         }
@@ -425,12 +437,35 @@ public final class PhantasiaWorldRenderer {
 
     public void requestPartialBake(Set<BlockPos> changedPositions) {
         if (changedPositions == null || changedPositions.isEmpty()) return;
-        if (fullBakeNeeded) return;
         Set<BlockPos> existing = partialBakePositions;
         Set<BlockPos> merged = new HashSet<>(existing);
         merged.addAll(changedPositions);
         partialBakePositions = Set.copyOf(merged);
         partialBakePending = true;
+    }
+
+    /**
+     * Like requestPartialBake, but also registers inactive states to restore inside the bake
+     * thread after bucket() reads the (currently-active) world states. This keeps front[]
+     * always baked with inactive geometry — active faces live only in overlay[].
+     */
+    public void requestPartialBakeWithRevert(Set<BlockPos> activePositions,
+                                             Map<BlockPos, PhantasiaBlockInfo> inactiveStates) {
+        if (activePositions == null || activePositions.isEmpty()) return;
+        Set<BlockPos> existing = partialBakePositions;
+        Set<BlockPos> merged = new HashSet<>(existing);
+        merged.addAll(activePositions);
+        partialBakePositions = Set.copyOf(merged);
+        pendingActiveStateRevert = new HashMap<>(inactiveStates);
+        partialBakePending = true;
+    }
+
+    /** Clears the overlay VBOs immediately so stale active-face geometry stops rendering. */
+    public void clearOverlay() {
+        overlayReady = false;
+        RenderSystem.recordRenderCall(() -> {
+            for (int i = 0; i < LAYER_COUNT; i++) uploadEmptyVBO(overlay[i], LAYERS.get(i));
+        });
     }
 
     public void invalidate() {
@@ -788,7 +823,7 @@ public final class PhantasiaWorldRenderer {
         mv.pushPose();
         mv.setIdentity();
 
-        Project.gluLookAt(mv,
+        gluLookAt(mv,
                 (float) (view.eyeX() - ox), (float) (view.eyeY() - oy), (float) (view.eyeZ() - oz),
                 (float) (view.lookAtX() - ox), (float) (view.lookAtY() - oy), (float) (view.lookAtZ() - oz),
                 0f, 1f, 0f);
@@ -937,10 +972,7 @@ public final class PhantasiaWorldRenderer {
                 tinted.setAlpha(alpha);
                 ps.pushPose();
                 ps.translate(pos.getX(), pos.getY(), pos.getZ());
-                if (Platform.isForge())
-                    WorldSceneRenderer.renderBlocksForge(brd, state, pos, world, ps, tinted, random, layer);
-                else
-                    brd.renderBatched(state, pos, world, ps, tinted, true, random);
+                WorldSceneRenderer.renderBlocksForge(brd, state, pos, world, ps, tinted, random, layer);
                 ps.popPose();
                 tinted.resetTint();
             }
@@ -954,6 +986,7 @@ public final class PhantasiaWorldRenderer {
         int count = 0;
 
         for (BlockPos pos : frontTileEntities) {
+            if (!targetVisible.contains(pos) && !baseplatePositions.contains(pos)) continue;
             BlockEntity be = world.getBlockEntity(pos);
             if (be == null || be.isRemoved()) continue;
 
@@ -1161,7 +1194,7 @@ public final class PhantasiaWorldRenderer {
         SCRATCH_VP.rewind();
         UNPROJECT_OUT.rewind();
 
-        Project.gluUnProject(mouseGlX, mouseGlY, 0f, SCRATCH_MV, SCRATCH_PROJ, SCRATCH_VP, UNPROJECT_OUT);
+        gluUnProject(mouseGlX, mouseGlY, 0f, SCRATCH_MV, SCRATCH_PROJ, SCRATCH_VP, UNPROJECT_OUT);
         double nearX = UNPROJECT_OUT.get(0), nearY = UNPROJECT_OUT.get(1), nearZ = UNPROJECT_OUT.get(2);
 
         for (int i = 0; i < 16; i++) SCRATCH_MV.put(i, snapMV[i]);
@@ -1172,7 +1205,7 @@ public final class PhantasiaWorldRenderer {
         SCRATCH_VP.rewind();
         UNPROJECT_OUT.rewind();
 
-        Project.gluUnProject(mouseGlX, mouseGlY, 1f, SCRATCH_MV, SCRATCH_PROJ, SCRATCH_VP, UNPROJECT_OUT);
+        gluUnProject(mouseGlX, mouseGlY, 1f, SCRATCH_MV, SCRATCH_PROJ, SCRATCH_VP, UNPROJECT_OUT);
         double farX = UNPROJECT_OUT.get(0), farY = UNPROJECT_OUT.get(1), farZ = UNPROJECT_OUT.get(2);
 
         // Unproject yields slot-relative coords; shift to world space.
@@ -1253,8 +1286,8 @@ public final class PhantasiaWorldRenderer {
             ModelBlockRenderer.enableCaching();
 
             PhantasiaVariantState vs = PhantasiaVariantState.get();
-            Map<BlockPos, BlockInfo> variantSaved = applyVariants(vs, snapshot);
-            Map<BlockPos, BlockInfo> hiddenSaved = maskHiddenBlocks(snapshot);
+            Map<BlockPos, PhantasiaBlockInfo> variantSaved = applyVariants(vs, snapshot);
+            Map<BlockPos, PhantasiaBlockInfo> hiddenSaved = maskHiddenBlocks(snapshot);
 
             Map<RenderType, List<BlockPos>> solidBuckets = new HashMap<>(LAYER_COUNT);
             Map<RenderType, List<BlockPos>> fluidBuckets = new HashMap<>(LAYER_COUNT);
@@ -1281,6 +1314,7 @@ public final class PhantasiaWorldRenderer {
                 ModelBlockRenderer.clearCache();
                 restoreVariants(hiddenSaved);
                 restoreVariants(variantSaved);
+
                 if (!fullBakeDone) {
                     for (BakedLayer bl : baked) if (bl != null) bl.renderedBuffer().release();
                     return;
@@ -1352,8 +1386,8 @@ public final class PhantasiaWorldRenderer {
             RandomSource random = RandomSource.createNewThreadLocalInstance();
 
             PhantasiaVariantState vs = PhantasiaVariantState.get();
-            Map<BlockPos, BlockInfo> variantSaved = applyVariants(vs, snapshot);
-            Map<BlockPos, BlockInfo> hiddenSaved = maskHiddenBlocks(snapshot);
+            Map<BlockPos, PhantasiaBlockInfo> variantSaved = applyVariants(vs, snapshot);
+            Map<BlockPos, PhantasiaBlockInfo> hiddenSaved = maskHiddenBlocks(snapshot);
 
             Set<BlockPos> animatedBack = new HashSet<>();
             Set<BlockPos> tesBack = new HashSet<>();
@@ -1427,14 +1461,15 @@ public final class PhantasiaWorldRenderer {
             } finally {
                 restoreVariants(hiddenSaved);
                 restoreVariants(variantSaved);
+
             }
 
             // Consolidating bake: re-bake the entire snapshot into back[] normally.
             // When swapFullBuffers() fires, it closes all stream chunks automatically.
             ModelBlockRenderer.enableCaching();
             PhantasiaVariantState vs2 = PhantasiaVariantState.get();
-            Map<BlockPos, BlockInfo> vs2saved = applyVariants(vs2, snapshot);
-            Map<BlockPos, BlockInfo> hidSaved2 = maskHiddenBlocks(snapshot);
+            Map<BlockPos, PhantasiaBlockInfo> vs2saved = applyVariants(vs2, snapshot);
+            Map<BlockPos, PhantasiaBlockInfo> hidSaved2 = maskHiddenBlocks(snapshot);
 
             Map<RenderType, List<BlockPos>> solidB = new HashMap<>(LAYER_COUNT);
             Map<RenderType, List<BlockPos>> fluidB = new HashMap<>(LAYER_COUNT);
@@ -1460,6 +1495,7 @@ public final class PhantasiaWorldRenderer {
                 ModelBlockRenderer.clearCache();
                 restoreVariants(hidSaved2);
                 restoreVariants(vs2saved);
+
                 if (!consolidateDone) {
                     // Interrupted mid-loop — release any layers already baked to avoid native memory leak.
                     for (BakedLayer bl : finalBaked) if (bl != null) bl.renderedBuffer().release();
@@ -1506,12 +1542,20 @@ public final class PhantasiaWorldRenderer {
             ModelBlockRenderer.enableCaching();
 
             PhantasiaVariantState vs = PhantasiaVariantState.get();
-            Map<BlockPos, BlockInfo> variantSaved = applyVariants(vs, valid);
-            Map<BlockPos, BlockInfo> hiddenSaved = maskHiddenBlocks(fullVisibleSnapshot);
+            Map<BlockPos, PhantasiaBlockInfo> variantSaved = applyVariants(vs, valid);
+            Map<BlockPos, PhantasiaBlockInfo> hiddenSaved = maskHiddenBlocks(fullVisibleSnapshot);
 
             Map<RenderType, List<BlockPos>> solidBuckets = new HashMap<>(LAYER_COUNT);
             Map<RenderType, List<BlockPos>> fluidBuckets = new HashMap<>(LAYER_COUNT);
             bucket(brd, random, valid, solidBuckets, fluidBuckets);
+
+            // Revert active-state blocks to inactive now that bucket() has finished reading world
+            // states. Any subsequent full bake will see inactive geometry and front[] stays clean.
+            Map<BlockPos, PhantasiaBlockInfo> activeRevert = pendingActiveStateRevert;
+            if (activeRevert != null) {
+                pendingActiveStateRevert = null;
+                restoreVariants(activeRevert);
+            }
 
             Set<BlockPos> animatedBack = new HashSet<>();
             BakedLayer[] baked = new BakedLayer[LAYER_COUNT];
@@ -1533,6 +1577,7 @@ public final class PhantasiaWorldRenderer {
                 ModelBlockRenderer.clearCache();
                 restoreVariants(hiddenSaved);
                 restoreVariants(variantSaved);
+
                 if (!partialDone) {
                     for (BakedLayer bl : baked) if (bl != null) bl.renderedBuffer().release();
                     return;
@@ -1570,7 +1615,7 @@ public final class PhantasiaWorldRenderer {
 
             if (state.getRenderShape() != RenderShape.INVISIBLE) {
                 for (RenderType layer : LAYERS) {
-                    if (WorldSceneRenderer.canRenderInLayer(brd, state, pos, world, layer, random)) {
+                    if (canRenderInLayer(brd, state, pos, world, layer, random)) {
                         solidOut.computeIfAbsent(layer, k -> new ArrayList<>()).add(pos);
                     }
                 }
@@ -1606,10 +1651,7 @@ public final class PhantasiaWorldRenderer {
             BlockState state = world.getBlockState(pos);
             ps.pushPose();
             ps.translate(pos.getX(), pos.getY(), pos.getZ());
-            if (Platform.isForge())
-                WorldSceneRenderer.renderBlocksForge(brd, state, pos, world, ps, tinted, random, layer);
-            else
-                brd.renderBatched(state, pos, world, ps, tinted, true, random);
+            WorldSceneRenderer.renderBlocksForge(brd, state, pos, world, ps, tinted, random, layer);
             ps.popPose();
             tinted.resetTint();
             if (state.isRandomlyTicking() || state.getBlock() instanceof net.minecraft.world.level.block.EntityBlock) {
@@ -1677,38 +1719,38 @@ public final class PhantasiaWorldRenderer {
         }
     }
 
-    private Map<BlockPos, BlockInfo> applyVariants(PhantasiaVariantState vs, Set<BlockPos> positions) {
-        Map<BlockPos, BlockInfo> saved = new HashMap<>();
+    private Map<BlockPos, PhantasiaBlockInfo> applyVariants(PhantasiaVariantState vs, Set<BlockPos> positions) {
+        Map<BlockPos, PhantasiaBlockInfo> saved = new HashMap<>();
         for (BlockPos vp : positions) {
             if (world.getBlockEntity(vp) != null) continue; // BER blocks go invisible when state-overridden
-            BlockInfo baseInfo = world.renderedBlocks.get(vp);
+            PhantasiaBlockInfo baseInfo = world.renderedBlocks.get(vp);
             if (baseInfo == null) continue;
             BlockState base = baseInfo.getBlockState();
             if (base == null || base.isAir()) continue;
             BlockState resolved = vs.resolveState(vp, base);
             if (resolved != base) {
                 saved.put(vp, baseInfo);
-                world.renderedBlocks.put(vp, BlockInfo.fromBlockState(resolved));
+                world.renderedBlocks.put(vp, PhantasiaBlockInfo.fromBlockState(resolved));
             }
         }
         return saved;
     }
 
-    private void restoreVariants(Map<BlockPos, BlockInfo> saved) {
-        for (Map.Entry<BlockPos, BlockInfo> e : saved.entrySet())
+    private void restoreVariants(Map<BlockPos, PhantasiaBlockInfo> saved) {
+        for (Map.Entry<BlockPos, PhantasiaBlockInfo> e : saved.entrySet())
             world.renderedBlocks.put(e.getKey(), e.getValue());
     }
 
-    private Map<BlockPos, BlockInfo> maskHiddenBlocks(Set<BlockPos> visibleSnapshot) {
-        Map<BlockPos, BlockInfo> saved = new HashMap<>();
-        BlockInfo air = BlockInfo.fromBlockState(Blocks.AIR.defaultBlockState());
+    private Map<BlockPos, PhantasiaBlockInfo> maskHiddenBlocks(Set<BlockPos> visibleSnapshot) {
+        Map<BlockPos, PhantasiaBlockInfo> saved = new HashMap<>();
+        PhantasiaBlockInfo air = PhantasiaBlockInfo.fromBlockState(Blocks.AIR.defaultBlockState());
 
         Set<BlockPos> totalTracked = new HashSet<>(bakedAll);
         totalTracked.addAll(baseplatePositions);
 
         for (BlockPos pos : totalTracked) {
             if (!visibleSnapshot.contains(pos)) {
-                BlockInfo existing = world.renderedBlocks.get(pos);
+                PhantasiaBlockInfo existing = world.renderedBlocks.get(pos);
                 if (existing != null && !existing.getBlockState().isAir()) {
                     saved.put(pos, existing);
                     world.renderedBlocks.put(pos, air);
@@ -1726,6 +1768,58 @@ public final class PhantasiaWorldRenderer {
     }
 
     private record BakedLayer(BufferBuilder.RenderedBuffer renderedBuffer) {}
+
+    // ── Static helpers replacing LDLib Project / WorldSceneRenderer ───────────
+
+    private static boolean canRenderInLayer(BlockRenderDispatcher brd, BlockState state, BlockPos pos,
+                                            net.minecraft.world.level.BlockAndTintGetter world,
+                                            RenderType layer, RandomSource random) {
+        return WorldSceneRenderer.canRenderInLayer(brd, state, pos, world, layer, random);
+    }
+
+    private static void gluLookAt(PoseStack mv,
+                                  float eyeX, float eyeY, float eyeZ,
+                                  float centerX, float centerY, float centerZ,
+                                  float upX, float upY, float upZ) {
+        float fx = centerX - eyeX, fy = centerY - eyeY, fz = centerZ - eyeZ;
+        float rLen = 1f / (float) Math.sqrt(fx * fx + fy * fy + fz * fz);
+        fx *= rLen;
+        fy *= rLen;
+        fz *= rLen;
+        float sx = fy * upZ - fz * upY, sy = fz * upX - fx * upZ, sz = fx * upY - fy * upX;
+        float sLen = 1f / (float) Math.sqrt(sx * sx + sy * sy + sz * sz);
+        sx *= sLen;
+        sy *= sLen;
+        sz *= sLen;
+        float ux = sy * fz - sz * fy, uy = sz * fx - sx * fz, uz = sx * fy - sy * fx;
+        org.joml.Matrix4f m = new org.joml.Matrix4f(
+                sx, ux, -fx, 0,
+                sy, uy, -fy, 0,
+                sz, uz, -fz, 0,
+                -(sx * eyeX + sy * eyeY + sz * eyeZ),
+                -(ux * eyeX + uy * eyeY + uz * eyeZ),
+                (fx * eyeX + fy * eyeY + fz * eyeZ),
+                1);
+        mv.mulPoseMatrix(m);
+    }
+
+    private static boolean gluUnProject(float winX, float winY, float winZ,
+                                        FloatBuffer mv, FloatBuffer proj, IntBuffer vp,
+                                        FloatBuffer out) {
+        org.joml.Matrix4f combined = new org.joml.Matrix4f(proj).mul(new org.joml.Matrix4f(mv));
+        if (combined.determinant() == 0) return false;
+        org.joml.Matrix4f inv = combined.invert(new org.joml.Matrix4f());
+        int vpX = vp.get(0), vpY = vp.get(1), vpW = vp.get(2), vpH = vp.get(3);
+        float ix = (winX - vpX) / vpW * 2f - 1f;
+        float iy = (winY - vpY) / vpH * 2f - 1f;
+        float iz = winZ * 2f - 1f;
+        org.joml.Vector4f v = inv.transform(new org.joml.Vector4f(ix, iy, iz, 1f));
+        if (v.w == 0) return false;
+        out.put(0, v.x / v.w);
+        out.put(1, v.y / v.w);
+        out.put(2, v.z / v.w);
+        return true;
+    }
 
     // ── Profiler ──────────────────────────────────────────────────────────────
 

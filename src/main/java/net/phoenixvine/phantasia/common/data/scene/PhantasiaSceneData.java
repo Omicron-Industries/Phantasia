@@ -72,6 +72,13 @@ public class PhantasiaSceneData {
     @SerializedName("tooltipItems")
     public List<String> tooltipItems = new ArrayList<>();
 
+    /**
+     * Camera position when the scene first opens, before any step camera overrides.
+     * Null = auto-fit to scene bounds.
+     */
+    @SerializedName("startCamera")
+    public PhantasiaScriptData.CameraData startCamera = null;
+
     @SerializedName("placements")
     public List<PlacementData> placements = new ArrayList<>();
 
@@ -653,6 +660,9 @@ public class PhantasiaSceneData {
 
     public PhantasiaSceneData copy() {
         PhantasiaSceneData c = new PhantasiaSceneData(id, name, iconItem);
+        if (startCamera != null) c.startCamera = new PhantasiaScriptData.CameraData(
+                startCamera.yaw, startCamera.pitch, startCamera.zoom,
+                startCamera.lerpType, startCamera.lerpTicks);
         for (PlacementData p : placements) c.placements.add(p.copy());
         for (StepData s : steps) c.steps.add(s.copy());
         if (mistakes != null)

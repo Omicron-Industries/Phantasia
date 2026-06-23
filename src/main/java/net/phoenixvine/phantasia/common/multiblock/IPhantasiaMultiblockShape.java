@@ -1,6 +1,6 @@
 package net.phoenixvine.phantasia.common.multiblock;
 
-import com.lowdragmc.lowdraglib.utils.BlockInfo;
+import net.phoenixvine.phantasia.utils.PhantasiaBlockInfo;
 
 /**
  * Mod-agnostic representation of a single multiblock shape/configuration.
@@ -9,5 +9,5 @@ import com.lowdragmc.lowdraglib.utils.BlockInfo;
 public interface IPhantasiaMultiblockShape {
 
     /** Raw block grid for this shape: [x][y][z]. Null entries are air. */
-    BlockInfo[][][] getBlocks();
+    PhantasiaBlockInfo[][][] getBlocks();
 }

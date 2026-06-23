@@ -1,7 +1,5 @@
 package net.phoenixvine.phantasia.common.multiblock;
 
-import com.lowdragmc.lowdraglib.utils.BlockInfo;
-
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
@@ -9,6 +7,7 @@ import net.phoenixvine.phantasia.client.render.PhantasiaTrackedDummyWorld;
 import net.phoenixvine.phantasia.common.data.pattern.PhantasiaLoadedPattern;
 import net.phoenixvine.phantasia.common.data.script.PhantasiaScriptData;
 import net.phoenixvine.phantasia.common.data.variant.PhantasiaVariantGroup;
+import net.phoenixvine.phantasia.utils.PhantasiaBlockInfo;
 
 import java.util.Collections;
 import java.util.List;
@@ -46,14 +45,14 @@ public interface IPhantasiaMultiblockDefinition {
      *               to load the correct item placements.
      */
     default void onShapeLoaded(PhantasiaTrackedDummyWorld level, BlockPos origin,
-                               Map<BlockPos, BlockInfo> blockMap,
+                               Map<BlockPos, PhantasiaBlockInfo> blockMap,
                                Map<BlockPos, BlockPos> localToWorld,
                                @javax.annotation.Nullable net.phoenixvine.phantasia.common.data.script.PhantasiaScriptData script) {
         onShapeLoaded(level, origin, blockMap, localToWorld);
     }
 
     default void onShapeLoaded(PhantasiaTrackedDummyWorld level, BlockPos origin,
-                               Map<BlockPos, BlockInfo> blockMap,
+                               Map<BlockPos, PhantasiaBlockInfo> blockMap,
                                Map<BlockPos, BlockPos> localToWorld) {}
 
     /**
@@ -95,6 +94,16 @@ public interface IPhantasiaMultiblockDefinition {
     }
 
     /**
+     * Called on the render thread when the working state is active.
+     * Use to render a mob or other overlay on top of the viewport.
+     * {@code vpX/Y/W/H} are the viewport bounds in GUI-scaled coordinates.
+     * Default: no-op.
+     */
+    @net.minecraftforge.api.distmarker.OnlyIn(net.minecraftforge.api.distmarker.Dist.CLIENT)
+    default void renderWorkingOverlay(net.minecraft.client.gui.GuiGraphics g,
+                                      int vpX, int vpY, int vpW, int vpH, float partial) {}
+
+    /**
      * Override to supply a richer default script written to the game dir on first launch.
      * Return null to use the bare single-step default.
      */
@@ -124,5 +133,14 @@ public interface IPhantasiaMultiblockDefinition {
                                                                String machinePrefix,
                                                                Set<String> explicitIds) {
         return Collections.emptyList();
+    }
+
+    /**
+     * Whether to run generic optional-block detection across all shapes.
+     * Return false for definitions whose shape differences are structural (e.g. beacon tiers)
+     * rather than optional substitutions.
+     */
+    default boolean shouldAutoDetectVariants() {
+        return true;
     }
 }

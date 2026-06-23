@@ -1,7 +1,5 @@
 package net.phoenixvine.phantasia.common.data.pattern;
 
-import com.lowdragmc.lowdraglib.utils.BlockInfo;
-
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.level.block.state.BlockState;
@@ -9,6 +7,7 @@ import net.phoenixvine.phantasia.client.render.PhantasiaTrackedDummyWorld;
 import net.phoenixvine.phantasia.common.data.script.PhantasiaScript;
 import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockDefinition;
 import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockShape;
+import net.phoenixvine.phantasia.utils.PhantasiaBlockInfo;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import org.slf4j.Logger;
@@ -159,7 +158,7 @@ public final class PhantasiaPatternLoader {
                                             PhantasiaScript script) throws InterruptedException {
         phase = "Reading shape…";
 
-        BlockInfo[][][] raw = shape.getBlocks();
+        PhantasiaBlockInfo[][][] raw = shape.getBlocks();
         int sxLen = raw.length;
         int syLen = sxLen > 0 ? raw[0].length : 0;
         int szLen = sxLen > 0 && syLen > 0 ? raw[0][0].length : 0;
@@ -170,7 +169,7 @@ public final class PhantasiaPatternLoader {
         int machineCount = countNonNull(raw);
         blocksTotal = baseplateCount + machineCount;
 
-        Map<BlockPos, BlockInfo> blockMap = new HashMap<>(blocksTotal);
+        Map<BlockPos, PhantasiaBlockInfo> blockMap = new HashMap<>(blocksTotal);
         Map<BlockPos, BlockPos> localToWorld = new HashMap<>(machineCount);
         Set<BlockPos> baseplatePos = new HashSet<>(baseplateCount);
         Set<BlockPos> bePos = new HashSet<>();
@@ -178,7 +177,8 @@ public final class PhantasiaPatternLoader {
         // ── Baseplate ─────────────────────────────────────────────────────────
         phase = "Reading baseplate…";
         var _baseplateState0 = net.phoenixvine.phantasia.utils.PhantasiaTheme.currentBaseplateBlockState();
-        BlockInfo floor = _baseplateState0 != null ? BlockInfo.fromBlockState(_baseplateState0) : null;
+        PhantasiaBlockInfo floor = _baseplateState0 != null ? PhantasiaBlockInfo.fromBlockState(_baseplateState0) :
+                null;
 
         if (floor != null) for (int bx = -padX; bx < sxLen + padX; bx++) {
             for (int bz = -padZ; bz < szLen + padZ; bz++) {
@@ -200,7 +200,7 @@ public final class PhantasiaPatternLoader {
                 for (int z = 0; z < raw[x][y].length; z++) {
                     if (Thread.interrupted()) throw new InterruptedException();
 
-                    BlockInfo info = raw[x][y][z];
+                    PhantasiaBlockInfo info = raw[x][y][z];
                     if (info == null) continue;
 
                     BlockState state = info.getBlockState();
@@ -227,7 +227,7 @@ public final class PhantasiaPatternLoader {
         // onShapeLoaded needs the world to be populated; we defer it until after the
         // render thread writes all blocks in onAsyncPatternLoaded.
         phase = "Forming structure…";
-        final Map<BlockPos, BlockInfo> blockMapSnapshot = Map.copyOf(blockMap);
+        final Map<BlockPos, PhantasiaBlockInfo> blockMapSnapshot = Map.copyOf(blockMap);
         final Map<BlockPos, BlockPos> localToWorldSnapshot = Map.copyOf(localToWorld);
         Runnable postWriteTask = () -> definition.onShapeLoaded(sharedLevel, renderOrigin, blockMapSnapshot,
                 localToWorldSnapshot);
@@ -238,8 +238,8 @@ public final class PhantasiaPatternLoader {
     // ── Build result ──────────────────────────────────────────────────────────
 
     private static PhantasiaLoadedPattern buildResult(
-                                                      BlockInfo[][][] raw,
-                                                      Map<BlockPos, BlockInfo> blockMap,
+                                                      PhantasiaBlockInfo[][][] raw,
+                                                      Map<BlockPos, PhantasiaBlockInfo> blockMap,
                                                       Map<BlockPos, BlockPos> localToWorld,
                                                       Set<BlockPos> baseplatePos,
                                                       Set<BlockPos> bePos,
@@ -249,8 +249,8 @@ public final class PhantasiaPatternLoader {
     }
 
     private static PhantasiaLoadedPattern buildResult(
-                                                      BlockInfo[][][] raw,
-                                                      Map<BlockPos, BlockInfo> blockMap,
+                                                      PhantasiaBlockInfo[][][] raw,
+                                                      Map<BlockPos, PhantasiaBlockInfo> blockMap,
                                                       Map<BlockPos, BlockPos> localToWorld,
                                                       Set<BlockPos> baseplatePos,
                                                       Set<BlockPos> bePos,
@@ -275,11 +275,11 @@ public final class PhantasiaPatternLoader {
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    private static int countNonNull(BlockInfo[][][] raw) {
+    private static int countNonNull(PhantasiaBlockInfo[][][] raw) {
         int n = 0;
-        for (BlockInfo[][] layer : raw)
-            for (BlockInfo[] row : layer)
-                for (BlockInfo b : row) {
+        for (PhantasiaBlockInfo[][] layer : raw)
+            for (PhantasiaBlockInfo[] row : layer)
+                for (PhantasiaBlockInfo b : row) {
                     if (b == null) continue;
                     net.minecraft.world.level.block.state.BlockState s = b.getBlockState();
                     if (s == null || s.isAir() ||

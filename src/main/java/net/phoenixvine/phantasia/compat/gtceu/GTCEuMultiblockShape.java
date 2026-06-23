@@ -5,6 +5,7 @@ import com.gregtechceu.gtceu.api.pattern.MultiblockShapeInfo;
 import com.lowdragmc.lowdraglib.utils.BlockInfo;
 
 import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockShape;
+import net.phoenixvine.phantasia.utils.PhantasiaBlockInfo;
 
 /** Wraps GTCEu's {@link MultiblockShapeInfo} as an {@link IPhantasiaMultiblockShape}. */
 public class GTCEuMultiblockShape implements IPhantasiaMultiblockShape {
@@ -16,8 +17,21 @@ public class GTCEuMultiblockShape implements IPhantasiaMultiblockShape {
     }
 
     @Override
-    public BlockInfo[][][] getBlocks() {
-        return shapeInfo.getBlocks();
+    public PhantasiaBlockInfo[][][] getBlocks() {
+        BlockInfo[][][] src = shapeInfo.getBlocks();
+        PhantasiaBlockInfo[][][] dst = new PhantasiaBlockInfo[src.length][][];
+        for (int x = 0; x < src.length; x++) {
+            dst[x] = new PhantasiaBlockInfo[src[x].length][];
+            for (int y = 0; y < src[x].length; y++) {
+                dst[x][y] = new PhantasiaBlockInfo[src[x][y].length];
+                for (int z = 0; z < src[x][y].length; z++) {
+                    BlockInfo bi = src[x][y][z];
+                    dst[x][y][z] = bi != null ? PhantasiaBlockInfo.fromBlockState(bi.getBlockState()) :
+                            PhantasiaBlockInfo.EMPTY;
+                }
+            }
+        }
+        return dst;
     }
 
     public MultiblockShapeInfo getShapeInfo() {

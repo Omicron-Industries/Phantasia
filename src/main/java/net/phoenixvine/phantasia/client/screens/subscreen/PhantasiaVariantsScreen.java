@@ -93,8 +93,7 @@ public class PhantasiaVariantsScreen extends Screen {
 
     @Override
     public void render(GuiGraphics g, int mx, int my, float partial) {
-        // Dim background
-        renderBackground(g);
+        g.fill(0, 0, width, height, 0xFF000000);
         activeButtons.clear();
 
         int panelX = (width - PANEL_W) / 2;

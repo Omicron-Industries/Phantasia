@@ -1,7 +1,5 @@
 package net.phoenixvine.phantasia.compat.arsnouveaucompat;
 
-import com.lowdragmc.lowdraglib.utils.BlockInfo;
-
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
@@ -10,6 +8,7 @@ import net.phoenixvine.phantasia.client.render.PhantasiaTrackedDummyWorld;
 import net.phoenixvine.phantasia.common.data.script.PhantasiaScriptData;
 import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockDefinition;
 import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockShape;
+import net.phoenixvine.phantasia.utils.PhantasiaBlockInfo;
 
 import java.util.List;
 import java.util.Map;
@@ -51,7 +50,7 @@ public class ArsNouveauStaticDefinition implements IPhantasiaMultiblockDefinitio
     private final ResourceLocation id;
     private final String displayName;
     private final Supplier<ItemStack> iconSupplier;
-    private final Supplier<BlockInfo[][][]> layoutSupplier;
+    private final Supplier<PhantasiaBlockInfo[][][]> layoutSupplier;
     private final Supplier<PhantasiaScriptData> scriptSupplier;
     @Nullable
     private final SceneTickHandler sceneTickHandler;
@@ -64,12 +63,12 @@ public class ArsNouveauStaticDefinition implements IPhantasiaMultiblockDefinitio
 
     // Lazy cache
     private ItemStack cachedIcon = null;
-    private BlockInfo[][][] cachedLayout = null;
+    private PhantasiaBlockInfo[][][] cachedLayout = null;
 
     public ArsNouveauStaticDefinition(ResourceLocation id,
                                       String displayName,
                                       Supplier<ItemStack> iconSupplier,
-                                      Supplier<BlockInfo[][][]> layoutSupplier,
+                                      Supplier<PhantasiaBlockInfo[][][]> layoutSupplier,
                                       Supplier<PhantasiaScriptData> scriptSupplier) {
         this(id, displayName, iconSupplier, layoutSupplier, scriptSupplier, null);
     }
@@ -77,7 +76,7 @@ public class ArsNouveauStaticDefinition implements IPhantasiaMultiblockDefinitio
     public ArsNouveauStaticDefinition(ResourceLocation id,
                                       String displayName,
                                       Supplier<ItemStack> iconSupplier,
-                                      Supplier<BlockInfo[][][]> layoutSupplier,
+                                      Supplier<PhantasiaBlockInfo[][][]> layoutSupplier,
                                       Supplier<PhantasiaScriptData> scriptSupplier,
                                       @Nullable SceneTickHandler sceneTickHandler) {
         this.id = id;
@@ -130,7 +129,7 @@ public class ArsNouveauStaticDefinition implements IPhantasiaMultiblockDefinitio
     @Override
     public void onShapeLoaded(PhantasiaTrackedDummyWorld level,
                               BlockPos origin,
-                              Map<BlockPos, BlockInfo> blockMap,
+                              Map<BlockPos, PhantasiaBlockInfo> blockMap,
                               Map<BlockPos, BlockPos> localToWorld,
                               @javax.annotation.Nullable net.phoenixvine.phantasia.common.data.script.PhantasiaScriptData script) {
         for (BlockPos worldPos : localToWorld.values()) {
@@ -145,7 +144,7 @@ public class ArsNouveauStaticDefinition implements IPhantasiaMultiblockDefinitio
         }
     }
 
-    private BlockInfo[][][] getLayout() {
+    private PhantasiaBlockInfo[][][] getLayout() {
         if (cachedLayout == null) cachedLayout = layoutSupplier.get();
         return cachedLayout;
     }

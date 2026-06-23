@@ -1,7 +1,5 @@
 package net.phoenixvine.phantasia.client.screens;
 
-import com.lowdragmc.lowdraglib.utils.BlockInfo;
-
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
@@ -42,6 +40,7 @@ import net.phoenixvine.phantasia.common.multiblock.PhantasiaMultiblockRegistry;
 import net.phoenixvine.phantasia.compat.arsnouveaucompat.ArsNouveauScriptEditorScreen;
 import net.phoenixvine.phantasia.configs.PhantasiaConfigs;
 import net.phoenixvine.phantasia.integration.emi.PhantasiaEmiPlugin;
+import net.phoenixvine.phantasia.utils.PhantasiaBlockInfo;
 import net.phoenixvine.phantasia.utils.PhantasiaThemeUtils;
 import net.phoenixvine.phantasia.utils.PhantasiaUIUtils;
 
@@ -176,6 +175,10 @@ public class PhantasiaSceneScreen extends Screen {
     private int sceneTick = 0;
     private int itemAnimTick = 0;
 
+    public int getPlaybackTick() {
+        return this.playbackTick;
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // View / filter
     // ─────────────────────────────────────────────────────────────────────────
@@ -250,7 +253,7 @@ public class PhantasiaSceneScreen extends Screen {
         applyVisibility();
     }
 
-    private List<BlockInfo> coilTiers = new ArrayList<>();
+    private List<PhantasiaBlockInfo> coilTiers = new ArrayList<>();
 
     // ─────────────────────────────────────────────────────────────────────────
     // Camera helpers
@@ -383,12 +386,12 @@ public class PhantasiaSceneScreen extends Screen {
         // Write all blocks to the shared world HERE on the render thread.
         // The loader deliberately skipped addBlock() to avoid ConcurrentModificationException
         // in TrackedDummyWorld.tickWorld() (which the render thread iterates every frame).
-        // Use addBlocks() to preserve the full BlockInfo (model overrides, etc.), not just state.
+        // Use addBlocks() to preserve the full PhantasiaBlockInfo (model overrides, etc.), not just state.
         SHARED_LEVEL.renderedBlocks.clear();
         SHARED_LEVEL.blockEntities.clear();
         SHARED_LEVEL.addBlocks(p.blockMap);
         for (BlockPos beWorldPos : p.blockEntityWorldPos) {
-            BlockInfo info = p.blockMap.get(beWorldPos);
+            PhantasiaBlockInfo info = p.blockMap.get(beWorldPos);
             if (info != null && info.getBlockState().getBlock() instanceof EntityBlock eb) {
                 BlockEntity be = eb.newBlockEntity(beWorldPos, info.getBlockState());
                 if (be != null) {
@@ -439,6 +442,9 @@ public class PhantasiaSceneScreen extends Screen {
         vs.setOnChangeCallback(() -> {
             if (renderer == null || pattern == null) return;
             this.cacheInitialized = false;
+            // Sync active state into renderedBlocks before the bake thread reads them,
+            // so variant blocks get the correct active property without a race.
+            applyActiveStateToWorld(machineWorking);
             Set<BlockPos> variantPositions = buildVariantWorldPositions(vs);
             if (variantPositions.isEmpty()) renderer.requestBake();
             else renderer.requestPartialBake(variantPositions);
@@ -482,11 +488,11 @@ public class PhantasiaSceneScreen extends Screen {
         }
     }
 
-    private static int countBlocks(BlockInfo[][][] raw) {
+    private static int countBlocks(PhantasiaBlockInfo[][][] raw) {
         int n = 0;
-        for (BlockInfo[][] layer : raw)
-            for (BlockInfo[] row : layer)
-                for (BlockInfo b : row) {
+        for (PhantasiaBlockInfo[][] layer : raw)
+            for (PhantasiaBlockInfo[] row : layer)
+                for (PhantasiaBlockInfo b : row) {
                     if (b == null) continue;
                     net.minecraft.world.level.block.state.BlockState s = b.getBlockState();
                     if (s == null || s.isAir() ||
@@ -501,15 +507,16 @@ public class PhantasiaSceneScreen extends Screen {
         SHARED_LEVEL.renderedBlocks.clear();
         SHARED_LEVEL.blockEntities.clear();
 
-        BlockInfo[][][] raw = shape.getBlocks();
-        Map<BlockPos, BlockInfo> blockMap = new HashMap<>();
+        PhantasiaBlockInfo[][][] raw = shape.getBlocks();
+        Map<BlockPos, PhantasiaBlockInfo> blockMap = new HashMap<>();
         Map<BlockPos, BlockPos> localToWorld = new HashMap<>();
         Set<BlockPos> baseplatePos = new HashSet<>();
         Set<BlockPos> bePos = new HashSet<>();
         BlockPos controllerWP = null;
 
         var _baseplateState0 = net.phoenixvine.phantasia.utils.PhantasiaTheme.currentBaseplateBlockState();
-        BlockInfo floor = _baseplateState0 != null ? BlockInfo.fromBlockState(_baseplateState0) : null;
+        PhantasiaBlockInfo floor = _baseplateState0 != null ? PhantasiaBlockInfo.fromBlockState(_baseplateState0) :
+                null;
         int sxLen = raw.length;
         int szLen = sxLen > 0 && raw[0].length > 0 ? raw[0][0].length : 0;
         int padX = Math.max(2, sxLen / 2 + 1);
@@ -526,7 +533,7 @@ public class PhantasiaSceneScreen extends Screen {
         for (int x = 0; x < raw.length; x++)
             for (int y = 0; y < raw[x].length; y++)
                 for (int z = 0; z < raw[x][y].length; z++) {
-                    BlockInfo info = raw[x][y][z];
+                    PhantasiaBlockInfo info = raw[x][y][z];
                     if (info == null) continue;
 
                     BlockState state = info.getBlockState();
@@ -571,20 +578,21 @@ public class PhantasiaSceneScreen extends Screen {
         if (pattern == null || SHARED_LEVEL == null) return;
         PhantasiaScriptData scriptData = script != null ? script.getSourceData() : null;
         BlockPos origin = pattern.origin;
-        Map<BlockPos, com.lowdragmc.lowdraglib.utils.BlockInfo> blockMap = new java.util.HashMap<>(pattern.blockMap);
+        Map<BlockPos, net.phoenixvine.phantasia.utils.PhantasiaBlockInfo> blockMap = new java.util.HashMap<>(
+                pattern.blockMap);
         Map<BlockPos, BlockPos> localToWorld = new java.util.HashMap<>(pattern.localToWorld);
         com.mojang.blaze3d.systems.RenderSystem.recordRenderCall(
                 () -> definition.onShapeLoaded(SHARED_LEVEL, origin, blockMap, localToWorld, scriptData));
     }
 
     private PhantasiaLoadedPattern finalisePattern(
-                                                   BlockInfo[][][] raw,
-                                                   Map<BlockPos, BlockInfo> blockMap,
-                                                   Map<BlockPos, BlockPos> localToWorld,
-                                                   Set<BlockPos> baseplatePos,
-                                                   Set<BlockPos> bePos,
-                                                   BlockPos controllerWP,
-                                                   BlockPos origin) {
+            PhantasiaBlockInfo[][][] raw,
+            Map<BlockPos, PhantasiaBlockInfo> blockMap,
+            Map<BlockPos, BlockPos> localToWorld,
+            Set<BlockPos> baseplatePos,
+            Set<BlockPos> bePos,
+            BlockPos controllerWP,
+            BlockPos origin) {
         net.phoenixvine.phantasia.Phantasia.LOGGER.info(
                 "[Phantasia] Registered {} block entities with SHARED_LEVEL", bePos.size());
 
@@ -615,6 +623,9 @@ public class PhantasiaSceneScreen extends Screen {
             if (isBlockVisible(e.getKey(), e.getValue(), step))
                 next.add(e.getValue());
         }
+        // Write correct active state into renderedBlocks before the bake reads them,
+        // same reason as the variant onChange callback.
+        applyActiveStateToWorld(machineWorking);
         renderer.setVisible(next);
         renderer.requestBake();
     }
@@ -660,9 +671,9 @@ public class PhantasiaSceneScreen extends Screen {
 
     private static int countBlocks(IPhantasiaMultiblockShape shape) {
         int count = 0;
-        for (BlockInfo[][] layer : shape.getBlocks())
-            for (BlockInfo[] row : layer)
-                for (BlockInfo b : row)
+        for (PhantasiaBlockInfo[][] layer : shape.getBlocks())
+            for (PhantasiaBlockInfo[] row : layer)
+                for (PhantasiaBlockInfo b : row)
                     if (b != null && b.getBlockState() != null && !b.getBlockState().isAir())
                         count++;
         return count;
@@ -735,8 +746,7 @@ public class PhantasiaSceneScreen extends Screen {
             }
             SHARED_LEVEL = new PhantasiaTrackedDummyWorld();
 
-            // Fix: Instantiate with no arguments
-            SHARED_LEVEL.setParticleManager(new com.lowdragmc.lowdraglib.client.scene.ParticleManager());
+            // Particle management is handled by PhantasiaParticleEngine.
         }
 
         availableShapes = definition.getMatchingShapes();
@@ -773,7 +783,7 @@ public class PhantasiaSceneScreen extends Screen {
 
         // Initialise the isolated particle engine for this scene.
         net.phoenixvine.phantasia.client.render.PhantasiaParticleEngine.init();
-        SHARED_LEVEL.entities.clear();
+        SHARED_LEVEL.clearSceneEntities();
 
         // ── Camera ────────────────────────────────────────────────────────────
         if (camera == null) {
@@ -984,7 +994,7 @@ public class PhantasiaSceneScreen extends Screen {
                             .getValue(rl);
                     net.minecraft.world.item.ItemStack stack = (item == null ||
                             item == net.minecraft.world.item.Items.AIR) ? net.minecraft.world.item.ItemStack.EMPTY :
-                                    new net.minecraft.world.item.ItemStack(item);
+                            new net.minecraft.world.item.ItemStack(item);
                     if (be instanceof net.minecraft.world.Container container) {
                         container.setItem(0, stack);
                         be.setChanged();
@@ -1026,7 +1036,7 @@ public class PhantasiaSceneScreen extends Screen {
         // it never touches the block states of coils, fireboxes, or other ActiveBlock
         // components. Those blocks show their active texture purely via the ACTIVE property,
         // so we must update SHARED_LEVEL directly.
-        for (Map.Entry<BlockPos, BlockInfo> e : pattern.blockMap.entrySet()) {
+        for (Map.Entry<BlockPos, PhantasiaBlockInfo> e : pattern.blockMap.entrySet()) {
             BlockState original = e.getValue().getBlockState();
             if (original == null || original.isAir()) continue;
             try {
@@ -1070,7 +1080,7 @@ public class PhantasiaSceneScreen extends Screen {
      */
     private int detectCoilIndex(PhantasiaLoadedPattern pat) {
         if (pat == null || coilTiers.isEmpty()) return 0;
-        for (BlockInfo info : pat.blockMap.values()) {
+        for (PhantasiaBlockInfo info : pat.blockMap.values()) {
             var block = info.getBlockState().getBlock();
             for (int i = 0; i < coilTiers.size(); i++) {
                 if (coilTiers.get(i).getBlockState().getBlock() == block) return i;
@@ -1183,8 +1193,12 @@ public class PhantasiaSceneScreen extends Screen {
 
         renderCaption(g);
         if (buildOrderMode && pattern != null) renderBuildPulseBanner(g);
-        if (showMistakes && script != null && script.hasCommonMistakes())
-            renderMistakesOverlay(g);
+        if (script != null && script.hasCommonMistakes(playbackTick))
+            renderLocalMistakesOverlay(g);
+        if (showMistakes && script != null && !script.getGlobalMistakes().isEmpty())
+            renderGlobalMistakesOverlay(g);
+        if (machineWorking && definition != null)
+            definition.renderWorkingOverlay(g, 0, CAPTION_STRIP_H, sw, sh, partial);
 
         renderTimeline(g, mx, my);
         renderSidePanel(g, mx, my);
@@ -1550,11 +1564,15 @@ public class PhantasiaSceneScreen extends Screen {
     // Mistakes overlay
     // ─────────────────────────────────────────────────────────────────────────
 
-    private void renderMistakesOverlay(GuiGraphics g) {
-        List<PhantasiaScript.LocalWarning> local = script.getCommonMistakes();
-        List<String> global = script.getGlobalMistakes();
+    /**
+     * Per-block mistakes are always visible — no toggle needed, since they're tied to
+     * specific blocks. Scoped to whichever step is currently active, since a mistake
+     * marker is usually only relevant while that part of the build is on screen.
+     */
+    private void renderLocalMistakesOverlay(GuiGraphics g) {
+        List<PhantasiaScript.LocalWarning> local = script.getCommonMistakes(playbackTick);
         int x = 8, y = TIMELINE_H + 26;
-        int ph = (local.size() + global.size()) * 12 + 10;
+        int ph = local.size() * 12 + 10;
         g.fill(x - 2, y - 2, x + 240, y + ph, 0xCC06060E);
         g.fill(x - 2, y - 2, x + 240, y - 1, 0xFFFF5252);
         for (var w : local) {
@@ -1565,6 +1583,18 @@ public class PhantasiaSceneScreen extends Screen {
                     x + font.width("⚠ " + w.label()), y, C_DIM(), false);
             y += 12;
         }
+    }
+
+    /** Global (script-wide) mistakes stay behind the "Common Mistakes" toggle button. */
+    private void renderGlobalMistakesOverlay(GuiGraphics g) {
+        List<String> global = script.getGlobalMistakes();
+        int x = 8;
+        // Stack below the local overlay if it's also showing, so the two never overlap.
+        int y = TIMELINE_H + 26;
+        if (script.hasCommonMistakes(playbackTick)) y += script.getCommonMistakes(playbackTick).size() * 12 + 10 + 6;
+        int ph = global.size() * 12 + 10;
+        g.fill(x - 2, y - 2, x + 240, y + ph, 0xCC06060E);
+        g.fill(x - 2, y - 2, x + 240, y - 1, 0xFFFF5252);
         for (String m : global) {
             g.drawString(font, "• " + m, x, y, 0xFFFFFFFF, false);
             y += 12;
@@ -1638,11 +1668,6 @@ public class PhantasiaSceneScreen extends Screen {
         }
 
         y += 8;
-        if (script != null && script.hasCommonMistakes()) {
-            regIconBtn(g, mx, my, px + 10, y, pw - 20, 16, "⚠", "Common Mistakes",
-                    showMistakes, () -> showMistakes = !showMistakes);
-            y += 20;
-        }
 
         // ── Layer navigation (only shown when NOT in build mode) ──────────────
         if (!buildOrderMode && pattern != null) {
@@ -1780,6 +1805,12 @@ public class PhantasiaSceneScreen extends Screen {
         if (hasVariants) {
             regIconBtn(g, mx, my, px + 10, y, pw - 20, 16, "⚙", "Variants",
                     false, this::openVariantsScreen);
+            y += 20;
+        }
+
+        if (script != null && !script.getGlobalMistakes().isEmpty()) {
+            regIconBtn(g, mx, my, px + 10, y, pw - 20, 16, "⚠", "Common Mistakes",
+                    showMistakes, () -> showMistakes = !showMistakes);
             y += 20;
         }
 

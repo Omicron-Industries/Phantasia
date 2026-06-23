@@ -6,13 +6,12 @@ import com.gregtechceu.gtceu.api.machine.MachineDefinition;
 import com.gregtechceu.gtceu.api.machine.MultiblockMachineDefinition;
 import com.gregtechceu.gtceu.api.registry.GTRegistries;
 
-import com.lowdragmc.lowdraglib.utils.BlockInfo;
-
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.state.BlockState;
 import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockDefinition;
 import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockProvider;
+import net.phoenixvine.phantasia.utils.PhantasiaBlockInfo;
 
 import java.util.*;
 
@@ -48,13 +47,13 @@ public class GTCEuMultiblockProvider implements IPhantasiaMultiblockProvider {
     }
 
     @Override
-    public Optional<BlockInfo> resolveBlock(String id) {
+    public Optional<PhantasiaBlockInfo> resolveBlock(String id) {
         try {
             ResourceLocation rl = id.contains(":") ? new ResourceLocation(id) : new ResourceLocation("gtceu", id);
             MachineDefinition def = GTRegistries.MACHINES.get(rl);
             if (def != null) {
                 var block = def.getBlock();
-                if (block != null) return Optional.of(BlockInfo.fromBlockState(block.defaultBlockState()));
+                if (block != null) return Optional.of(PhantasiaBlockInfo.fromBlockState(block.defaultBlockState()));
             }
         } catch (Exception ignored) {}
         return Optional.empty();

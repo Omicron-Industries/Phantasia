@@ -1,7 +1,5 @@
 package net.phoenixvine.phantasia.api;
 
-import com.lowdragmc.lowdraglib.utils.BlockInfo;
-
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
@@ -18,6 +16,7 @@ import net.phoenixvine.phantasia.common.data.script.PhantasiaScript;
 import net.phoenixvine.phantasia.common.data.script.PhantasiaScripts;
 import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockDefinition;
 import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockShape;
+import net.phoenixvine.phantasia.utils.PhantasiaBlockInfo;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 
@@ -299,7 +298,7 @@ public final class PhantasiaMachinePreview {
         // Write blocks to our private world (mirrors what SceneScreen does)
         for (var entry : pat.blockMap.entrySet()) {
             BlockPos wp = entry.getKey();
-            BlockInfo info = entry.getValue();
+            PhantasiaBlockInfo info = entry.getValue();
             if (info == null) continue;
             var state = info.getBlockState();
             if (state != null && !state.isAir()) {

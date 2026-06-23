@@ -1,7 +1,5 @@
 package net.phoenixvine.phantasia.compat.arsnouveaucompat;
 
-import com.lowdragmc.lowdraglib.utils.BlockInfo;
-
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
@@ -12,6 +10,7 @@ import net.phoenixvine.phantasia.common.data.script.PhantasiaScriptData;
 import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockDefinition;
 import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockProvider;
 import net.phoenixvine.phantasia.common.multisetup.PhantasiaMultiSetupRegistry;
+import net.phoenixvine.phantasia.utils.PhantasiaBlockInfo;
 
 import com.hollingsworth.arsnouveau.api.registry.RitualRegistry;
 import com.hollingsworth.arsnouveau.client.particle.ParticleColor;
@@ -65,7 +64,7 @@ public class ArsNouveauMultiblockProvider implements IPhantasiaMultiblockProvide
     }
 
     @Override
-    public Optional<BlockInfo> resolveBlock(String id) {
+    public Optional<PhantasiaBlockInfo> resolveBlock(String id) {
         return Optional.empty();
     }
 

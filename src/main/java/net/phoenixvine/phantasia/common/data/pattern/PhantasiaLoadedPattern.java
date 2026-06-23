@@ -1,11 +1,10 @@
 package net.phoenixvine.phantasia.common.data.pattern;
 
-import com.lowdragmc.lowdraglib.utils.BlockInfo;
-
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Vec3i;
 import net.minecraft.world.level.block.state.BlockState;
 import net.phoenixvine.phantasia.common.data.script.PhantasiaScript;
+import net.phoenixvine.phantasia.utils.PhantasiaBlockInfo;
 
 import lombok.Getter;
 
@@ -15,7 +14,7 @@ import javax.annotation.Nullable;
 
 public class PhantasiaLoadedPattern {
 
-    public final Map<BlockPos, BlockInfo> blockMap;
+    public final Map<BlockPos, PhantasiaBlockInfo> blockMap;
     public final Map<BlockPos, BlockPos> localToWorld;
     public final Map<BlockPos, BlockPos> worldToLocal;
     public final Set<BlockPos> baseplatePositions;
@@ -42,7 +41,7 @@ public class PhantasiaLoadedPattern {
     public final Runnable postWriteTask;
 
     public PhantasiaLoadedPattern(
-                                  Map<BlockPos, BlockInfo> blockMap,
+                                  Map<BlockPos, PhantasiaBlockInfo> blockMap,
                                   Map<BlockPos, BlockPos> localToWorld,
                                   Set<BlockPos> baseplatePositions,
                                   BlockPos controllerWorldPos,
@@ -55,7 +54,7 @@ public class PhantasiaLoadedPattern {
     }
 
     public PhantasiaLoadedPattern(
-                                  Map<BlockPos, BlockInfo> blockMap,
+                                  Map<BlockPos, PhantasiaBlockInfo> blockMap,
                                   Map<BlockPos, BlockPos> localToWorld,
                                   Set<BlockPos> baseplatePositions,
                                   BlockPos controllerWorldPos,
@@ -81,7 +80,7 @@ public class PhantasiaLoadedPattern {
 
         Map<String, Integer> counts = new LinkedHashMap<>();
         for (Map.Entry<BlockPos, BlockPos> e : localToWorld.entrySet()) {
-            BlockInfo info = blockMap.get(e.getValue()); // world-pos key
+            PhantasiaBlockInfo info = blockMap.get(e.getValue()); // world-pos key
             if (info == null) continue;
             BlockState state = info.getBlockState();
             if (state == null || state.isAir()) continue;

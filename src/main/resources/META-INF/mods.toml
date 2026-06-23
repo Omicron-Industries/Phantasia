@@ -19,8 +19,11 @@ license = "${mod_license}"
     # Some more fluff displayed in the Mods panel. Plug your stuff here!
     authors="${mod_author}"
     description = '''
-Example Description
-...ain is there anyone who loves or pursues or desires to obtain pain of itself, because it is pain,... (Lorem Ipsum translated to english.)
+Phantasia is an in-game guide system for modpack authors.
+Build interactive, step-by-step tutorials for multiblock machines!
+Complete with 3D scene previews, per-step block placement guidance, item requirements, and a fully in-game editor!
+
+Optional integration with GregTech CEu and Ars Nouveau with more to come soon!
 '''
 
     [[dependencies.${mod_id}]]

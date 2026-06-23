@@ -100,8 +100,12 @@ public class PhantasiaParticleEngine {
                 @SuppressWarnings("rawtypes")
                 net.minecraft.client.particle.ParticleProvider provider = key != null ? providers.get(key) : null;
                 if (provider != null) {
-                    particle = provider.createParticle(options, getParticleCollisionWorld().getAsClientWorld().get(), x,
-                            y, z, dx, dy, dz);
+                    net.minecraft.client.multiplayer.ClientLevel clientLevel = net.minecraft.client.Minecraft
+                            .getInstance().level;
+                    if (clientLevel != null) {
+                        particle = provider.createParticle(options, clientLevel, x,
+                                y, z, dx, dy, dz);
+                    }
                 }
             }
 

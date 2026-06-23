@@ -7,14 +7,13 @@ import com.gregtechceu.gtceu.api.pattern.BlockPattern;
 import com.gregtechceu.gtceu.api.pattern.MultiblockShapeInfo;
 import com.gregtechceu.gtceu.api.registry.GTRegistries;
 
-import com.lowdragmc.lowdraglib.utils.BlockInfo;
-
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.phoenixvine.phantasia.client.render.PhantasiaTrackedDummyWorld;
 import net.phoenixvine.phantasia.common.data.scene.PhantasiaSceneData;
+import net.phoenixvine.phantasia.utils.PhantasiaBlockInfo;
 
 import java.util.*;
 
@@ -77,13 +76,13 @@ public class PhantasiaScenePattern {
     // ── Fields ────────────────────────────────────────────────────────────────
 
     public final List<PlacementEntry> placements;
-    public final Map<BlockPos, BlockInfo> mergedBlockMap;
+    public final Map<BlockPos, PhantasiaBlockInfo> mergedBlockMap;
     public final Set<BlockPos> allBaseplatePositions;
     public final int minY;
     public final int maxY;
 
     private PhantasiaScenePattern(List<PlacementEntry> placements,
-                                  Map<BlockPos, BlockInfo> mergedBlockMap,
+                                  Map<BlockPos, PhantasiaBlockInfo> mergedBlockMap,
                                   Set<BlockPos> allBaseplatePositions,
                                   int minY, int maxY) {
         this.placements = Collections.unmodifiableList(placements);
@@ -105,7 +104,7 @@ public class PhantasiaScenePattern {
     public static PhantasiaScenePattern build(PhantasiaSceneData sceneData,
                                               PhantasiaTrackedDummyWorld world) {
         List<PlacementEntry> placements = new ArrayList<>();
-        Map<BlockPos, BlockInfo> mergedMap = new HashMap<>();
+        Map<BlockPos, PhantasiaBlockInfo> mergedMap = new HashMap<>();
         Set<BlockPos> allBaseplates = new HashSet<>();
         int globalMinY = Integer.MAX_VALUE;
         int globalMaxY = Integer.MIN_VALUE;
@@ -134,7 +133,7 @@ public class PhantasiaScenePattern {
     private static PlacementEntry buildPlacement(int index,
                                                  PhantasiaSceneData.PlacementData pd,
                                                  PhantasiaTrackedDummyWorld sharedWorld,
-                                                 Map<BlockPos, BlockInfo> mergedMap,
+                                                 Map<BlockPos, PhantasiaBlockInfo> mergedMap,
                                                  Set<BlockPos> allBaseplates) {
         // ── Try multiblock first ──────────────────────────────────────────────
         MultiblockMachineDefinition def = resolveMultiblockDefinition(pd.machine);
@@ -150,7 +149,7 @@ public class PhantasiaScenePattern {
                                                            PhantasiaSceneData.PlacementData pd,
                                                            MultiblockMachineDefinition def,
                                                            PhantasiaTrackedDummyWorld sharedWorld,
-                                                           Map<BlockPos, BlockInfo> mergedMap,
+                                                           Map<BlockPos, PhantasiaBlockInfo> mergedMap,
                                                            Set<BlockPos> allBaseplates) {
         if (def == null) return null;
 
@@ -159,8 +158,20 @@ public class PhantasiaScenePattern {
 
         // Use shape 0 — the canonical/default shape for this machine.
         MultiblockShapeInfo shape = shapes.get(0);
-        BlockInfo[][][] raw = shape.getBlocks();
-        if (raw == null || raw.length == 0) return null;
+        com.lowdragmc.lowdraglib.utils.BlockInfo[][][] rawLdlib = shape.getBlocks();
+        if (rawLdlib == null || rawLdlib.length == 0) return null;
+        PhantasiaBlockInfo[][][] raw = new PhantasiaBlockInfo[rawLdlib.length][][];
+        for (int xi = 0; xi < rawLdlib.length; xi++) {
+            raw[xi] = new PhantasiaBlockInfo[rawLdlib[xi].length][];
+            for (int yi = 0; yi < rawLdlib[xi].length; yi++) {
+                raw[xi][yi] = new PhantasiaBlockInfo[rawLdlib[xi][yi].length];
+                for (int zi = 0; zi < rawLdlib[xi][yi].length; zi++) {
+                    com.lowdragmc.lowdraglib.utils.BlockInfo bi = rawLdlib[xi][yi][zi];
+                    raw[xi][yi][zi] = bi != null ? PhantasiaBlockInfo.fromBlockState(bi.getBlockState()) :
+                            PhantasiaBlockInfo.EMPTY;
+                }
+            }
+        }
 
         // Declared scene-space origin for this placement
         BlockPos origin = new BlockPos(pd.x, pd.y, pd.z);
@@ -171,7 +182,7 @@ public class PhantasiaScenePattern {
         int padX = Math.max(2, sxLen / 2 + 1);
         int padZ = Math.max(2, szLen / 2 + 1);
 
-        Map<BlockPos, BlockInfo> placementMap = new HashMap<>();
+        Map<BlockPos, PhantasiaBlockInfo> placementMap = new HashMap<>();
         Map<BlockPos, BlockPos> localToWorld = new HashMap<>();
         Map<BlockPos, BlockEntity> cachedBEs = new HashMap<>();
         Set<BlockPos> baseplatePos = new HashSet<>();
@@ -181,7 +192,8 @@ public class PhantasiaScenePattern {
 
         // Baseplate
         var _baseplateState0 = net.phoenixvine.phantasia.utils.PhantasiaTheme.currentBaseplateBlockState();
-        BlockInfo floor = _baseplateState0 != null ? BlockInfo.fromBlockState(_baseplateState0) : null;
+        PhantasiaBlockInfo floor = _baseplateState0 != null ? PhantasiaBlockInfo.fromBlockState(_baseplateState0) :
+                null;
         if (floor != null) for (int bx = -padX; bx < sxLen + padX; bx++)
             for (int bz = -padZ; bz < szLen + padZ; bz++) {
                 BlockPos wp = origin.offset(bx, -1, bz);
@@ -198,7 +210,7 @@ public class PhantasiaScenePattern {
         for (int x = 0; x < raw.length; x++)
             for (int y = 0; y < raw[x].length; y++)
                 for (int z = 0; z < raw[x][y].length; z++) {
-                    BlockInfo info = raw[x][y][z];
+                    PhantasiaBlockInfo info = raw[x][y][z];
                     if (info == null) continue;
                     BlockPos lp = new BlockPos(x, y, z);
                     BlockPos wp = origin.offset(x, y, z);
@@ -230,14 +242,11 @@ public class PhantasiaScenePattern {
             } catch (Exception ignored) {}
         }
 
-        // Fire onStructureFormed so machine state is correct for rendering
-        if (controller != null) {
-            try {
-                BlockPattern pat = controller.getPattern();
-                if (pat != null && pat.checkPatternAt(controller.getMultiblockState(), true))
-                    controller.onStructureFormed();
-            } catch (Exception ignored) {}
-        }
+        // Fire onShapeLoaded via the definition — this calls onStructureFormed correctly
+        // (handles patternLock, matchContext, parts, etc.) rather than the fragile
+        // checkPatternAt path which silently fails in the dummy world.
+        net.phoenixvine.phantasia.common.multiblock.PhantasiaMultiblockRegistry.resolve(pd.machine)
+                .ifPresent(def -> def.onShapeLoaded(sharedWorld, origin, placementMap, localToWorld));
 
         // Merge into scene map
         mergedMap.putAll(placementMap);
@@ -271,12 +280,12 @@ public class PhantasiaScenePattern {
     private static PlacementEntry buildSingleblockPlacement(int index,
                                                             PhantasiaSceneData.PlacementData pd,
                                                             PhantasiaTrackedDummyWorld sharedWorld,
-                                                            Map<BlockPos, BlockInfo> mergedMap,
+                                                            Map<BlockPos, PhantasiaBlockInfo> mergedMap,
                                                             Set<BlockPos> allBaseplates) {
         BlockPos origin = new BlockPos(pd.x, pd.y, pd.z);
 
         // Resolve block: try GTCEu machine registry first, then Forge block registry
-        BlockInfo blockInfo = resolveBlockInfo(pd.machine);
+        PhantasiaBlockInfo blockInfo = resolveBlockInfo(pd.machine);
         if (blockInfo == null) {
             net.phoenixvine.phantasia.Phantasia.LOGGER.warn(
                     "[Phantasia/Scene] Could not resolve block for singleblock placement {} ({}) — skipping.", index,
@@ -284,12 +293,13 @@ public class PhantasiaScenePattern {
             return null;
         }
 
-        Map<BlockPos, BlockInfo> placementMap = new HashMap<>();
+        Map<BlockPos, PhantasiaBlockInfo> placementMap = new HashMap<>();
         Set<BlockPos> baseplatePos = new HashSet<>();
 
         // Small 5×5 baseplate centered on origin
         var _baseplateState1 = net.phoenixvine.phantasia.utils.PhantasiaTheme.currentBaseplateBlockState();
-        BlockInfo floor = _baseplateState1 != null ? BlockInfo.fromBlockState(_baseplateState1) : null;
+        PhantasiaBlockInfo floor = _baseplateState1 != null ? PhantasiaBlockInfo.fromBlockState(_baseplateState1) :
+                null;
         if (floor != null) for (int bx = -2; bx <= 2; bx++)
             for (int bz = -2; bz <= 2; bz++) {
                 BlockPos wp = origin.offset(bx, -1, bz);
@@ -319,11 +329,11 @@ public class PhantasiaScenePattern {
     }
 
     /**
-     * Resolves a machine/block ID to a {@link BlockInfo}.
+     * Resolves a machine/block ID to a {@link PhantasiaBlockInfo}.
      * Tries the GTCEu machine registry first (for singleblock MetaMachines),
      * then falls back to the Forge block registry.
      */
-    private static BlockInfo resolveBlockInfo(String id) {
+    private static PhantasiaBlockInfo resolveBlockInfo(String id) {
         try {
             net.minecraft.resources.ResourceLocation rl = id.contains(":") ?
                     new net.minecraft.resources.ResourceLocation(id) :
@@ -334,13 +344,13 @@ public class PhantasiaScenePattern {
             if (machineDef != null) {
                 var block = machineDef.getBlock();
                 if (block != null)
-                    return BlockInfo.fromBlockState(block.defaultBlockState());
+                    return PhantasiaBlockInfo.fromBlockState(block.defaultBlockState());
             }
 
             // Forge block registry fallback
             var block = net.minecraftforge.registries.ForgeRegistries.BLOCKS.getValue(rl);
             if (block != null && block != net.minecraft.world.level.block.Blocks.AIR)
-                return BlockInfo.fromBlockState(block.defaultBlockState());
+                return PhantasiaBlockInfo.fromBlockState(block.defaultBlockState());
 
         } catch (Exception ignored) {}
         return null;

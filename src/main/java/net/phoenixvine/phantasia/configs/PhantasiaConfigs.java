@@ -39,10 +39,6 @@ public class PhantasiaConfigs {
         public int activationTicks = 20;
 
         @Configurable
-        @Configurable.Comment("The block ID used for the baseplate/floor in the scene preview.")
-        public String baseplateBlock = "minecraft:deepslate_bricks";
-
-        @Configurable
         @Configurable.Comment({
                 "Controls default camera behaviour in the scene and script viewers.",
                 "true (default) - Steps/scripts drive the camera; the player is locked out.",
@@ -91,6 +87,20 @@ public class PhantasiaConfigs {
         @Configurable
         @Configurable.Comment("When true, the Phantasia guidebook is given to each player on their first join.")
         public boolean giveBookOnFirstJoin = true;
+
+        @Configurable
+        @Configurable.Comment({
+                "When true, a toast notification is shown the first time a player joins each world,",
+                "pointing them to the Phantasia getting-started guide.",
+        })
+        public boolean showWelcomeToast = true;
+
+        @Configurable
+        @Configurable.Comment({
+                "How long the welcome toast stays on screen, in ticks (20 ticks = 1 second).",
+                "Default: 280 (14 seconds). Set to 0 to use showWelcomeToast = false instead."
+        })
+        public int welcomeToastDuration = 200;
 
         public enum DisplayMode {
             TOOLTIP_ONLY,

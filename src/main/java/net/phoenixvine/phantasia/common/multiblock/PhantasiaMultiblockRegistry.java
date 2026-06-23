@@ -1,12 +1,11 @@
 package net.phoenixvine.phantasia.common.multiblock;
 
-import com.lowdragmc.lowdraglib.utils.BlockInfo;
-
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.registries.ForgeRegistries;
+import net.phoenixvine.phantasia.utils.PhantasiaBlockInfo;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -42,13 +41,13 @@ public final class PhantasiaMultiblockRegistry {
     }
 
     /**
-     * Resolve to a {@link BlockInfo} for single-block placements.
+     * Resolve to a {@link PhantasiaBlockInfo} for single-block placements.
      * Checks each provider first, then falls back to the Forge block registry.
      */
-    public static Optional<BlockInfo> resolveBlock(String id) {
+    public static Optional<PhantasiaBlockInfo> resolveBlock(String id) {
         for (IPhantasiaMultiblockProvider p : PROVIDERS) {
             if (!p.isAvailable()) continue;
-            Optional<BlockInfo> r = p.resolveBlock(id);
+            Optional<PhantasiaBlockInfo> r = p.resolveBlock(id);
             if (r.isPresent()) return r;
         }
         // Forge block registry fallback
@@ -56,7 +55,7 @@ public final class PhantasiaMultiblockRegistry {
             ResourceLocation rl = id.contains(":") ? new ResourceLocation(id) : new ResourceLocation("minecraft", id);
             var block = ForgeRegistries.BLOCKS.getValue(rl);
             if (block != null && block != Blocks.AIR)
-                return Optional.of(BlockInfo.fromBlockState(block.defaultBlockState()));
+                return Optional.of(PhantasiaBlockInfo.fromBlockState(block.defaultBlockState()));
         } catch (Exception ignored) {}
         return Optional.empty();
     }

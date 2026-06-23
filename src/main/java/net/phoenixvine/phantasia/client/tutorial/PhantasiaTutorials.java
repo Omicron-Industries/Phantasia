@@ -220,13 +220,24 @@ public final class PhantasiaTutorials {
     }
 
     private static void drawGuideCardsSelection(GuiGraphics g, Font f, PhantasiaTheme t, int gridX, int startY) {
-        var guides = PhantasiaGuideRegistry.all().stream().limit(6).toList();
+        // "+ New Guide" card always at grid position 0 (matches real screen)
+        {
+            int cx = gridX;
+            int cy = startY;
+            g.fill(cx, cy, cx + SEL_CARD_W, cy + SEL_CARD_H, (0xBB << 24) | (C_PANEL() & 0x00FFFFFF));
+            g.fill(cx, cy, cx + SEL_CARD_W, cy + 2, C_BORDER());
+            g.drawCenteredString(f, "+", cx + SEL_CARD_W / 2, cy + 24, C_DIM());
+            g.drawCenteredString(f, "+ New Guide", cx + SEL_CARD_W / 2, cy + SEL_CARD_H - 22, C_DIM());
+        }
+
+        var guides = PhantasiaGuideRegistry.all().stream().limit(5).toList();
         String[] fallbackTitles = { "Getting Started", "Ore Processing", "Power Setup",
-                "EBF Basics", "Recipe Tips", "Material Guide" };
+                "EBF Basics", "Recipe Tips" };
         String[] fallbackIcons = { "minecraft:knowledge_book", "minecraft:iron_ore",
-                "minecraft:redstone", "minecraft:furnace", "minecraft:crafting_table", "minecraft:diamond" };
-        for (int i = 0; i < 6; i++) {
-            int col = i % 3, row = i / 3;
+                "minecraft:redstone", "minecraft:furnace", "minecraft:crafting_table" };
+        for (int i = 0; i < 5; i++) {
+            int gridPos = i + 1; // offset by 1 to leave slot 0 for New Guide card
+            int col = gridPos % 3, row = gridPos / 3;
             int cx = gridX + col * (SEL_CARD_W + SEL_CARD_PAD);
             int cy = startY + row * (SEL_CARD_H + SEL_CARD_PAD);
             g.fill(cx, cy, cx + SEL_CARD_W, cy + SEL_CARD_H, (0xBB << 24) | (C_PANEL() & 0x00FFFFFF));
@@ -258,17 +269,27 @@ public final class PhantasiaTutorials {
 
     private static void drawSceneCardsSelection(GuiGraphics g, Font f, PhantasiaTheme t, int gridX, int startY) {
         String[] fallbackTitles = { "Ore Processing Line", "Steel Production", "Power Grid",
-                "Blast Array", "Chemical Plant", "Material Loop" };
+                "Blast Array", "Chemical Plant" };
         String[] fallbackIcons = { "minecraft:chest", "minecraft:blast_furnace", "minecraft:redstone_block",
-                "minecraft:iron_block", "minecraft:cauldron", "minecraft:hopper" };
-        int[] fallbackMachines = { 3, 2, 4, 5, 2, 3 };
-        for (int i = 0; i < 6; i++) {
-            int col = i % 3, row = i / 3;
+                "minecraft:iron_block", "minecraft:cauldron" };
+        int[] fallbackMachines = { 3, 2, 4, 5, 2 };
+        // Slot 0: "+ New Scene" card
+        {
+            int cx = gridX;
+            int cy = startY;
+            g.fill(cx, cy, cx + SEL_CARD_W, cy + SEL_CARD_H, (0xBB << 24) | (C_PANEL() & 0x00FFFFFF));
+            g.fill(cx, cy, cx + SEL_CARD_W, cy + 2, C_BORDER());
+            g.drawCenteredString(f, "+", cx + SEL_CARD_W / 2, cy + SEL_CARD_H / 2 - 10, C_DIM());
+            g.drawCenteredString(f, "New Scene", cx + SEL_CARD_W / 2, cy + SEL_CARD_H - 22, C_DIM());
+        }
+        // Slots 1-5: placeholder scene cards
+        for (int i = 0; i < 5; i++) {
+            int slot = i + 1;
+            int col = slot % 3, row = slot / 3;
             int cx = gridX + col * (SEL_CARD_W + SEL_CARD_PAD);
             int cy = startY + row * (SEL_CARD_H + SEL_CARD_PAD);
             g.fill(cx, cy, cx + SEL_CARD_W, cy + SEL_CARD_H, (0xBB << 24) | (C_PANEL() & 0x00FFFFFF));
             g.fill(cx, cy, cx + SEL_CARD_W, cy + 2, C_BORDER());
-            // Icon
             try {
                 var rl = new net.minecraft.resources.ResourceLocation(fallbackIcons[i]);
                 var item = net.minecraftforge.registries.ForgeRegistries.ITEMS.getValue(rl);
@@ -1685,20 +1706,29 @@ public final class PhantasiaTutorials {
                                         "Find Scenes in /phantasia under the Scenes tab.")
                                 .mock(mock((g, f, t, tick) -> drawSelectionScreen(g, f, t, tick, 1)))
                                 .cursor(0.425f, 0.130f, 20, 60, true)
-                                .highlight(0.404f, 0.107f, 0.095f, 0.053f, "Scenes tab")
+                                .highlight(0.375f, 0.107f, 0.110f, 0.053f, "Scenes tab")
                                 .build(),
 
                         TutorialSlide.of("The Scene Editor",
-                                "Open the Scenes tab → click '+ New Scene' to create one.\n\n" +
+                                "Open the Scenes tab and click '+ New Scene' — the editor opens\n" +
+                                        "immediately with a blank scene ready to name and build.\n\n" +
                                         "The ⊞ Placements panel (left) lists every machine in the scene.\n" +
                                         "Click '+ Add Machine' to add one, then set its XYZ offset\n" +
                                         "so it lines up with the others in the 3D viewport.\n\n" +
                                         "The viewport rotates automatically — drag to reposition.")
-                                .mock(mock((g, f, t, tick) -> drawSceneEditor(g, f, t,
-                                        "Processing Line", true, false, (tick / 80) % 3, sceneSteps, tick)))
-                                // cursor clicks Placements button (x=6,w≈80, centre x=46→0.096)
+                                .mock(mock((g, f, t, tick) -> {
+                                    boolean inEditor = (tick / 80) % 2 == 1;
+                                    if (inEditor) {
+                                        drawSceneEditor(g, f, t, "New Scene", true, false, 0, sceneSteps, tick);
+                                    } else {
+                                        drawSelectionScreen(g, f, t, tick, 1);
+                                    }
+                                }))
+                                // cursor clicks + New Scene card (slot 0: col=0,row=0 → gridX centre)
+                                .cursor(0.267f, 0.417f, 20, 60, true)
+                                // cursor clicks Placements button in editor
                                 .cursor(0.096f, 0.037f, 20, 60, true)
-                                // then clicks + Add Machine (addBtnY=160, centre y=167→0.557; x=PNL_W/2=110→0.229)
+                                // cursor clicks + Add Machine
                                 .cursor(0.229f, 0.557f, 20, 50, true)
                                 .highlight(0.0f, 0.073f, 0.458f, 0.687f, "Placements panel")
                                 .build(),

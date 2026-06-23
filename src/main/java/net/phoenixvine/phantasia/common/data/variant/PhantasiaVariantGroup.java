@@ -1,7 +1,5 @@
 package net.phoenixvine.phantasia.common.data.variant;
 
-import com.lowdragmc.lowdraglib.utils.BlockInfo;
-
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.block.Block;
@@ -14,6 +12,7 @@ import net.phoenixvine.phantasia.common.data.script.PhantasiaScriptData;
 import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockDefinition;
 import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockShape;
 import net.phoenixvine.phantasia.common.multiblock.PhantasiaMultiblockRegistry;
+import net.phoenixvine.phantasia.utils.PhantasiaBlockInfo;
 
 import lombok.Getter;
 
@@ -171,11 +170,13 @@ public final class PhantasiaVariantGroup {
         }
 
         // 3. Generic optional block detection — scans all shapes for positional variation
-        try {
-            result.addAll(detectOptionalBlocks(machinePrefix, definition.getAllShapes(), pattern, explicitIds));
-        } catch (Exception e) {
-            net.phoenixvine.phantasia.Phantasia.LOGGER.warn("[Phantasia] Optional block detection failed for {}: {}",
-                    definition.getId(), e.getMessage());
+        if (definition.shouldAutoDetectVariants()) {
+            try {
+                result.addAll(detectOptionalBlocks(machinePrefix, definition.getAllShapes(), pattern, explicitIds));
+            } catch (Exception e) {
+                net.phoenixvine.phantasia.Phantasia.LOGGER.warn("[Phantasia] Optional block detection failed for {}: {}",
+                        definition.getId(), e.getMessage());
+            }
         }
 
         return Collections.unmodifiableList(result);
@@ -190,11 +191,22 @@ public final class PhantasiaVariantGroup {
                                                        PhantasiaScriptData.OptionalGroupData ogd,
                                                        PhantasiaLoadedPattern pattern) {
         BlockState primary = resolveBlock(ogd.getPrimaryBlock());
-        BlockState fallback = resolveBlock(ogd.getFallbackBlock());
-        if (primary == null || fallback == null) return null;
+        if (primary == null) return null;
 
-        List<BlockState> options = List.of(primary, fallback);
-        List<String> labels = List.of(blockDisplayName(primary), blockDisplayName(fallback));
+        List<BlockState> options = new ArrayList<>();
+        List<String> labels = new ArrayList<>();
+        options.add(primary);
+        labels.add(blockDisplayName(primary));
+
+        if (ogd.getFallbackBlock() != null && !ogd.getFallbackBlock().isBlank()) {
+            BlockState fallback = resolveBlock(ogd.getFallbackBlock());
+            if (fallback != null) { options.add(fallback); labels.add(blockDisplayName(fallback)); }
+        }
+        for (String extra : ogd.getAdditionalBlocks()) {
+            BlockState s = resolveBlock(extra);
+            if (s != null) { options.add(s); labels.add(blockDisplayName(s)); }
+        }
+        if (options.size() < 2) return null;
 
         Map<BlockPos, Integer> posMap = new HashMap<>();
         for (PhantasiaScriptData.VariantPositionData vpd : ogd.getPositions()) {
@@ -228,7 +240,7 @@ public final class PhantasiaVariantGroup {
         for (Map.Entry<BlockPos, BlockPos> e : pattern.localToWorld.entrySet()) {
             BlockPos local = e.getKey();
             BlockPos world = e.getValue();
-            BlockInfo info = pattern.blockMap.get(world);
+            PhantasiaBlockInfo info = pattern.blockMap.get(world);
             if (info == null) continue;
             BlockState state = info.getBlockState();
             if (state == null || state.isAir()) continue;
@@ -239,14 +251,14 @@ public final class PhantasiaVariantGroup {
 
         // Scan all shapes for block variation at each position
         for (IPhantasiaMultiblockShape shape : allShapes) {
-            BlockInfo[][][] raw = shape.getBlocks();
+            PhantasiaBlockInfo[][][] raw = shape.getBlocks();
             if (raw == null) continue;
             for (int x = 0; x < raw.length; x++) {
                 if (raw[x] == null) continue;
                 for (int y = 0; y < raw[x].length; y++) {
                     if (raw[x][y] == null) continue;
                     for (int z = 0; z < raw[x][y].length; z++) {
-                        BlockInfo info = raw[x][y][z];
+                        PhantasiaBlockInfo info = raw[x][y][z];
                         if (info == null) continue;
                         BlockState state = info.getBlockState();
                         if (state == null || state.isAir()) continue;
@@ -318,7 +330,7 @@ public final class PhantasiaVariantGroup {
             for (BlockPos local : localPositions) {
                 BlockPos world = pattern.localToWorld.get(local);
                 if (world == null) continue;
-                BlockInfo info = pattern.blockMap.get(world);
+                PhantasiaBlockInfo info = pattern.blockMap.get(world);
                 Block loadedBlock = (info != null && !info.getBlockState().isAir()) ? info.getBlockState().getBlock() :
                         null;
                 int baseIdx = 1;

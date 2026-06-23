@@ -59,42 +59,49 @@ public class PhantasiaThemeUtils {
         return PhantasiaTheme.current().dim();
     }
 
-    // ── Dynamic Backwards Compatibility Layer ────────────────────────────────
+    // ── Legacy aliases ────────────────────────────────────────────────────────
+    // These are plain passthroughs to the semantic getters above, kept around
+    // so older screen code written before the semantic color system existed
+    // doesn't need to be touched just to keep compiling. Each one is a direct
+    // 1:1 alias — no extra logic, no separate color computation.
+    // New code should call the semantic getter directly instead of these.
 
-    /** Maps the old top-bar background layer straight into the active theme's panel calculations. */
+    /** Legacy alias for {@link #C_PANEL()}. Old name for the top-bar background. */
     public static int C_BAR() {
         return PhantasiaTheme.current().panel();
     }
 
     /**
-     * * Grabs an animated theme alert value using a custom high offset
-     * so it shifts gracefully alongside other warning/destructive elements.
+     * Legacy alias for {@link #C_WARN()}, using its own animation offset (6000)
+     * one slot past the last semantic offset (hilight=5500) so an animated
+     * "warn" color and an animated "red" color don't land on the same hue
+     * at the same moment.
      */
     public static int C_RED() {
         return PhantasiaTheme.current().warn.getColor(6000);
     }
 
-    /** Maps list item selections smoothly to the theme's highlight color algorithm. */
+    /** Legacy alias for {@link #C_HILIGHT()}. Old name used for list-item selection. */
     public static int C_SEL() {
         return PhantasiaTheme.current().hilight();
     }
 
-    /** Maps button hover properties safely for old interface screens. */
+    /** Legacy alias for {@link #C_BTN_HOV()}. */
     public static int C_BTN_H() {
         return PhantasiaTheme.current().btnHov();
     }
 
-    /** Routes cycling selections to the active theme's dynamic highlight engine. */
+    /** Legacy alias for {@link #C_HILIGHT()}. Old name used for cycling/step selection. */
     public static int C_CYCLE() {
         return PhantasiaTheme.current().hilight();
     }
 
-    /** Binds status toggles securely to the system's warning colors. */
+    /** Legacy alias for {@link #C_WARN()}. */
     public static int C_ORANGE() {
         return PhantasiaTheme.current().warn();
     }
 
-    /** Maps progress colors cleanly for active/positive feedback. */
+    /** Legacy alias for {@link #C_PROG()}. Old name used for positive/active feedback. */
     public static int C_GREEN() {
         return PhantasiaTheme.current().prog();
     }

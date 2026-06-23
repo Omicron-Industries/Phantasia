@@ -22,11 +22,21 @@ public class PhantasiaTheme {
     // ── Smart Dynamic Color Property Class ──
     public static class ThemeColor {
 
-        public String hex;
+        // Private so every mutation goes through set(), which is the only
+        // place cachedStatic gets invalidated. Gson still populates this via
+        // reflection on deserialization, bypassing set() — that's fine,
+        // because cachedStatic is null-by-default at construction time anyway,
+        // so a freshly-deserialized ThemeColor has nothing stale to invalidate.
+        private String hex;
         private transient Integer cachedStatic = null;
 
         public ThemeColor(String hex) {
             this.hex = hex;
+        }
+
+        /** The raw hex/keyword string currently assigned to this color slot. */
+        public String getHex() {
+            return hex;
         }
 
         public int getColor(long offset) {
@@ -64,6 +74,11 @@ public class PhantasiaTheme {
             return cachedStatic;
         }
 
+        /**
+         * The only supported way to change this color's value after construction.
+         * Always invalidates {@code cachedStatic} so the next {@link #getColor}
+         * call re-parses the new hex/keyword instead of returning a stale value.
+         */
         public void set(String newHex) {
             this.hex = newHex;
             this.cachedStatic = null;

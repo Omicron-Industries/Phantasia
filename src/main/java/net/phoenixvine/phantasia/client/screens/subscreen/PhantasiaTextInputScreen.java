@@ -193,10 +193,6 @@ public class PhantasiaTextInputScreen extends Screen {
      * Bespoke CustomTextArea
      * Directly maps UI interactions onto MultilineTextField's internal structures.
      */
-    /**
-     * Bespoke CustomTextArea
-     * Directly maps UI interactions onto MultilineTextField's internal structures.
-     */
     private class CustomTextArea extends AbstractWidget {
 
         private final MultilineTextField textField;
@@ -315,51 +311,84 @@ public class PhantasiaTextInputScreen extends Screen {
             }
         }
 
+        /**
+         * Helper method to accurately translate screen space coordinates to character indices
+         */
+        private int getCursorIndexFromCoordinates(double mx, double my) {
+            if (linesCache.isEmpty()) return 0;
+
+            int clickedLineIdx = (int) ((my - (getY() + 6)) / 9);
+            clickedLineIdx = Math.max(0, Math.min(clickedLineIdx, linesCache.size() - 1));
+
+            LinePos clickedLine = linesCache.get(clickedLineIdx);
+            int localClickX = (int) (mx - (getX() + 6));
+
+            String lineText = clickedLine.text;
+            int rawCharOffset = 0;
+            int currentVisualWidth = 0;
+
+            while (rawCharOffset < lineText.length()) {
+                if (lineText.charAt(rawCharOffset) == '§' && rawCharOffset + 1 < lineText.length()) {
+                    rawCharOffset += 2;
+                    continue;
+                }
+
+                String visualSubstring = lineText.substring(0, rawCharOffset + 1);
+                currentVisualWidth = PhantasiaTextInputScreen.this.font.width(visualSubstring);
+
+                if (currentVisualWidth > localClickX) {
+                    break;
+                }
+
+                rawCharOffset++;
+            }
+
+            return clickedLine.start + rawCharOffset;
+        }
+
+        /**
+         * Safely alters only the cursor index via reflection to preserve the dragging selection anchor.
+         */
+        private void setCursorIndexDirectly(int position) {
+            try {
+                java.lang.reflect.Field cursorField;
+                try {
+                    cursorField = MultilineTextField.class.getDeclaredField("cursor");
+                } catch (NoSuchFieldException e) {
+                    // Fallback to production SRG name for 1.20.x if running obfuscated
+                    cursorField = MultilineTextField.class.getDeclaredField("f_239201_");
+                }
+                cursorField.setAccessible(true);
+                cursorField.setInt(this.textField, position);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+
         @Override
         public boolean mouseClicked(double mx, double my, int btn) {
             if (mx >= getX() && mx < getX() + width && my >= getY() && my < getY() + height) {
                 this.setFocused(true);
+                int targetCursor = getCursorIndexFromCoordinates(mx, my);
 
-                if (!linesCache.isEmpty()) {
-                    int clickedLineIdx = (int) ((my - (getY() + 6)) / 9);
-                    clickedLineIdx = Math.max(0, Math.min(clickedLineIdx, linesCache.size() - 1));
-
-                    LinePos clickedLine = linesCache.get(clickedLineIdx);
-                    int localClickX = (int) (mx - (getX() + 6));
-
-                    // FIXED: Step through the raw string manually to account for hidden § codes
-                    String lineText = clickedLine.text;
-                    int rawCharOffset = 0;
-                    int currentVisualWidth = 0;
-
-                    while (rawCharOffset < lineText.length()) {
-                        // If we encounter a formatting code, skip measuring it visually but count it in raw characters
-                        if (lineText.charAt(rawCharOffset) == '§' && rawCharOffset + 1 < lineText.length()) {
-                            rawCharOffset += 2; // Jump past the § and the color character
-                            continue;
-                        }
-
-                        // Check the width of the string up to this point
-                        String visualSubstring = lineText.substring(0, rawCharOffset + 1);
-                        currentVisualWidth = PhantasiaTextInputScreen.this.font.width(visualSubstring);
-
-                        // If our accumulated visual width passes the click position, stop here
-                        if (currentVisualWidth > localClickX) {
-                            break;
-                        }
-
-                        rawCharOffset++;
-                    }
-
-                    int finalTargetCursor = clickedLine.start + rawCharOffset;
-
-                    // Move the cursor exactly where it belongs
-                    this.textField.seekCursor(net.minecraft.client.gui.components.Whence.ABSOLUTE, finalTargetCursor);
-                }
+                // Initial click sets both cursor and anchor to the same spot (collapsing selection)
+                this.textField.seekCursor(net.minecraft.client.gui.components.Whence.ABSOLUTE, targetCursor);
                 return true;
             }
             this.setFocused(false);
             return false;
+        }
+
+        @Override
+        public boolean mouseDragged(double mx, double my, int btn, double dx, double dy) {
+            if (this.isFocused() && btn == 0) {
+                int targetCursor = getCursorIndexFromCoordinates(mx, my);
+
+                // Change ONLY the cursor, which forces the text field to stretch the selection range
+                setCursorIndexDirectly(targetCursor);
+                return true;
+            }
+            return super.mouseDragged(mx, my, btn, dx, dy);
         }
 
         @Override

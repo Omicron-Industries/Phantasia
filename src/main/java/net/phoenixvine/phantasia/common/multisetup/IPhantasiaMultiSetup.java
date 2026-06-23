@@ -1,9 +1,8 @@
 package net.phoenixvine.phantasia.common.multisetup;
 
-import com.lowdragmc.lowdraglib.utils.BlockInfo;
-
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
+import net.phoenixvine.phantasia.utils.PhantasiaBlockInfo;
 
 import java.util.List;
 
@@ -25,7 +24,7 @@ public interface IPhantasiaMultiSetup {
      * Base block layout for this setup with no items placed — just the structural blocks.
      * Used as a fallback when no recipe is selected.
      */
-    BlockInfo[][][] getBaseLayout();
+    PhantasiaBlockInfo[][][] getBaseLayout();
 
     /** All recipes this setup can perform, lazily loaded from the recipe manager. */
     List<IPhantasiaSetupRecipe> getRecipes();

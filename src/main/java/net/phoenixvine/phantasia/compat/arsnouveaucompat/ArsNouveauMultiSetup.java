@@ -1,13 +1,12 @@
 package net.phoenixvine.phantasia.compat.arsnouveaucompat;
 
-import com.lowdragmc.lowdraglib.utils.BlockInfo;
-
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.RecipeManager;
 import net.phoenixvine.phantasia.common.multisetup.IPhantasiaMultiSetup;
 import net.phoenixvine.phantasia.common.multisetup.IPhantasiaSetupRecipe;
+import net.phoenixvine.phantasia.utils.PhantasiaBlockInfo;
 
 import com.hollingsworth.arsnouveau.api.enchanting_apparatus.EnchantingApparatusRecipe;
 import com.hollingsworth.arsnouveau.common.crafting.recipes.ImbuementRecipe;
@@ -30,7 +29,7 @@ public class ArsNouveauMultiSetup implements IPhantasiaMultiSetup {
 
     // Lazily resolved after registries are populated
     private ItemStack cachedIcon = null;
-    private BlockInfo[][][] cachedLayout = null;
+    private PhantasiaBlockInfo[][][] cachedLayout = null;
 
     // Lazily populated from recipe manager on first call
     private List<IPhantasiaSetupRecipe> cachedRecipes = null;
@@ -65,7 +64,7 @@ public class ArsNouveauMultiSetup implements IPhantasiaMultiSetup {
     }
 
     @Override
-    public BlockInfo[][][] getBaseLayout() {
+    public PhantasiaBlockInfo[][][] getBaseLayout() {
         if (cachedLayout == null) {
             cachedLayout = switch (type) {
                 case ENCHANTING_APPARATUS -> ArsNouveauLayoutBuilder.enchantingApparatusBase(8);

@@ -1,11 +1,10 @@
 package net.phoenixvine.phantasia.client.event;
 
-import com.lowdragmc.lowdraglib.utils.BlockInfo;
-
 import net.minecraft.core.BlockPos;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockShape;
+import net.phoenixvine.phantasia.utils.PhantasiaBlockInfo;
 
 import java.util.*;
 import java.util.concurrent.ExecutorService;
@@ -26,7 +25,7 @@ import javax.annotation.Nullable;
  * ── Thread model ─────────────────────────────────────────────────────────────
  * Phase 1 (LOADER_POOL thread): iterates raw[][][], constructs blockMap,
  * localToWorld, baseplatePos, bePos, and instantiates each BlockEntity via
- * BlockInfo.getBlockEntity(). Increments {@link #progress} as it goes.
+ * PhantasiaBlockInfo.getBlockEntity(). Increments {@link #progress} as it goes.
  * No SHARED_LEVEL mutations, no GL calls.
  *
  * Phase 2 (render thread, called by PhantasiaSceneScreen once isDone()):
@@ -66,8 +65,8 @@ public final class PhantasiaPatternLoader {
      */
     public static final class Result {
 
-        /** Full block map (world-space pos → BlockInfo), including baseplate. */
-        public final Map<BlockPos, BlockInfo> blockMap;
+        /** Full block map (world-space pos → PhantasiaBlockInfo), including baseplate. */
+        public final Map<BlockPos, PhantasiaBlockInfo> blockMap;
         /** Maps pattern-local pos → world pos for machine blocks only. */
         public final Map<BlockPos, BlockPos> localToWorld;
         /** Baseplate world positions (floor tiles). */
@@ -84,7 +83,7 @@ public final class PhantasiaPatternLoader {
         /** Number of blocks in the machine (excluding baseplate). */
         public final int blockCount;
 
-        Result(Map<BlockPos, BlockInfo> blockMap,
+        Result(Map<BlockPos, PhantasiaBlockInfo> blockMap,
                Map<BlockPos, BlockPos> localToWorld,
                Set<BlockPos> baseplatePositions,
                Set<BlockPos> bePositions,
@@ -166,7 +165,7 @@ public final class PhantasiaPatternLoader {
         try {
             BlockPos origin = new BlockPos(0, 50, 0);
 
-            BlockInfo[][][] raw = shape.getBlocks();
+            PhantasiaBlockInfo[][][] raw = shape.getBlocks();
             int sxLen = raw.length;
             int syLen = sxLen > 0 ? raw[0].length : 0;
             int szLen = sxLen > 0 && syLen > 0 ? raw[0][0].length : 0;
@@ -174,9 +173,10 @@ public final class PhantasiaPatternLoader {
             int padZ = Math.max(2, szLen / 2 + 1);
 
             var _baseplateState = net.phoenixvine.phantasia.utils.PhantasiaTheme.currentBaseplateBlockState();
-            BlockInfo floor = _baseplateState != null ? BlockInfo.fromBlockState(_baseplateState) : null;
+            PhantasiaBlockInfo floor = _baseplateState != null ? PhantasiaBlockInfo.fromBlockState(_baseplateState) :
+                    null;
 
-            Map<BlockPos, BlockInfo> blockMap = new HashMap<>();
+            Map<BlockPos, PhantasiaBlockInfo> blockMap = new HashMap<>();
             Map<BlockPos, BlockPos> localToWorld = new HashMap<>();
             Set<BlockPos> baseplatePos = new HashSet<>();
             Set<BlockPos> bePos = new HashSet<>();
@@ -198,7 +198,7 @@ public final class PhantasiaPatternLoader {
                     for (int z = 0; z < raw[x][y].length; z++) {
                         if (Thread.interrupted() || cancelled) return;
 
-                        BlockInfo info = raw[x][y][z];
+                        PhantasiaBlockInfo info = raw[x][y][z];
                         if (info == null) {
                             progress.incrementAndGet();
                             continue;

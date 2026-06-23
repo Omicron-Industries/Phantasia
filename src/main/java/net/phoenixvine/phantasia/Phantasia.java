@@ -1,7 +1,5 @@
 package net.phoenixvine.phantasia;
 
-import com.lowdragmc.lowdraglib.Platform;
-
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.common.MinecraftForge;
@@ -34,11 +32,15 @@ public class Phantasia {
 
         modEventBus.addListener(this::commonSetup);
 
-        if (Platform.isClient()) {
+        if (net.minecraftforge.fml.loading.FMLEnvironment.dist.isClient()) {
             modEventBus.addListener(PhoenixKeybinds::register);
             PhantasiaClient.init(modEventBus);
         }
         modEventBus.addListener(this::clientSetup);
+
+        // Vanilla multiblock structures (Beacon, Nether Portal, End Portal, etc.)
+        net.phoenixvine.phantasia.common.multiblock.PhantasiaMultiblockRegistry.register(
+                new net.phoenixvine.phantasia.compat.vanilla.VanillaMultiblockProvider());
 
         // GTCEu integration — only loaded when the mod is present
         if (ModList.get().isLoaded("gtceu")) {
