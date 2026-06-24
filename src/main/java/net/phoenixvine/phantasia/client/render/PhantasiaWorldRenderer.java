@@ -92,7 +92,7 @@ public final class PhantasiaWorldRenderer {
     private static final long PROFILE_WINDOW_NS = 5_000_000_000L;
 
     /** Set to true to emit periodic bake/render timing reports to the log. */
-    private static final boolean ENABLE_PROFILER = false;
+    private static final boolean ENABLE_PROFILER = true;
 
     private static final boolean DEBUG_RENDER = false;
 

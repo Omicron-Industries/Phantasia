@@ -25,18 +25,13 @@ public class PhantasiaParticleEngine {
     private static final Logger LOGGER = LogManager.getLogger("Phantasia");
 
     private static final Set<Object> warnedMissingProvider = Collections.newSetFromMap(new IdentityHashMap<>());
-    private static Set<Particle> ownedParticles = Collections.newSetFromMap(new IdentityHashMap<>());
 
-    @Nullable
-    private static net.phoenixvine.phantasia.client.render.PhantasiaTrackedDummyWorld particleCollisionWorld = null;
+    /** Particles we own, keyed by render type — NOT in the vanilla ParticleEngine queue. */
+    private static final Map<ParticleRenderType, Queue<Particle>> ownedQueue = new LinkedHashMap<>();
+    /** Flat set for fast alive-check during tick/render. */
+    private static final Set<Particle> ownedParticles = Collections.newSetFromMap(new IdentityHashMap<>());
 
-    private static net.phoenixvine.phantasia.client.render.PhantasiaTrackedDummyWorld getParticleCollisionWorld() {
-        if (particleCollisionWorld == null) {
-            particleCollisionWorld = new net.phoenixvine.phantasia.client.render.PhantasiaTrackedDummyWorld();
-        }
-        return particleCollisionWorld;
-    }
-
+    // ── Vanilla queue field — kept for PhantasiaSpriteMarker ─────────────────
     @Nullable
     private static Field particleQueueField = null;
     private static boolean fieldsResolved = false;
@@ -47,20 +42,20 @@ public class PhantasiaParticleEngine {
         Minecraft mc = Minecraft.getInstance();
         if (mc.particleEngine == null) return;
         resolveFields(mc);
+        ownedQueue.clear();
         ownedParticles.clear();
         warnedMissingProvider.clear();
-        particleCollisionWorld = null;
     }
 
     public static void destroy() {
-        for (Particle p : ownedParticles) {
-            try {
-                p.remove();
-            } catch (Exception ignored) {}
+        for (Queue<Particle> queue : ownedQueue.values()) {
+            for (Particle p : queue) {
+                try { p.remove(); } catch (Exception ignored) {}
+            }
         }
+        ownedQueue.clear();
         ownedParticles.clear();
         warnedMissingProvider.clear();
-        particleCollisionWorld = null;
     }
 
     @Nullable
@@ -68,6 +63,7 @@ public class PhantasiaParticleEngine {
         return Minecraft.getInstance().particleEngine;
     }
 
+    /** Returns the vanilla particle queue field — used by PhantasiaSpriteMarker. */
     @Nullable
     public static Field getParticleListField() {
         return particleQueueField;
@@ -80,12 +76,16 @@ public class PhantasiaParticleEngine {
     private static Field providersField = null;
     private static boolean providersResolved = false;
 
+    /** Cached hasPhysics field — set false so particles don't collide with real-world terrain. */
+    @Nullable private static Field f_hasPhysics = null;
+    private static boolean hasPhysicsResolved = false;
+
     @SuppressWarnings("unchecked")
     public static <T extends ParticleOptions> void addParticle(T options,
                                                                double x, double y, double z,
                                                                double dx, double dy, double dz) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.particleEngine == null || particleQueueField == null) return;
+        if (mc.particleEngine == null) return;
 
         try {
             if (!providersResolved) resolveProvidersField(mc);
@@ -100,11 +100,9 @@ public class PhantasiaParticleEngine {
                 @SuppressWarnings("rawtypes")
                 net.minecraft.client.particle.ParticleProvider provider = key != null ? providers.get(key) : null;
                 if (provider != null) {
-                    net.minecraft.client.multiplayer.ClientLevel clientLevel = net.minecraft.client.Minecraft
-                            .getInstance().level;
+                    net.minecraft.client.multiplayer.ClientLevel clientLevel = mc.level;
                     if (clientLevel != null) {
-                        particle = provider.createParticle(options, clientLevel, x,
-                                y, z, dx, dy, dz);
+                        particle = provider.createParticle(options, clientLevel, x, y, z, dx, dy, dz);
                     }
                 }
             }
@@ -116,11 +114,23 @@ public class PhantasiaParticleEngine {
                 return;
             }
 
-            Map<ParticleRenderType, Queue<Particle>> queueMap = (Map<ParticleRenderType, Queue<Particle>>) particleQueueField
-                    .get(mc.particleEngine);
+            // Disable physics so the particle drifts freely without colliding with
+            // real-world terrain at the scene's coordinates.
+            if (!hasPhysicsResolved) {
+                hasPhysicsResolved = true;
+                f_hasPhysics = findField(Particle.class, boolean.class, "hasPhysics", "f_107224_");
+            }
+            if (f_hasPhysics != null) {
+                try { f_hasPhysics.setBoolean(particle, false); } catch (Exception ignored) {}
+            }
+
             ParticleRenderType renderType = particle.getRenderType();
             if (renderType != ParticleRenderType.NO_RENDER) {
-                queueMap.computeIfAbsent(renderType, k -> new ArrayDeque<>()).add(particle);
+                // Add to OUR queue only — NOT the vanilla ParticleEngine queue.
+                // Vanilla ParticleEngine.render would call getLightColor → Level.getBlockState
+                // through GTCEu-patched call sites that bypass our getBlockState override,
+                // reaching getChunk → null → crash.
+                ownedQueue.computeIfAbsent(renderType, k -> new ArrayDeque<>()).add(particle);
                 ownedParticles.add(particle);
             }
         } catch (Exception e) {
@@ -159,7 +169,20 @@ public class PhantasiaParticleEngine {
     }
 
     public static void tick() {
-        ownedParticles.removeIf(p -> !p.isAlive());
+        // Tick owned particles and purge dead ones.
+        for (Queue<Particle> queue : ownedQueue.values()) {
+            Iterator<Particle> it = queue.iterator();
+            while (it.hasNext()) {
+                Particle p = it.next();
+                if (p.isAlive()) {
+                    try { p.tick(); } catch (Exception ignored) {}
+                }
+                if (!p.isAlive()) {
+                    it.remove();
+                    ownedParticles.remove(p);
+                }
+            }
+        }
     }
 
     private static Boolean oculusPresent = null;
@@ -182,21 +205,18 @@ public class PhantasiaParticleEngine {
 
     // ── Render ────────────────────────────────────────────────────────────────
 
-    @SuppressWarnings("unchecked")
     public static void renderDirect(
                                     net.minecraft.client.renderer.MultiBufferSource.BufferSource buffers,
                                     net.minecraft.client.renderer.LightTexture lightTexture,
                                     Camera camera,
                                     float partialTick) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.particleEngine == null || particleQueueField == null || ownedParticles.isEmpty()) return;
+        if (mc.particleEngine == null || ownedParticles.isEmpty()) return;
 
         resolveParticleFields();
 
         try {
-            Map<ParticleRenderType, Queue<Particle>> particleMap = (Map<ParticleRenderType, Queue<Particle>>) particleQueueField
-                    .get(mc.particleEngine);
-            if (particleMap.isEmpty()) return;
+            if (ownedQueue.isEmpty()) return;
 
             com.mojang.blaze3d.vertex.PoseStack poseStack = com.mojang.blaze3d.systems.RenderSystem.getModelViewStack();
             poseStack.pushPose();
@@ -217,20 +237,14 @@ public class PhantasiaParticleEngine {
             float rx = right.x, ry = right.y, rz = right.z;
             float ux = up.x, uy = up.y, uz = up.z;
 
-            for (var entry : particleMap.entrySet()) {
+            for (var entry : ownedQueue.entrySet()) {
                 ParticleRenderType renderType = entry.getKey();
                 Queue<Particle> queue = entry.getValue();
-                if (renderType == ParticleRenderType.NO_RENDER) continue;
-
-                List<Particle> toRender = new ArrayList<>();
-                for (Particle p : queue) {
-                    if (ownedParticles.contains(p)) toRender.add(p);
-                }
-                if (toRender.isEmpty()) continue;
+                if (renderType == ParticleRenderType.NO_RENDER || queue.isEmpty()) continue;
 
                 try {
                     renderType.begin(bb, textureManager);
-                    for (Particle p : toRender) {
+                    for (Particle p : queue) {
                         renderParticleManual(bb, camera, p, partialTick, rx, ry, rz, ux, uy, uz);
                     }
                     renderType.end(tesselator);
@@ -335,7 +349,6 @@ public class PhantasiaParticleEngine {
                 f_px != null, f_sprite != null, f_scale != null, scaleIsQuadSize);
     }
 
-    @Nullable
     private static Field findField(Class<?> owner, Class<?> type, String... names) {
         for (Class<?> c = owner; c != null; c = c.getSuperclass()) {
             for (String name : names) {
@@ -406,7 +419,7 @@ public class PhantasiaParticleEngine {
         }
     }
 
-    // ── Queue field resolution ────────────────────────────────────────────────
+    // ── Queue field resolution (vanilla queue — for PhantasiaSpriteMarker) ────
 
     private static void resolveFields(Minecraft mc) {
         if (fieldsResolved) return;
@@ -443,7 +456,7 @@ public class PhantasiaParticleEngine {
         }
 
         if (particleQueueField == null)
-            LOGGER.error("[Phantasia] particle queue field not found — particles will not work");
+            LOGGER.error("[Phantasia] particle queue field not found — PhantasiaSpriteMarker will not work");
         else
             LOGGER.info("[Phantasia] particle queue field: {}", particleQueueField.getName());
     }

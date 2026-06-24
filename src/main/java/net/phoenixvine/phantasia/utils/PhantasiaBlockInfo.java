@@ -28,6 +28,10 @@ public final class PhantasiaBlockInfo {
         return new PhantasiaBlockInfo(state, null);
     }
 
+    public static PhantasiaBlockInfo fromBlockStateAndNbt(BlockState state, CompoundTag nbt) {
+        return new PhantasiaBlockInfo(state, nbt);
+    }
+
     public static PhantasiaBlockInfo fromBlock(Block block) {
         return fromBlockState(block.defaultBlockState());
     }

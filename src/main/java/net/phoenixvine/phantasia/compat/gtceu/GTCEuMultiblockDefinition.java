@@ -151,6 +151,52 @@ public class GTCEuMultiblockDefinition implements IPhantasiaMultiblockDefinition
         } catch (Exception ignored) {}
     }
 
+    @Override
+    public void applyWorkingState(PhantasiaTrackedDummyWorld level,
+                                  java.util.Set<net.minecraft.core.BlockPos> positions,
+                                  java.util.Map<net.minecraft.core.BlockPos, net.phoenixvine.phantasia.utils.PhantasiaBlockInfo> blockMap,
+                                  boolean working) {
+        if (level == null) return;
+
+        // Set RecipeLogic on all workable machines at positions in this placement
+        try {
+            for (var entry : level.blockEntities.entrySet()) {
+                if (!positions.contains(entry.getKey())) continue;
+                if (!(entry.getValue() instanceof MetaMachineBlockEntity mmbe)) continue;
+                var machine = mmbe.getMetaMachine();
+                RecipeLogic logic = null;
+                if (machine instanceof WorkableMultiblockMachine wm) {
+                    logic = wm.getRecipeLogic();
+                } else if (machine instanceof com.gregtechceu.gtceu.api.machine.WorkableTieredMachine wt) {
+                    logic = wt.getRecipeLogic();
+                }
+                if (logic != null)
+                    logic.setStatus(working ? RecipeLogic.Status.WORKING : RecipeLogic.Status.IDLE);
+            }
+        } catch (Throwable ignored) {}
+
+        // Update ActiveBlock block states — renderedBlocks.put (not setBlock) keeps
+        // block entities alive so TESR and DynamicRender continue to fire.
+        for (var e : blockMap.entrySet()) {
+            net.minecraft.core.BlockPos worldPos = e.getKey();
+            if (!positions.contains(worldPos)) continue;
+            net.minecraft.world.level.block.state.BlockState original = e.getValue().getBlockState();
+            if (original == null || original.isAir()) continue;
+            try {
+                net.minecraft.world.level.block.state.BlockState current = level.getBlockState(worldPos);
+                if (current == null || current.isAir()) continue;
+                net.minecraft.world.level.block.state.BlockState next = null;
+                if (current.getBlock() instanceof com.gregtechceu.gtceu.api.block.ActiveBlock ab) {
+                    next = ab.changeActive(current, working);
+                } else if (original.getBlock() instanceof com.gregtechceu.gtceu.api.block.ActiveBlock ab) {
+                    next = ab.changeActive(current, working);
+                }
+                if (next != null && next != current)
+                    level.renderedBlocks.put(worldPos, net.phoenixvine.phantasia.utils.PhantasiaBlockInfo.fromBlockState(next));
+            } catch (Throwable ignored) {}
+        }
+    }
+
     // ── GTCEu-specific variant detection ─────────────────────────────────────
 
     @Override

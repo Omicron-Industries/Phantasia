@@ -99,6 +99,7 @@ public class PhantasiaScenePlacementStepEditorScreen extends PhantasiaScreen
 
         buildBoxes();
         populateBoxes();
+        rebuildVisibility();
     }
 
     private void buildBoxes() {
@@ -205,6 +206,7 @@ public class PhantasiaScenePlacementStepEditorScreen extends PhantasiaScreen
 
     private void dirty() {
         parent.dirty = true;
+        parent.applyActiveStateToScene(step().working);
     }
 
     /** Returns [minY, maxY] for this placement, or null if not found. */
@@ -289,7 +291,7 @@ public class PhantasiaScenePlacementStepEditorScreen extends PhantasiaScreen
 
         topBtn(g, mx, my, width - 4, "← Back", C_BTN(),
                 "Return to scene editor",
-                () -> Minecraft.getInstance().setScreen(parent));
+                () -> { restoreAllBaseplates(); Minecraft.getInstance().setScreen(parent); });
     }
 
     // ── Right panel ───────────────────────────────────────────────────────────
@@ -703,8 +705,10 @@ public class PhantasiaScenePlacementStepEditorScreen extends PhantasiaScreen
             final int fi = i;
             btns.add(new Btn(dotX - 8, midY - 8, 16, 16, () -> {
                 selectedStep = fi;
+                parent.selectedStep = fi;
                 populateBoxes();
                 rebuildVisibility();
+                parent.applyActiveStateToScene(step().working);
             }));
         }
     }
@@ -790,8 +794,35 @@ public class PhantasiaScenePlacementStepEditorScreen extends PhantasiaScreen
     public void rebuildVisibility() {
         if (parent.renderer == null || parent.scenePattern == null) return;
         Set<BlockPos> visible = parent.scenePattern.computeVisible(step(), data);
-        parent.renderer.setVisible(visible);
+
+        // Hide blocks and baseplates belonging to other placements.
+        Set<BlockPos> otherPositions = new java.util.HashSet<>();
+        Set<BlockPos> selectedBaseplates = new java.util.HashSet<>();
+        for (PhantasiaScenePattern.PlacementEntry pe : parent.scenePattern.placements) {
+            if (pe.index != placementIndex) {
+                otherPositions.addAll(pe.worldPositions);
+                otherPositions.addAll(pe.baseplatePositions);
+            } else {
+                selectedBaseplates.addAll(pe.baseplatePositions);
+            }
+        }
+
+        Set<BlockPos> filtered = visible != null ? new java.util.HashSet<>(visible) : new java.util.HashSet<>();
+        filtered.removeAll(otherPositions);
+
+        // Restrict the renderer's baseplatePositions to only the selected placement so that
+        // scheduleFullBake does not unconditionally include other placements' baseplates.
+        parent.renderer.setBaseplatePositions(selectedBaseplates);
+
+        parent.renderer.setVisible(filtered);
         parent.renderer.requestBake();
+    }
+
+    /** Restores all baseplates when leaving this screen. */
+    private void restoreAllBaseplates() {
+        if (parent.renderer != null && parent.scenePattern != null) {
+            parent.renderer.setBaseplatePositions(parent.scenePattern.allBaseplatePositions);
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -862,6 +893,7 @@ public class PhantasiaScenePlacementStepEditorScreen extends PhantasiaScreen
             return true;
         }
         if (kc == GLFW.GLFW_KEY_ESCAPE) {
+            restoreAllBaseplates();
             Minecraft.getInstance().setScreen(parent);
             return true;
         }

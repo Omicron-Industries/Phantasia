@@ -100,7 +100,7 @@ public class PhantasiaSceneScreen extends Screen {
     private boolean cacheInitialized = false;
 
     // Set to true to emit periodic screen render timing reports to the log.
-    private static final boolean ENABLE_PROFILER = false;
+    private static final boolean ENABLE_PROFILER = true;
 
     private static final long SCREEN_PROFILE_WINDOW_NS = 5_000_000_000L;
     private long screenProfileWindowStart = -1;
@@ -1029,39 +1029,8 @@ public class PhantasiaSceneScreen extends Screen {
      */
     public void applyActiveStateToWorld(boolean working) {
         if (SHARED_LEVEL == null || pattern == null) return;
-        definition.setMachineWorking(SHARED_LEVEL, working);
-
-        // Update ACTIVE block state property on all ActiveBlock-type components.
-        // GTCEu's setMachineWorking only changes RecipeLogic status on the controller BE;
-        // it never touches the block states of coils, fireboxes, or other ActiveBlock
-        // components. Those blocks show their active texture purely via the ACTIVE property,
-        // so we must update SHARED_LEVEL directly.
-        for (Map.Entry<BlockPos, PhantasiaBlockInfo> e : pattern.blockMap.entrySet()) {
-            BlockState original = e.getValue().getBlockState();
-            if (original == null || original.isAir()) continue;
-            try {
-                BlockPos worldPos = e.getKey();
-                BlockState current = SHARED_LEVEL.getBlockState(worldPos);
-                if (current == null || current.isAir()) continue;
-                // Use the block from the live world (not the original pattern) so that
-                // state.is(this) in ActiveBlock.changeActive() always passes — even after
-                // the user swaps coil tiers (cupronickel → nichrome etc.).
-                var currentBlock = current.getBlock();
-                com.gregtechceu.gtceu.api.block.ActiveBlock ab;
-                if (currentBlock instanceof com.gregtechceu.gtceu.api.block.ActiveBlock currentAb) {
-                    ab = currentAb;
-                } else {
-                    // Fallback to original block in case the world state is stale/missing.
-                    var origBlock = original.getBlock();
-                    if (!(origBlock instanceof com.gregtechceu.gtceu.api.block.ActiveBlock origAb)) continue;
-                    ab = origAb;
-                }
-                BlockState next = ab.changeActive(current, working);
-                if (next != current) {
-                    SHARED_LEVEL.setBlock(worldPos, next, 2);
-                }
-            } catch (Throwable ignored) {}
-        }
+        definition.applyWorkingState(SHARED_LEVEL, pattern.blockMap.keySet(), pattern.blockMap, working);
+        if (renderer != null) renderer.requestBake();
     }
 
     private void updateMachineState(PhantasiaScript.Step step) {

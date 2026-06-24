@@ -72,8 +72,13 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
     private float tickAccum = 0f;
     private float speed = 1f;
     private boolean scrubbing = false;
+    private int sceneTick = 0;
 
     private int lastStepIndex = -1;
+
+    // ── Persisted world-item state (accumulated across steps) ─────────────────
+    /** Source amounts that were last applied by applyWorldItemsToLevel, keyed by world position. */
+    private final java.util.Map<BlockPos, Integer> persistedSourceAmounts = new java.util.HashMap<>();
 
     // ── Hover ─────────────────────────────────────────────────────────────────
     private BlockPos hoveredPos = null;
@@ -121,6 +126,12 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
                 if (allVis != null) fullBakeSet.addAll(allVis);
 
                 renderer.setPatternBlocks(fullBakeSet);
+
+                // Apply initial world items before the first bake so the bake thread
+                // sees correct BE state (e.g. source jar fill levels).
+                PhantasiaSceneData.StepData initialStep = activeStep();
+                if (initialStep != null) applyWorldItemsToLevel(initialStep);
+
                 renderer.requestBake();
             }
 
@@ -173,65 +184,16 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
         if (level == null || pattern == null) return;
         boolean globalWorking = step.working;
 
-        // Build per-world-position effective working state
+        PhantasiaSceneActiveState.apply(level, pattern, step, globalWorking, renderer);
+
+        // For vanilla beacon blocks: vanilla tick resets beamSections every 80 game ticks.
+        // Register a post-tick hook on the dummy world to re-force the beam state after each tick.
         java.util.Map<BlockPos, Boolean> posWorking = new java.util.HashMap<>();
         for (net.phoenixvine.phantasia.common.data.pattern.PhantasiaScenePattern.PlacementEntry pe : pattern.placements) {
             PhantasiaSceneData.MachineOverride ov = step.getOverride(pe.index);
             boolean effective = ov != null ? ov.resolveWorking(globalWorking) : globalWorking;
             for (BlockPos wp : pe.worldPositions) posWorking.put(wp, effective);
         }
-
-        // Set RecipeLogic on GTCEu workable machines (multiblock and single-block)
-        try {
-            for (net.minecraft.world.level.block.entity.BlockEntity be : level.blockEntities.values()) {
-                if (!(be instanceof com.gregtechceu.gtceu.api.blockentity.MetaMachineBlockEntity mmbe)) continue;
-                var machine = mmbe.getMetaMachine();
-                Boolean effective = posWorking.get(be.getBlockPos());
-                if (effective == null) effective = globalWorking;
-                com.gregtechceu.gtceu.api.machine.trait.RecipeLogic logic = null;
-                if (machine instanceof com.gregtechceu.gtceu.api.machine.multiblock.WorkableMultiblockMachine workable) {
-                    logic = workable.getRecipeLogic();
-                } else if (machine instanceof com.gregtechceu.gtceu.api.machine.WorkableTieredMachine workable) {
-                    logic = workable.getRecipeLogic();
-                }
-                if (logic != null)
-                    logic.setStatus(effective ? com.gregtechceu.gtceu.api.machine.trait.RecipeLogic.Status.WORKING :
-                            com.gregtechceu.gtceu.api.machine.trait.RecipeLogic.Status.IDLE);
-            }
-        } catch (Throwable ignored) {}
-
-        // Toggle ActiveBlock state / ACTIVE property for coils, fireboxes, controllers, etc.
-        // Update renderedBlocks directly (not setBlock) to preserve block entities for TESR/DynamicRender.
-        for (java.util.Map.Entry<BlockPos, net.phoenixvine.phantasia.utils.PhantasiaBlockInfo> e : pattern.mergedBlockMap.entrySet()) {
-            net.minecraft.world.level.block.state.BlockState original = e.getValue().getBlockState();
-            if (original == null || original.isAir()) continue;
-            try {
-                BlockPos worldPos = e.getKey();
-                boolean effectiveWorking = posWorking.getOrDefault(worldPos, globalWorking);
-                net.minecraft.world.level.block.state.BlockState current = level.getBlockState(worldPos);
-                if (current == null || current.isAir()) continue;
-                net.minecraft.world.level.block.state.BlockState next = null;
-                var currentBlock = current.getBlock();
-                if (currentBlock instanceof com.gregtechceu.gtceu.api.block.ActiveBlock currentAb) {
-                    next = currentAb.changeActive(current, effectiveWorking);
-                } else {
-                    var origBlock = original.getBlock();
-                    if (origBlock instanceof com.gregtechceu.gtceu.api.block.ActiveBlock origAb) {
-                        next = origAb.changeActive(current, effectiveWorking);
-                    }
-                }
-                if (next != null && next != current) {
-                    level.renderedBlocks.put(worldPos, net.phoenixvine.phantasia.utils.PhantasiaBlockInfo.fromBlockState(next));
-                }
-            } catch (Throwable ignored) {}
-        }
-        if (renderer != null) {
-            renderer.clearOverlay();
-            renderer.requestBake();
-        }
-
-        // For vanilla beacon blocks: vanilla tick resets beamSections every 80 game ticks.
-        // Register a post-tick hook on the dummy world to re-force the beam state after each tick.
         level.clearPostTickHooks();
         for (java.util.Map.Entry<BlockPos, net.phoenixvine.phantasia.utils.PhantasiaBlockInfo> e : pattern.mergedBlockMap.entrySet()) {
             if (!e.getValue().getBlockState().is(Blocks.BEACON)) continue;
@@ -268,51 +230,102 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
         } catch (Exception ignored) {}
     }
 
-    private void applyWorldItemsToLevel(PhantasiaSceneData.StepData step) {
-        if (step == null || level == null || pattern == null) return;
-        java.util.Set<BlockPos> rebakePos = new java.util.HashSet<>();
-        for (net.phoenixvine.phantasia.common.data.pattern.PhantasiaScenePattern.PlacementEntry pe : pattern.placements) {
-            PhantasiaSceneData.MachineOverride ov = step.getOverride(pe.index);
-            if (ov == null || ov.worldItems.isEmpty()) continue;
-            for (net.phoenixvine.phantasia.common.data.script.PhantasiaScriptData.WorldItemEntry wi : ov.worldItems) {
-                BlockPos worldPos = new BlockPos(wi.x, wi.y, wi.z).offset(pe.offset);
+    /**
+     * Called every render frame to guarantee source jar BEs have the accumulated
+     * source amount regardless of what ticks or bakes did to blockEntities.
+     * Uses persistedSourceAmounts which is built cumulatively by applyWorldItemsToLevel.
+     */
+    private void forceSourceJarState() {
+        if (level == null || persistedSourceAmounts.isEmpty()) return;
+        for (java.util.Map.Entry<BlockPos, Integer> entry : persistedSourceAmounts.entrySet()) {
+            BlockPos worldPos = entry.getKey();
+            try {
                 net.minecraft.world.level.block.entity.BlockEntity be = level.getBlockEntity(worldPos);
-                if (be == null) continue;
+                if (!(be instanceof com.hollingsworth.arsnouveau.common.block.tile.SourceJarTile jar)) continue;
                 if (be.getLevel() == null) be.setLevel(level);
-                if (wi.sourceAmount >= 0) {
-                    try {
-                        if (be instanceof com.hollingsworth.arsnouveau.common.block.tile.SourceJarTile jar) {
-                            jar.setSource(wi.sourceAmount);
-                            jar.setChanged();
-                            rebakePos.add(worldPos);
-                        }
-                    } catch (Exception ignored) {}
-                }
-                if (wi.item != null && !wi.item.isBlank()) {
-                    try {
-                        net.minecraft.resources.ResourceLocation rl = new net.minecraft.resources.ResourceLocation(wi.item);
-                        net.minecraft.world.item.Item itm = net.minecraftforge.registries.ForgeRegistries.ITEMS.getValue(rl);
-                        net.minecraft.world.item.ItemStack stack = (itm == null || itm == net.minecraft.world.item.Items.AIR)
-                                ? net.minecraft.world.item.ItemStack.EMPTY : new net.minecraft.world.item.ItemStack(itm);
-                        if (be instanceof net.minecraft.world.Container container) {
-                            container.setItem(0, stack);
-                            be.setChanged();
-                            rebakePos.add(worldPos);
-                        } else {
-                            net.minecraft.world.item.ItemStack finalStack = stack;
-                            be.getCapability(net.minecraftforge.common.capabilities.ForgeCapabilities.ITEM_HANDLER)
-                                    .ifPresent(handler -> {
-                                        if (handler.getSlots() > 0 && handler.isItemValid(0, finalStack)) {
-                                            handler.insertItem(0, finalStack, false);
-                                            be.setChanged();
-                                            rebakePos.add(worldPos);
-                                        }
-                                    });
-                        }
-                    } catch (Exception ignored) {}
+                jar.setSource(entry.getValue());
+                level.blockEntities.put(worldPos, be);
+            } catch (Exception ignored) {}
+        }
+    }
+
+    private void applyWorldItemsToLevel(PhantasiaSceneData.StepData activeStepData) {
+        if (activeStepData == null || level == null || pattern == null) return;
+
+        // Determine the index of the active step so we can accumulate world items
+        // from all steps 0..activeIdx (earlier steps persist unless later overrides them).
+        int activeIdx = data.steps.indexOf(activeStepData);
+        if (activeIdx < 0) activeIdx = data.steps.size() - 1;
+
+        // Accumulate effective source amounts across steps 0..activeIdx (last write wins).
+        java.util.Map<BlockPos, Integer> effectiveSources = new java.util.LinkedHashMap<>();
+        java.util.Map<BlockPos, String> effectiveItems = new java.util.LinkedHashMap<>();
+        for (int si = 0; si <= activeIdx; si++) {
+            PhantasiaSceneData.StepData s = data.steps.get(si);
+            for (net.phoenixvine.phantasia.common.data.pattern.PhantasiaScenePattern.PlacementEntry pe : pattern.placements) {
+                PhantasiaSceneData.MachineOverride ov = s.getOverride(pe.index);
+                if (ov == null || ov.worldItems.isEmpty()) continue;
+                for (net.phoenixvine.phantasia.common.data.script.PhantasiaScriptData.WorldItemEntry wi : ov.worldItems) {
+                    BlockPos worldPos = new BlockPos(wi.x, wi.y, wi.z).offset(pe.offset);
+                    if (wi.sourceAmount >= 0) effectiveSources.put(worldPos, wi.sourceAmount);
+                    if (wi.item != null && !wi.item.isBlank()) effectiveItems.put(worldPos, wi.item);
                 }
             }
         }
+
+        // Update persisted map so forceSourceJarState can re-apply every frame.
+        persistedSourceAmounts.clear();
+        persistedSourceAmounts.putAll(effectiveSources);
+
+        java.util.Set<BlockPos> rebakePos = new java.util.HashSet<>();
+
+        // Apply source amounts.
+        for (java.util.Map.Entry<BlockPos, Integer> entry : effectiveSources.entrySet()) {
+            BlockPos worldPos = entry.getKey();
+            net.minecraft.world.level.block.entity.BlockEntity be = level.getBlockEntity(worldPos);
+            if (be == null) continue;
+            if (be.getLevel() == null) be.setLevel(level);
+            try {
+                if (be instanceof com.hollingsworth.arsnouveau.common.block.tile.SourceJarTile jar) {
+                    jar.setSource(entry.getValue());
+                    net.minecraft.nbt.CompoundTag nbt = be.saveWithoutMetadata();
+                    net.minecraft.world.level.block.state.BlockState currentState = level.getBlockState(worldPos);
+                    level.renderedBlocks.put(worldPos, net.phoenixvine.phantasia.utils.PhantasiaBlockInfo.fromBlockStateAndNbt(currentState, nbt));
+                    level.blockEntities.put(worldPos, be);
+                    rebakePos.add(worldPos);
+                }
+            } catch (Exception ignored) {}
+        }
+
+        // Apply item states.
+        for (java.util.Map.Entry<BlockPos, String> entry : effectiveItems.entrySet()) {
+            BlockPos worldPos = entry.getKey();
+            net.minecraft.world.level.block.entity.BlockEntity be = level.getBlockEntity(worldPos);
+            if (be == null) continue;
+            if (be.getLevel() == null) be.setLevel(level);
+            try {
+                net.minecraft.resources.ResourceLocation rl = new net.minecraft.resources.ResourceLocation(entry.getValue());
+                net.minecraft.world.item.Item itm = net.minecraftforge.registries.ForgeRegistries.ITEMS.getValue(rl);
+                net.minecraft.world.item.ItemStack stack = (itm == null || itm == net.minecraft.world.item.Items.AIR)
+                        ? net.minecraft.world.item.ItemStack.EMPTY : new net.minecraft.world.item.ItemStack(itm);
+                if (be instanceof net.minecraft.world.Container container) {
+                    container.setItem(0, stack);
+                    be.setChanged();
+                    rebakePos.add(worldPos);
+                } else {
+                    net.minecraft.world.item.ItemStack finalStack = stack;
+                    be.getCapability(net.minecraftforge.common.capabilities.ForgeCapabilities.ITEM_HANDLER)
+                            .ifPresent(handler -> {
+                                if (handler.getSlots() > 0 && handler.isItemValid(0, finalStack)) {
+                                    handler.insertItem(0, finalStack, false);
+                                    be.setChanged();
+                                    rebakePos.add(worldPos);
+                                }
+                            });
+                }
+            } catch (Exception ignored) {}
+        }
+
         if (!rebakePos.isEmpty() && renderer != null) renderer.requestPartialBake(rebakePos);
     }
 
@@ -387,6 +400,7 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
                 }
             }
         }
+
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -408,6 +422,7 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
 
         // ── Viewport ──────────────────────────────────────────────────────────
         if (renderer != null && camera != null) {
+            forceSourceJarState();
             CameraView view = camera.getView(partial);
             renderer.setMousePos(mx, my);
             renderer.render(view, 0, TOP_BAR_H, this.width, viewH);
@@ -723,7 +738,7 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
 
     private void openEditor() {
         if (camera != null) camera.save();
-        Minecraft.getInstance().setScreen(new PhantasiaSceneEditorScreen(parent, data));
+        Minecraft.getInstance().setScreen(new PhantasiaSceneEditorScreen(this, data));
     }
 
     private boolean hasGuideContent() {

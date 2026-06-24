@@ -62,6 +62,20 @@ public interface IPhantasiaMultiblockDefinition {
     default void setMachineWorking(PhantasiaTrackedDummyWorld level, boolean working) {}
 
     /**
+     * Apply working/idle state to all machines and animated blocks that belong to
+     * this placement. Called once per placement entry by {@code PhantasiaSceneActiveState}.
+     *
+     * @param level     the dummy world
+     * @param positions world positions that belong to this placement
+     * @param blockMap  full merged block map (implementations should filter to {@code positions})
+     * @param working   the effective working state for this placement
+     */
+    default void applyWorkingState(PhantasiaTrackedDummyWorld level,
+                                   Set<BlockPos> positions,
+                                   Map<BlockPos, PhantasiaBlockInfo> blockMap,
+                                   boolean working) {}
+
+    /**
      * Called every client tick while the scene screen is open and not scrubbing.
      * Use for driving continuous visual effects: draining/filling tanks, keeping
      * crafting flags alive, emitting sounds, etc.

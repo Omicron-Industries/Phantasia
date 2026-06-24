@@ -71,6 +71,13 @@ public class PhantasiaScenePattern {
                 this.centerZ = sz / worldPositions.size();
             }
         }
+
+        /** Derives local→world mapping from worldPositions and offset (local = worldPos - offset). */
+        public java.util.Map<BlockPos, BlockPos> computeLocalToWorld() {
+            java.util.Map<BlockPos, BlockPos> map = new java.util.HashMap<>();
+            for (BlockPos wp : worldPositions) map.put(wp.subtract(offset), wp);
+            return map;
+        }
     }
 
     // ── Fields ────────────────────────────────────────────────────────────────
@@ -242,11 +249,10 @@ public class PhantasiaScenePattern {
             } catch (Exception ignored) {}
         }
 
-        // Fire onShapeLoaded via the definition — this calls onStructureFormed correctly
-        // (handles patternLock, matchContext, parts, etc.) rather than the fragile
-        // checkPatternAt path which silently fails in the dummy world.
+        // Fire onShapeLoaded via the definition — handles patternLock, matchContext, parts
+        // correctly; checkPatternAt silently fails in the dummy world environment.
         net.phoenixvine.phantasia.common.multiblock.PhantasiaMultiblockRegistry.resolve(pd.machine)
-                .ifPresent(def -> def.onShapeLoaded(sharedWorld, origin, placementMap, localToWorld));
+                .ifPresent(iDef -> iDef.onShapeLoaded(sharedWorld, origin, placementMap, localToWorld));
 
         // Merge into scene map
         mergedMap.putAll(placementMap);

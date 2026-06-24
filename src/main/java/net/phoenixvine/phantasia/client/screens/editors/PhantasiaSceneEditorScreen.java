@@ -65,7 +65,7 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
     PhantasiaSceneData data;
     private EditBox sceneIconBox;
     boolean dirty = false;
-    private int selectedStep = 0;
+    int selectedStep = 0;
 
     // ── World ─────────────────────────────────────────────────────────────────
     PhantasiaWorldRenderer renderer;
@@ -106,6 +106,7 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
     private boolean previewing = false;
     private int previewTick = 0;
     private float previewAccum = 0f;
+    private int sceneTick = 0;
 
     // ── Start-cam panel ───────────────────────────────────────────────────────
     private boolean showStartCamPanel = false;
@@ -214,6 +215,13 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         applyActiveStateToScene(step().working);
         applyWorldItemsToEditorLevel();
         rebuildVisibility();
+
+        // onShapeLoaded defers onStructureFormed via recordRenderCall — queue a second
+        // applyActiveStateToScene so it fires AFTER onStructureFormed, ensuring
+        // RecipeLogic stays WORKING instead of being reset by onStructureFormed.
+        final boolean deferredWorking = step().working;
+        com.mojang.blaze3d.systems.RenderSystem.recordRenderCall(
+                () -> applyActiveStateToScene(deferredWorking));
     }
 
     private void initCamera() {
@@ -461,6 +469,7 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
                 }
             }
         }
+
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -486,65 +495,10 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         renderer.requestBake();
     }
 
-    private void applyActiveStateToScene(boolean globalWorking) {
+    void applyActiveStateToScene(boolean globalWorking) {
         if (editorLevel == null || scenePattern == null) return;
-        PhantasiaSceneData.StepData s = step();
-
-        // Build per-position effective working state, respecting per-placement overrides.
-        java.util.Map<net.minecraft.core.BlockPos, Boolean> posWorking = new java.util.HashMap<>();
-        for (PhantasiaScenePattern.PlacementEntry pe : scenePattern.placements) {
-            PhantasiaSceneData.MachineOverride ov = s.getOverride(pe.index);
-            boolean effective = ov != null ? ov.resolveWorking(globalWorking) : globalWorking;
-            for (net.minecraft.core.BlockPos wp : pe.worldPositions) posWorking.put(wp, effective);
-        }
-
-        // Set RecipeLogic status on GTCEu workable machines (multiblock and single-block).
-        try {
-            for (net.minecraft.world.level.block.entity.BlockEntity be : editorLevel.blockEntities.values()) {
-                if (!(be instanceof com.gregtechceu.gtceu.api.blockentity.MetaMachineBlockEntity mmbe)) continue;
-                var machine = mmbe.getMetaMachine();
-                Boolean effective = posWorking.get(be.getBlockPos());
-                if (effective == null) effective = globalWorking;
-                com.gregtechceu.gtceu.api.machine.trait.RecipeLogic logic = null;
-                if (machine instanceof com.gregtechceu.gtceu.api.machine.multiblock.WorkableMultiblockMachine workable) {
-                    logic = workable.getRecipeLogic();
-                } else if (machine instanceof com.gregtechceu.gtceu.api.machine.WorkableTieredMachine workable) {
-                    logic = workable.getRecipeLogic();
-                }
-                if (logic != null) {
-                    logic.setStatus(effective ? com.gregtechceu.gtceu.api.machine.trait.RecipeLogic.Status.WORKING :
-                            com.gregtechceu.gtceu.api.machine.trait.RecipeLogic.Status.IDLE);
-                }
-            }
-        } catch (Throwable ignored) {}
-
-        // Toggle ActiveBlock state / ACTIVE property for coils, fireboxes, controllers, etc.
-        // Update renderedBlocks directly (not setBlock) to preserve block entities for TESR/DynamicRender.
-        for (java.util.Map.Entry<net.minecraft.core.BlockPos, net.phoenixvine.phantasia.utils.PhantasiaBlockInfo> e : scenePattern.mergedBlockMap.entrySet()) {
-            net.minecraft.world.level.block.state.BlockState original = e.getValue().getBlockState();
-            if (original == null || original.isAir()) continue;
-            try {
-                net.minecraft.core.BlockPos worldPos = e.getKey();
-                boolean effectiveWorking = posWorking.getOrDefault(worldPos, globalWorking);
-                net.minecraft.world.level.block.state.BlockState current = editorLevel.getBlockState(worldPos);
-                if (current == null || current.isAir()) continue;
-                net.minecraft.world.level.block.state.BlockState next = null;
-                var currentBlock = current.getBlock();
-                if (currentBlock instanceof com.gregtechceu.gtceu.api.block.ActiveBlock currentAb) {
-                    next = currentAb.changeActive(current, effectiveWorking);
-                } else {
-                    var origBlock = original.getBlock();
-                    if (origBlock instanceof com.gregtechceu.gtceu.api.block.ActiveBlock origAb) {
-                        next = origAb.changeActive(current, effectiveWorking);
-                    }
-                }
-                if (next != null && next != current) {
-                    editorLevel.renderedBlocks.put(worldPos, net.phoenixvine.phantasia.utils.PhantasiaBlockInfo.fromBlockState(next));
-                }
-            } catch (Throwable ignored) {}
-        }
-
-        if (renderer != null) renderer.requestBake();
+        net.phoenixvine.phantasia.client.screens.PhantasiaSceneActiveState.apply(
+                editorLevel, scenePattern, step(), globalWorking, renderer);
     }
 
     private void applyWorldItemsToEditorLevel() {
@@ -563,7 +517,10 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
                     try {
                         if (be instanceof com.hollingsworth.arsnouveau.common.block.tile.SourceJarTile jar) {
                             jar.setSource(wi.sourceAmount);
-                            jar.setChanged();
+                            net.minecraft.nbt.CompoundTag nbt = be.saveWithoutMetadata();
+                            net.minecraft.world.level.block.state.BlockState currentState = editorLevel.getBlockState(worldPos);
+                            editorLevel.renderedBlocks.put(worldPos, net.phoenixvine.phantasia.utils.PhantasiaBlockInfo.fromBlockStateAndNbt(currentState, nbt));
+                            editorLevel.blockEntities.put(worldPos, be);
                             rebakePos.add(worldPos);
                         }
                     } catch (Exception ignored) {}
