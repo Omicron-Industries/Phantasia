@@ -50,7 +50,9 @@ public class PhantasiaParticleEngine {
     public static void destroy() {
         for (Queue<Particle> queue : ownedQueue.values()) {
             for (Particle p : queue) {
-                try { p.remove(); } catch (Exception ignored) {}
+                try {
+                    p.remove();
+                } catch (Exception ignored) {}
             }
         }
         ownedQueue.clear();
@@ -77,7 +79,8 @@ public class PhantasiaParticleEngine {
     private static boolean providersResolved = false;
 
     /** Cached hasPhysics field — set false so particles don't collide with real-world terrain. */
-    @Nullable private static Field f_hasPhysics = null;
+    @Nullable
+    private static Field f_hasPhysics = null;
     private static boolean hasPhysicsResolved = false;
 
     @SuppressWarnings("unchecked")
@@ -121,7 +124,9 @@ public class PhantasiaParticleEngine {
                 f_hasPhysics = findField(Particle.class, boolean.class, "hasPhysics", "f_107224_");
             }
             if (f_hasPhysics != null) {
-                try { f_hasPhysics.setBoolean(particle, false); } catch (Exception ignored) {}
+                try {
+                    f_hasPhysics.setBoolean(particle, false);
+                } catch (Exception ignored) {}
             }
 
             ParticleRenderType renderType = particle.getRenderType();
@@ -175,7 +180,9 @@ public class PhantasiaParticleEngine {
             while (it.hasNext()) {
                 Particle p = it.next();
                 if (p.isAlive()) {
-                    try { p.tick(); } catch (Exception ignored) {}
+                    try {
+                        p.tick();
+                    } catch (Exception ignored) {}
                 }
                 if (!p.isAlive()) {
                     it.remove();

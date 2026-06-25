@@ -32,12 +32,35 @@ public final class VanillaMultiblockProvider implements IPhantasiaMultiblockProv
         DEFINITIONS.add(buildSnowGolem());
     }
 
-    @Override public String getModId() { return "minecraft"; }
-    @Override public boolean isAvailable() { return true; }
-    @Override public List<IPhantasiaMultiblockDefinition> getAllDefinitions() { return DEFINITIONS; }
-    @Override public boolean isControllerBlock(BlockState state) { return false; }
-    @Override public boolean isPartBlock(BlockState state) { return false; }
-    @Override public Optional<PhantasiaBlockInfo> resolveBlock(String id) { return Optional.empty(); }
+    @Override
+    public String getModId() {
+        return "minecraft";
+    }
+
+    @Override
+    public boolean isAvailable() {
+        return true;
+    }
+
+    @Override
+    public List<IPhantasiaMultiblockDefinition> getAllDefinitions() {
+        return DEFINITIONS;
+    }
+
+    @Override
+    public boolean isControllerBlock(BlockState state) {
+        return false;
+    }
+
+    @Override
+    public boolean isPartBlock(BlockState state) {
+        return false;
+    }
+
+    @Override
+    public Optional<PhantasiaBlockInfo> resolveBlock(String id) {
+        return Optional.empty();
+    }
 
     @Override
     public Optional<IPhantasiaMultiblockDefinition> resolve(String machineId) {
@@ -51,7 +74,7 @@ public final class VanillaMultiblockProvider implements IPhantasiaMultiblockProv
     // ── Structure builders ────────────────────────────────────────────────────
 
     private static IPhantasiaMultiblockDefinition buildBeacon() {
-        PhantasiaBlockInfo iron   = b(Blocks.IRON_BLOCK.defaultBlockState());
+        PhantasiaBlockInfo iron = b(Blocks.IRON_BLOCK.defaultBlockState());
         PhantasiaBlockInfo beacon = b(Blocks.BEACON.defaultBlockState());
 
         List<IPhantasiaMultiblockShape> shapes = new ArrayList<>();
@@ -71,7 +94,7 @@ public final class VanillaMultiblockProvider implements IPhantasiaMultiblockProv
         List<PhantasiaScriptData.VariantPositionData> ironPositions = new ArrayList<>();
         for (int tier = 1; tier <= 4; tier++) {
             for (int layer = 0; layer < tier; layer++) {
-                int size   = (tier - layer) * 2 + 1;
+                int size = (tier - layer) * 2 + 1;
                 int offset = (9 - size) / 2;
                 for (int x = offset; x < offset + size; x++)
                     for (int z = offset; z < offset + size; z++)
@@ -140,10 +163,18 @@ public final class VanillaMultiblockProvider implements IPhantasiaMultiblockProv
 
         // Single flat 5x1x5 shape: eye-frames on the outside ring, portal in the 3x3 center.
         PhantasiaBlockInfo[][][] grid = new PhantasiaBlockInfo[5][1][5];
-        grid[1][0][0] = b(frameNE); grid[2][0][0] = b(frameNE); grid[3][0][0] = b(frameNE);
-        grid[1][0][4] = b(frameSE); grid[2][0][4] = b(frameSE); grid[3][0][4] = b(frameSE);
-        grid[0][0][1] = b(frameWE); grid[0][0][2] = b(frameWE); grid[0][0][3] = b(frameWE);
-        grid[4][0][1] = b(frameEE); grid[4][0][2] = b(frameEE); grid[4][0][3] = b(frameEE);
+        grid[1][0][0] = b(frameNE);
+        grid[2][0][0] = b(frameNE);
+        grid[3][0][0] = b(frameNE);
+        grid[1][0][4] = b(frameSE);
+        grid[2][0][4] = b(frameSE);
+        grid[3][0][4] = b(frameSE);
+        grid[0][0][1] = b(frameWE);
+        grid[0][0][2] = b(frameWE);
+        grid[0][0][3] = b(frameWE);
+        grid[4][0][1] = b(frameEE);
+        grid[4][0][2] = b(frameEE);
+        grid[4][0][3] = b(frameEE);
         for (int x = 1; x <= 3; x++)
             for (int z = 1; z <= 3; z++)
                 grid[x][0][z] = endPortal;
@@ -156,16 +187,16 @@ public final class VanillaMultiblockProvider implements IPhantasiaMultiblockProv
         step0.show = "pos";
         step0.positions = new java.util.ArrayList<>();
         int[][] framePositions = {
-            {1,0,0},{2,0,0},{3,0,0},
-            {1,0,4},{2,0,4},{3,0,4},
-            {0,0,1},{0,0,2},{0,0,3},
-            {4,0,1},{4,0,2},{4,0,3}
+                { 1, 0, 0 }, { 2, 0, 0 }, { 3, 0, 0 },
+                { 1, 0, 4 }, { 2, 0, 4 }, { 3, 0, 4 },
+                { 0, 0, 1 }, { 0, 0, 2 }, { 0, 0, 3 },
+                { 4, 0, 1 }, { 4, 0, 2 }, { 4, 0, 3 }
         };
         for (int[] fp : framePositions) step0.positions.add(fp);
         // Also include the 3×3 portal block positions so players can see where the portal will form.
         for (int x = 1; x <= 3; x++)
             for (int z = 1; z <= 3; z++)
-                step0.positions.add(new int[]{x, 0, z});
+                step0.positions.add(new int[] { x, 0, z });
 
         PhantasiaScriptData script = new PhantasiaScriptData("minecraft:end_portal");
         script.addStep(step0);
@@ -205,11 +236,12 @@ public final class VanillaMultiblockProvider implements IPhantasiaMultiblockProv
                 "The Conduit activates, granting Conduit Power (underwater breathing, mining speed, and vision) to nearby players.",
                 "all", true));
 
-        return defWithConduit("minecraft:conduit", "Conduit", new ItemStack(Items.CONDUIT), List.of(shape(grid)), script);
+        return defWithConduit("minecraft:conduit", "Conduit", new ItemStack(Items.CONDUIT), List.of(shape(grid)),
+                script);
     }
 
     private static IPhantasiaMultiblockDefinition buildEnchantingSetup() {
-        PhantasiaBlockInfo table     = b(Blocks.ENCHANTING_TABLE.defaultBlockState());
+        PhantasiaBlockInfo table = b(Blocks.ENCHANTING_TABLE.defaultBlockState());
         PhantasiaBlockInfo bookshelf = b(Blocks.BOOKSHELF.defaultBlockState());
 
         PhantasiaBlockInfo[][][] grid = new PhantasiaBlockInfo[5][2][5];
@@ -238,7 +270,7 @@ public final class VanillaMultiblockProvider implements IPhantasiaMultiblockProv
     }
 
     private static IPhantasiaMultiblockDefinition buildWither() {
-        PhantasiaBlockInfo sand  = b(Blocks.SOUL_SAND.defaultBlockState());
+        PhantasiaBlockInfo sand = b(Blocks.SOUL_SAND.defaultBlockState());
         PhantasiaBlockInfo skull = b(Blocks.WITHER_SKELETON_SKULL.defaultBlockState());
 
         PhantasiaBlockInfo[][][] grid = new PhantasiaBlockInfo[3][3][1];
@@ -265,7 +297,7 @@ public final class VanillaMultiblockProvider implements IPhantasiaMultiblockProv
     }
 
     private static IPhantasiaMultiblockDefinition buildIronGolem() {
-        PhantasiaBlockInfo iron    = b(Blocks.IRON_BLOCK.defaultBlockState());
+        PhantasiaBlockInfo iron = b(Blocks.IRON_BLOCK.defaultBlockState());
         PhantasiaBlockInfo pumpkin = b(Blocks.CARVED_PUMPKIN.defaultBlockState());
 
         PhantasiaBlockInfo[][][] grid = new PhantasiaBlockInfo[3][3][1];
@@ -288,7 +320,7 @@ public final class VanillaMultiblockProvider implements IPhantasiaMultiblockProv
     }
 
     private static IPhantasiaMultiblockDefinition buildSnowGolem() {
-        PhantasiaBlockInfo snow    = b(Blocks.SNOW_BLOCK.defaultBlockState());
+        PhantasiaBlockInfo snow = b(Blocks.SNOW_BLOCK.defaultBlockState());
         PhantasiaBlockInfo pumpkin = b(Blocks.CARVED_PUMPKIN.defaultBlockState());
 
         PhantasiaBlockInfo[][][] grid = new PhantasiaBlockInfo[1][3][1];
@@ -317,11 +349,11 @@ public final class VanillaMultiblockProvider implements IPhantasiaMultiblockProv
     }
 
     private static PhantasiaBlockInfo[][][] beaconTierGrid(PhantasiaBlockInfo iron,
-                                                            PhantasiaBlockInfo beacon, int tier) {
+                                                           PhantasiaBlockInfo beacon, int tier) {
         int gs = 9, maxY = 5, centre = 4;
         PhantasiaBlockInfo[][][] grid = new PhantasiaBlockInfo[gs][maxY][gs];
         for (int layer = 0; layer < tier; layer++) {
-            int size   = (tier - layer) * 2 + 1;
+            int size = (tier - layer) * 2 + 1;
             int offset = (gs - size) / 2;
             for (int x = offset; x < offset + size; x++)
                 for (int z = offset; z < offset + size; z++)
@@ -357,10 +389,10 @@ public final class VanillaMultiblockProvider implements IPhantasiaMultiblockProv
             s.show = "pos";
             String[] parts = show.substring(4).split(",");
             s.positions = new java.util.ArrayList<>();
-            s.positions.add(new int[]{
+            s.positions.add(new int[] {
                     Integer.parseInt(parts[0].trim()),
                     Integer.parseInt(parts[1].trim()),
-                    Integer.parseInt(parts[2].trim())});
+                    Integer.parseInt(parts[2].trim()) });
         } else if ("none".equals(show)) {
             s.show = "pos";
         } else {
@@ -372,19 +404,22 @@ public final class VanillaMultiblockProvider implements IPhantasiaMultiblockProv
     private static IPhantasiaMultiblockDefinition def(String id, String name, ItemStack icon,
                                                       List<IPhantasiaMultiblockShape> shapes,
                                                       PhantasiaScriptData script) {
-        return new VanillaMultiblockDefinition(new ResourceLocation(id), name, icon, shapes, script, null, 0, false, false);
+        return new VanillaMultiblockDefinition(new ResourceLocation(id), name, icon, shapes, script, null, 0, false,
+                false);
     }
 
     private static IPhantasiaMultiblockDefinition defWithBeam(String id, String name, ItemStack icon,
                                                               List<IPhantasiaMultiblockShape> shapes,
                                                               PhantasiaScriptData script) {
-        return new VanillaMultiblockDefinition(new ResourceLocation(id), name, icon, shapes, script, null, 0, true, false);
+        return new VanillaMultiblockDefinition(new ResourceLocation(id), name, icon, shapes, script, null, 0, true,
+                false);
     }
 
     private static IPhantasiaMultiblockDefinition defWithConduit(String id, String name, ItemStack icon,
                                                                  List<IPhantasiaMultiblockShape> shapes,
                                                                  PhantasiaScriptData script) {
-        return new VanillaMultiblockDefinition(new ResourceLocation(id), name, icon, shapes, script, null, 0, false, true);
+        return new VanillaMultiblockDefinition(new ResourceLocation(id), name, icon, shapes, script, null, 0, false,
+                true);
     }
 
     private static IPhantasiaMultiblockDefinition defWithMob(String id, String name, ItemStack icon,
@@ -392,6 +427,7 @@ public final class VanillaMultiblockProvider implements IPhantasiaMultiblockProv
                                                              PhantasiaScriptData script,
                                                              net.minecraft.world.entity.EntityType<? extends net.minecraft.world.entity.LivingEntity> mobType,
                                                              int scale) {
-        return new VanillaMultiblockDefinition(new ResourceLocation(id), name, icon, shapes, script, mobType, scale, false, false);
+        return new VanillaMultiblockDefinition(new ResourceLocation(id), name, icon, shapes, script, mobType, scale,
+                false, false);
     }
 }

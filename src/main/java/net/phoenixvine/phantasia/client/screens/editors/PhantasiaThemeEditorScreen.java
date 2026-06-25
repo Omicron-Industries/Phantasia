@@ -90,10 +90,10 @@ public class PhantasiaThemeEditorScreen extends Screen {
         startY += rowHeight;
 
         baseplateBox = new EditBox(this.font, startX + 65, startY, sidebarWidth - 75, 16,
-                Component.literal("Baseplate"));
+                Component.translatable("screen.phantasia.theme_editor.label_baseplate"));
         baseplateBox.setMaxLength(128);
         baseplateBox.setValue(active.baseplateBlock != null ? active.baseplateBlock : "minecraft:deepslate_bricks");
-        baseplateBox.setHint(Component.literal("e.g. minecraft:stone_bricks"));
+        baseplateBox.setHint(Component.translatable("screen.phantasia.theme_editor.hint_baseplate"));
         baseplateBox.setResponder(str -> {
             if (!isUndoing) pushUndoSnapshot();
             PhantasiaTheme.current().baseplateBlock = str.isBlank() ? "minecraft:deepslate_bricks" : str.trim();

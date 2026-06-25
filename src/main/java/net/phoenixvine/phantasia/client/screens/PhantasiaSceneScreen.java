@@ -174,6 +174,7 @@ public class PhantasiaSceneScreen extends Screen {
     private PhantasiaScript.Step lastAppliedStep = null;
     private int sceneTick = 0;
     private int itemAnimTick = 0;
+    private int sipScrollOffset = 0;
 
     public int getPlaybackTick() {
         return this.playbackTick;
@@ -586,13 +587,13 @@ public class PhantasiaSceneScreen extends Screen {
     }
 
     private PhantasiaLoadedPattern finalisePattern(
-            PhantasiaBlockInfo[][][] raw,
-            Map<BlockPos, PhantasiaBlockInfo> blockMap,
-            Map<BlockPos, BlockPos> localToWorld,
-            Set<BlockPos> baseplatePos,
-            Set<BlockPos> bePos,
-            BlockPos controllerWP,
-            BlockPos origin) {
+                                                   PhantasiaBlockInfo[][][] raw,
+                                                   Map<BlockPos, PhantasiaBlockInfo> blockMap,
+                                                   Map<BlockPos, BlockPos> localToWorld,
+                                                   Set<BlockPos> baseplatePos,
+                                                   Set<BlockPos> bePos,
+                                                   BlockPos controllerWP,
+                                                   BlockPos origin) {
         net.phoenixvine.phantasia.Phantasia.LOGGER.info(
                 "[Phantasia] Registered {} block entities with SHARED_LEVEL", bePos.size());
 
@@ -994,7 +995,7 @@ public class PhantasiaSceneScreen extends Screen {
                             .getValue(rl);
                     net.minecraft.world.item.ItemStack stack = (item == null ||
                             item == net.minecraft.world.item.Items.AIR) ? net.minecraft.world.item.ItemStack.EMPTY :
-                            new net.minecraft.world.item.ItemStack(item);
+                                    new net.minecraft.world.item.ItemStack(item);
                     if (be instanceof net.minecraft.world.Container container) {
                         container.setItem(0, stack);
                         be.setChanged();
@@ -1267,7 +1268,11 @@ public class PhantasiaSceneScreen extends Screen {
         int pw = getCurrentPanelWidth();
         int panelX = this.width - pw - SIP_W - 4;
         int panelY = CAPTION_STRIP_H + 4;
-        int panelH = step.items.size() * SIP_ROW + 8;
+        int totalH = step.items.size() * SIP_ROW + 8;
+        int maxPanelH = this.height - panelY - 24;
+        int panelH = Math.min(totalH, maxPanelH);
+        int maxScroll = Math.max(0, totalH - panelH);
+        sipScrollOffset = Mth.clamp(sipScrollOffset, 0, maxScroll);
 
         // Clamp so it doesn't go off-screen on narrow displays
         if (panelX < 4) panelX = 4;
@@ -1275,10 +1280,19 @@ public class PhantasiaSceneScreen extends Screen {
         g.fill(panelX, panelY, panelX + SIP_W, panelY + panelH, 0xDD070712);
         g.fill(panelX, panelY, panelX + SIP_W, panelY + 1, C_ACCENT());
         g.fill(panelX, panelY, panelX + 1, panelY + panelH, 0x554FC3F7);
+        if (maxScroll > 0) {
+            // Scroll bar
+            int sbH = Math.max(12, panelH * panelH / totalH);
+            int sbY = panelY + (int) ((panelH - sbH) * (sipScrollOffset / (float) maxScroll));
+            g.fill(panelX + SIP_W - 3, panelY, panelX + SIP_W - 1, panelY + panelH, 0x33FFFFFF);
+            g.fill(panelX + SIP_W - 3, sbY, panelX + SIP_W - 1, sbY + sbH, 0xAAFFFFFF);
+        }
 
-        int ry = panelY + 4;
+        g.enableScissor(panelX, panelY + 1, panelX + SIP_W, panelY + panelH);
+        int ry = panelY + 4 - sipScrollOffset;
         for (PhantasiaSceneData.ItemConditionData it : step.items) {
-            boolean hov = isOver(mx, my, panelX + 2, ry, SIP_W - 4, SIP_ROW - 1);
+            boolean hov = ry + SIP_ROW > panelY && ry < panelY + panelH &&
+                    isOver(mx, my, panelX + 2, ry, SIP_W - 4, SIP_ROW - 1);
             int ac = it.accentColor();
 
             // Row bg
@@ -1363,6 +1377,7 @@ public class PhantasiaSceneScreen extends Screen {
 
             ry += SIP_ROW;
         }
+        g.disableScissor();
     }
 
     private static float[] computeSipTrackOffset(PhantasiaSceneData.ItemConditionData it, int tick) {
@@ -1882,6 +1897,27 @@ public class PhantasiaSceneScreen extends Screen {
     @Override
     public boolean mouseScrolled(double mx, double my, double delta) {
         if (mx >= this.width - getCurrentPanelWidth()) return false;
+        // If over the SIP panel, scroll it instead of zooming
+        if (script != null) {
+            PhantasiaScriptData sd = script.getSourceData();
+            int stepIdx = sd != null ? script.getActiveStepIndex(playbackTick) : -1;
+            if (stepIdx >= 0 && stepIdx < sd.getSteps().size()) {
+                PhantasiaScriptData.StepData step = sd.getSteps().get(stepIdx);
+                if (step.showItems && !step.items.isEmpty()) {
+                    int pw = getCurrentPanelWidth();
+                    int sipPanelX = this.width - pw - SIP_W - 4;
+                    if (sipPanelX < 4) sipPanelX = 4;
+                    int panelY = CAPTION_STRIP_H + 4;
+                    int totalH = step.items.size() * SIP_ROW + 8;
+                    int panelH = Math.min(totalH, this.height - panelY - 24);
+                    if (mx >= sipPanelX && mx < sipPanelX + SIP_W && my >= panelY && my < panelY + panelH) {
+                        sipScrollOffset = Mth.clamp(sipScrollOffset - (int) (delta * SIP_ROW), 0,
+                                Math.max(0, totalH - panelH));
+                        return true;
+                    }
+                }
+            }
+        }
         if (camera == null || camera.isLocked()) return false;
         float zoomMult = PhantasiaConfigs.INSTANCE != null ? PhantasiaConfigs.INSTANCE.phantasiaUI.scrollZoomSpeed : 1f;
         float zoomIn = 1f - (1f - CAM_ZOOM_IN_FACTOR) * zoomMult;

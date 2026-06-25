@@ -71,9 +71,9 @@ public class PhantasiaContextualSelectionScreen extends PhantasiaScreen {
                         .capitalizeFully(definition.getId().getPath().replace('_', ' '));
             }
         }
-        if (!name.isEmpty()) g.drawCenteredString(font, name, this.width / 2, this.height / 2 - 70, C_ACCENT());
+        if (!name.isEmpty()) g.drawCenteredString(font, name, this.width / 2, this.height / 2 - 76, C_ACCENT());
         g.drawCenteredString(font, Component.translatable("screen.phantasia.context_selection.subtitle").getString(),
-                this.width / 2, this.height / 2 - 58, C_DIM());
+                this.width / 2, this.height / 2 - 64, C_DIM());
 
         // Center card grid bounds
         int totalW = items.size() * CARD_W + (items.size() - 1) * CARD_PAD;

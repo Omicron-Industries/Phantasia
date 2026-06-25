@@ -127,7 +127,8 @@ public class PhantasiaScriptLoader {
                 PhantasiaScriptData defaultData = def.getDefaultScriptData();
                 if (defaultData != null && !defaultData.getSteps().isEmpty()) {
                     try {
-                        PhantasiaScriptData onDisk = PhantasiaScriptData.fromJson(Files.newBufferedReader(path, java.nio.charset.StandardCharsets.UTF_8));
+                        PhantasiaScriptData onDisk = PhantasiaScriptData
+                                .fromJson(Files.newBufferedReader(path, java.nio.charset.StandardCharsets.UTF_8));
                         if (onDisk.getSteps().isEmpty()) {
                             writeDefaultScript(def, machineId, path);
                         }

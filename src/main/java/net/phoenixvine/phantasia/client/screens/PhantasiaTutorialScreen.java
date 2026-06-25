@@ -2,7 +2,6 @@ package net.phoenixvine.phantasia.client.screens;
 
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.network.chat.Component;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.phoenixvine.phantasia.client.tutorial.TutorialSequence;
@@ -18,7 +17,7 @@ public class PhantasiaTutorialScreen extends PhantasiaScreen {
 
     // ── Layout ────────────────────────────────────────────────────────────────
     private static final int HEADER_H = 28;
-    private static final int TEXT_H = 110;  // bottom panel
+    private static final int TEXT_H = 160;  // bottom panel
     private static final int MOCK_PAD = 10;
     private static final int VW = 480;      // Virtual Width matching mock screen space
     private static final int VH = 300;      // Virtual Height matching mock screen space
@@ -41,7 +40,7 @@ public class PhantasiaTutorialScreen extends PhantasiaScreen {
     private int clickFlashTick = -1;
 
     public PhantasiaTutorialScreen(Screen parent, TutorialSequence sequence) {
-        super(Component.literal(sequence.title));
+        super(sequence.title);
         this.parent = parent;
         this.sequence = sequence;
     }
@@ -79,7 +78,7 @@ public class PhantasiaTutorialScreen extends PhantasiaScreen {
         }
         // Click anywhere to rush typewriter
         if (!textDone) {
-            typeChars = currentSlide().text.length();
+            typeChars = currentSlide().text.getString().length();
             textDone = true;
             return true;
         }
@@ -90,7 +89,7 @@ public class PhantasiaTutorialScreen extends PhantasiaScreen {
     public boolean keyPressed(int key, int scan, int mods) {
         if (key == 257 /* Enter */ || key == 32 /* Space */) {
             if (!textDone) {
-                typeChars = currentSlide().text.length();
+                typeChars = currentSlide().text.getString().length();
                 textDone = true;
                 return true;
             }
@@ -173,7 +172,7 @@ public class PhantasiaTutorialScreen extends PhantasiaScreen {
 
         // Typewriter
         TutorialSlide slide = currentSlide();
-        int textLen = slide.text.length();
+        int textLen = slide.text.getString().length();
         if (!textDone) {
             typeChars = Math.min(typeChars + 2, textLen);
             if (typeChars >= textLen) textDone = true;
@@ -220,7 +219,7 @@ public class PhantasiaTutorialScreen extends PhantasiaScreen {
         g.fill(0, 0, this.width, HEADER_H, 0xCC0A0A14);
         g.fill(0, HEADER_H - 1, this.width, HEADER_H, C_ACCENT());
 
-        String title = sequence.title + "  ·  Slide " + (slideIndex + 1) + " of " + sequence.slides.size();
+        String title = sequence.title.getString() + "  ·  Slide " + (slideIndex + 1) + " of " + sequence.slides.size();
         g.drawCenteredString(font, title, this.width / 2, (HEADER_H - 8) / 2, C_ACCENT());
 
         // Close button [×]
@@ -360,7 +359,7 @@ public class PhantasiaTutorialScreen extends PhantasiaScreen {
 
         // Slide title — wraps within left column so it never overlaps the dots
         int maxTitleW = dotStartX - 28;
-        var titleLines = font.split(net.minecraft.network.chat.Component.literal(slide.title), maxTitleW);
+        var titleLines = font.split(slide.title, maxTitleW);
         int titleY = panelY + 6;
         for (var line : titleLines) {
             g.drawString(font, line, 16, titleY, C_ACCENT(), false);
@@ -372,7 +371,7 @@ public class PhantasiaTutorialScreen extends PhantasiaScreen {
         g.fill(16, sepY, this.width - 16, sepY + 1, 0x33FFFFFF);
 
         // Typewriter text
-        String fullText = slide.text;
+        String fullText = slide.text.getString();
         String shown = fullText.substring(0, Math.min(typeChars, fullText.length()));
         int ty = sepY + 6;
         int maxW = this.width - 32;

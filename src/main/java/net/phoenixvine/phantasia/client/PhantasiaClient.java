@@ -61,7 +61,7 @@ public class PhantasiaClient {
                                             var player = Minecraft.getInstance().player;
                                             if (player == null) return;
                                             player.sendSystemMessage(
-                                                    Component.literal("[Phantasia] Starting web export..."));
+                                                    Component.translatable("ui.phantasia.web_export_starting"));
                                             try {
                                                 var docsDir = FMLPaths.GAMEDIR.get().getParent().resolve("docs");
                                                 var result = PhantasiaWebExport.export(docsDir);

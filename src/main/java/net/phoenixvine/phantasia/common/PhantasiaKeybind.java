@@ -172,13 +172,15 @@ public class PhantasiaKeybind {
         java.util.List<net.phoenixvine.phantasia.common.data.scene.PhantasiaSceneData> matchingScenes = new java.util.ArrayList<>();
         for (var scene : net.phoenixvine.phantasia.common.data.scene.PhantasiaScenes.all()) {
             boolean idMatch = scene.id != null && scene.id.toLowerCase(java.util.Locale.ROOT).contains(targetId);
-            boolean itemMatch = iconItemKey != null && scene.tooltipItems != null && scene.tooltipItems.contains(iconItemKey);
+            boolean itemMatch = iconItemKey != null && scene.tooltipItems != null &&
+                    scene.tooltipItems.contains(iconItemKey);
             if (idMatch || itemMatch) matchingScenes.add(scene);
         }
         java.util.List<net.phoenixvine.phantasia.common.data.guides.PhantasiaGuideData> matchingGuides = new java.util.ArrayList<>();
         for (var guide : net.phoenixvine.phantasia.common.data.guides.PhantasiaGuideRegistry.all()) {
             boolean idMatch = guide.id != null && guide.id.toLowerCase(java.util.Locale.ROOT).contains(targetId);
-            boolean itemMatch = iconItemKey != null && guide.tooltipItems != null && guide.tooltipItems.contains(iconItemKey);
+            boolean itemMatch = iconItemKey != null && guide.tooltipItems != null &&
+                    guide.tooltipItems.contains(iconItemKey);
             if (idMatch || itemMatch) matchingGuides.add(guide);
         }
         boolean hasScript = PhantasiaSceneSelectionScreen.PHANTASIA_SCENES.contains(defToOpen);
@@ -229,7 +231,8 @@ public class PhantasiaKeybind {
                         new net.phoenixvine.phantasia.client.screens.PhantasiaGuideScreen(null, matchingGuides.get(0)));
             }
         } else if (totalMatches > 1) {
-            mc.setScreen(new PhantasiaContextualSelectionScreen(matchingScript, matchingScenes, matchingGuides, hasScript));
+            mc.setScreen(
+                    new PhantasiaContextualSelectionScreen(matchingScript, matchingScenes, matchingGuides, hasScript));
         }
     }
 

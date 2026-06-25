@@ -3,6 +3,7 @@ package net.phoenixvine.phantasia.client.tutorial;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.network.chat.Component;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.phoenixvine.phantasia.client.screens.PhantasiaSceneSelectionScreen;
@@ -1105,25 +1106,21 @@ public final class PhantasiaTutorials {
 
     static TutorialSequence gettingStarted() {
         return new TutorialSequence(
-                "getting_started", "Getting Started",
-                "A quick overview of what Phantasia is and how to use it.",
+                "getting_started",
+                Component.translatable("tutorial.phantasia.getting_started.title"),
+                Component.translatable("tutorial.phantasia.getting_started.desc"),
                 "minecraft:knowledge_book", TutorialSequence.PLAYER,
                 List.of(
-                        TutorialSlide.of("Welcome to Phantasia",
-                                "Phantasia is an interactive guide system built into this modpack.\n\n" +
-                                        "It provides 3D machine previews, step-by-step assembly walkthroughs,\n" +
-                                        "and rich reference pages — all without leaving the game.")
+                        TutorialSlide.of("tutorial.phantasia.getting_started.s0.title",
+                                "tutorial.phantasia.getting_started.s0.body")
                                 .mock(mock((g, f, t, tick) -> drawSelectionScreen(g, f, t, tick, 0)))
                                 .build(),
 
                         TutorialSlide
-                                .of("Hold " + net.phoenixvine.phantasia.client.keybind.PhoenixKeybinds.keyDisplay() +
-                                        " Near a Machine",
-                                        "Point at any multiblock machine in the world and hold the " +
-                                                net.phoenixvine.phantasia.client.keybind.PhoenixKeybinds.keyDisplay() +
-                                                " key.\n" +
-                                                "A progress bar appears at the bottom of your screen.\n\n" +
-                                                "Keep holding until it fills — the viewer opens automatically.")
+                                .of(Component.translatable("tutorial.phantasia.getting_started.s1.title",
+                                        net.phoenixvine.phantasia.client.keybind.PhoenixKeybinds.keyDisplay()),
+                                        Component.translatable("tutorial.phantasia.getting_started.s1.body",
+                                                net.phoenixvine.phantasia.client.keybind.PhoenixKeybinds.keyDisplay()))
                                 .mock(mock((g, f, t, tick) -> {
                                     // World scene with hold-bar overlay at bottom
                                     g.fill(0, 0, VW, VH, 0xFF060C14);
@@ -1170,14 +1167,10 @@ public final class PhantasiaTutorials {
                                 .highlight(0.292f, 0.853f, 0.417f, 0.093f, "Hold progress bar")
                                 .build(),
 
-                        TutorialSlide.of("Tooltip Display Modes",
-                                "The machine name can appear in three places — whichever you prefer.\n\n" +
-                                        "JADE: shown in the JADE HUD (top corner)\n" +
-                                        "TOOLTIP: shown on the item or block tooltip\n" +
-                                        "HOTBAR: shown above your hotbar\n\n" +
-                                        "Change the mode in Settings. Either way, " +
-                                        net.phoenixvine.phantasia.client.keybind.PhoenixKeybinds.keyDisplay() +
-                                        " always works.")
+                        TutorialSlide.of(
+                                Component.translatable("tutorial.phantasia.getting_started.s2.title"),
+                                Component.translatable("tutorial.phantasia.getting_started.s2.body",
+                                        net.phoenixvine.phantasia.client.keybind.PhoenixKeybinds.keyDisplay()))
                                 .mock(mock((g, f, t, tick) -> {
                                     g.fill(0, 0, VW, VH, 0xFF060C14);
                                     g.fillGradient(0, 0, VW, VH / 2, 0xFF1A2840, 0xFF0A1420);
@@ -1245,11 +1238,8 @@ public final class PhantasiaTutorials {
                                 .highlight(0.21f, 0.80f, 0.58f, 0.10f, "HOTBAR position")
                                 .build(),
 
-                        TutorialSlide.of("Browse Everything with /phantasia",
-                                "Type /phantasia to open a searchable list of every multiblock,\n" +
-                                        "scene layout, and guide in this pack.\n\n" +
-                                        "Use it any time — you don't need to be near a machine.\n" +
-                                        "The Tutorials tab is also right here.")
+                        TutorialSlide.of("tutorial.phantasia.getting_started.s3.title",
+                                "tutorial.phantasia.getting_started.s3.body")
                                 .mock(mock((g, f, t, tick) -> {
                                     // WP0 travel=40 (covers reset sweep from Tutorials back to Multiblocks).
                                     // WP1-3 travel=20. Cycle = (40+60)+(20+60)×3 = 340 ticks.
@@ -1265,11 +1255,8 @@ public final class PhantasiaTutorials {
                                 .highlight(0.158f, 0.107f, 0.560f, 0.053f, "Tab bar")
                                 .build(),
 
-                        TutorialSlide.of("You're Ready!",
-                                "That's all you need to know as a player.\n\n" +
-                                        "Open the other tabs in Tutorials for deeper dives into\n" +
-                                        "guides, scripts, and scenes.\n" +
-                                        "Pack authors can check the dev tutorials for more.")
+                        TutorialSlide.of("tutorial.phantasia.getting_started.s4.title",
+                                "tutorial.phantasia.getting_started.s4.body")
                                 .mock(mock((g, f, t, tick) -> {
                                     drawSelectionScreen(g, f, t, tick, 3);
                                 }))
@@ -1280,23 +1267,20 @@ public final class PhantasiaTutorials {
 
     static TutorialSequence guides() {
         return new TutorialSequence(
-                "guides", "Understanding Guides",
-                "Learn what guides are and how to read them.",
+                "guides",
+                Component.translatable("tutorial.phantasia.guides.title"),
+                Component.translatable("tutorial.phantasia.guides.desc"),
                 "minecraft:book", TutorialSequence.PLAYER,
                 List.of(
-                        TutorialSlide.of("What is a Guide?",
-                                "A guide is a text-and-item reference document — like a recipe card\n" +
-                                        "or lore page. It can have multiple pages you scroll through.\n\n" +
-                                        "Find guides in /phantasia under the Guides tab.")
+                        TutorialSlide.of("tutorial.phantasia.guides.s0.title",
+                                "tutorial.phantasia.guides.s0.body")
                                 .mock(mock((g, f, t, tick) -> drawSelectionScreen(g, f, t, tick, 2)))
                                 .cursor(0.533f, 0.130f, 20, 40, true)
                                 .highlight(0.506f, 0.107f, 0.090f, 0.053f, "Guides tab")
                                 .build(),
 
-                        TutorialSlide.of("Reading a Guide",
-                                "Each page has an optional headline, body text, and an item grid.\n\n" +
-                                        "The item grid shows ingredients, outputs, or catalysts.\n" +
-                                        "Use the navigation buttons at the bottom to flip pages.")
+                        TutorialSlide.of("tutorial.phantasia.guides.s1.title",
+                                "tutorial.phantasia.guides.s1.body")
                                 .mock(mock((g, f, t, tick) -> drawGuideScreen(g, f, t,
                                         "Ore Processing Guide",
                                         "What Goes In?",
@@ -1306,10 +1290,8 @@ public final class PhantasiaTutorials {
                                 .highlight(0.0f, 0.90f, 1.0f, 0.10f, "Navigation bar")
                                 .build(),
 
-                        TutorialSlide.of("Pages and Navigation",
-                                "Use the Next/Prev buttons at the bottom of the guide or press\n" +
-                                        "the arrow keys to navigate between pages.\n\n" +
-                                        "Press ESC to close and return to the selection screen.")
+                        TutorialSlide.of("tutorial.phantasia.guides.s2.title",
+                                "tutorial.phantasia.guides.s2.body")
                                 .mock(mock((g, f, t, tick) -> {
                                     int page = (tick / 80) % 4;
                                     String[] headlines = { "What Goes In?", "Energy Requirements", "Output Products",
@@ -1329,11 +1311,8 @@ public final class PhantasiaTutorials {
                                 .cursor(0.62f, 0.95f, 0, 60, false)
                                 .build(),
 
-                        TutorialSlide.of("Cross-Links",
-                                "Guide pages can link to other guides, to scene layouts, or to\n" +
-                                        "machine scripts. Clicking a link opens that content directly.\n\n" +
-                                        "This lets pack authors build a flowing documentation flow\n" +
-                                        "from overview → details → assembly.")
+                        TutorialSlide.of("tutorial.phantasia.guides.s3.title",
+                                "tutorial.phantasia.guides.s3.body")
                                 .mock(mock((g, f, t, tick) -> drawGuideScreen(g, f, t,
                                         "EBF Basics",
                                         "Next Steps",
@@ -1350,26 +1329,21 @@ public final class PhantasiaTutorials {
 
     static TutorialSequence scripts() {
         return new TutorialSequence(
-                "scripts", "Understanding Scripts",
-                "Learn how step-by-step machine walkthroughs work.",
+                "scripts",
+                Component.translatable("tutorial.phantasia.scripts.title"),
+                Component.translatable("tutorial.phantasia.scripts.desc"),
                 "minecraft:writable_book", TutorialSequence.PLAYER,
                 List.of(
-                        TutorialSlide.of("What is a Script?",
-                                "A script is a step-by-step 3D walkthrough for a single multiblock.\n\n" +
-                                        "It loads the machine into a virtual world preview, then walks you\n" +
-                                        "through each layer with camera movements and instructions.\n\n" +
-                                        "Open one from /phantasia → Multiblocks.")
+                        TutorialSlide.of("tutorial.phantasia.scripts.s0.title",
+                                "tutorial.phantasia.scripts.s0.body")
                                 .mock(mock((g, f, t, tick) -> drawSceneViewer(g, f, t, "Electric Blast Furnace", tick,
                                         false, 0, EBF_STEPS)))
                                 .highlight(0.0f, 0.0f, 0.963f, 0.787f, "3D viewport")
                                 .highlight(0.0f, 0.787f, 0.963f, 0.213f, "Caption + timeline")
                                 .build(),
 
-                        TutorialSlide.of("Following the Steps",
-                                "Each step focuses the camera on a specific part of the machine.\n\n" +
-                                        "The caption strip above the timeline shows the current instruction.\n" +
-                                        "Use the scrubber or play/pause to move through the walkthrough.\n" +
-                                        "The 3D preview updates to show only the relevant blocks.")
+                        TutorialSlide.of("tutorial.phantasia.scripts.s1.title",
+                                "tutorial.phantasia.scripts.s1.body")
                                 .mock(mock((g, f, t, tick) -> {
                                     int step = (tick / 60) % EBF_STEPS.size();
                                     drawSceneViewer(g, f, t, "Electric Blast Furnace", tick, false, step, EBF_STEPS);
@@ -1378,10 +1352,8 @@ public final class PhantasiaTutorials {
                                 .highlight(0.0f, 0.913f, 0.963f, 0.087f, "Timeline scrubber")
                                 .build(),
 
-                        TutorialSlide.of("Variants",
-                                "The right panel holds machine-specific options.\n\n" +
-                                        "Click ◀ to expand it — you'll find Show/Layer/Build controls\n" +
-                                        "and extra tools. Your layer and build-order state persists.")
+                        TutorialSlide.of("tutorial.phantasia.scripts.s2.title",
+                                "tutorial.phantasia.scripts.s2.body")
                                 .mock(mock((g, f, t, tick) -> drawSceneViewer(g, f, t, "Electric Blast Furnace", tick,
                                         true, 0, EBF_STEPS)))
                                 .highlight(0.65f, 0.0f, 0.35f, 1.0f, "Right panel")
@@ -1392,22 +1364,18 @@ public final class PhantasiaTutorials {
 
     static TutorialSequence scenes() {
         return new TutorialSequence(
-                "scenes", "Understanding Scenes",
-                "Learn how multi-machine scene layouts work.",
+                "scenes",
+                Component.translatable("tutorial.phantasia.scenes.title"),
+                Component.translatable("tutorial.phantasia.scenes.desc"),
                 "minecraft:filled_map", TutorialSequence.PLAYER,
                 List.of(
-                        TutorialSlide.of("What is a Scene?",
-                                "A scene places multiple machines together at offsets from a\n" +
-                                        "shared origin — like a factory floor layout.\n\n" +
-                                        "Each machine is controlled independently but shown together\n" +
-                                        "in the same 3D preview world.")
+                        TutorialSlide.of("tutorial.phantasia.scenes.s0.title",
+                                "tutorial.phantasia.scenes.s0.body")
                                 .mock(mock((g, f, t, tick) -> drawSceneViewer(g, f, t, "Ore Processing Line", tick)))
                                 .build(),
 
-                        TutorialSlide.of("Scene Steps",
-                                "Scene steps walk you through the full multi-machine layout.\n\n" +
-                                        "Each step can show specific machines and hide others so you\n" +
-                                        "focus on one part of the production chain at a time.")
+                        TutorialSlide.of("tutorial.phantasia.scenes.s1.title",
+                                "tutorial.phantasia.scenes.s1.body")
                                 .mock(mock((g, f, t, tick) -> {
                                     int step = (tick / 70) % 6;
                                     List<String> sceneSteps = List.of("Overview", "EBF Setup", "Chem Reactor",
@@ -1418,11 +1386,8 @@ public final class PhantasiaTutorials {
                                 .highlight(0.0f, 0.913f, 0.963f, 0.087f, "Timeline scrubber")
                                 .build(),
 
-                        TutorialSlide.of("Mistakes",
-                                "Scenes can include layout validation hints called Mistakes.\n\n" +
-                                        "Each mistake has a severity (Info / Warning / Error) and appears\n" +
-                                        "in the guide view for the scene — helping players avoid common\n" +
-                                        "assembly errors before they make them.")
+                        TutorialSlide.of("tutorial.phantasia.scenes.s2.title",
+                                "tutorial.phantasia.scenes.s2.body")
                                 .mock(mock((g, f, t, tick) -> drawGuideScreen(g, f, t,
                                         "Ore Processing Line",
                                         "Layout Notes",
@@ -1438,14 +1403,13 @@ public final class PhantasiaTutorials {
 
     static TutorialSequence devGuides() {
         return new TutorialSequence(
-                "dev_guides", "Creating Guides",
-                "How to write and publish your own guides.",
+                "dev_guides",
+                Component.translatable("tutorial.phantasia.dev_guides.title"),
+                Component.translatable("tutorial.phantasia.dev_guides.desc"),
                 "minecraft:knowledge_book", TutorialSequence.DEV,
                 List.of(
-                        TutorialSlide.of("Opening the Guide Editor",
-                                "Go to /phantasia → Guides tab → click the '+ New Guide' card.\n\n" +
-                                        "The editor opens with a blank guide ready to fill in.\n" +
-                                        "Give it a unique ID (e.g. yourmod:my_guide), a title, and an icon.")
+                        TutorialSlide.of("tutorial.phantasia.dev_guides.s0.title",
+                                "tutorial.phantasia.dev_guides.s0.body")
                                 .mock(mock((g, f, t, tick) -> drawSelectionScreen(g, f, t, tick, 2)))
                                 .cursor(0.533f, 0.130f, 20, 50, true)
                                 .cursor(0.267f, 0.417f, 20, 40, true)
@@ -1453,11 +1417,8 @@ public final class PhantasiaTutorials {
                                 .highlight(0.158f, 0.273f, 0.68f, 0.287f, "Guide cards area")
                                 .build(),
 
-                        TutorialSlide.of("The Guide Editor",
-                                "The left panel is your writing area.\n\n" +
-                                        "Type a Headline (shown large at the top of the page) and\n" +
-                                        "Body Text below it. Pages are listed in the right panel.\n" +
-                                        "Click '+ Add Page' to add more pages.")
+                        TutorialSlide.of("tutorial.phantasia.dev_guides.s1.title",
+                                "tutorial.phantasia.dev_guides.s1.body")
                                 .mock(mock((g, f, t, tick) -> drawGuideEditor(g, f, t,
                                         "Ore Processing Guide",
                                         "What Goes In?",
@@ -1469,11 +1430,8 @@ public final class PhantasiaTutorials {
                                 .highlight(0.042f, 0.247f, 0.46f, 0.65f, "Body text editor")
                                 .build(),
 
-                        TutorialSlide.of("Managing Pages",
-                                "Click a page in the right panel list to select and edit it.\n" +
-                                        "Click '+ Add Page' to create a new blank page.\n\n" +
-                                        "Use Ctrl+S or the Save button to write the guide to disk.\n" +
-                                        "It immediately appears in /phantasia for all players.")
+                        TutorialSlide.of("tutorial.phantasia.dev_guides.s2.title",
+                                "tutorial.phantasia.dev_guides.s2.body")
                                 .mock(mock((g, f, t, tick) -> drawGuideEditor(g, f, t,
                                         "Ore Processing Guide",
                                         "Energy Requirements",
@@ -1485,11 +1443,8 @@ public final class PhantasiaTutorials {
                                 .highlight(0.550f, 0.090f, 0.44f, 0.290f, "Page list + Add Page")
                                 .build(),
 
-                        TutorialSlide.of("Preview and Save",
-                                "Click '▶ Preview' to open the guide reader and see exactly\n" +
-                                        "what players will see — including cross-links and item cards.\n\n" +
-                                        "Click '💾 Save' to write to disk immediately.\n" +
-                                        "The guide reloads for all players without a restart.")
+                        TutorialSlide.of("tutorial.phantasia.dev_guides.s3.title",
+                                "tutorial.phantasia.dev_guides.s3.body")
                                 .mock(mock((g, f, t, tick) -> {
                                     boolean inPreview = (tick / 80) % 2 == 1;
                                     if (inPreview) {
@@ -1523,28 +1478,20 @@ public final class PhantasiaTutorials {
         // Camera tab in top bar (after 3 mode-tabs+gap+Preview): centre x≈293 → relX≈0.610
         // Save button (rightmost): x≈430, w≈46, centre x=453 → relX=0.944
         return new TutorialSequence(
-                "dev_scripts", "Writing Scripts",
-                "How to create step-by-step machine walkthroughs.",
+                "dev_scripts",
+                Component.translatable("tutorial.phantasia.dev_scripts.title"),
+                Component.translatable("tutorial.phantasia.dev_scripts.desc"),
                 "minecraft:writable_book", TutorialSequence.DEV,
                 List.of(
-                        TutorialSlide.of("Opening the Script Editor",
-                                "Go to /phantasia → Multiblocks tab, find your machine card\n" +
-                                        "and click it to open the scene viewer.\n\n" +
-                                        "In the top-right of the viewer you'll find the script editor\n" +
-                                        "button. A blank script is created automatically if none exists.")
+                        TutorialSlide.of("tutorial.phantasia.dev_scripts.s0.title",
+                                "tutorial.phantasia.dev_scripts.s0.body")
                                 .mock(mock((g, f, t, tick) -> drawSelectionScreen(g, f, t, tick, 0)))
                                 .cursor(0.260f, 0.417f, 25, 60, true)
                                 .highlight(0.158f, 0.273f, 0.217f, 0.287f, "Machine card")
                                 .build(),
 
-                        TutorialSlide.of("◈ Select Mode",
-                                "Select is the default mode — click any block in the 3D viewport\n" +
-                                        "to open the Block Inspector.\n\n" +
-                                        "The inspector shows the block's ID, blockstate properties,\n" +
-                                        "and — if GTCEu is loaded — coil specs, lamp info, or\n" +
-                                        "machine part roles.\n\n" +
-                                        "Use Select to verify your scene has the right blocks\n" +
-                                        "before writing the script.")
+                        TutorialSlide.of("tutorial.phantasia.dev_scripts.s1.title",
+                                "tutorial.phantasia.dev_scripts.s1.body")
                                 .mock(mock((g, f, t, tick) -> drawScriptEditor(g, f, t, firstMachineName(),
                                         (tick / 60) % EBF_STEPS.size(), EBF_STEPS, tick)))
                                 // Select tab: x=6, tw≈56, centre x=34→0.071
@@ -1553,14 +1500,8 @@ public final class PhantasiaTutorials {
                                 .highlight(0.013f, 0.000f, 0.117f, 0.073f, "◈ Select")
                                 .build(),
 
-                        TutorialSlide.of("⚠ Annotate Mode",
-                                "Switch to ⚠ Annotate to place floating text labels inside\n" +
-                                        "the 3D viewport.\n\n" +
-                                        "Click any position in the viewport to drop a label there.\n" +
-                                        "Labels belong to the current step — they only appear while\n" +
-                                        "that step is active.\n\n" +
-                                        "Useful for calling out 'EV Energy Hatch here' or warning\n" +
-                                        "players about order-sensitive assembly steps.")
+                        TutorialSlide.of("tutorial.phantasia.dev_scripts.s2.title",
+                                "tutorial.phantasia.dev_scripts.s2.body")
                                 .mock(mock((g, f, t, tick) -> drawScriptEditor(g, f, t, firstMachineName(),
                                         (tick / 60) % EBF_STEPS.size(), EBF_STEPS, tick)))
                                 // Annotate tab: after Select (tw≈56+4=60 gap) → x=66, tw≈72, centre x=102→0.213
@@ -1569,13 +1510,8 @@ public final class PhantasiaTutorials {
                                 .highlight(0.138f, 0.000f, 0.150f, 0.073f, "⚠ Annotate")
                                 .build(),
 
-                        TutorialSlide.of("► Preview Mode",
-                                "Click ► Preview to see your script exactly as a player would.\n\n" +
-                                        "Preview plays through each step automatically — applying\n" +
-                                        "camera positions, show modes, and captions in real time.\n" +
-                                        "The 3D view animates just like the live guide.\n\n" +
-                                        "Use Preview to check pacing: if a step feels too fast or\n" +
-                                        "too slow, go back and adjust its tick count.")
+                        TutorialSlide.of("tutorial.phantasia.dev_scripts.s3.title",
+                                "tutorial.phantasia.dev_scripts.s3.body")
                                 .mock(mock((g, f, t, tick) -> drawScriptEditor(g, f, t, firstMachineName(),
                                         (tick / 60) % EBF_STEPS.size(), EBF_STEPS, tick)))
                                 // Preview button: after 3 mode-tabs+gap → x≈200, pvW≈59, centre x=229→0.477
@@ -1583,12 +1519,8 @@ public final class PhantasiaTutorials {
                                 .highlight(0.417f, 0.000f, 0.123f, 0.073f, "► Preview")
                                 .build(),
 
-                        TutorialSlide.of("Steps, Ticks, and Captions",
-                                "Each script is a list of Steps. Use the + / − / Dup buttons\n" +
-                                        "in the step row to add, remove, or duplicate steps.\n\n" +
-                                        "The Tick field sets how long the step lasts. The Caption\n" +
-                                        "field is the text shown to the player for that step.\n" +
-                                        "Use the ◄ ► arrows to reorder steps.")
+                        TutorialSlide.of("tutorial.phantasia.dev_scripts.s4.title",
+                                "tutorial.phantasia.dev_scripts.s4.body")
                                 .mock(mock((g, f, t, tick) -> drawScriptEditor(g, f, t, firstMachineName(),
                                         (tick / 60) % EBF_STEPS.size(), EBF_STEPS, tick)))
                                 // cursor clicks the + button (first nav button after step label)
@@ -1598,14 +1530,8 @@ public final class PhantasiaTutorials {
                                 .highlight(0.0f, 0.787f, 1.0f, 0.140f, "Step row")
                                 .build(),
 
-                        TutorialSlide.of("Show Modes",
-                                "Row 2 of the step row controls what's visible during the step.\n\n" +
-                                        "All — entire structure visible.\n" +
-                                        "Layer — only the selected Y-layer visible.\n" +
-                                        "Range — visible from layer A to layer B.\n" +
-                                        "Parts… — per-part toggle (useful for complex sub-assemblies).\n\n" +
-                                        "Use Layer mode one step per layer to walk players through\n" +
-                                        "building the machine from the ground up.")
+                        TutorialSlide.of("tutorial.phantasia.dev_scripts.s5.title",
+                                "tutorial.phantasia.dev_scripts.s5.body")
                                 .mock(mock((g, f, t, tick) -> {
                                     int s = (tick / 80) % EBF_STEPS.size();
                                     drawScriptEditor(g, f, t, firstMachineName(), s, EBF_STEPS, tick);
@@ -1619,13 +1545,8 @@ public final class PhantasiaTutorials {
                                 .highlight(0.0f, 0.870f, 0.42f, 0.050f, "Show mode tabs")
                                 .build(),
 
-                        TutorialSlide.of("Camera Overrides",
-                                "Click 🎥 Camera in the top bar to open the camera panel.\n\n" +
-                                        "Each step can store its own camera angle: yaw, pitch,\n" +
-                                        "zoom, and lerp type. Click '📷 Capture Cam' to snapshot\n" +
-                                        "the current 3D viewport angle into this step.\n\n" +
-                                        "SPRING lerp eases smoothly between steps. Set 'over N ticks'\n" +
-                                        "to control how long the camera takes to travel — 20-30 is good.")
+                        TutorialSlide.of("tutorial.phantasia.dev_scripts.s6.title",
+                                "tutorial.phantasia.dev_scripts.s6.body")
                                 .mock(mock((g, f, t, tick) -> drawScriptEditor(g, f, t, firstMachineName(),
                                         (tick / 70) % EBF_STEPS.size(), EBF_STEPS, tick, true)))
                                 // cursor clicks Camera button in top bar (after 3 mode-tabs+gap+Preview → centre≈0.610)
@@ -1636,13 +1557,8 @@ public final class PhantasiaTutorials {
                                 .highlight(0.0f, 0.587f, 1.0f, 0.193f, "Camera panel")
                                 .build(),
 
-                        TutorialSlide.of("World Items (◦ World mode)",
-                                "Switch to ◦ World mode (top-left of editor) to place floating\n" +
-                                        "item markers directly inside the 3D viewport.\n\n" +
-                                        "These markers are visible only during the step you place them\n" +
-                                        "on, and show the player exactly what block or item goes where.\n\n" +
-                                        "Click a position in the viewport, then pick an item from the\n" +
-                                        "item picker that opens. Markers move with the camera.")
+                        TutorialSlide.of("tutorial.phantasia.dev_scripts.s7.title",
+                                "tutorial.phantasia.dev_scripts.s7.body")
                                 .mock(mock((g, f, t, tick) -> {
                                     int s = (tick / 70) % EBF_STEPS.size();
                                     drawScriptEditor(g, f, t, firstMachineName(), s, EBF_STEPS, tick);
@@ -1655,14 +1571,10 @@ public final class PhantasiaTutorials {
                                 .highlight(0.296f, 0.000f, 0.104f, 0.073f, "◦ World")
                                 .build(),
 
-                        TutorialSlide.of("Save and Test",
-                                "Click '💾 Save' (top-right) to write your script to disk.\n\n" +
-                                        "Then press " +
-                                        net.phoenixvine.phantasia.client.keybind.PhoenixKeybinds.keyDisplay() +
-                                        " while looking at the real machine in the world\n" +
-                                        "to run the script live — no restart needed.\n\n" +
-                                        "Iterate fast: save → test in world → tweak → repeat.\n" +
-                                        "Ctrl+S works too. If a step feels rushed, increase its tick count.")
+                        TutorialSlide.of(
+                                Component.translatable("tutorial.phantasia.dev_scripts.s8.title"),
+                                Component.translatable("tutorial.phantasia.dev_scripts.s8.body",
+                                        net.phoenixvine.phantasia.client.keybind.PhoenixKeybinds.keyDisplay()))
                                 .mock(mock((g, f, t, tick) -> {
                                     int step = (tick / 40) % EBF_STEPS.size();
                                     drawScriptEditor(g, f, t, firstMachineName(), step, EBF_STEPS, tick);
@@ -1694,28 +1606,20 @@ public final class PhantasiaTutorials {
                 "Place energy hatch",
                 "Add maintenance hatch");
         return new TutorialSequence(
-                "dev_scenes", "Writing Scenes",
-                "How to create multi-machine Scene files.",
+                "dev_scenes",
+                Component.translatable("tutorial.phantasia.dev_scenes.title"),
+                Component.translatable("tutorial.phantasia.dev_scenes.desc"),
                 "minecraft:filled_map", TutorialSequence.DEV,
                 List.of(
-                        TutorialSlide.of("What is a Scene File?",
-                                "A Scene groups multiple machines together in a shared 3D space.\n\n" +
-                                        "Where a Script shows one machine at a time, a Scene can\n" +
-                                        "display a whole factory floor — each machine at its real\n" +
-                                        "relative offset from the others.\n\n" +
-                                        "Find Scenes in /phantasia under the Scenes tab.")
+                        TutorialSlide.of("tutorial.phantasia.dev_scenes.s0.title",
+                                "tutorial.phantasia.dev_scenes.s0.body")
                                 .mock(mock((g, f, t, tick) -> drawSelectionScreen(g, f, t, tick, 1)))
                                 .cursor(0.425f, 0.130f, 20, 60, true)
                                 .highlight(0.375f, 0.107f, 0.110f, 0.053f, "Scenes tab")
                                 .build(),
 
-                        TutorialSlide.of("The Scene Editor",
-                                "Open the Scenes tab and click '+ New Scene' — the editor opens\n" +
-                                        "immediately with a blank scene ready to name and build.\n\n" +
-                                        "The ⊞ Placements panel (left) lists every machine in the scene.\n" +
-                                        "Click '+ Add Machine' to add one, then set its XYZ offset\n" +
-                                        "so it lines up with the others in the 3D viewport.\n\n" +
-                                        "The viewport rotates automatically — drag to reposition.")
+                        TutorialSlide.of("tutorial.phantasia.dev_scenes.s1.title",
+                                "tutorial.phantasia.dev_scenes.s1.body")
                                 .mock(mock((g, f, t, tick) -> {
                                     boolean inEditor = (tick / 80) % 2 == 1;
                                     if (inEditor) {
@@ -1733,13 +1637,8 @@ public final class PhantasiaTutorials {
                                 .highlight(0.0f, 0.073f, 0.458f, 0.687f, "Placements panel")
                                 .build(),
 
-                        TutorialSlide.of("Scene Steps and Visibility",
-                                "Like scripts, scenes have steps — but each step controls which\n" +
-                                        "machines are visible, not which layer of one machine.\n\n" +
-                                        "Row 2 of the step row shows a toggle button for every machine\n" +
-                                        "in the scene. Turn machines on/off per-step to guide players\n" +
-                                        "through assembling a multi-machine setup in order.\n\n" +
-                                        "Use the Caption field to tell players what to build next.")
+                        TutorialSlide.of("tutorial.phantasia.dev_scenes.s2.title",
+                                "tutorial.phantasia.dev_scenes.s2.body")
                                 .mock(mock((g, f, t, tick) -> {
                                     int s = (tick / 80) % sceneSteps.size();
                                     drawSceneEditor(g, f, t, "Processing Line", true, false, s, sceneSteps, tick);
@@ -1751,13 +1650,8 @@ public final class PhantasiaTutorials {
                                 .highlight(0.0f, 0.760f, 1.0f, 0.167f, "Step row + visibility toggles")
                                 .build(),
 
-                        TutorialSlide.of("Camera and Save",
-                                "Click 🎥 Camera in the top bar to open the per-step camera panel.\n" +
-                                        "Works exactly like the script editor — capture yaw, pitch,\n" +
-                                        "zoom, and lerp type for each step.\n\n" +
-                                        "Click '💾 Save' when done. The scene appears immediately in\n" +
-                                        "/phantasia → Scenes for all players — no restart needed.\n\n" +
-                                        "Use ▦ World mode to place item markers inside the viewport.")
+                        TutorialSlide.of("tutorial.phantasia.dev_scenes.s3.title",
+                                "tutorial.phantasia.dev_scenes.s3.body")
                                 .mock(mock((g, f, t, tick) -> drawSceneEditor(g, f, t,
                                         "Processing Line", false, true, (tick / 70) % sceneSteps.size(),
                                         sceneSteps, tick)))

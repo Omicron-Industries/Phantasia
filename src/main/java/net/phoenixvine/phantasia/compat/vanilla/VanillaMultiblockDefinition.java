@@ -8,15 +8,16 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BeaconBlockEntity;
+import net.phoenixvine.phantasia.client.render.PhantasiaTrackedDummyWorld;
 import net.phoenixvine.phantasia.common.data.script.PhantasiaScriptData;
 import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockDefinition;
 import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockShape;
-import net.phoenixvine.phantasia.client.render.PhantasiaTrackedDummyWorld;
 import net.phoenixvine.phantasia.utils.PhantasiaBlockInfo;
 
-import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Map;
+
+import javax.annotation.Nullable;
 
 public final class VanillaMultiblockDefinition implements IPhantasiaMultiblockDefinition {
 
@@ -24,21 +25,27 @@ public final class VanillaMultiblockDefinition implements IPhantasiaMultiblockDe
     private final String displayName;
     private final ItemStack icon;
     private final List<IPhantasiaMultiblockShape> shapes;
-    @Nullable private final PhantasiaScriptData defaultScript;
-    @Nullable private final EntityType<? extends LivingEntity> mobType;
+    @Nullable
+    private final PhantasiaScriptData defaultScript;
+    @Nullable
+    private final EntityType<? extends LivingEntity> mobType;
     /** If true, a beacon beam is shown in the dummy world on the working step. */
     private final boolean showBeam;
     /** If true, a conduit block entity is activated in the working step. */
     private final boolean showConduit;
 
     /** World-space position of the beacon block, populated in onShapeLoaded. */
-    @Nullable private BlockPos beaconWorldPos;
+    @Nullable
+    private BlockPos beaconWorldPos;
     /** World-space position of the conduit block, populated in onShapeLoaded. */
-    @Nullable private BlockPos conduitWorldPos;
+    @Nullable
+    private BlockPos conduitWorldPos;
     /** World-space position where the mob should spawn (top-center of structure). */
-    @Nullable private BlockPos mobWorldPos;
+    @Nullable
+    private BlockPos mobWorldPos;
     /** Currently spawned scene entity (null when not in working step). */
-    @Nullable private LivingEntity cachedMob;
+    @Nullable
+    private LivingEntity cachedMob;
     /** Tracks whether the working step is active so onSceneTick can re-apply the beam. */
     private boolean isWorking = false;
 
@@ -59,13 +66,41 @@ public final class VanillaMultiblockDefinition implements IPhantasiaMultiblockDe
         this.showConduit = showConduit;
     }
 
-    @Override public ResourceLocation getId() { return id; }
-    @Override public String getDisplayName() { return displayName; }
-    @Override public ItemStack getIcon() { return icon; }
-    @Override public List<IPhantasiaMultiblockShape> getMatchingShapes() { return shapes; }
-    @Override public List<IPhantasiaMultiblockShape> getAllShapes() { return shapes; }
-    @Override @Nullable public PhantasiaScriptData getDefaultScriptData() { return defaultScript; }
-    @Override public boolean shouldAutoDetectVariants() { return false; }
+    @Override
+    public ResourceLocation getId() {
+        return id;
+    }
+
+    @Override
+    public String getDisplayName() {
+        return displayName;
+    }
+
+    @Override
+    public ItemStack getIcon() {
+        return icon;
+    }
+
+    @Override
+    public List<IPhantasiaMultiblockShape> getMatchingShapes() {
+        return shapes;
+    }
+
+    @Override
+    public List<IPhantasiaMultiblockShape> getAllShapes() {
+        return shapes;
+    }
+
+    @Override
+    @Nullable
+    public PhantasiaScriptData getDefaultScriptData() {
+        return defaultScript;
+    }
+
+    @Override
+    public boolean shouldAutoDetectVariants() {
+        return false;
+    }
 
     @Override
     public void onShapeLoaded(PhantasiaTrackedDummyWorld level, BlockPos origin,
@@ -116,9 +151,17 @@ public final class VanillaMultiblockDefinition implements IPhantasiaMultiblockDe
                 count++;
             }
             if (count > 0) {
-                mobWorldPos = new BlockPos((int)(sumX / count), maxY - 2, (int)(sumZ / count));
+                mobWorldPos = new BlockPos((int) (sumX / count), maxY - 2, (int) (sumZ / count));
             }
         }
+    }
+
+    @Override
+    public void applyWorkingState(PhantasiaTrackedDummyWorld level,
+                                  java.util.Set<net.minecraft.core.BlockPos> positions,
+                                  java.util.Map<net.minecraft.core.BlockPos, net.phoenixvine.phantasia.utils.PhantasiaBlockInfo> blockMap,
+                                  boolean working) {
+        setMachineWorking(level, working);
     }
 
     @Override
@@ -135,9 +178,14 @@ public final class VanillaMultiblockDefinition implements IPhantasiaMultiblockDe
 
         var mob = mobType.create(level);
         if (mob == null) return;
-        if (mob instanceof Mob m) { m.setNoAi(true); m.setSilent(true); }
+        if (mob instanceof Mob m) {
+            m.setNoAi(true);
+            m.setSilent(true);
+        }
         mob.setPos(mobWorldPos.getX() + 0.5, mobWorldPos.getY(), mobWorldPos.getZ() + 0.5);
-        mob.xOld = mob.getX(); mob.yOld = mob.getY(); mob.zOld = mob.getZ();
+        mob.xOld = mob.getX();
+        mob.yOld = mob.getY();
+        mob.zOld = mob.getZ();
         mob.yRotO = 0f;
         level.addSceneEntity(mob);
         cachedMob = mob;
@@ -164,7 +212,7 @@ public final class VanillaMultiblockDefinition implements IPhantasiaMultiblockDe
         List<BeaconBlockEntity.BeaconBeamSection> sections = beamSectionsMutable(beacon);
         if (sections == null) return;
         if (isWorking) {
-            if (sections.isEmpty()) sections.add(new BeaconBlockEntity.BeaconBeamSection(new float[]{1f, 1f, 1f}));
+            if (sections.isEmpty()) sections.add(new BeaconBlockEntity.BeaconBeamSection(new float[] { 1f, 1f, 1f }));
         } else {
             sections.clear();
         }
@@ -179,7 +227,8 @@ public final class VanillaMultiblockDefinition implements IPhantasiaMultiblockDe
             f.setAccessible(true);
             f.set(be, isWorking);
         } catch (Exception e) {
-            net.phoenixvine.phantasia.Phantasia.LOGGER.warn("[Phantasia] conduit isActive reflection failed: {}", e.getMessage());
+            net.phoenixvine.phantasia.Phantasia.LOGGER.warn("[Phantasia] conduit isActive reflection failed: {}",
+                    e.getMessage());
         }
     }
 
@@ -204,7 +253,8 @@ public final class VanillaMultiblockDefinition implements IPhantasiaMultiblockDe
             f.set(beacon, fresh);
             return fresh;
         } catch (Exception e) {
-            net.phoenixvine.phantasia.Phantasia.LOGGER.warn("[Phantasia] beacon beam reflection failed: {}", e.getMessage());
+            net.phoenixvine.phantasia.Phantasia.LOGGER.warn("[Phantasia] beacon beam reflection failed: {}",
+                    e.getMessage());
             return null;
         }
     }

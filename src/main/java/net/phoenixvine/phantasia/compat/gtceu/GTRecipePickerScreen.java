@@ -42,7 +42,7 @@ public class GTRecipePickerScreen extends Screen {
     private List<String> allIds = null;
 
     public GTRecipePickerScreen(Screen parent, String currentId, Consumer<String> onPick) {
-        super(Component.literal("Pick GT Recipe"));
+        super(Component.translatable("screen.phantasia.gt_recipe_picker.title"));
         this.parent = parent;
         this.currentId = currentId;
         this.onPick = onPick;
@@ -58,7 +58,7 @@ public class GTRecipePickerScreen extends Screen {
 
         searchBox = addRenderableWidget(new EditBox(font, px + 8, py + HEADER_H + 2, pw - 16, 14, Component.empty()));
         searchBox.setMaxLength(128);
-        searchBox.setHint(Component.literal("Search by ID…"));
+        searchBox.setHint(Component.translatable("screen.phantasia.gt_recipe_picker.hint_search"));
         searchBox.setBordered(false);
         searchBox.setResponder(v -> { scrollOffset = 0; });
         setInitialFocus(searchBox);

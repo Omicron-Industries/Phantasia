@@ -76,6 +76,9 @@ public class PhantasiaGuideData {
     @SerializedName("pages")
     public List<PageData> pages = new ArrayList<>();
 
+    @SerializedName("mistakes")
+    public List<PhantasiaSceneData.SceneMistakeData> mistakes = new ArrayList<>();
+
     // ── Page ─────────────────────────────────────────────────────────────────
 
     /**
@@ -174,6 +177,7 @@ public class PhantasiaGuideData {
         c.tag = tag;
         if (tooltipItems != null) c.tooltipItems = new ArrayList<>(tooltipItems);
         for (PageData p : pages) c.pages.add(p.copy());
+        if (mistakes != null) for (PhantasiaSceneData.SceneMistakeData m : mistakes) c.mistakes.add(m.copy());
         return c;
     }
 
@@ -187,6 +191,7 @@ public class PhantasiaGuideData {
         PhantasiaGuideData d = PhantasiaScriptData.GSON.fromJson(json, PhantasiaGuideData.class);
         if (d.pages == null) d.pages = new ArrayList<>();
         if (d.tooltipItems == null) d.tooltipItems = new ArrayList<>();
+        if (d.mistakes == null) d.mistakes = new ArrayList<>();
         return d;
     }
 
@@ -194,6 +199,7 @@ public class PhantasiaGuideData {
         PhantasiaGuideData d = PhantasiaScriptData.GSON.fromJson(reader, PhantasiaGuideData.class);
         if (d.pages == null) d.pages = new ArrayList<>();
         if (d.tooltipItems == null) d.tooltipItems = new ArrayList<>();
+        if (d.mistakes == null) d.mistakes = new ArrayList<>();
         return d;
     }
 }

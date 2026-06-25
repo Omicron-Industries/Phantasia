@@ -75,7 +75,7 @@ public class PhantasiaScenePlacementStepEditorScreen extends PhantasiaScreen
     public PhantasiaScenePlacementStepEditorScreen(PhantasiaSceneEditorScreen parent,
                                                    PhantasiaSceneData data,
                                                    int placementIndex) {
-        super(Component.literal("Per-Step Config"));
+        super(Component.translatable("screen.phantasia.placement_step_editor.title"));
         this.parent = parent;
         this.data = data;
         this.placementIndex = placementIndex;
@@ -140,7 +140,7 @@ public class PhantasiaScenePlacementStepEditorScreen extends PhantasiaScreen
 
         fakeRecipeBox = addW(new EditBox(font, 0, 0, PANEL_W - 16, 12, Component.empty()));
         fakeRecipeBox.setMaxLength(128);
-        fakeRecipeBox.setHint(Component.literal("gtceu:ebf_iron_ingot"));
+        fakeRecipeBox.setHint(Component.translatable("screen.phantasia.placement_step_editor.hint_recipe"));
         fakeRecipeBox.setResponder(v -> {
             PhantasiaSceneData.MachineOverride ov = ov();
             if (ov != null) {
@@ -151,7 +151,7 @@ public class PhantasiaScenePlacementStepEditorScreen extends PhantasiaScreen
 
         particlesBox = addW(new EditBox(font, 0, 0, PANEL_W - 16, 12, Component.empty()));
         particlesBox.setMaxLength(512);
-        particlesBox.setHint(Component.literal("particle1;particle2"));
+        particlesBox.setHint(Component.translatable("screen.phantasia.placement_step_editor.hint_particles"));
         particlesBox.setResponder(v -> {
             PhantasiaSceneData.MachineOverride ov = ov();
             if (ov != null) {
@@ -291,7 +291,10 @@ public class PhantasiaScenePlacementStepEditorScreen extends PhantasiaScreen
 
         topBtn(g, mx, my, width - 4, "← Back", C_BTN(),
                 "Return to scene editor",
-                () -> { restoreAllBaseplates(); Minecraft.getInstance().setScreen(parent); });
+                () -> {
+                    restoreAllBaseplates();
+                    Minecraft.getInstance().setScreen(parent);
+                });
     }
 
     // ── Right panel ───────────────────────────────────────────────────────────

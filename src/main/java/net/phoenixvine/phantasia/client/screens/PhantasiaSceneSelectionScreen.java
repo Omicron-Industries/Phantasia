@@ -13,14 +13,13 @@ import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.phoenixvine.phantasia.client.screens.editors.PhantasiaGuideEditorScreen;
+import net.phoenixvine.phantasia.client.screens.editors.PhantasiaSceneEditorScreen;
 import net.phoenixvine.phantasia.client.screens.editors.PhantasiaThemeEditorScreen;
 import net.phoenixvine.phantasia.client.tutorial.PhantasiaTutorials;
 import net.phoenixvine.phantasia.client.tutorial.TutorialSequence;
 import net.phoenixvine.phantasia.common.data.guides.PhantasiaGuideData;
 import net.phoenixvine.phantasia.common.data.guides.PhantasiaGuideRegistry;
-import net.phoenixvine.phantasia.client.screens.editors.PhantasiaSceneEditorScreen;
 import net.phoenixvine.phantasia.common.data.scene.PhantasiaSceneData;
-import net.phoenixvine.phantasia.common.data.scene.PhantasiaSceneLoader;
 import net.phoenixvine.phantasia.common.data.scene.PhantasiaScenes;
 import net.phoenixvine.phantasia.common.data.script.PhantasiaScript;
 import net.phoenixvine.phantasia.common.data.script.PhantasiaScripts;
@@ -1383,16 +1382,15 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
                     g.renderItem(new ItemStack(iconItem), cx + 4, cy + 4);
             }
 
-            var titleLines = font.split(Component.literal(seq.title), CARD_W - 26);
+            var titleLines = font.split(seq.title, CARD_W - 26);
             int titleY = cy + 6;
             for (int tl = 0; tl < Math.min(titleLines.size(), 2); tl++, titleY += 9)
                 g.drawString(font, titleLines.get(tl), cx + 22, titleY, isDev ? C_WARN() : C_ACCENT(), false);
 
-            String desc = seq.description != null ? seq.description : "";
-            java.util.List<net.minecraft.util.FormattedCharSequence> descLines = font.split(Component.literal(desc),
+            java.util.List<net.minecraft.util.FormattedCharSequence> descLines = font.split(seq.description,
                     CARD_W - 8);
             int ty = titleLines.size() >= 2 ? cy + 26 : cy + 20;
-            int maxDescLines = titleLines.size() >= 2 ? 2 : 3;
+            int maxDescLines = titleLines.size() >= 2 ? 4 : 5;
             for (int li = 0; li < Math.min(descLines.size(), maxDescLines); li++)
                 g.drawString(font, descLines.get(li), cx + 4, ty + li * 10, C_DIM(), false);
 

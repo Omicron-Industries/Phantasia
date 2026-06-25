@@ -41,25 +41,25 @@ public class PhantasiaManualItem extends Item {
     @OnlyIn(Dist.CLIENT)
     public void appendHoverText(ItemStack stack, @Nullable Level level,
                                 List<Component> lines, TooltipFlag flag) {
-        lines.add(Component.literal("Right-click to open Phantasia.")
+        lines.add(Component.translatable("item.phantasia.phantasia_manual.tooltip_rightclick")
                 .withStyle(ChatFormatting.GRAY));
         lines.add(Component.empty());
         lines.add(Component.literal(net.phoenixvine.phantasia.client.keybind.PhoenixKeybinds.keyDisplay() + " ")
                 .withStyle(ChatFormatting.AQUA)
-                .append(Component.literal("Hold near any machine to open its guide.")
+                .append(Component.translatable("item.phantasia.phantasia_manual.tooltip_hold")
                         .withStyle(ChatFormatting.GRAY)));
         lines.add(Component.literal("/phantasia ")
                 .withStyle(ChatFormatting.AQUA)
-                .append(Component.literal("Browse all content.")
+                .append(Component.translatable("item.phantasia.phantasia_manual.tooltip_browse")
                         .withStyle(ChatFormatting.GRAY)));
         lines.add(Component.empty());
-        lines.add(Component.literal("Tutorials tab")
+        lines.add(Component.translatable("item.phantasia.phantasia_manual.tooltip_tutorials")
                 .withStyle(ChatFormatting.YELLOW)
-                .append(Component.literal(" — interactive walkthroughs.")
+                .append(Component.translatable("item.phantasia.phantasia_manual.tooltip_tutorials_desc")
                         .withStyle(ChatFormatting.GRAY)));
-        lines.add(Component.literal("⚙ Settings tab")
+        lines.add(Component.translatable("item.phantasia.phantasia_manual.tooltip_settings")
                 .withStyle(ChatFormatting.YELLOW)
-                .append(Component.literal(" — camera behaviour, display mode, theme editor.")
+                .append(Component.translatable("item.phantasia.phantasia_manual.tooltip_settings_desc")
                         .withStyle(ChatFormatting.GRAY)));
     }
 }

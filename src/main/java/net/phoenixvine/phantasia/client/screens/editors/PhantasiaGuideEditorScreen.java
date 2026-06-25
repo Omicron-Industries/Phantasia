@@ -135,7 +135,7 @@ public class PhantasiaGuideEditorScreen extends Screen {
 
         tooltipItemBox = addW(new EditBox(font, 0, 0, rightWidth - 60, 12, Component.empty()));
         tooltipItemBox.setMaxLength(128);
-        tooltipItemBox.setHint(Component.literal("e.g. minecraft:iron_ore"));
+        tooltipItemBox.setHint(Component.translatable("screen.phantasia.guide_editor.hint_tooltip_item"));
 
         itemLabelBox = addW(new EditBox(font, 0, 0, 100, 12, Component.empty()));
         itemLabelBox.setMaxLength(64);
@@ -573,6 +573,11 @@ public class PhantasiaGuideEditorScreen extends Screen {
         int rx = width - 4;
         rx = topBtnR(g, mx, my, rx, dirty ? "💾 Save*" : "💾 Save", this::save);
         rx = topBtnR(g, mx, my, rx - 4, "▶ Preview", this::openPreview);
+        rx = topBtnR(g, mx, my, rx - 4, "⚠ Mistakes", () -> {
+            if (data.mistakes == null) data.mistakes = new java.util.ArrayList<>();
+            Minecraft.getInstance().setScreen(new PhantasiaSceneMistakesEditorScreen(
+                    this, data.mistakes, () -> dirty = true));
+        });
         if (!undoStack.isEmpty()) topBtnR(g, mx, my, rx - 4, "↩ Undo", this::undo);
     }
 
@@ -925,7 +930,7 @@ public class PhantasiaGuideEditorScreen extends Screen {
         g.drawString(font, Component.translatable("screen.phantasia.guide_editor.label_item_id").getString(), px + 4, y,
                 C_DIM(), false);
         placeBox(itemIdBox, px + 4 +
-                        font.width(Component.translatable("screen.phantasia.guide_editor.label_item_id").getString()) + 3,
+                font.width(Component.translatable("screen.phantasia.guide_editor.label_item_id").getString()) + 3,
                 y - 1,
                 rightWidth - 8 -
                         font.width(Component.translatable("screen.phantasia.guide_editor.label_item_id").getString()) -
@@ -991,15 +996,15 @@ public class PhantasiaGuideEditorScreen extends Screen {
             List<String> guideIds = PhantasiaGuideRegistry.all().stream().map(guide -> guide.id).toList();
             Minecraft.getInstance().setScreen(new RegistrySearchScreen(this,
                     Component.translatable("screen.phantasia.guide_editor.picker_guide").getString(), guideIds, id -> {
-                page().guideId = id;
-                dirty = true;
-            }));
+                        page().guideId = id;
+                        dirty = true;
+                    }));
         }));
         y += 18;
 
         String sl = page().sceneId != null && !page().sceneId.isBlank() &&
                 PhantasiaScenes.all().stream().anyMatch(scene -> scene.id.equals(page().sceneId)) ? page().sceneId :
-                "None";
+                        "None";
         boolean slHov = over(mx, my, px + 4, y, rightWidth - 8, 14);
         g.fill(px + 4, y, width - 4, y + 14, slHov ? C_BTN_HOV() : C_BTN());
         String sceneBtnLabel = String
@@ -1011,16 +1016,16 @@ public class PhantasiaGuideEditorScreen extends Screen {
             List<String> sceneIds = PhantasiaScenes.all().stream().map(scene -> scene.id).toList();
             Minecraft.getInstance().setScreen(new RegistrySearchScreen(this,
                     Component.translatable("screen.phantasia.guide_editor.picker_scene").getString(), sceneIds, id -> {
-                page().sceneId = id;
-                dirty = true;
-            }));
+                        page().sceneId = id;
+                        dirty = true;
+                    }));
         }));
         y += 18;
 
         String slk = page().scriptId != null && !page().scriptId.isBlank() &&
                 net.phoenixvine.phantasia.common.multiblock.PhantasiaMultiblockRegistry.getAllDefinitions().stream()
                         .anyMatch(def -> PhantasiaScripts.has(def) && def.getId().toString().equals(page().scriptId)) ?
-                page().scriptId : "None";
+                                page().scriptId : "None";
         boolean slkHov = over(mx, my, px + 4, y, rightWidth - 8, 14);
         g.fill(px + 4, y, width - 4, y + 14, slkHov ? C_BTN_HOV() : C_BTN());
         String scriptBtnLabel = String
@@ -1039,9 +1044,9 @@ public class PhantasiaGuideEditorScreen extends Screen {
                     .setScreen(new RegistrySearchScreen(this,
                             Component.translatable("screen.phantasia.guide_editor.picker_script").getString(),
                             scriptIds, id -> {
-                        page().scriptId = id;
-                        dirty = true;
-                    }));
+                                page().scriptId = id;
+                                dirty = true;
+                            }));
         }));
         y += 18;
 

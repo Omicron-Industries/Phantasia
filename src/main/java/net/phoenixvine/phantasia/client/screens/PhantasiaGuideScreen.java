@@ -126,13 +126,14 @@ public class PhantasiaGuideScreen extends PhantasiaScreen {
     // ── Page builders ─────────────────────────────────────────────────────────
 
     private void buildFromGuideData(PhantasiaGuideData gd) {
+        List<PhantasiaSceneData.SceneMistakeData> guideMistakes = gd.mistakes != null ? gd.mistakes : List.of();
         for (PageData pd : gd.pages) {
             if (!pd.hasContent()) continue;
             List<CardEntry> cards = resolveCards(pd.items);
             pages.add(new GuidePage(
                     pd.headline, pd.text, cards,
-                    List.of(),
-                    pd.guideId, pd.sceneId, pd.scriptId, // Compiles the new script string
+                    guideMistakes,
+                    pd.guideId, pd.sceneId, pd.scriptId,
                     gd));
         }
     }

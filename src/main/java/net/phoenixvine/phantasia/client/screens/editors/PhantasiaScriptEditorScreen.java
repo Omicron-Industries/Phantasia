@@ -356,7 +356,7 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         layerCountBox = addW(new EditBox(font, 0, 0, 30, 12, Component.empty()));
         layerCountBox.setMaxLength(3);
         layerCountBox.setFilter(s -> s.matches("\\d*"));
-        layerCountBox.setHint(Component.literal("—"));
+        layerCountBox.setHint(Component.translatable("screen.phantasia.script_editor.hint_layer_count"));
         layerCountBox.setResponder(v -> {
             if (isPopulating) return;
             try {
@@ -441,13 +441,13 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
 
         wiItemBox = addW(new EditBox(font, 0, 0, 200, 12, Component.empty()));
         wiItemBox.setMaxLength(120);
-        wiItemBox.setHint(Component.literal("namespace:item  (blank = clear slot)"));
+        wiItemBox.setHint(Component.translatable("screen.phantasia.script_editor.hint_world_item"));
         wiItemBox.visible = false;
         wiItemBox.active = false;
 
         wiSourceBox = addW(new EditBox(font, 0, 0, 54, 12, Component.empty()));
         wiSourceBox.setMaxLength(6);
-        wiSourceBox.setHint(Component.literal("source (0-10000)"));
+        wiSourceBox.setHint(Component.translatable("screen.phantasia.script_editor.hint_source_amount"));
         wiSourceBox.setFilter(v -> v.matches("\\d*"));
         wiSourceBox.visible = false;
         wiSourceBox.active = false;
@@ -986,7 +986,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         renderLayerSlider(g, mx, my);
         renderStepRow(g, mx, my);
         renderTimeline(g, mx, my);
-        renderEditorItemPanel(g, mx, my);
         if (showStartCamPanel) {
             renderStartCamPanel(g, mx, my);
         } else {
@@ -1453,12 +1452,12 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
     private void openGlobalMistakeInput() {
         Minecraft.getInstance().setScreen(new PhantasiaTextInputScreen(
                 this, "Global Mistake Note", "e.g. Controller must face south", "", 256, v -> {
-            if (!v.isBlank()) {
-                checkpoint();
-                data.getGlobalMistakes().add(v.trim());
-                dirty = true;
-            }
-        }));
+                    if (!v.isBlank()) {
+                        checkpoint();
+                        data.getGlobalMistakes().add(v.trim());
+                        dirty = true;
+                    }
+                }));
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -1772,10 +1771,10 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         btns.add(new Btn(x, y1, capW, 13, () -> Minecraft.getInstance().setScreen(
                 new PhantasiaTextInputScreen(this, "Step Caption", "What the viewer sees\u2026",
                         s.caption != null ? s.caption : "", 256, v -> {
-                    checkpoint();
-                    s.caption = v.isBlank() ? null : v;
-                    dirty = true;
-                }))));
+                            checkpoint();
+                            s.caption = v.isBlank() ? null : v;
+                            dirty = true;
+                        }))));
         x += capW + 8;
 
         g.fill(x, y1, x + 1, y1 + 14, 0x33FFFFFF);

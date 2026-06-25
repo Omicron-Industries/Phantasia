@@ -192,7 +192,8 @@ public class GTCEuMultiblockDefinition implements IPhantasiaMultiblockDefinition
                     next = ab.changeActive(current, working);
                 }
                 if (next != null && next != current)
-                    level.renderedBlocks.put(worldPos, net.phoenixvine.phantasia.utils.PhantasiaBlockInfo.fromBlockState(next));
+                    level.renderedBlocks.put(worldPos,
+                            net.phoenixvine.phantasia.utils.PhantasiaBlockInfo.fromBlockState(next));
             } catch (Throwable ignored) {}
         }
     }

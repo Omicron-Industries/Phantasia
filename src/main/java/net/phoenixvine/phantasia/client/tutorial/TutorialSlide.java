@@ -1,6 +1,7 @@
 package net.phoenixvine.phantasia.client.tutorial;
 
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -77,8 +78,8 @@ public final class TutorialSlide {
 
     // ── Fields ────────────────────────────────────────────────────────────────
 
-    public final String title;
-    public final String text;
+    public final Component title;
+    public final Component text;
     @Nullable
     public final MockRenderer mock;
     public final List<Highlight> highlights;
@@ -94,18 +95,22 @@ public final class TutorialSlide {
 
     // ── Builder ───────────────────────────────────────────────────────────────
 
-    public static Builder of(String title, String text) {
+    public static Builder of(String titleKey, String textKey) {
+        return new Builder(Component.translatable(titleKey), Component.translatable(textKey));
+    }
+
+    public static Builder of(Component title, Component text) {
         return new Builder(title, text);
     }
 
     public static final class Builder {
 
-        private final String title, text;
+        private final Component title, text;
         private MockRenderer mock;
         private final List<Highlight> highlights = new ArrayList<>();
         private final List<CursorWaypoint> cursor = new ArrayList<>();
 
-        private Builder(String title, String text) {
+        private Builder(Component title, Component text) {
             this.title = title;
             this.text = text;
         }

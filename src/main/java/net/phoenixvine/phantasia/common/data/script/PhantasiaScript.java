@@ -21,24 +21,24 @@ import javax.annotation.Nullable;
 public class PhantasiaScript {
 
     public record Step(
-            int tickOffset,
-            String caption,
-            Predicate<BlockPos> filter,
-            boolean working,
-            int forceShape,
-            int forceCoil,
-            float yaw,
-            float pitch,
-            float zoom,
-            boolean useCam,
-            LerpType lerpType,
-            int lerpTicks,
-            @Nullable String fakeRecipeId,
-            List<PhantasiaParticleEffect> particleEffects,
-            @Nullable String hold,
-            int layerCount,
-            List<PhantasiaScriptData.WorldItemEntry> worldItems,
-            List<LocalWarning> mistakes) {
+                       int tickOffset,
+                       String caption,
+                       Predicate<BlockPos> filter,
+                       boolean working,
+                       int forceShape,
+                       int forceCoil,
+                       float yaw,
+                       float pitch,
+                       float zoom,
+                       boolean useCam,
+                       LerpType lerpType,
+                       int lerpTicks,
+                       @Nullable String fakeRecipeId,
+                       List<PhantasiaParticleEffect> particleEffects,
+                       @Nullable String hold,
+                       int layerCount,
+                       List<PhantasiaScriptData.WorldItemEntry> worldItems,
+                       List<LocalWarning> mistakes) {
 
         public boolean hasCamera() {
             return useCam;

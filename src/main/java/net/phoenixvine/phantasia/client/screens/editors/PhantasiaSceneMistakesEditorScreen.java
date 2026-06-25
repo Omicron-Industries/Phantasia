@@ -57,8 +57,9 @@ public class PhantasiaSceneMistakesEditorScreen extends PhantasiaScreen {
     private static final int[] SEVERITY_COLORS = { 0xFF4FC3F7, 0xFFFFB74D, 0xFFFF5252 };
 
     // ── Parent / data ─────────────────────────────────────────────────────────
-    private final PhantasiaSceneEditorScreen parent;
-    private final PhantasiaSceneData data;
+    private final net.minecraft.client.gui.screens.Screen parent;
+    private List<PhantasiaSceneData.SceneMistakeData> mistakes = new ArrayList<>();
+    private Runnable onModified = () -> {};
 
     // ── State ─────────────────────────────────────────────────────────────────
     private int expandedRow = -1;   // index of the mistake row that is expanded for editing
@@ -82,9 +83,20 @@ public class PhantasiaSceneMistakesEditorScreen extends PhantasiaScreen {
                                               PhantasiaSceneData data) {
         super(Component.translatable("screen.phantasia.scene_mistakes_editor.title"));
         this.parent = parent;
-        this.data = data;
-        // Ensure the list exists on the data object
-        if (data.mistakes == null) data.mistakes = new ArrayList<>();
+        if (mistakes == null) mistakes = new ArrayList<>();
+        this.onModified = () -> {
+            parent.checkpoint();
+            parent.dirty = true;
+        };
+    }
+
+    public PhantasiaSceneMistakesEditorScreen(net.minecraft.client.gui.screens.Screen parent,
+                                              List<PhantasiaSceneData.SceneMistakeData> mistakes,
+                                              Runnable onModified) {
+        super(Component.translatable("screen.phantasia.scene_mistakes_editor.title"));
+        this.parent = parent;
+        this.mistakes = mistakes;
+        this.onModified = onModified;
     }
 
     @Override
@@ -137,7 +149,7 @@ public class PhantasiaSceneMistakesEditorScreen extends PhantasiaScreen {
         g.fill(0, TOP_BAR_H - 1, width, TOP_BAR_H, C_ACCENT());
 
         g.drawCenteredString(font,
-                "\u26A0 Layout Mistakes  \u2014  " + data.mistakes.size() + " defined",
+                "\u26A0 Layout Mistakes  \u2014  " + mistakes.size() + " defined",
                 width / 2, (TOP_BAR_H - 8) / 2, C_ACCENT());
 
         // Done
@@ -158,13 +170,13 @@ public class PhantasiaSceneMistakesEditorScreen extends PhantasiaScreen {
         int cy = TOP_BAR_H + 6;
 
         // ── Existing mistakes ─────────────────────────────────────────────────
-        for (int i = 0; i < data.mistakes.size(); i++) {
-            PhantasiaSceneData.SceneMistakeData m = data.mistakes.get(i);
+        for (int i = 0; i < mistakes.size(); i++) {
+            PhantasiaSceneData.SceneMistakeData m = mistakes.get(i);
             boolean expanded = (expandedRow == i);
             cy = renderMistakeRow(g, mx, my, px, cy, pw, i, m, expanded);
         }
 
-        if (data.mistakes.isEmpty()) {
+        if (mistakes.isEmpty()) {
             g.drawCenteredString(font,
                     Component.translatable("screen.phantasia.scene_mistakes_editor.empty").getString(), width / 2,
                     cy + 8, C_DIM());
@@ -233,14 +245,6 @@ public class PhantasiaSceneMistakesEditorScreen extends PhantasiaScreen {
                 Component.translatable("screen.phantasia.scene_mistakes_editor.label_placements").getString()) + 4;
         place(editPlacementsBox, px + 4 + plLblW, cy, 120, 12);
 
-        // Placement index reference
-        int refX = px + 4 + plLblW + 124;
-        for (int pi = 0; pi < data.placements.size(); pi++) {
-            String ref = "#" + pi + " " + shortMachineId(data.placements.get(pi).machine);
-            g.drawString(font, ref, refX, cy + 2, C_DIM(), false);
-            refX += font.width(ref) + 8;
-            if (refX > px + pw - 20) break; // don't overflow
-        }
         cy += 16;
 
         // Error
@@ -302,11 +306,10 @@ public class PhantasiaSceneMistakesEditorScreen extends PhantasiaScreen {
         g.drawString(font, "\u2715", rmX + 5, rmY + 2, rmHov ? C_RED() : C_DIM(), false);
         final int fi = idx;
         btns.add(new Btn(rmX, rmY, 18, 12, () -> {
-            parent.checkpoint();
-            data.mistakes.remove(fi);
+            onModified.run();
+            mistakes.remove(fi);
             if (expandedRow == fi) expandedRow = -1;
             else if (expandedRow > fi) expandedRow--;
-            parent.dirty = true;
         }));
 
         // Click row to expand/collapse edit
@@ -349,9 +352,8 @@ public class PhantasiaSceneMistakesEditorScreen extends PhantasiaScreen {
             g.drawString(font, svl, sbx + 5, cy + 2, svSel ? svCol : C_TEXT(), false);
             final String fsv = sv;
             btns.add(new Btn(sbx, cy, svW, 12, () -> {
-                parent.checkpoint();
+                onModified.run();
                 m.severity = fsv;
-                parent.dirty = true;
             }));
             sbx += svW + 3;
         }
@@ -406,8 +408,7 @@ public class PhantasiaSceneMistakesEditorScreen extends PhantasiaScreen {
         g.fill(0, by, width, height, C_BAR());
         g.fill(0, by, width, by + 1, 0x22FFFFFF);
         g.drawCenteredString(font,
-                "Mistakes flag incorrect machine placements in the scene viewer  \u2014  " + data.placements.size() +
-                        " placement(s) available",
+                "Mistakes flag incorrect placements \u2014 " + mistakes.size() + " defined",
                 width / 2, by + (BOTTOM_H - 8) / 2, C_DIM());
     }
 
@@ -425,7 +426,7 @@ public class PhantasiaSceneMistakesEditorScreen extends PhantasiaScreen {
             addError = Component.translatable("screen.phantasia.scene_mistakes_editor.err_blank_id").getString();
             return;
         }
-        for (PhantasiaSceneData.SceneMistakeData m : data.mistakes) {
+        for (PhantasiaSceneData.SceneMistakeData m : mistakes) {
             if (id.equals(m.id)) {
                 addError = Component.translatable("screen.phantasia.scene_mistakes_editor.err_duplicate_id")
                         .getString() + ": " + id;
@@ -433,14 +434,13 @@ public class PhantasiaSceneMistakesEditorScreen extends PhantasiaScreen {
             }
         }
 
-        parent.checkpoint();
+        onModified.run();
         PhantasiaSceneData.SceneMistakeData m = new PhantasiaSceneData.SceneMistakeData();
         m.id = id;
         m.description = desc.isEmpty() ? null : desc;
         m.severity = newSeverity;
         m.placements = parsePlacementIndices(pls);
-        data.mistakes.add(m);
-        parent.dirty = true;
+        mistakes.add(m);
 
         editIdBox.setValue("");
         editDescBox.setValue("");
@@ -448,13 +448,12 @@ public class PhantasiaSceneMistakesEditorScreen extends PhantasiaScreen {
     }
 
     private void commitEdit(int idx, PhantasiaSceneData.SceneMistakeData m) {
-        parent.checkpoint();
+        onModified.run();
         String newId = editIdBox.getValue().trim();
         if (!newId.isEmpty()) m.id = newId;
         String desc = editDescBox.getValue().trim();
         m.description = desc.isEmpty() ? null : desc;
         m.placements = parsePlacementIndices(editPlacementsBox.getValue().trim());
-        parent.dirty = true;
         expandedRow = -1;
     }
 

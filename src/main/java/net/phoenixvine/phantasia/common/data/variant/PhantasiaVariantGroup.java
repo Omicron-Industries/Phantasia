@@ -174,7 +174,8 @@ public final class PhantasiaVariantGroup {
             try {
                 result.addAll(detectOptionalBlocks(machinePrefix, definition.getAllShapes(), pattern, explicitIds));
             } catch (Exception e) {
-                net.phoenixvine.phantasia.Phantasia.LOGGER.warn("[Phantasia] Optional block detection failed for {}: {}",
+                net.phoenixvine.phantasia.Phantasia.LOGGER.warn(
+                        "[Phantasia] Optional block detection failed for {}: {}",
                         definition.getId(), e.getMessage());
             }
         }
@@ -200,11 +201,17 @@ public final class PhantasiaVariantGroup {
 
         if (ogd.getFallbackBlock() != null && !ogd.getFallbackBlock().isBlank()) {
             BlockState fallback = resolveBlock(ogd.getFallbackBlock());
-            if (fallback != null) { options.add(fallback); labels.add(blockDisplayName(fallback)); }
+            if (fallback != null) {
+                options.add(fallback);
+                labels.add(blockDisplayName(fallback));
+            }
         }
         for (String extra : ogd.getAdditionalBlocks()) {
             BlockState s = resolveBlock(extra);
-            if (s != null) { options.add(s); labels.add(blockDisplayName(s)); }
+            if (s != null) {
+                options.add(s);
+                labels.add(blockDisplayName(s));
+            }
         }
         if (options.size() < 2) return null;
 

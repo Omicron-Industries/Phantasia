@@ -53,7 +53,7 @@ public class ArsNouveauRecipePickerScreen extends Screen {
     private int pw, ph, px, py;
 
     public ArsNouveauRecipePickerScreen(Screen parent, PhantasiaScriptData data, Consumer<String> onPick) {
-        super(Component.literal("Pick Recipe / Ritual"));
+        super(Component.translatable("screen.phantasia.ars_recipe_picker.title"));
         this.parent = parent;
         this.data = data;
         this.onPick = onPick;
@@ -70,7 +70,7 @@ public class ArsNouveauRecipePickerScreen extends Screen {
         searchBox = addRenderableWidget(
                 new EditBox(font, px + 8, py + HEADER_H + 24 + 2, pw - 16, 14, Component.empty()));
         searchBox.setMaxLength(80);
-        searchBox.setHint(Component.literal("Search…"));
+        searchBox.setHint(Component.translatable("screen.phantasia.ars_recipe_picker.hint_search"));
         searchBox.setBordered(false);
         setInitialFocus(searchBox);
     }

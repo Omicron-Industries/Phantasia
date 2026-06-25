@@ -126,8 +126,13 @@ public class PhantasiaTrackedDummyWorld extends PhantasiaDummyWorld {
     // Register here to re-apply manual state (e.g. beacon beam sections) that vanilla ticks reset.
     private final List<Runnable> postTickHooks = new ArrayList<>();
 
-    public void addPostTickHook(Runnable hook) { postTickHooks.add(hook); }
-    public void clearPostTickHooks() { postTickHooks.clear(); }
+    public void addPostTickHook(Runnable hook) {
+        postTickHooks.add(hook);
+    }
+
+    public void clearPostTickHooks() {
+        postTickHooks.clear();
+    }
 
     public void tickWorld() {
         for (Map.Entry<BlockPos, PhantasiaBlockInfo> entry : renderedBlocks.entrySet()) {
@@ -146,7 +151,9 @@ public class PhantasiaTrackedDummyWorld extends PhantasiaDummyWorld {
             }
         }
         for (Runnable hook : postTickHooks) {
-            try { hook.run(); } catch (Exception e) {
+            try {
+                hook.run();
+            } catch (Exception e) {
                 net.phoenixvine.phantasia.Phantasia.LOGGER.warn("[Phantasia] postTickHook error: {}", e.getMessage());
             }
         }
