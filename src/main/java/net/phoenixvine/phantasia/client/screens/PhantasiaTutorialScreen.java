@@ -164,6 +164,11 @@ public class PhantasiaTutorialScreen extends PhantasiaScreen {
         renderTextPanel(g, theme);
         renderNavButtons(g, theme);
 
+        // Render the typewriter skip hint above the nav button row.
+        if (!textDone) {
+            g.drawString(font, "Click or [Space] to skip...", this.width - 130, this.height - 36, C_DIM(), false);
+        }
+
         super.render(g, mx, my, partial);
     }
 
@@ -370,20 +375,18 @@ public class PhantasiaTutorialScreen extends PhantasiaScreen {
         int sepY = Math.max(panelY + 20, titleY + 3);
         g.fill(16, sepY, this.width - 16, sepY + 1, 0x33FFFFFF);
 
-        // Typewriter text
+        // Typewriter text — word-wrapped to screen width
         String fullText = slide.text.getString();
         String shown = fullText.substring(0, Math.min(typeChars, fullText.length()));
         int ty = sepY + 6;
-        int maxW = this.width - 32;
-        for (String line : shown.split("\n")) {
-            if (ty + 10 > this.height - 28) break;
-            g.drawString(font, line, 16, ty, C_TEXT(), false);
-            ty += 11;
-        }
-
-        // [Space] / [Enter] hint if text is still typing
-        if (!textDone) {
-            g.drawString(font, "Click or [Space] to skip...", this.width - 130, this.height - 22, C_DIM(), false);
+        int maxW = Math.max(60, this.width - 32);
+        outer:
+        for (String para : shown.split("\n", -1)) {
+            for (var wrapped : font.split(net.minecraft.network.chat.Component.literal(para), maxW)) {
+                if (ty + 10 > this.height - 28) break outer;
+                g.drawString(font, wrapped, 16, ty, C_TEXT(), false);
+                ty += 11;
+            }
         }
     }
 

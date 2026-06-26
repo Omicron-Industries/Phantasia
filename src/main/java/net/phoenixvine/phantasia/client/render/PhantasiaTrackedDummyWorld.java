@@ -134,6 +134,29 @@ public class PhantasiaTrackedDummyWorld extends PhantasiaDummyWorld {
         postTickHooks.clear();
     }
 
+    // Pre-render hooks run at the start of drawTileEntities, immediately before any BER is called.
+    // Use this to force state (e.g. beacon beamSections) onto freshly-created BEs, since a bake
+    // may have evicted and recreated the cached BE since the last post-tick hook ran.
+    private final List<Runnable> preRenderHooks = new ArrayList<>();
+
+    public void addPreRenderHook(Runnable hook) {
+        preRenderHooks.add(hook);
+    }
+
+    public void clearPreRenderHooks() {
+        preRenderHooks.clear();
+    }
+
+    public void runPreRenderHooks() {
+        for (Runnable hook : preRenderHooks) {
+            try {
+                hook.run();
+            } catch (Exception e) {
+                net.phoenixvine.phantasia.Phantasia.LOGGER.warn("[Phantasia] preRenderHook error: {}", e.getMessage());
+            }
+        }
+    }
+
     public void tickWorld() {
         for (Map.Entry<BlockPos, PhantasiaBlockInfo> entry : renderedBlocks.entrySet()) {
             BlockState state = entry.getValue().getBlockState();

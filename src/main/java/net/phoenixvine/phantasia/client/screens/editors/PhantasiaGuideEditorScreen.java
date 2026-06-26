@@ -105,6 +105,8 @@ public class PhantasiaGuideEditorScreen extends Screen {
     @Override
     protected void init() {
         super.init();
+        // Clamp sidebar so the text-editor panel always has at least 260px.
+        rightWidth = Math.min(280, Math.max(160, this.width - 260));
         buildWidgets();
         populateFromPage();
     }

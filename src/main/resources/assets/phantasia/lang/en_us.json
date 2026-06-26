@@ -58,7 +58,7 @@
   "ui.phantasia.btn_add": "+ Add",
   "ui.phantasia.welcome.installed": "Phantasia is installed!",
   "ui.phantasia.welcome.instruction": "Press [P] near a machine, or /phantasia to browse.",
-  "ui.phantasia.welcome.open_guide": "Click here to open Getting Started →",
+  "ui.phantasia.welcome.open_guide": "Use /phantasia → Tutorials to get started.",
 
   "screen.phantasia.scene_selection.title": "Phantasia",
   "screen.phantasia.scene_selection.header": "✶ Phantasia",

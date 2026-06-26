@@ -105,6 +105,14 @@ public final class VanillaMultiblockDefinition implements IPhantasiaMultiblockDe
     @Override
     public void onShapeLoaded(PhantasiaTrackedDummyWorld level, BlockPos origin,
                               Map<BlockPos, PhantasiaBlockInfo> blockMap,
+                              Map<BlockPos, BlockPos> localToWorld) {
+        // Called by PhantasiaScenePattern.build — delegate to the full overload with null script.
+        onShapeLoaded(level, origin, blockMap, localToWorld, null);
+    }
+
+    @Override
+    public void onShapeLoaded(PhantasiaTrackedDummyWorld level, BlockPos origin,
+                              Map<BlockPos, PhantasiaBlockInfo> blockMap,
                               Map<BlockPos, BlockPos> localToWorld,
                               @Nullable PhantasiaScriptData script) {
         if (showBeam) {
@@ -115,6 +123,7 @@ public final class VanillaMultiblockDefinition implements IPhantasiaMultiblockDe
                     break;
                 }
             }
+            net.phoenixvine.phantasia.Phantasia.LOGGER.info("[Phantasia] onShapeLoaded beacon: pos={}", beaconWorldPos);
         }
 
         if (showConduit) {
@@ -125,10 +134,17 @@ public final class VanillaMultiblockDefinition implements IPhantasiaMultiblockDe
                     break;
                 }
             }
+            net.phoenixvine.phantasia.Phantasia.LOGGER.info("[Phantasia] onShapeLoaded conduit: pos={}",
+                    conduitWorldPos);
         }
 
-        // Register post-tick hooks so vanilla ticks (which reset beam/conduit state) are immediately
-        // corrected without needing to skip those ticks entirely.
+        // Pre-render hooks fire right before drawTileEntities so the BER always reads up-to-date state,
+        // even if the bake thread evicted and recreated the cached BE since the last post-tick hook ran.
+        level.clearPreRenderHooks();
+        if (showBeam) level.addPreRenderHook(() -> applyBeamState(level));
+        if (showConduit) level.addPreRenderHook(() -> applyConduitState(level));
+
+        // Post-tick hooks also run (after vanilla ticks reset conduit isActive) as a belt-and-suspenders.
         level.clearPostTickHooks();
         if (showBeam) level.addPostTickHook(() -> applyBeamState(level));
         if (showConduit) level.addPostTickHook(() -> applyConduitState(level));
@@ -161,6 +177,24 @@ public final class VanillaMultiblockDefinition implements IPhantasiaMultiblockDe
                                   java.util.Set<net.minecraft.core.BlockPos> positions,
                                   java.util.Map<net.minecraft.core.BlockPos, net.phoenixvine.phantasia.utils.PhantasiaBlockInfo> blockMap,
                                   boolean working) {
+        // Re-derive world positions from blockMap each call so this works even when
+        // onShapeLoaded wasn't called (e.g. guide viewer uses the 4-param path).
+        if (showBeam && beaconWorldPos == null) {
+            for (java.util.Map.Entry<BlockPos, PhantasiaBlockInfo> e : blockMap.entrySet()) {
+                if (e.getValue() != null && e.getValue().getBlockState().is(Blocks.BEACON)) {
+                    beaconWorldPos = e.getKey();
+                    break;
+                }
+            }
+        }
+        if (showConduit && conduitWorldPos == null) {
+            for (java.util.Map.Entry<BlockPos, PhantasiaBlockInfo> e : blockMap.entrySet()) {
+                if (e.getValue() != null && e.getValue().getBlockState().is(Blocks.CONDUIT)) {
+                    conduitWorldPos = e.getKey();
+                    break;
+                }
+            }
+        }
         setMachineWorking(level, working);
     }
 
@@ -206,29 +240,65 @@ public final class VanillaMultiblockDefinition implements IPhantasiaMultiblockDe
     }
 
     private void applyBeamState(PhantasiaTrackedDummyWorld level) {
-        if (!showBeam || beaconWorldPos == null) return;
+        if (!showBeam) return;
+        if (beaconWorldPos == null) {
+            net.phoenixvine.phantasia.Phantasia.LOGGER
+                    .warn("[Phantasia] applyBeamState: beaconWorldPos null (isWorking={})", isWorking);
+            return;
+        }
         var be = level.getBlockEntity(beaconWorldPos);
-        if (!(be instanceof BeaconBlockEntity beacon)) return;
+        if (!(be instanceof BeaconBlockEntity beacon)) {
+            net.phoenixvine.phantasia.Phantasia.LOGGER.warn("[Phantasia] applyBeamState: got {} at {} (isWorking={})",
+                    be, beaconWorldPos, isWorking);
+            return;
+        }
         List<BeaconBlockEntity.BeaconBeamSection> sections = beamSectionsMutable(beacon);
         if (sections == null) return;
+        net.phoenixvine.phantasia.Phantasia.LOGGER.info(
+                "[Phantasia] applyBeamState: isWorking={} sections.size()={} beSystem.id={}", isWorking,
+                sections.size(), System.identityHashCode(beacon));
         if (isWorking) {
             if (sections.isEmpty()) sections.add(new BeaconBlockEntity.BeaconBeamSection(new float[] { 1f, 1f, 1f }));
         } else {
             sections.clear();
         }
+        net.phoenixvine.phantasia.Phantasia.LOGGER.info("[Phantasia] applyBeamState: after => sections.size()={}",
+                sections.size());
     }
 
     private void applyConduitState(PhantasiaTrackedDummyWorld level) {
-        if (!showConduit || conduitWorldPos == null) return;
+        if (!showConduit) return;
+        if (conduitWorldPos == null) {
+            net.phoenixvine.phantasia.Phantasia.LOGGER
+                    .warn("[Phantasia] applyConduitState: conduitWorldPos null (isWorking={})", isWorking);
+            return;
+        }
         var be = level.getBlockEntity(conduitWorldPos);
-        if (be == null) return;
-        try {
-            java.lang.reflect.Field f = be.getClass().getDeclaredField("isActive");
-            f.setAccessible(true);
-            f.set(be, isWorking);
-        } catch (Exception e) {
-            net.phoenixvine.phantasia.Phantasia.LOGGER.warn("[Phantasia] conduit isActive reflection failed: {}",
-                    e.getMessage());
+        if (be == null) {
+            net.phoenixvine.phantasia.Phantasia.LOGGER.warn("[Phantasia] applyConduitState: no BE at {} (isWorking={})",
+                    conduitWorldPos, isWorking);
+            return;
+        }
+        // Try direct field name first, then scan all boolean fields as fallback.
+        boolean applied = false;
+        for (Class<?> cls = be.getClass(); cls != null && cls != Object.class; cls = cls.getSuperclass()) {
+            for (java.lang.reflect.Field f : cls.getDeclaredFields()) {
+                if (f.getType() != boolean.class) continue;
+                String name = f.getName();
+                if (!name.equals("isActive") && !name.toLowerCase(java.util.Locale.ROOT).contains("active")) continue;
+                try {
+                    f.setAccessible(true);
+                    f.set(be, isWorking);
+                    applied = true;
+                    break;
+                } catch (Exception ignored) {}
+            }
+            if (applied) break;
+        }
+        if (!applied) {
+            net.phoenixvine.phantasia.Phantasia.LOGGER.warn(
+                    "[Phantasia] conduit: could not find isActive field on {} (isWorking={})", be.getClass().getName(),
+                    isWorking);
         }
     }
 

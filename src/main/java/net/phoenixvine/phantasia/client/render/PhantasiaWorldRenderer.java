@@ -1,9 +1,5 @@
 package net.phoenixvine.phantasia.client.render;
 
-import com.gregtechceu.gtceu.api.blockentity.MetaMachineBlockEntity;
-import com.gregtechceu.gtceu.api.machine.MetaMachine;
-import com.gregtechceu.gtceu.client.renderer.machine.DynamicRender;
-
 import com.lowdragmc.lowdraglib.client.scene.WorldSceneRenderer;
 
 import net.minecraft.client.Camera;
@@ -632,7 +628,11 @@ public final class PhantasiaWorldRenderer {
             totalEntityTimeNs += (System.nanoTime() - _p3ent);
 
             long _p3dyn = System.nanoTime();
-            drawDynamicRenderers(localPoseStack, buffers, partial, camX, camY, camZ);
+            if (net.minecraftforge.fml.ModList.get().isLoaded("gtceu")) {
+                net.phoenixvine.phantasia.compat.gtceu.GTCEuDynamicRenderHelper.drawDynamicRenderers(
+                        world, frontTileEntities, slotOrigin,
+                        localPoseStack, buffers, partial, camX, camY, camZ);
+            }
             totalDynRendererTimeNs += (System.nanoTime() - _p3dyn);
 
             long _p3flush = System.nanoTime();
@@ -981,6 +981,10 @@ public final class PhantasiaWorldRenderer {
 
     private void drawTileEntities(PoseStack poseStack, MultiBufferSource.BufferSource buffers, float partial,
                                   float camX, float camY, float camZ) {
+        // Apply beacon/conduit state immediately before any BER renders. This catches freshly-created
+        // BEs that the bake thread may have put into blockEntities after the last post-tick hook ran.
+        world.runPreRenderHooks();
+
         Minecraft mc = Minecraft.getInstance();
         var dispatcher = mc.getBlockEntityRenderDispatcher();
         int count = 0;
@@ -1003,6 +1007,32 @@ public final class PhantasiaWorldRenderer {
 
             count++;
             long berStart = System.nanoTime();
+            // Debug: log beacon/conduit state before BER render.
+            if (be instanceof net.minecraft.world.level.block.entity.BeaconBlockEntity beacon) {
+                LOGGER.info("[Phantasia-BER] Rendering beacon at {} beamSections={} id={}", pos,
+                        beacon.getBeamSections().size(), System.identityHashCode(beacon));
+            } else if (be instanceof net.minecraft.world.level.block.entity.ConduitBlockEntity) {
+                try {
+                    java.lang.reflect.Field f = null;
+                    for (Class<?> cls = be.getClass(); cls != null; cls = cls.getSuperclass()) {
+                        for (java.lang.reflect.Field ff : cls.getDeclaredFields()) {
+                            if (ff.getType() == boolean.class &&
+                                    ff.getName().toLowerCase(java.util.Locale.ROOT).contains("active")) {
+                                f = ff;
+                                break;
+                            }
+                        }
+                        if (f != null) break;
+                    }
+                    if (f != null) {
+                        f.setAccessible(true);
+                        LOGGER.info("[Phantasia-BER] Rendering conduit at {} isActive={} field={}", pos, f.get(be),
+                                f.getName());
+                    } else LOGGER.info("[Phantasia-BER] Rendering conduit at {} (no active field found)", pos);
+                } catch (Exception ex) {
+                    LOGGER.info("[Phantasia-BER] Rendering conduit at {} (reflection err: {})", pos, ex.getMessage());
+                }
+            }
             try {
                 ber.render(be, partial, poseStack, buffers, 15728880, OverlayTexture.NO_OVERLAY);
                 frameBerCount++;
@@ -1047,80 +1077,6 @@ public final class PhantasiaWorldRenderer {
                 poseStack.popPose();
             } catch (Exception ignored) {}
         }
-    }
-
-    @SuppressWarnings({ "unchecked", "rawtypes" })
-    private void drawDynamicRenderers(PoseStack poseStack, MultiBufferSource.BufferSource buffers, float partial,
-                                      float camX, float camY, float camZ) {
-        Vec3 cameraPos = new Vec3(camX, camY, camZ);
-        for (BlockPos pos : frontTileEntities) {
-            BlockEntity be = world.getBlockEntity(pos);
-            if (!(be instanceof MetaMachineBlockEntity mmbe)) continue;
-            MetaMachine machine = mmbe.getMetaMachine();
-            if (machine == null) continue;
-
-            BlockPos machinePos = machine.getPos();
-
-            com.lowdragmc.lowdraglib.client.renderer.IRenderer iRenderer = null;
-            try {
-                com.gregtechceu.gtceu.api.machine.MachineDefinition def = machine.getDefinition();
-                for (Class<?> defCls = def.getClass(); defCls != null &&
-                        defCls != Object.class; defCls = defCls.getSuperclass()) {
-                    for (java.lang.reflect.Field f : defCls.getDeclaredFields()) {
-                        if (com.lowdragmc.lowdraglib.client.renderer.IRenderer.class.isAssignableFrom(f.getType())) {
-                            f.setAccessible(true);
-                            iRenderer = (com.lowdragmc.lowdraglib.client.renderer.IRenderer) f.get(def);
-                            break;
-                        }
-                    }
-                    if (iRenderer != null) break;
-                }
-            } catch (Exception ignored) {}
-            if (iRenderer == null) continue;
-
-            for (Class<?> cls = iRenderer.getClass(); cls != null && cls != Object.class; cls = cls.getSuperclass()) {
-                for (java.lang.reflect.Field f : cls.getDeclaredFields()) {
-                    try {
-                        f.setAccessible(true);
-                        Object val = f.get(iRenderer);
-                        if (val == null) continue;
-                        if (val instanceof DynamicRender<?, ?> dr) {
-                            renderOneDynamic(dr, machine, machinePos, cameraPos, partial, poseStack, buffers);
-                        } else if (val instanceof java.util.List<?> list) {
-                            for (Object item : list) {
-                                if (item instanceof DynamicRender<?, ?> dr) {
-                                    renderOneDynamic(dr, machine, machinePos, cameraPos, partial, poseStack, buffers);
-                                }
-                            }
-                        }
-                    } catch (Throwable ignored) {}
-                }
-            }
-        }
-    }
-
-    @SuppressWarnings({ "unchecked", "rawtypes" })
-    private void renderOneDynamic(DynamicRender dr, MetaMachine machine, BlockPos pos,
-                                  Vec3 cameraPos, float partial,
-                                  PoseStack poseStack, MultiBufferSource.BufferSource buffers) {
-        try {
-            if (!dr.shouldRender(machine, cameraPos)) return;
-        } catch (Throwable ignored) {}
-
-        poseStack.pushPose();
-
-        BlockPos machinePos = machine.getPos();
-        poseStack.translate(machinePos.getX() - this.slotOrigin.getX(),
-                machinePos.getY() - this.slotOrigin.getY(),
-                machinePos.getZ() - this.slotOrigin.getZ());
-
-        try {
-            dr.render(machine, partial, poseStack, buffers,
-                    15728880, net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY);
-        } catch (Throwable e) {
-            LOGGER.warn("[Phantasia] DynamicRender error at {}: {}", pos, e.getMessage());
-        }
-        poseStack.popPose();
     }
 
     private static void driveClientTick(BlockEntity be) {

@@ -200,6 +200,22 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
         renderFooter(g, mx, my);
     }
 
+    /** Returns the left X of each tab (Multiblocks, Scenes, Guides, Tutorials, Settings), centered on screen. */
+    private int[] computeTabXs() {
+        String[] labels = { "Multiblocks", "Scenes", "Guides", "Tutorials", "⚙ Settings" };
+        int gap = 6;
+        int total = 0;
+        for (String l : labels) total += font.width(l) + 16;
+        total += gap * (labels.length - 1);
+        int x = Math.max(4, (this.width - total) / 2);
+        int[] xs = new int[labels.length];
+        for (int i = 0; i < labels.length; i++) {
+            xs[i] = x;
+            x += font.width(labels[i]) + 16 + gap;
+        }
+        return xs;
+    }
+
     private void renderHeader(GuiGraphics g, int mx, int my) {
         g.fill(0, 0, this.width, HEADER_H, 0xCC0A0A14);
         g.fill(0, HEADER_H - 2, this.width, HEADER_H, C_ACCENT());
@@ -207,19 +223,14 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
         g.drawCenteredString(font, Component.translatable("screen.phantasia.scene_selection.subtitle").getString(),
                 this.width / 2, 20, C_DIM());
 
-        // Tab row
+        // Tab row — centered on actual screen width so tabs don't clip at narrow GUI scales.
         int tabY = 32;
-        int totalGridW = COLS * CARD_W + (COLS - 1) * CARD_PAD;
-        int tabStartX = (this.width - totalGridW) / 2;
-
-        renderTab(g, mx, my, tabStartX, tabY, "Multiblocks", Tab.MULTIBLOCKS);
-        renderTab(g, mx, my, tabStartX + 104, tabY, "Scenes", Tab.SCENES);
-        int guidesTabX = tabStartX + 104 + font.width("Scenes") + 20;
-        renderTab(g, mx, my, guidesTabX, tabY, "Guides", Tab.GUIDES);
-        int tutorialsTabX = guidesTabX + font.width("Guides") + 20;
-        renderTab(g, mx, my, tutorialsTabX, tabY, "Tutorials", Tab.TUTORIALS);
-        int settingsTabX = tutorialsTabX + font.width("Tutorials") + 20;
-        renderTab(g, mx, my, settingsTabX, tabY, "⚙ Settings", Tab.SETTINGS);
+        int[] txs = computeTabXs();
+        renderTab(g, mx, my, txs[0], tabY, "Multiblocks", Tab.MULTIBLOCKS);
+        renderTab(g, mx, my, txs[1], tabY, "Scenes", Tab.SCENES);
+        renderTab(g, mx, my, txs[2], tabY, "Guides", Tab.GUIDES);
+        renderTab(g, mx, my, txs[3], tabY, "Tutorials", Tab.TUTORIALS);
+        renderTab(g, mx, my, txs[4], tabY, "⚙ Settings", Tab.SETTINGS);
     }
 
     private void renderTab(GuiGraphics g, int mx, int my, int x, int y, String label, Tab tab) {
@@ -252,8 +263,9 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
             maxW = Math.max(maxW, font.width(formatModName(ns)) + 12);
         }
 
-        // Anchor to the left of the grid so it scales safely with window resizing
+        // Anchor to the left of the grid; skip rendering if there's no room.
         int startX = gridStartX - maxW - 12;
+        if (startX < 2) return;
         int py = HEADER_H + SEARCH_H + 6;
 
         // "All" pill
@@ -293,6 +305,7 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
         }
 
         int startX = gridStartX - maxW - 12;
+        if (startX < 2) return false;
         int py = HEADER_H + SEARCH_H + 6;
 
         // "All" pill
@@ -1084,11 +1097,11 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
         if (this.searchBox != null && this.searchBox.mouseClicked(mx, my, btn))
             return true;
 
-        // Tab clicks
+        // Tab clicks — positions must match renderHeader exactly.
         int tabY = 32;
-        int totalGridW = COLS * CARD_W + (COLS - 1) * CARD_PAD;
-        int tabStartX = (this.width - totalGridW) / 2;
-        if (isOver((int) mx, (int) my, tabStartX, tabY, font.width("Multiblocks") + 16, TAB_H)) {
+        int[] txs = computeTabXs();
+        String[] tabLabels = { "Multiblocks", "Scenes", "Guides", "Tutorials", "⚙ Settings" };
+        if (isOver((int) mx, (int) my, txs[0], tabY, font.width(tabLabels[0]) + 16, TAB_H)) {
             if (activeTab != Tab.MULTIBLOCKS) {
                 activeTab = Tab.MULTIBLOCKS;
                 scrollOffset = 0;
@@ -1096,7 +1109,7 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
             }
             return true;
         }
-        if (isOver((int) mx, (int) my, tabStartX + 104, tabY, font.width("Scenes") + 16, TAB_H)) {
+        if (isOver((int) mx, (int) my, txs[1], tabY, font.width(tabLabels[1]) + 16, TAB_H)) {
             if (activeTab != Tab.SCENES) {
                 activeTab = Tab.SCENES;
                 scrollOffset = 0;
@@ -1104,8 +1117,7 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
             }
             return true;
         }
-        int guidesTabX = tabStartX + 104 + font.width("Scenes") + 20;
-        if (isOver((int) mx, (int) my, guidesTabX, tabY, font.width("Guides") + 16, TAB_H)) {
+        if (isOver((int) mx, (int) my, txs[2], tabY, font.width(tabLabels[2]) + 16, TAB_H)) {
             if (activeTab != Tab.GUIDES) {
                 activeTab = Tab.GUIDES;
                 scrollOffset = 0;
@@ -1113,8 +1125,7 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
             }
             return true;
         }
-        int tutorialsTabX = guidesTabX + font.width("Guides") + 20;
-        if (isOver((int) mx, (int) my, tutorialsTabX, tabY, font.width("Tutorials") + 16, TAB_H)) {
+        if (isOver((int) mx, (int) my, txs[3], tabY, font.width(tabLabels[3]) + 16, TAB_H)) {
             if (activeTab != Tab.TUTORIALS) {
                 activeTab = Tab.TUTORIALS;
                 scrollOffset = 0;
@@ -1123,8 +1134,7 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
             }
             return true;
         }
-        int settingsTabX = tutorialsTabX + font.width("Tutorials") + 20;
-        if (isOver((int) mx, (int) my, settingsTabX, tabY, font.width("⚙ Settings") + 16, TAB_H)) {
+        if (isOver((int) mx, (int) my, txs[4], tabY, font.width(tabLabels[4]) + 16, TAB_H)) {
             if (activeTab != Tab.SETTINGS) {
                 activeTab = Tab.SETTINGS;
                 scrollOffset = 0;

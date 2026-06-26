@@ -9,6 +9,7 @@ import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BeaconBlockEntity;
+import net.minecraft.world.level.block.entity.ConduitBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
@@ -210,6 +211,30 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
             var be = level.getBlockEntity(bPos);
             if (be instanceof BeaconBlockEntity beacon) forceBeaconSections(beacon, beaconWorking);
         }
+        // For conduit blocks: ConduitBlockEntity.clientTick() resets isActive every 40 ticks.
+        // Register a post-tick hook to re-force the active state after each tick.
+        for (java.util.Map.Entry<BlockPos, net.phoenixvine.phantasia.utils.PhantasiaBlockInfo> e : pattern.mergedBlockMap
+                .entrySet()) {
+            if (!e.getValue().getBlockState().is(Blocks.CONDUIT)) continue;
+            final BlockPos cPos = e.getKey();
+            final boolean conduitWorking = posWorking.getOrDefault(cPos, globalWorking);
+            level.addPostTickHook(() -> {
+                var be = level.blockEntities.get(cPos);
+                if (be == null) return;
+                forceConduitActive(be, conduitWorking);
+            });
+            // Also apply immediately.
+            var be = level.getBlockEntity(cPos);
+            if (be instanceof ConduitBlockEntity) forceConduitActive(be, conduitWorking);
+        }
+    }
+
+    private static void forceConduitActive(net.minecraft.world.level.block.entity.BlockEntity be, boolean active) {
+        try {
+            java.lang.reflect.Field f = be.getClass().getDeclaredField("isActive");
+            f.setAccessible(true);
+            f.set(be, active);
+        } catch (Exception ignored) {}
     }
 
     private static void forceBeaconSections(BeaconBlockEntity beacon, boolean active) {
@@ -401,6 +426,17 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
                     camera.scriptDrive(step.camera.yaw, step.camera.pitch, zoom, lt,
                             step.camera.lerpTicks > 0 ? step.camera.lerpTicks : 20);
                 }
+            }
+        }
+
+        // Re-apply vanilla-specific working state (beacon beam, conduit isActive) every tick.
+        // ConduitBlockEntity.clientTick() and BeaconBlockEntity.tick() reset these fields
+        // periodically; calling onSceneTick mirrors what PhantasiaSceneScreen does.
+        if (level != null && pattern != null) {
+            final int tick = sceneTick++;
+            for (PhantasiaScenePattern.PlacementEntry pe : pattern.placements) {
+                net.phoenixvine.phantasia.common.multiblock.PhantasiaMultiblockRegistry.resolve(pe.machineId)
+                        .ifPresent(def -> def.onSceneTick(level, java.util.Map.of(), tick));
             }
         }
     }

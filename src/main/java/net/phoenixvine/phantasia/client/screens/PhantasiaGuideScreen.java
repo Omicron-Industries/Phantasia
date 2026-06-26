@@ -345,9 +345,10 @@ public class PhantasiaGuideScreen extends PhantasiaScreen {
         // Content Scrollbar Calculations
         lastContentH = (y + scrollY) - (areaTop + 28);
         int areaH = areaBottom - areaTop;
-        if (lastContentH > areaH) {
+        // The content starts 28px into the area, so the true overflow is lastContentH - (areaH - 28).
+        if (lastContentH > areaH - 28) {
             int sbX = width - 5;
-            int maxSc = lastContentH - areaH;
+            int maxSc = lastContentH - (areaH - 28);
             int thumbH = Math.max(16, areaH * areaH / lastContentH);
             int thumbY = areaTop + (maxSc > 0 ? (areaH - thumbH) * scrollY / maxSc : 0);
             g.fill(sbX, areaTop, sbX + 3, areaBottom, C_SCROLL);
@@ -600,7 +601,7 @@ public class PhantasiaGuideScreen extends PhantasiaScreen {
     @Override
     public boolean mouseScrolled(double mx, double my, double delta) {
         int areaH = height - NAV_H - TOP_BAR_H;
-        int maxScroll = Math.max(0, lastContentH - areaH);
+        int maxScroll = Math.max(0, lastContentH - (areaH - 28));
         scrollY = Mth.clamp(scrollY - (int) (delta * 14), 0, maxScroll);
         return true;
     }
