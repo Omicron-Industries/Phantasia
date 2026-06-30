@@ -1,5 +1,6 @@
 package net.phoenixvine.phantasia.api;
 
+import lombok.Getter;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
@@ -49,6 +50,11 @@ import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
 @OnlyIn(Dist.CLIENT)
 public final class PhantasiaMachinePreview {
 
+    /**
+     * -- GETTER --
+     * The resolved machine definition backing this preview.
+     */
+    @Getter
     private final IPhantasiaMultiblockDefinition definition;
 
     // ── Per-widget rendering resources ────────────────────────────────────────
@@ -61,6 +67,13 @@ public final class PhantasiaMachinePreview {
 
     // ── Camera ────────────────────────────────────────────────────────────────
 
+    /**
+     * -- GETTER --
+     *  Directly access the camera if you want to set a custom angle or zoom.
+     *  The auto-spin still applies unless you call
+     * .
+     */
+    @Getter
     private final PhantasiaCamera camera;
     /** Degrees per second auto-spin. Set to 0 to disable. */
     private float autoSpinDegreesPerSecond = 20f;
@@ -69,6 +82,11 @@ public final class PhantasiaMachinePreview {
     // ── State ─────────────────────────────────────────────────────────────────
 
     private boolean ready = false;
+    /**
+     * -- GETTER --
+     *  if the pattern failed to load (machine had no shapes, etc.).
+     */
+    @Getter
     private boolean loadFailed = false;
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -91,29 +109,11 @@ public final class PhantasiaMachinePreview {
         return ready && renderer != null && renderer.isSceneReady();
     }
 
-    /** {@code true} if the pattern failed to load (machine had no shapes, etc.). */
-    public boolean isLoadFailed() {
-        return loadFailed;
-    }
-
-    /** The resolved machine definition backing this preview. */
-    public IPhantasiaMultiblockDefinition getDefinition() {
-        return definition;
-    }
-
     /**
      * Degrees per second the camera auto-spins. Default 20. Set to 0 to disable.
      */
     public void setAutoSpin(float degreesPerSecond) {
         this.autoSpinDegreesPerSecond = degreesPerSecond;
-    }
-
-    /**
-     * Directly access the camera if you want to set a custom angle or zoom.
-     * The auto-spin still applies unless you call {@code setAutoSpin(0)}.
-     */
-    public PhantasiaCamera getCamera() {
-        return camera;
     }
 
     // ─────────────────────────────────────────────────────────────────────────

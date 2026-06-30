@@ -1,5 +1,6 @@
 package net.phoenixvine.phantasia.api;
 
+import lombok.Getter;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
@@ -36,6 +37,11 @@ public final class PhantasiaEvents {
     public static abstract class ViewerEvent extends Event {
 
         private final IPhantasiaMultiblockDefinition definition;
+        /**
+         * -- GETTER --
+         * The Phantasia screen that was opened/closed.
+         */
+        @Getter
         private final Screen screen;
 
         protected ViewerEvent(IPhantasiaMultiblockDefinition definition, Screen screen) {
@@ -61,10 +67,6 @@ public final class PhantasiaEvents {
             return definition != null ? definition.getId().toString() : null;
         }
 
-        /** The Phantasia screen that was opened/closed. */
-        public Screen getScreen() {
-            return screen;
-        }
     }
 
     // ── Single-machine viewer ─────────────────────────────────────────────────
