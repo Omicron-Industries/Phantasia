@@ -16,6 +16,7 @@ import net.minecraft.world.phys.HitResult;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.registries.ForgeRegistries;
+import net.phoenixvine.phantasia.Phantasia;
 import net.phoenixvine.phantasia.client.camera.CameraView;
 import net.phoenixvine.phantasia.client.camera.LerpType;
 import net.phoenixvine.phantasia.client.camera.PhantasiaCamera;
@@ -251,6 +252,9 @@ public class PhantasiaSceneScreen extends Screen {
         }
         this.lastAppliedStep = null;
         this.playbackTick = 0;
+        // Reset machine working state so blocks are restored to inactive appearance.
+        machineWorking = false;
+        applyActiveStateToWorld(false);
         applyVisibility();
     }
 
@@ -624,9 +628,10 @@ public class PhantasiaSceneScreen extends Screen {
             if (isBlockVisible(e.getKey(), e.getValue(), step))
                 next.add(e.getValue());
         }
-        // Write correct active state into renderedBlocks before the bake reads them,
-        // same reason as the variant onChange callback.
-        applyActiveStateToWorld(machineWorking);
+        // Do NOT call applyActiveStateToWorld here — running applyWorkingState over every
+        // block position on every step change is expensive for large AE2/TFC scenes.
+        // Working state is synced by updateMachineState() (called right after this in tick())
+        // and by finishPatternSetup() on initial load.
         renderer.setVisible(next);
         renderer.requestBake();
     }
@@ -942,6 +947,8 @@ public class PhantasiaSceneScreen extends Screen {
             updateMachineState(step);
             updateCaptionForStep(step);
             applyWorldItems(step);
+            applyHighlights(step);
+            applyBlockTransitions(step);
         }
     }
 
@@ -1020,6 +1027,39 @@ public class PhantasiaSceneScreen extends Screen {
         }
     }
 
+    private void applyHighlights(PhantasiaScript.Step step) {
+        if (renderer == null) return;
+        if (step == null || step.highlights().isEmpty()) {
+            renderer.setHighlights(Collections.emptyMap());
+            return;
+        }
+        Map<BlockPos, Integer> map = new HashMap<>();
+        BlockPos origin = pattern != null ? pattern.origin : BlockPos.ZERO;
+        for (PhantasiaScript.HighlightEntry h : step.highlights()) {
+            BlockPos worldPos = h.localPos().offset(origin);
+            map.put(worldPos, h.argb());
+        }
+        renderer.setHighlights(map);
+    }
+
+    private void applyBlockTransitions(PhantasiaScript.Step step) {
+        if (renderer == null || SHARED_LEVEL == null || pattern == null) return;
+        if (step == null || step.blockTransitions().isEmpty()) return;
+        BlockPos origin = pattern.origin;
+        for (PhantasiaScript.BlockTransitionEntry t : step.blockTransitions()) {
+            BlockPos worldPos = t.localPos().offset(origin);
+            try {
+                net.minecraft.world.level.block.state.BlockState newState = net.phoenixvine.phantasia.compat.custom.PhantasiaCustomLayout
+                        .parseBlockState(t.stateString());
+                if (newState != null) renderer.applyBlockTransition(worldPos, newState);
+                else Phantasia.LOGGER.warn("[Phantasia] blockTransition unknown state '{}'", t.stateString());
+            } catch (Exception e) {
+                Phantasia.LOGGER.warn("[Phantasia] blockTransition bad state '{}': {}", t.stateString(),
+                        e.getMessage());
+            }
+        }
+    }
+
     /**
      * Writes the ACTIVE block state property to the controller AND all coil blocks
      * in SHARED_LEVEL. Called whenever the working state changes or when coil types
@@ -1031,7 +1071,10 @@ public class PhantasiaSceneScreen extends Screen {
     public void applyActiveStateToWorld(boolean working) {
         if (SHARED_LEVEL == null || pattern == null) return;
         definition.applyWorkingState(SHARED_LEVEL, pattern.blockMap.keySet(), pattern.blockMap, working);
-        if (renderer != null) renderer.requestBake();
+        if (renderer != null) {
+            renderer.flushTransitions();
+            renderer.requestBake();
+        }
     }
 
     private void updateMachineState(PhantasiaScript.Step step) {
@@ -2006,6 +2049,8 @@ public class PhantasiaSceneScreen extends Screen {
             updateCaptionForStep(step);
             applyVisibility();
             applyWorldItems(step);
+            applyHighlights(step);
+            // Transitions are not applied on scrub — scrub snaps directly to final state.
             // Always re-evaluate active states on scrub — machineWorking may be stale
             // if the user jumped over a working→idle transition without the tick loop firing.
             boolean working = step != null && step.working() && playbackTick < script.getTotalTicks();

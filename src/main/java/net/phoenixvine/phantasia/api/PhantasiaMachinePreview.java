@@ -1,10 +1,11 @@
 package net.phoenixvine.phantasia.api;
 
-import lombok.Getter;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.block.EntityBlock;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.phoenixvine.phantasia.client.camera.CameraView;
@@ -20,9 +21,12 @@ import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockShape;
 import net.phoenixvine.phantasia.utils.PhantasiaBlockInfo;
 
 import com.mojang.blaze3d.systems.RenderSystem;
+import lombok.Getter;
 
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
@@ -69,8 +73,8 @@ public final class PhantasiaMachinePreview {
 
     /**
      * -- GETTER --
-     *  Directly access the camera if you want to set a custom angle or zoom.
-     *  The auto-spin still applies unless you call
+     * Directly access the camera if you want to set a custom angle or zoom.
+     * The auto-spin still applies unless you call
      * .
      */
     @Getter
@@ -84,7 +88,7 @@ public final class PhantasiaMachinePreview {
     private boolean ready = false;
     /**
      * -- GETTER --
-     *  if the pattern failed to load (machine had no shapes, etc.).
+     * if the pattern failed to load (machine had no shapes, etc.).
      */
     @Getter
     private boolean loadFailed = false;
@@ -283,6 +287,28 @@ public final class PhantasiaMachinePreview {
             script = PhantasiaScripts.get(definition);
         } catch (Exception ignored) {}
 
+        IPhantasiaMultiblockShape shape = shapes.get(0);
+
+        // PhantasiaSceneScreen picks sync-vs-async by block count (see its own loadPattern());
+        // this widget used to *always* go through the async PhantasiaPatternLoader regardless of
+        // size, which meant every embedded preview - no matter how small the structure - resolved
+        // block states off the render thread. That's fine for most blocks, but at least some
+        // integrations (observed with GTCEu multiblocks) apparently aren't safe to resolve there
+        // and the load simply never completed, even for a trivial ~30-block structure that loads
+        // instantly through PhantasiaSceneScreen's own sync path. Mirror that same threshold here
+        // so small structures - the common case for a quest-icon-sized preview - load
+        // synchronously and immediately, and only genuinely large ones pay for the async path.
+        int blockCount = countBlocks(shape.getBlocks());
+        if (blockCount <= PhantasiaWorldRenderer.STREAMING_THRESHOLD) {
+            try {
+                PhantasiaLoadedPattern pat = loadPatternSync(shape, script);
+                onPatternLoaded(pat);
+            } catch (Exception e) {
+                loadFailed = true;
+            }
+            return;
+        }
+
         final PhantasiaScript finalScript = script;
         final List<IPhantasiaMultiblockShape> finalShapes = shapes;
 
@@ -290,6 +316,105 @@ public final class PhantasiaMachinePreview {
             if (closed) return;
             onPatternLoaded(pat);
         });
+    }
+
+    private static int countBlocks(PhantasiaBlockInfo[][][] raw) {
+        int n = 0;
+        for (PhantasiaBlockInfo[][] layer : raw)
+            for (PhantasiaBlockInfo[] row : layer)
+                for (PhantasiaBlockInfo b : row) {
+                    if (b == null) continue;
+                    BlockState s = b.getBlockState();
+                    if (s == null || s.isAir() || s.getRenderShape() == net.minecraft.world.level.block.RenderShape.INVISIBLE)
+                        continue;
+                    n++;
+                }
+        return n;
+    }
+
+    /**
+     * Synchronous load path for small structures, mirroring
+     * {@code PhantasiaSceneScreen.loadPatternCold()} - writes blocks directly to this widget's
+     * own {@link #world} on the calling thread instead of handing block-state resolution off to
+     * the background pattern-loader thread.
+     */
+    private PhantasiaLoadedPattern loadPatternSync(IPhantasiaMultiblockShape shape, PhantasiaScript script) {
+        BlockPos renderOrigin = new BlockPos(8, 50, 8);
+        PhantasiaBlockInfo[][][] raw = shape.getBlocks();
+
+        Map<BlockPos, PhantasiaBlockInfo> blockMap = new HashMap<>();
+        Map<BlockPos, BlockPos> localToWorld = new HashMap<>();
+        Set<BlockPos> baseplatePos = new HashSet<>();
+        Set<BlockPos> bePos = new HashSet<>();
+
+        var baseplateState = net.phoenixvine.phantasia.utils.PhantasiaTheme.currentBaseplateBlockState();
+        PhantasiaBlockInfo floor = baseplateState != null ? PhantasiaBlockInfo.fromBlockState(baseplateState) : null;
+        int sxLen = raw.length;
+        int szLen = sxLen > 0 && raw[0].length > 0 ? raw[0][0].length : 0;
+        int padX = Math.max(2, sxLen / 2 + 1);
+        int padZ = Math.max(2, szLen / 2 + 1);
+
+        if (floor != null) {
+            for (int bx = -padX; bx < sxLen + padX; bx++) {
+                for (int bz = -padZ; bz < szLen + padZ; bz++) {
+                    BlockPos wp = renderOrigin.offset(bx, -1, bz);
+                    blockMap.put(wp, floor);
+                    baseplatePos.add(wp);
+                    world.setBlock(wp, floor.getBlockState(), 3);
+                }
+            }
+        }
+
+        for (int x = 0; x < raw.length; x++) {
+            for (int y = 0; y < raw[x].length; y++) {
+                for (int z = 0; z < raw[x][y].length; z++) {
+                    PhantasiaBlockInfo info = raw[x][y][z];
+                    if (info == null) continue;
+
+                    BlockState state = info.getBlockState();
+                    if (state == null || state.isAir() ||
+                            state.getRenderShape() == net.minecraft.world.level.block.RenderShape.INVISIBLE)
+                        continue;
+
+                    BlockPos lp = new BlockPos(x, y, z);
+                    BlockPos wp = renderOrigin.offset(x, y, z);
+
+                    blockMap.put(wp, info);
+                    localToWorld.put(lp, wp);
+
+                    world.setBlock(wp, state, 3);
+
+                    if (state.getBlock() instanceof EntityBlock entityBlock) {
+                        var be = entityBlock.newBlockEntity(wp, state);
+                        if (be != null) {
+                            be.setLevel(world);
+                            world.setInnerBlockEntity(be);
+                            bePos.add(wp);
+                        }
+                    }
+                }
+            }
+        }
+
+        int minY = Integer.MAX_VALUE, maxY = Integer.MIN_VALUE;
+        for (BlockPos lp : localToWorld.keySet()) {
+            minY = Math.min(minY, lp.getY());
+            maxY = Math.max(maxY, lp.getY());
+        }
+        if (minY > maxY) {
+            minY = 0;
+            maxY = 0;
+        }
+
+        PhantasiaLoadedPattern result = new PhantasiaLoadedPattern(blockMap, localToWorld, baseplatePos, null, bePos,
+                renderOrigin, minY, maxY, script);
+
+        Map<BlockPos, PhantasiaBlockInfo> blockMapSnapshot = Map.copyOf(blockMap);
+        Map<BlockPos, BlockPos> localToWorldSnapshot = Map.copyOf(localToWorld);
+        RenderSystem.recordRenderCall(
+                () -> definition.onShapeLoaded(world, renderOrigin, blockMapSnapshot, localToWorldSnapshot));
+
+        return result;
     }
 
     private void onPatternLoaded(PhantasiaLoadedPattern pat) {

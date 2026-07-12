@@ -1,11 +1,12 @@
 package net.phoenixvine.phantasia.api;
 
-import lombok.Getter;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.eventbus.api.Event;
 import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockDefinition;
+
+import lombok.Getter;
 
 import javax.annotation.Nullable;
 
@@ -66,7 +67,6 @@ public final class PhantasiaEvents {
         public String getMachineId() {
             return definition != null ? definition.getId().toString() : null;
         }
-
     }
 
     // ── Single-machine viewer ─────────────────────────────────────────────────

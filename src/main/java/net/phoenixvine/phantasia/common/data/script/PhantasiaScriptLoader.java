@@ -122,15 +122,17 @@ public class PhantasiaScriptLoader {
             if (!Files.exists(path)) {
                 writeDefaultScript(def, machineId, path);
             } else {
-                // Overwrite if the on-disk script has no steps but the default provides some —
-                // this upgrades old generated files without touching user-authored scripts that already have steps.
+                // Overwrite only if the file looks like an empty stub (< 300 bytes) and the default has steps.
+                // Avoids reading every script file on every world join — the full read is expensive at scale.
                 PhantasiaScriptData defaultData = def.getDefaultScriptData();
                 if (defaultData != null && !defaultData.getSteps().isEmpty()) {
                     try {
-                        PhantasiaScriptData onDisk = PhantasiaScriptData
-                                .fromJson(Files.newBufferedReader(path, java.nio.charset.StandardCharsets.UTF_8));
-                        if (onDisk.getSteps().isEmpty()) {
-                            writeDefaultScript(def, machineId, path);
+                        if (Files.size(path) < 300) {
+                            PhantasiaScriptData onDisk = PhantasiaScriptData
+                                    .fromJson(Files.newBufferedReader(path, java.nio.charset.StandardCharsets.UTF_8));
+                            if (onDisk.getSteps().isEmpty()) {
+                                writeDefaultScript(def, machineId, path);
+                            }
                         }
                     } catch (Exception ignored) {}
                 }

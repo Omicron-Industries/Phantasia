@@ -288,6 +288,23 @@ public class PhantasiaScriptData {
         @SerializedName("mistakes")
         public List<MistakeData> mistakes = new ArrayList<>();
 
+        /**
+         * Block highlights shown during this step. Each entry highlights a local-space
+         * position with a colored outline + translucent fill. Color defaults to warm yellow
+         * if omitted. Format: {@code {"x":1,"y":1,"z":0}} or with {@code "color":"#FF4400"}.
+         */
+        @SerializedName("highlights")
+        public List<HighlightData> highlights = new ArrayList<>();
+
+        /**
+         * Block state transitions applied when this step becomes active.
+         * Each entry swaps a block at local-space coords to a new block state and
+         * fades it in over the renderer's default alpha-step duration.
+         * Format: {@code {"x":1,"y":1,"z":0,"state":"minecraft:furnace[lit=true]"}}.
+         */
+        @SerializedName("blockTransitions")
+        public List<BlockTransitionData> blockTransitions = new ArrayList<>();
+
         public StepData() {}
 
         public StepData(int tick, String caption) {
@@ -314,7 +331,81 @@ public class PhantasiaScriptData {
             for (int[] p : hidePositions) c.hidePositions.add(new int[] { p[0], p[1], p[2] });
             for (WorldItemEntry wi : worldItems) c.worldItems.add(wi.copy());
             for (MistakeData m : mistakes) c.mistakes.add(new MistakeData(m.x, m.y, m.z, m.label, m.color));
+            for (HighlightData h : highlights) c.highlights.add(h.copy());
+            for (BlockTransitionData bt : blockTransitions) c.blockTransitions.add(bt.copy());
             return c;
+        }
+    }
+
+    @Getter
+    public static class HighlightData {
+
+        @SerializedName("x")
+        public int x = 0;
+        @SerializedName("y")
+        public int y = 0;
+        @SerializedName("z")
+        public int z = 0;
+        /** Hex color string: "#RRGGBB" or "RRGGBB". Null = default warm yellow (#FFCC44). */
+        @SerializedName("color")
+        public String color = null;
+
+        public HighlightData() {}
+
+        public HighlightData(int x, int y, int z) {
+            this.x = x;
+            this.y = y;
+            this.z = z;
+        }
+
+        public HighlightData(int x, int y, int z, String color) {
+            this.x = x;
+            this.y = y;
+            this.z = z;
+            this.color = color;
+        }
+
+        /** Returns packed ARGB with alpha fixed at ~80% (0xCC). */
+        public int argb() {
+            if (color == null || color.isBlank()) return 0xCCFFCC44;
+            try {
+                String c = color.startsWith("#") ? color.substring(1) : color;
+                int rgb = (int) Long.parseLong(c, 16);
+                return 0xCC000000 | (rgb & 0xFFFFFF);
+            } catch (NumberFormatException e) {
+                return 0xCCFFCC44;
+            }
+        }
+
+        public HighlightData copy() {
+            return new HighlightData(x, y, z, color);
+        }
+    }
+
+    @Getter
+    public static class BlockTransitionData {
+
+        @SerializedName("x")
+        public int x = 0;
+        @SerializedName("y")
+        public int y = 0;
+        @SerializedName("z")
+        public int z = 0;
+        /** Full block state string, e.g. {@code "minecraft:furnace[lit=true,facing=north]"}. */
+        @SerializedName("state")
+        public String state = "";
+
+        public BlockTransitionData() {}
+
+        public BlockTransitionData(int x, int y, int z, String state) {
+            this.x = x;
+            this.y = y;
+            this.z = z;
+            this.state = state;
+        }
+
+        public BlockTransitionData copy() {
+            return new BlockTransitionData(x, y, z, state);
         }
     }
 

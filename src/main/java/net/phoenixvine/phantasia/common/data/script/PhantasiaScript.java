@@ -20,6 +20,12 @@ import javax.annotation.Nullable;
 @Getter
 public class PhantasiaScript {
 
+    /** A block position to highlight with a colored outline + fill during a step. */
+    public record HighlightEntry(BlockPos localPos, int argb) {}
+
+    /** A block state transition to apply when a step becomes active. */
+    public record BlockTransitionEntry(BlockPos localPos, String stateString) {}
+
     public record Step(
                        int tickOffset,
                        String caption,
@@ -38,7 +44,9 @@ public class PhantasiaScript {
                        @Nullable String hold,
                        int layerCount,
                        List<PhantasiaScriptData.WorldItemEntry> worldItems,
-                       List<LocalWarning> mistakes) {
+                       List<LocalWarning> mistakes,
+                       List<HighlightEntry> highlights,
+                       List<BlockTransitionEntry> blockTransitions) {
 
         public boolean hasCamera() {
             return useCam;
@@ -191,13 +199,23 @@ public class PhantasiaScript {
         for (PhantasiaScriptData.MistakeData md : sd.mistakes)
             mistakes.add(new LocalWarning(new BlockPos(md.x, md.y, md.z), md.label, md.colorArgb()));
 
+        List<HighlightEntry> highlights = new ArrayList<>();
+        for (PhantasiaScriptData.HighlightData hd : sd.highlights)
+            highlights.add(new HighlightEntry(new BlockPos(hd.x, hd.y, hd.z), hd.argb()));
+
+        List<BlockTransitionEntry> transitions = new ArrayList<>();
+        for (PhantasiaScriptData.BlockTransitionData td : sd.blockTransitions)
+            transitions.add(new BlockTransitionEntry(new BlockPos(td.x, td.y, td.z), td.state));
+
         return new Step(sd.tick, sd.caption, filter,
                 sd.working, -1, -1,
                 yaw, pitch, zoom, useCam, lerpType, lerpTicks,
                 sd.fakeRecipeId, Collections.unmodifiableList(new ArrayList<>(particleFx)),
                 sd.hold, sd.layerCount,
                 Collections.unmodifiableList(new ArrayList<>(sd.worldItems)),
-                Collections.unmodifiableList(mistakes));
+                Collections.unmodifiableList(mistakes),
+                Collections.unmodifiableList(highlights),
+                Collections.unmodifiableList(transitions));
     }
 
     private static Predicate<BlockPos> buildShowPredicate(PhantasiaScriptData.StepData sd) {

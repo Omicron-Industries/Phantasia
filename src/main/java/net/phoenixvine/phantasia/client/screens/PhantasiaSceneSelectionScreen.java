@@ -26,6 +26,8 @@ import net.phoenixvine.phantasia.common.data.script.PhantasiaScripts;
 import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockDefinition;
 import net.phoenixvine.phantasia.configs.PhantasiaConfigs;
 
+import org.jetbrains.annotations.Nullable;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -242,12 +244,18 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
         g.drawString(font, label, x + 8, y + 4, act ? C_ACCENT() : C_DIM(), false);
     }
 
-    private java.util.List<String> getModNamespaces() {
-        java.util.LinkedHashSet<String> ns = new java.util.LinkedHashSet<>();
-        for (IPhantasiaMultiblockDefinition def : PHANTASIA_SCENES) {
-            ns.add(def.getId().getNamespace());
+    @Nullable
+    private List<String> cachedModNamespaces;
+
+    private List<String> getModNamespaces() {
+        if (cachedModNamespaces == null) {
+            java.util.LinkedHashSet<String> ns = new java.util.LinkedHashSet<>();
+            for (IPhantasiaMultiblockDefinition def : PHANTASIA_SCENES) {
+                ns.add(def.getId().getNamespace());
+            }
+            cachedModNamespaces = new java.util.ArrayList<>(ns);
         }
-        return new java.util.ArrayList<>(ns);
+        return cachedModNamespaces;
     }
 
     private void renderModFilterPills(GuiGraphics g, int mx, int my) {
@@ -257,38 +265,42 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
         int totalGridW = COLS * CARD_W + (COLS - 1) * CARD_PAD;
         int gridStartX = (this.width - totalGridW) / 2;
 
-        // Find the widest pill to create a uniform, clean sidebar width
         int maxW = font.width("All") + 12;
         for (String ns : namespaces) {
             maxW = Math.max(maxW, font.width(formatModName(ns)) + 12);
         }
 
-        // Anchor to the left of the grid; skip rendering if there's no room.
         int startX = gridStartX - maxW - 12;
         if (startX < 2) return;
         int py = HEADER_H + SEARCH_H + 6;
+        // Reserve space for the footer and a potential "▼" overflow indicator.
+        int maxPy = this.height - FOOTER_H - 18;
 
         // "All" pill
         String allLabel = "All";
         boolean allSel = modFilter == null;
         boolean allHov = isOver(mx, my, startX, py, maxW, 12);
-
         g.fill(startX, py, startX + maxW, py + 12, allSel ? C_BTN_ACT() : (allHov ? C_BTN_HOV() : C_BTN()));
         if (allSel) g.fill(startX, py, startX + 2, py + 12, C_ACCENT());
         g.drawString(font, allLabel, startX + 6, py + 2, allSel ? C_ACCENT() : C_TEXT(), false);
-
         py += 16;
 
+        int hidden = 0;
         for (String ns : namespaces) {
+            if (py > maxPy) {
+                hidden++;
+                continue;
+            }
             String label = formatModName(ns);
             boolean sel = ns.equals(modFilter);
             boolean hov = isOver(mx, my, startX, py, maxW, 12);
-
             g.fill(startX, py, startX + maxW, py + 12, sel ? C_BTN_ACT() : (hov ? C_BTN_HOV() : C_BTN()));
             if (sel) g.fill(startX, py, startX + 2, py + 12, C_ACCENT());
             g.drawString(font, label, startX + 6, py + 2, sel ? C_ACCENT() : C_TEXT(), false);
-
             py += 16;
+        }
+        if (hidden > 0) {
+            g.drawCenteredString(font, "▼ +" + hidden, startX + maxW / 2, py + 2, C_DIM());
         }
     }
 
@@ -307,18 +319,18 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
         int startX = gridStartX - maxW - 12;
         if (startX < 2) return false;
         int py = HEADER_H + SEARCH_H + 6;
+        int maxPy = this.height - FOOTER_H - 18;
 
-        // "All" pill
         if (isOver(mx, my, startX, py, maxW, 12)) {
             modFilter = null;
             scrollOffset = 0;
             updateFilteredList();
             return true;
         }
-
         py += 16;
 
         for (String ns : namespaces) {
+            if (py > maxPy) break;
             if (isOver(mx, my, startX, py, maxW, 12)) {
                 modFilter = ns.equals(modFilter) ? null : ns;
                 scrollOffset = 0;

@@ -48,6 +48,16 @@ public class PhantasiaClient {
         public static void onRegisterClientCommands(RegisterClientCommandsEvent event) {
             event.getDispatcher().register(
                     Commands.literal("phantasia")
+                            .then(Commands.literal("editor")
+                                    .executes(context -> {
+                                        Minecraft.getInstance().tell(() -> {
+                                            if (net.phoenixvine.phantasia.Phantasia.CUSTOM_PROVIDER == null) return;
+                                            Minecraft.getInstance().setScreen(
+                                                    new net.phoenixvine.phantasia.client.screens.editors.PhantasiaCustomEditorScreen(
+                                                            net.phoenixvine.phantasia.Phantasia.CUSTOM_PROVIDER, null));
+                                        });
+                                        return 1;
+                                    }))
                             .then(Commands.literal("theme")
                                     .executes(context -> {
                                         Minecraft.getInstance().tell(() -> {
@@ -88,6 +98,8 @@ public class PhantasiaClient {
     @SubscribeEvent
     public static void onClientSetup(final FMLClientSetupEvent event) {
         event.enqueueWork(() -> {
+            if (net.phoenixvine.phantasia.Phantasia.CUSTOM_PROVIDER != null)
+                net.phoenixvine.phantasia.Phantasia.CUSTOM_PROVIDER.reload();
             PhantasiaScriptLoader.discoverAndLoad();
             PhantasiaSceneLoader.load();
             PhantasiaGuideLoader.load();

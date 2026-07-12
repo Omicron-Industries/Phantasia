@@ -111,6 +111,26 @@ public final class PhantasiaWorldRenderer {
         return ByteBuffer.allocateDirect(bytes).order(ByteOrder.nativeOrder());
     }
 
+    // ── GameRenderer camera field (cached once to avoid per-frame getDeclaredFields) ──
+    @Nullable
+    private static java.lang.reflect.Field GAME_RENDERER_CAMERA_FIELD = null;
+    private static boolean GAME_RENDERER_CAMERA_FIELD_RESOLVED = false;
+
+    private static java.lang.reflect.Field resolveGameRendererCameraField() {
+        if (GAME_RENDERER_CAMERA_FIELD_RESOLVED) return GAME_RENDERER_CAMERA_FIELD;
+        GAME_RENDERER_CAMERA_FIELD_RESOLVED = true;
+        try {
+            for (java.lang.reflect.Field f : Minecraft.getInstance().gameRenderer.getClass().getDeclaredFields()) {
+                if (f.getType() == Camera.class) {
+                    f.setAccessible(true);
+                    GAME_RENDERER_CAMERA_FIELD = f;
+                    break;
+                }
+            }
+        } catch (Throwable ignored) {}
+        return GAME_RENDERER_CAMERA_FIELD;
+    }
+
     // ── MethodHandle reflection ───────────────────────────────────────────────
     // Used to call clientTick() on GTCEu MetaMachines without hard-coding GTCEu API.
 
@@ -254,6 +274,9 @@ public final class PhantasiaWorldRenderer {
     private final PhantasiaTrackedDummyWorld world;
     @Nullable
     private BlockPos controllerWorldPos = null;
+
+    // ── Highlights ────────────────────────────────────────────────────────────
+    private Map<BlockPos, Integer> activeHighlights = Collections.emptyMap();
     private BlockPos slotOrigin = BlockPos.ZERO;
     private final PhantasiaCameraEntity cameraEntity;
     private final Camera camera;
@@ -425,10 +448,50 @@ public final class PhantasiaWorldRenderer {
         this.guiMouseY = my;
     }
 
+    /** Replace the set of highlighted positions. Pass an empty map to clear all highlights. */
+    public void setHighlights(Map<BlockPos, Integer> highlights) {
+        this.activeHighlights = (highlights == null || highlights.isEmpty()) ? Collections.emptyMap() :
+                Map.copyOf(highlights);
+    }
+
+    /**
+     * Apply a block state transition: immediately swap the block at {@code worldPos} to
+     * {@code newState} in the dummy world and fade the new geometry in over the renderer's
+     * default alpha-step duration. A full rebake is scheduled to fire after the fade completes.
+     */
+    public void applyBlockTransition(BlockPos worldPos, BlockState newState) {
+        world.setVariantOverride(worldPos, newState);
+        BlockRenderDispatcher brd = Minecraft.getInstance().getBlockRenderer();
+        RandomSource random = RandomSource.createNewThreadLocalInstance();
+        List<RenderType> layers = new ArrayList<>(2);
+        for (RenderType layer : LAYERS) {
+            if (canRenderInLayer(brd, newState, worldPos, world, layer, random)) {
+                layers.add(layer);
+                break;
+            }
+        }
+        blockAlpha.putIfAbsent(worldPos, 0f);
+        blockLayers.put(worldPos, layers);
+        hasTransitions = true;
+        fullBakeNeeded = true;
+    }
+
     // ── Public API: bake control ──────────────────────────────────────────────
 
     public void requestBake() {
         fullBakeNeeded = true;
+    }
+
+    /**
+     * Snaps all in-progress fade-in transitions to fully opaque so the next
+     * {@link #requestBake()} fires immediately instead of waiting for animations
+     * to complete. Call this before {@code requestBake()} when block states change
+     * wholesale (e.g. working-state machine forming).
+     */
+    public void flushTransitions() {
+        if (blockAlpha.isEmpty()) return;
+        blockAlpha.replaceAll((pos, alpha) -> 1.0f);
+        hasTransitions = false;
     }
 
     public void requestPartialBake(Set<BlockPos> changedPositions) {
@@ -569,19 +632,13 @@ public final class PhantasiaWorldRenderer {
         totalSetupTimeNs += (System.nanoTime() - t0);
 
         // Swap main camera to prevent player zoom leakage into dynamic/billboarding renderers.
-        // Many renderers look at mc.gameRenderer.getMainCamera() — we locate it purely by type
-        // (Camera.class) to stay independent of obfuscation/mappings.
+        // Field is resolved once via resolveGameRendererCameraField() and cached statically.
         Camera originalCamera = null;
-        java.lang.reflect.Field cameraField = null;
+        java.lang.reflect.Field cameraField = resolveGameRendererCameraField();
         try {
-            for (java.lang.reflect.Field f : mc.gameRenderer.getClass().getDeclaredFields()) {
-                if (f.getType() == Camera.class) {
-                    f.setAccessible(true);
-                    cameraField = f;
-                    originalCamera = (Camera) f.get(mc.gameRenderer);
-                    f.set(mc.gameRenderer, this.camera);
-                    break;
-                }
+            if (cameraField != null) {
+                originalCamera = (Camera) cameraField.get(mc.gameRenderer);
+                cameraField.set(mc.gameRenderer, this.camera);
             }
         } catch (Throwable ignored) {}
 
@@ -589,6 +646,7 @@ public final class PhantasiaWorldRenderer {
             // ── PHASE 2: STATIC VBO GEOMETRY DRAW ──
             long t1 = System.nanoTime();
             drawVBOs();
+            if (!activeHighlights.isEmpty()) drawHighlights();
 
             // Draw fading blocks while transitioning AND while blocks are still at alpha=1
             // waiting for the bake to complete. swapFullBuffers() clears the 1.0 entries.
@@ -689,7 +747,7 @@ public final class PhantasiaWorldRenderer {
 
             // ── PHASE 5: RAY TRACE PICK PASS ──
             long t4 = System.nanoTime();
-            final long SAMPLE_INTERVAL_MS = 16;
+            final long SAMPLE_INTERVAL_MS = 33;
             long currentSystemTime = System.currentTimeMillis();
 
             if (currentSystemTime - lastTraceTime > SAMPLE_INTERVAL_MS || cachedPickResult == null) {
@@ -763,6 +821,7 @@ public final class PhantasiaWorldRenderer {
             back[i] = tmp;
         }
         frontTileEntities = backTileEntities != null ? backTileEntities : Collections.emptySet();
+        LOGGER.info("[Phantasia] swapFullBuffers: frontTileEntities.size={}", frontTileEntities.size());
         animatedPositions = backAnimatedPositions != null ? backAnimatedPositions : Collections.emptySet();
         PhantasiaSpriteMarker.invalidateCache();
         frontHasContent = true;
@@ -979,6 +1038,109 @@ public final class PhantasiaWorldRenderer {
         }
     }
 
+    private void drawHighlights() {
+        double ox = slotOrigin != null ? slotOrigin.getX() : 0.0;
+        double oy = slotOrigin != null ? slotOrigin.getY() : 0.0;
+        double oz = slotOrigin != null ? slotOrigin.getZ() : 0.0;
+
+        RenderSystem.enableDepthTest();
+        RenderSystem.enableBlend();
+        RenderSystem.blendFunc(com.mojang.blaze3d.platform.GlStateManager.SourceFactor.SRC_ALPHA,
+                com.mojang.blaze3d.platform.GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
+        RenderSystem.depthMask(false);
+
+        // ── Fill pass (translucent quads) ──
+        RenderSystem.setShader(net.minecraft.client.renderer.GameRenderer::getPositionColorShader);
+        com.mojang.blaze3d.vertex.Tesselator tess = com.mojang.blaze3d.vertex.Tesselator.getInstance();
+        com.mojang.blaze3d.vertex.BufferBuilder bb = tess.getBuilder();
+        bb.begin(com.mojang.blaze3d.vertex.VertexFormat.Mode.QUADS,
+                com.mojang.blaze3d.vertex.DefaultVertexFormat.POSITION_COLOR);
+
+        for (Map.Entry<BlockPos, Integer> entry : activeHighlights.entrySet()) {
+            BlockPos pos = entry.getKey();
+            int argb = entry.getValue();
+            float a = ((argb >> 24) & 0xFF) / 255f * 0.22f;
+            float r = ((argb >> 16) & 0xFF) / 255f;
+            float g = ((argb >> 8) & 0xFF) / 255f;
+            float b = (argb & 0xFF) / 255f;
+
+            BlockState state = world.getBlockState(pos);
+            net.minecraft.world.phys.shapes.VoxelShape shape = state.isAir() ?
+                    net.minecraft.world.phys.shapes.Shapes.block() : state.getShape(world, pos);
+            if (shape.isEmpty()) shape = net.minecraft.world.phys.shapes.Shapes.block();
+            net.minecraft.world.phys.AABB box = shape.bounds().inflate(0.003);
+
+            double x0 = pos.getX() - ox + box.minX, y0 = pos.getY() - oy + box.minY, z0 = pos.getZ() - oz + box.minZ;
+            double x1 = pos.getX() - ox + box.maxX, y1 = pos.getY() - oy + box.maxY, z1 = pos.getZ() - oz + box.maxZ;
+            addFilledBox(bb, x0, y0, z0, x1, y1, z1, r, g, b, a);
+        }
+        tess.end();
+
+        // ── Outline pass (line box) ──
+        MultiBufferSource.BufferSource buffers = Minecraft.getInstance().renderBuffers().bufferSource();
+        PoseStack ps = new PoseStack();
+        for (Map.Entry<BlockPos, Integer> entry : activeHighlights.entrySet()) {
+            BlockPos pos = entry.getKey();
+            int argb = entry.getValue();
+            float r = ((argb >> 16) & 0xFF) / 255f;
+            float g = ((argb >> 8) & 0xFF) / 255f;
+            float b = (argb & 0xFF) / 255f;
+
+            BlockState state = world.getBlockState(pos);
+            net.minecraft.world.phys.shapes.VoxelShape shape = state.isAir() ?
+                    net.minecraft.world.phys.shapes.Shapes.block() : state.getShape(world, pos);
+            if (shape.isEmpty()) shape = net.minecraft.world.phys.shapes.Shapes.block();
+            net.minecraft.world.phys.AABB box = shape.bounds().inflate(0.003);
+
+            ps.pushPose();
+            ps.translate(pos.getX() - ox, pos.getY() - oy, pos.getZ() - oz);
+            net.minecraft.client.renderer.LevelRenderer.renderLineBox(
+                    ps, buffers.getBuffer(RenderType.lines()), box, r, g, b, 1.0f);
+            ps.popPose();
+        }
+        buffers.endBatch(RenderType.lines());
+
+        RenderSystem.depthMask(true);
+        RenderSystem.disableBlend();
+    }
+
+    private static void addFilledBox(com.mojang.blaze3d.vertex.BufferBuilder bb,
+                                     double x0, double y0, double z0,
+                                     double x1, double y1, double z1,
+                                     float r, float g, float b, float a) {
+        int ri = (int) (r * 255), gi = (int) (g * 255), bi = (int) (b * 255), ai = (int) (a * 255);
+        // -Y
+        bb.vertex(x0, y0, z0).color(ri, gi, bi, ai).endVertex();
+        bb.vertex(x1, y0, z0).color(ri, gi, bi, ai).endVertex();
+        bb.vertex(x1, y0, z1).color(ri, gi, bi, ai).endVertex();
+        bb.vertex(x0, y0, z1).color(ri, gi, bi, ai).endVertex();
+        // +Y
+        bb.vertex(x0, y1, z0).color(ri, gi, bi, ai).endVertex();
+        bb.vertex(x0, y1, z1).color(ri, gi, bi, ai).endVertex();
+        bb.vertex(x1, y1, z1).color(ri, gi, bi, ai).endVertex();
+        bb.vertex(x1, y1, z0).color(ri, gi, bi, ai).endVertex();
+        // -Z
+        bb.vertex(x1, y0, z0).color(ri, gi, bi, ai).endVertex();
+        bb.vertex(x0, y0, z0).color(ri, gi, bi, ai).endVertex();
+        bb.vertex(x0, y1, z0).color(ri, gi, bi, ai).endVertex();
+        bb.vertex(x1, y1, z0).color(ri, gi, bi, ai).endVertex();
+        // +Z
+        bb.vertex(x0, y0, z1).color(ri, gi, bi, ai).endVertex();
+        bb.vertex(x1, y0, z1).color(ri, gi, bi, ai).endVertex();
+        bb.vertex(x1, y1, z1).color(ri, gi, bi, ai).endVertex();
+        bb.vertex(x0, y1, z1).color(ri, gi, bi, ai).endVertex();
+        // -X
+        bb.vertex(x0, y0, z0).color(ri, gi, bi, ai).endVertex();
+        bb.vertex(x0, y0, z1).color(ri, gi, bi, ai).endVertex();
+        bb.vertex(x0, y1, z1).color(ri, gi, bi, ai).endVertex();
+        bb.vertex(x0, y1, z0).color(ri, gi, bi, ai).endVertex();
+        // +X
+        bb.vertex(x1, y0, z1).color(ri, gi, bi, ai).endVertex();
+        bb.vertex(x1, y0, z0).color(ri, gi, bi, ai).endVertex();
+        bb.vertex(x1, y1, z0).color(ri, gi, bi, ai).endVertex();
+        bb.vertex(x1, y1, z1).color(ri, gi, bi, ai).endVertex();
+    }
+
     private void drawTileEntities(PoseStack poseStack, MultiBufferSource.BufferSource buffers, float partial,
                                   float camX, float camY, float camZ) {
         // Apply beacon/conduit state immediately before any BER renders. This catches freshly-created
@@ -988,6 +1150,11 @@ public final class PhantasiaWorldRenderer {
         Minecraft mc = Minecraft.getInstance();
         var dispatcher = mc.getBlockEntityRenderDispatcher();
         int count = 0;
+
+        if (frontHasContent && frontTileEntities.isEmpty()) {
+            LOGGER.warn("[Phantasia] drawTileEntities: frontTileEntities is empty after bake (targetVisible.size={})",
+                    targetVisible.size());
+        }
 
         for (BlockPos pos : frontTileEntities) {
             if (!targetVisible.contains(pos) && !baseplatePositions.contains(pos)) continue;
@@ -1007,38 +1174,13 @@ public final class PhantasiaWorldRenderer {
 
             count++;
             long berStart = System.nanoTime();
-            // Debug: log beacon/conduit state before BER render.
-            if (be instanceof net.minecraft.world.level.block.entity.BeaconBlockEntity beacon) {
-                LOGGER.info("[Phantasia-BER] Rendering beacon at {} beamSections={} id={}", pos,
-                        beacon.getBeamSections().size(), System.identityHashCode(beacon));
-            } else if (be instanceof net.minecraft.world.level.block.entity.ConduitBlockEntity) {
-                try {
-                    java.lang.reflect.Field f = null;
-                    for (Class<?> cls = be.getClass(); cls != null; cls = cls.getSuperclass()) {
-                        for (java.lang.reflect.Field ff : cls.getDeclaredFields()) {
-                            if (ff.getType() == boolean.class &&
-                                    ff.getName().toLowerCase(java.util.Locale.ROOT).contains("active")) {
-                                f = ff;
-                                break;
-                            }
-                        }
-                        if (f != null) break;
-                    }
-                    if (f != null) {
-                        f.setAccessible(true);
-                        LOGGER.info("[Phantasia-BER] Rendering conduit at {} isActive={} field={}", pos, f.get(be),
-                                f.getName());
-                    } else LOGGER.info("[Phantasia-BER] Rendering conduit at {} (no active field found)", pos);
-                } catch (Exception ex) {
-                    LOGGER.info("[Phantasia-BER] Rendering conduit at {} (reflection err: {})", pos, ex.getMessage());
-                }
-            }
             try {
                 ber.render(be, partial, poseStack, buffers, 15728880, OverlayTexture.NO_OVERLAY);
                 frameBerCount++;
                 if (tickedThisFrame) driveClientTick(be);
             } catch (Exception e) {
-                LOGGER.warn("[Phantasia] BE render error at {}: {}", pos, e.getMessage());
+                LOGGER.warn("[Phantasia] BE render error at {} ({}): {}", pos, be.getClass().getSimpleName(),
+                        e.toString());
             }
             totalBerRenderTimeNs += (System.nanoTime() - berStart);
 

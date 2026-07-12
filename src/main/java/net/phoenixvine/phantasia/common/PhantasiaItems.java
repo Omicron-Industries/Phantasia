@@ -7,6 +7,7 @@ import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
 import net.phoenixvine.phantasia.Phantasia;
 import net.phoenixvine.phantasia.common.item.PhantasiaManualItem;
+import net.phoenixvine.phantasia.common.item.PhantasiaWandItem;
 
 public final class PhantasiaItems {
 
@@ -16,6 +17,9 @@ public final class PhantasiaItems {
 
     public static final RegistryObject<PhantasiaManualItem> PHANTASIA_MANUAL = ITEMS.register("phantasia_manual",
             () -> new PhantasiaManualItem(new Item.Properties().stacksTo(1)));
+
+    public static final RegistryObject<PhantasiaWandItem> CAPTURE_WAND = ITEMS.register("capture_wand",
+            () -> new PhantasiaWandItem(new Item.Properties().stacksTo(1)));
 
     public static void register(IEventBus bus) {
         ITEMS.register(bus);

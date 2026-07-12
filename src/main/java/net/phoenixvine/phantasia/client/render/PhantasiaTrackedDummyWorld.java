@@ -94,6 +94,18 @@ public class PhantasiaTrackedDummyWorld extends PhantasiaDummyWorld {
         return created;
     }
 
+    /**
+     * LDLib's WorldSceneRendererImpl.getModelData() calls getExistingBlockEntity() to retrieve per-block
+     * ModelData (e.g. IE's SUBMODEL_OFFSET for basic_split OBJ sliced models). The base Level
+     * implementation routes through the chunk system and returns null in a dummy world, so we
+     * override here to delegate to our blockEntities map, ensuring model data is always reachable.
+     */
+    @Override
+    @Nullable
+    public BlockEntity getExistingBlockEntity(@Nonnull BlockPos pos) {
+        return getBlockEntity(pos);
+    }
+
     @Override
     public BlockState getBlockState(@Nonnull BlockPos pos) {
         if (renderFilter != null && !renderFilter.test(pos)) return Blocks.AIR.defaultBlockState();

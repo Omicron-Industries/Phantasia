@@ -33,8 +33,19 @@ repositories {
         url = 'https://maven.gtceu.com'
         content {
             includeGroup 'com.gregtechceu.gtceu'
+        }
+    }
+    maven {
+        name = 'ModMaven (AE2)'
+        url = 'https://modmaven.dev'
+        content {
             includeGroup 'appeng'
         }
+    }
+    maven {
+        name = "Modrinth"
+        url = "https://api.modrinth.com/maven"
+        content { includeGroup "maven.modrinth" }
     }
     maven {
         name = "TerraformersMC"
@@ -65,6 +76,9 @@ repositories {
     }
     maven {
         url = "https://thedarkcolour.github.io/KotlinForForge/"
+    }
+    flatDir {
+        dir 'libs'
     }
     maven {
         url "https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/"
@@ -148,6 +162,8 @@ dependencies {
     modImplementation("dev.emi:emi-forge:${emi_version}+${minecraft_version}")
     modRuntimeOnly("curse.maven:jade-324717:5390389")
 
+    modImplementation 'local:spritekit-1.0-SNAPSHOT'
+
     // GregTech and dependencies
     modCompileOnly("com.gregtechceu.gtceu:gtceu-${minecraft_version}:${gtceu_version}:slim") { transitive = false }
     modRuntimeOnly("com.gregtechceu.gtceu:gtceu-${minecraft_version}:${gtceu_version}:slim") { transitive = false }
@@ -155,6 +171,38 @@ dependencies {
 
     modCompileOnly("curse.maven:ars-nouveau-401955:${ars_nouveau_file_id}") { transitive = false }
     modRuntimeOnly("curse.maven:ars-nouveau-401955:${ars_nouveau_file_id}") { transitive = false }
+
+    modCompileOnly("curse.maven:immersive-engineering-231951:${ie_file_id}") { transitive = false }
+    modRuntimeOnly("curse.maven:immersive-engineering-231951:${ie_file_id}") { transitive = false }
+
+    modCompileOnly("curse.maven:applied-energistics-2-223794:7148487") { transitive = false }
+    modRuntimeOnly("curse.maven:applied-energistics-2-223794:7148487") { transitive = false }
+
+    modCompileOnly("curse.maven:terrafirmacraft-302973:${tfc_file_id}") { transitive = false }
+    modRuntimeOnly("curse.maven:terrafirmacraft-302973:${tfc_file_id}") { transitive = false }
+
+    modCompileOnly("curse.maven:extended-ae-892005:${eae_file_id}") { transitive = false }
+    modRuntimeOnly("curse.maven:extended-ae-892005:${eae_file_id}") { transitive = false }
+
+    modCompileOnly("curse.maven:glodium-957920:5226922") { transitive = false }
+    modRuntimeOnly("curse.maven:glodium-957920:5226922") { transitive = false }
+
+    modCompileOnly("maven.modrinth:advancedae:${aae_version}") { transitive = false }
+    modRuntimeOnly("maven.modrinth:advancedae:${aae_version}") { transitive = false }
+
+    modCompileOnly("curse.maven:immersive-petroleum-268250:7512547") { transitive = false }
+    modRuntimeOnly("curse.maven:immersive-petroleum-268250:7512547") { transitive = false }
+
+    modCompileOnly("curse.maven:create-328085:${create_file_id}") { transitive = false }
+    modRuntimeOnly("curse.maven:create-328085:${create_file_id}") { transitive = false }
+
+
+    modCompileOnly("curse.maven:guideme-1173950:7127447")
+    modRuntimeOnly("curse.maven:guideme-1173950:7127447")
+
+
+    modCompileOnly("curse.maven:patchouli-306770:7731017")
+    modRuntimeOnly("curse.maven:patchouli-306770:7731017")
 
     modCompileOnly "software.bernie.geckolib:geckolib-neoforge-1.20.1:${geckolib_version}"
     modRuntimeOnly "software.bernie.geckolib:geckolib-neoforge-1.20.1:${geckolib_version}"

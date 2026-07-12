@@ -39,7 +39,7 @@ public class PhantasiaThemeEditorScreen extends Screen {
     private record ThemeSnapshot(String bg, String panel, String accent, String btn, String btnHov, String text,
                                  String dim, String prog, String hilight, String baseplateBlock, String name) {}
 
-    private record CategoryHeader(String title, int x, int y) {}
+    private record CategoryHeader(String title, int x, int y, int width) {}
 
     private record UndoEntry(
                              UndoType type,
@@ -77,19 +77,20 @@ public class PhantasiaThemeEditorScreen extends Screen {
             pendingAction = null;
         }
 
-        int sidebarWidth = Math.max(175, this.width / 4);
-        int startX = this.width - sidebarWidth + 5;
-        int startY = 38;
+        int sidebarWidth = Math.max(185, this.width / 4);
+        int startX = this.width - sidebarWidth + 8;
+        int startY = 44;
         int rowHeight = (this.height > 360) ? 20 : 17;
+        int boxWidth = sidebarWidth - 92; // leave room for swatch (18px) + label (66px) + padding
 
-        categories.add(new CategoryHeader("■ Base Layers", startX + 5, startY));
-        startY += 12;
-        addSettingField("BG Color", active.bg, startX, startY, sidebarWidth - 75);
+        categories.add(new CategoryHeader("Base Layers", startX, startY, sidebarWidth - 16));
+        startY += 14;
+        addSettingField("BG Color", active.bg, startX, startY, boxWidth);
         startY += rowHeight;
-        addSettingField("Panel Color", active.panel, startX, startY, sidebarWidth - 75);
+        addSettingField("Panel Color", active.panel, startX, startY, boxWidth);
         startY += rowHeight;
 
-        baseplateBox = new EditBox(this.font, startX + 65, startY, sidebarWidth - 75, 16,
+        baseplateBox = new EditBox(this.font, startX + 72, startY, boxWidth, 16,
                 Component.translatable("screen.phantasia.theme_editor.label_baseplate"));
         baseplateBox.setMaxLength(128);
         baseplateBox.setValue(active.baseplateBlock != null ? active.baseplateBlock : "minecraft:deepslate_bricks");
@@ -100,43 +101,44 @@ public class PhantasiaThemeEditorScreen extends Screen {
             confirmWarningActive = false;
         });
         this.addWidget(baseplateBox);
-        startY += rowHeight + 6;
+        startY += rowHeight + 8;
 
-        categories.add(new CategoryHeader("■ Typography System", startX + 5, startY));
-        startY += 12;
-        addSettingField("Text Color", active.text, startX, startY, sidebarWidth - 75);
+        categories.add(new CategoryHeader("Typography", startX, startY, sidebarWidth - 16));
+        startY += 14;
+        addSettingField("Text Color", active.text, startX, startY, boxWidth);
         startY += rowHeight;
-        addSettingField("Dim Color", active.dim, startX, startY, sidebarWidth - 75);
-        startY += rowHeight + 6;
+        addSettingField("Dim Color", active.dim, startX, startY, boxWidth);
+        startY += rowHeight + 8;
 
-        categories.add(new CategoryHeader("■ Accent & Buttons", startX + 5, startY));
-        startY += 12;
-        addSettingField("Accent", active.accent, startX, startY, sidebarWidth - 75);
+        categories.add(new CategoryHeader("Accent & Buttons", startX, startY, sidebarWidth - 16));
+        startY += 14;
+        addSettingField("Accent", active.accent, startX, startY, boxWidth);
         startY += rowHeight;
-        addSettingField("Btn Color", active.btn, startX, startY, sidebarWidth - 75);
+        addSettingField("Btn Color", active.btn, startX, startY, boxWidth);
         startY += rowHeight;
-        addSettingField("Btn Hover", active.btnHov, startX, startY, sidebarWidth - 75);
-        startY += rowHeight + 6;
+        addSettingField("Btn Hover", active.btnHov, startX, startY, boxWidth);
+        startY += rowHeight + 8;
 
-        categories.add(new CategoryHeader("■ Feedback Indicators", startX + 5, startY));
-        startY += 12;
-        addSettingField("Progress", active.prog, startX, startY, sidebarWidth - 75);
+        categories.add(new CategoryHeader("Feedback", startX, startY, sidebarWidth - 16));
+        startY += 14;
+        addSettingField("Progress", active.prog, startX, startY, boxWidth);
         startY += rowHeight;
-        addSettingField("Highlight", active.hilight, startX, startY, sidebarWidth - 75);
+        addSettingField("Highlight", active.hilight, startX, startY, boxWidth);
 
-        int controlY = Math.max(startY + 22, this.height - 65);
-        this.nameInput = new EditBox(this.font, this.width - sidebarWidth + 10, controlY, sidebarWidth - 20, 16,
+        int controlY = Math.max(startY + 24, this.height - 68);
+        this.nameInput = new EditBox(this.font, this.width - sidebarWidth + 8, controlY, sidebarWidth - 16, 16,
                 Component.literal(Component.translatable("screen.phantasia.theme_editor.label_theme_id").getString()));
         this.nameInput.setValue(currentName);
         this.nameInput.setResponder(str -> confirmWarningActive = false);
         this.addWidget(this.nameInput);
 
-        int btnW = sidebarWidth - 20;
-        int btnX = this.width - sidebarWidth + 10;
+        int btnW = (sidebarWidth - 20) / 2 - 2;
+        int btnX1 = this.width - sidebarWidth + 8;
+        int btnX2 = btnX1 + btnW + 4;
 
         this.addRenderableWidget(Button
                 .builder(Component.translatable("screen.phantasia.theme_editor.btn_save"), b -> triggerSaveAction())
-                .bounds(btnX, controlY + 20, btnW, 18).build());
+                .bounds(btnX1, controlY + 20, btnW, 18).build());
 
         this.addRenderableWidget(Button.builder(
                 Component.literal(Component.translatable("screen.phantasia.theme_editor.btn_exit").getString()), b -> {
@@ -148,23 +150,22 @@ public class PhantasiaThemeEditorScreen extends Screen {
                         }
                         restoreSnapshot(savedSnapshot);
                     }
-                    this.onClose(); // Route exit cleanly through lifecycle cleanup
-                }).bounds(btnX, controlY + 40, btnW, 18).build());
+                    this.onClose();
+                }).bounds(btnX2, controlY + 20, btnW, 18).build());
     }
 
     private void addSettingField(String label, PhantasiaTheme.ThemeColor target, int x, int y, int boxWidth) {
-        EditBox box = new EditBox(this.font, x + 65, y, boxWidth, 16, Component.literal(label));
+        // swatch (14px) + gap (4px) = 18px offset before box; label is drawn at render time
+        EditBox box = new EditBox(this.font, x + 88, y, boxWidth, 16, Component.literal(label));
         box.setMaxLength(16);
         box.setValue(target.getHex());
         box.setResponder(str -> {
-            if (!isUndoing) {
-                pushUndoSnapshot();
-            }
+            if (!isUndoing) pushUndoSnapshot();
             target.set(str);
             confirmWarningActive = false;
         });
         this.addWidget(box);
-        this.editBoxes.add(new EditBoxWrapper(label, box));
+        this.editBoxes.add(new EditBoxWrapper(label, box, target));
     }
 
     private String getBoxValue(String label, String fallback) {
@@ -319,104 +320,148 @@ public class PhantasiaThemeEditorScreen extends Screen {
 
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTicks) {
-        int sidebarWidth = Math.max(175, this.width / 4);
+        int sidebarWidth = Math.max(185, this.width / 4);
+        int splitX = this.width - sidebarWidth;
 
-        g.fill(0, 0, this.width, this.height, PhantasiaThemeUtils.C_BG());
-        g.fill(this.width - sidebarWidth, 0, this.width, this.height, PhantasiaThemeUtils.C_PANEL());
-        PhantasiaThemeUtils.drawBorderRect(g, this.width - sidebarWidth, 0, 1, this.height,
-                PhantasiaThemeUtils.C_BORDER());
+        // Left panel background
+        g.fill(0, 0, splitX, this.height, PhantasiaThemeUtils.C_BG());
+        // Sidebar background
+        g.fill(splitX, 0, this.width, this.height, PhantasiaThemeUtils.C_PANEL());
+        // Divider accent line
+        g.fill(splitX, 0, splitX + 1, this.height, PhantasiaThemeUtils.C_ACCENT());
 
-        g.drawString(this.font, "🎨 Theme Options", this.width - sidebarWidth + 10, 10, PhantasiaThemeUtils.C_ACCENT(),
-                false);
+        // Sidebar header bar
+        g.fill(splitX, 0, this.width, 34, C_BTN_ACT());
+        g.fill(splitX, 33, this.width, 34, C_ACCENT());
+        g.drawString(this.font, "Theme Editor", splitX + 8, 6, C_ACCENT(), false);
 
+        // Status / unsaved indicator
         if (confirmWarningActive) {
-            g.drawString(this.font, "⚠ Click again to lose modifications!", this.width - sidebarWidth + 10, 22,
-                    PhantasiaThemeUtils.C_WARN(), false);
+            g.fill(splitX, 18, this.width, 33, 0x33FF2200);
+            g.drawString(this.font, "Click again to discard!", splitX + 8, 21, C_WARN(), false);
         } else if (hasUnsavedChanges()) {
-            g.drawString(this.font, "● Active: " + PhantasiaTheme.getActiveName() + " (Unsaved)",
-                    this.width - sidebarWidth + 10, 22, PhantasiaThemeUtils.C_WARN(), false);
+            g.drawString(this.font, "● " + PhantasiaTheme.getActiveName() + " (unsaved)",
+                    splitX + 8, 21, C_WARN(), false);
         } else {
-            g.drawString(this.font, "○ Active: " + PhantasiaTheme.getActiveName(), this.width - sidebarWidth + 10, 22,
-                    PhantasiaThemeUtils.C_TEXT(), false);
+            g.drawString(this.font, "○ " + PhantasiaTheme.getActiveName(),
+                    splitX + 8, 21, C_DIM(), false);
         }
 
-        for (CategoryHeader header : categories) {
-            g.drawString(this.font, header.title, header.x, header.y, PhantasiaThemeUtils.C_ACCENT(), false);
+        // Category section headers — filled strip + underline
+        for (CategoryHeader hdr : categories) {
+            g.fill(hdr.x - 4, hdr.y - 1, hdr.x + hdr.width, hdr.y + 10, 0x22FFFFFF);
+            g.fill(hdr.x - 4, hdr.y + 9, hdr.x + hdr.width, hdr.y + 10, C_ACCENT());
+            g.drawString(this.font, hdr.title, hdr.x, hdr.y, C_ACCENT(), false);
         }
 
+        // Color fields: label + swatch + box
         for (EditBoxWrapper wrapper : editBoxes) {
-            g.drawString(this.font, wrapper.label, wrapper.box.getX() - 62, wrapper.box.getY() + 4,
-                    PhantasiaThemeUtils.C_TEXT(), false);
+            int lx = wrapper.box.getX() - 84; // = startX + 4 (label left-edge)
+            int ly = wrapper.box.getY() + 4;
+            g.drawString(this.font, wrapper.label, lx, ly, C_TEXT(), false);
+
+            // Live color swatch
+            int swatchRaw = parseHexSafe(wrapper.box.getValue());
+            int sx = wrapper.box.getX() - 18;
+            int sy = wrapper.box.getY();
+            g.fill(sx - 1, sy - 1, sx + 15, sy + 17, C_BORDER()); // border
+            g.fill(sx, sy, sx + 14, sy + 16, swatchRaw | 0xFF000000);
+
             wrapper.box.render(g, mouseX, mouseY, partialTicks);
         }
+
         if (baseplateBox != null) {
-            g.drawString(this.font, "Baseplate", baseplateBox.getX() - 62, baseplateBox.getY() + 4,
-                    PhantasiaThemeUtils.C_TEXT(), false);
+            g.drawString(this.font, "Baseplate", baseplateBox.getX() - 68, baseplateBox.getY() + 4, C_TEXT(), false);
             baseplateBox.render(g, mouseX, mouseY, partialTicks);
         }
-        this.nameInput.render(g, mouseX, mouseY, partialTicks);
+
+        // Theme ID label + input
+        if (nameInput != null) {
+            g.drawString(this.font, "Theme ID", nameInput.getX(), nameInput.getY() - 10, C_DIM(), false);
+            nameInput.render(g, mouseX, mouseY, partialTicks);
+        }
 
         renderPreviewArea(g, mouseX, mouseY);
         super.render(g, mouseX, mouseY, partialTicks);
+
+        // Keyboard hint at very bottom of sidebar
+        g.drawString(this.font, "Ctrl+S Save   Ctrl+Z Undo",
+                splitX + 8, this.height - 10, C_DIM(), false);
     }
 
     private void renderPreviewArea(GuiGraphics g, int mouseX, int mouseY) {
-        int sidebarWidth = Math.max(175, this.width / 4);
+        int sidebarWidth = Math.max(185, this.width / 4);
         int leftW = this.width - sidebarWidth - 10;
 
-        String animText = "✨ Animations: NONE, TRANSPARENT, RAINBOW, PASTEL_RAINBOW, GALAXY, AURORA, MAGMA";
-        int availableTextWidth = leftW - 20;
-        List<net.minecraft.util.FormattedCharSequence> lines = this.font.split(Component.literal(animText),
-                availableTextWidth);
-
-        int animY = 12;
-        for (net.minecraft.util.FormattedCharSequence line : lines) {
-            g.drawString(this.font, line, 15, animY, 0xFFFFFF44, false);
+        // Animation hint line
+        String animText = "Animations: NONE  TRANSPARENT  RAINBOW  PASTEL_RAINBOW  GALAXY  AURORA  MAGMA";
+        List<net.minecraft.util.FormattedCharSequence> lines = this.font.split(Component.literal(animText), leftW - 20);
+        int animY = 10;
+        for (var line : lines) {
+            g.drawString(this.font, line, 12, animY, 0xFF888844, false);
             animY += 10;
         }
 
-        int pTop = Math.max(28, animY + 4);
+        int pTop = Math.max(28, animY + 6);
         lastPreviewPTop = pTop;
-        int pHeight = (this.height > 360) ? 80 : 60;
-        g.fill(15, pTop, leftW, pTop + pHeight, PhantasiaThemeUtils.C_PANEL());
-        PhantasiaThemeUtils.drawBorderRect(g, 15, pTop, leftW - 15, pHeight, PhantasiaThemeUtils.C_BORDER());
+        int pHeight = (this.height > 360) ? 90 : 64;
 
-        g.drawString(this.font, "📊 Active System Context Panel", 25, pTop + 8, PhantasiaThemeUtils.C_TEXT(), false);
-        g.drawString(this.font, "Secondary descriptive line text goes here...", 25, pTop + 22,
-                PhantasiaThemeUtils.C_DIM(), false);
+        // System panel preview
+        g.fill(12, pTop, leftW, pTop + pHeight, C_PANEL());
+        PhantasiaThemeUtils.drawBorderRect(g, 12, pTop, leftW - 12, pHeight, C_BORDER());
+        g.drawString(this.font, "System Context Panel", 22, pTop + 7, C_TEXT(), false);
+        g.drawString(this.font, "Secondary descriptive text goes here...", 22, pTop + 19, C_DIM(), false);
 
-        int barW = leftW - 40;
-        int barY = pTop + pHeight - 18;
+        // Color chip row — live preview of all theme colors in miniature
+        int chipX = 22;
+        int chipY = pTop + 32;
+        int[] chips = { C_BG(), C_PANEL(), C_ACCENT(), C_BTN(), C_BTN_HOV(), C_TEXT(), C_DIM(), C_PROG(), C_HILIGHT() };
+        String[] chipTips = { "BG", "Panel", "Accent", "Btn", "Hov", "Text", "Dim", "Prog", "Hi" };
+        for (int ci = 0; ci < chips.length; ci++) {
+            g.fill(chipX - 1, chipY - 1, chipX + 13, chipY + 13, C_BORDER());
+            g.fill(chipX, chipY, chipX + 12, chipY + 12, chips[ci]);
+            if (mouseX >= chipX && mouseX < chipX + 12 && mouseY >= chipY && mouseY < chipY + 12)
+                g.drawString(this.font, chipTips[ci], chipX, chipY + 14, C_DIM(), false);
+            chipX += 16;
+        }
+
+        // Progress bar
+        int barW = leftW - 34;
+        int barY = pTop + pHeight - 14;
         if (barW > 20) {
-            g.fill(25, barY, 25 + barW, barY + 10, PhantasiaThemeUtils.C_BG());
-            int fillProgress = (int) ((System.currentTimeMillis() / 20) % barW);
-            g.fill(25, barY, 25 + fillProgress, barY + 10, PhantasiaThemeUtils.C_PROG());
-            PhantasiaThemeUtils.drawBorderRect(g, 25, barY, barW, 10, PhantasiaThemeUtils.C_BORDER());
+            g.fill(22, barY, 22 + barW, barY + 8, C_BG());
+            int fill = (int) ((System.currentTimeMillis() / 20) % barW);
+            g.fill(22, barY, 22 + fill, barY + 8, C_PROG());
+            PhantasiaThemeUtils.drawBorderRect(g, 22, barY, barW, 8, C_BORDER());
         }
 
+        // Component tests section
         int btnTitleY = pTop + pHeight + 10;
-        g.drawString(this.font, "Interactive Component Tests", 15, btnTitleY, PhantasiaThemeUtils.C_ACCENT(), false);
+        g.drawString(this.font, "Components", 12, btnTitleY, C_ACCENT(), false);
 
-        int btnY = btnTitleY + 14;
-        int singleBtnW = Math.min(120, (leftW - 25) / 2);
-
+        int btnY = btnTitleY + 13;
+        int singleBtnW = Math.min(110, (leftW - 30) / 3);
         if (singleBtnW > 10) {
-            boolean hovBtn1 = mouseX >= 15 && mouseX <= 15 + singleBtnW && mouseY >= btnY && mouseY <= btnY + 20;
-            PhantasiaThemeUtils.drawThemedBtn(g, this.font, 15, btnY, singleBtnW, 20, "Button", hovBtn1,
-                    PhantasiaThemeUtils.C_BTN());
-
-            boolean hovBtn2 = mouseX >= 25 + singleBtnW && mouseX <= 25 + (singleBtnW * 2) && mouseY >= btnY &&
-                    mouseY <= btnY + 20;
-            PhantasiaThemeUtils.drawIconBtn(g, this.font, 25 + singleBtnW, btnY, singleBtnW, 20, "⭐", "Icon", hovBtn2,
-                    PhantasiaThemeUtils.C_BTN());
+            boolean h1 = mouseX >= 12 && mouseX <= 12 + singleBtnW && mouseY >= btnY && mouseY <= btnY + 18;
+            boolean h2 = mouseX >= 16 + singleBtnW && mouseX <= 16 + singleBtnW * 2 && mouseY >= btnY &&
+                    mouseY <= btnY + 18;
+            boolean h3 = mouseX >= 20 + singleBtnW * 2 && mouseX <= 20 + singleBtnW * 3 && mouseY >= btnY &&
+                    mouseY <= btnY + 18;
+            PhantasiaThemeUtils.drawThemedBtn(g, this.font, 12, btnY, singleBtnW, 18, "Primary", h1, C_BTN());
+            PhantasiaThemeUtils.drawIconBtn(g, this.font, 16 + singleBtnW, btnY, singleBtnW, 18, "*", "Icon", h2,
+                    C_BTN());
+            PhantasiaThemeUtils.drawThemedBtn(g, this.font, 20 + singleBtnW * 2, btnY, singleBtnW, 18, "Accent", h3,
+                    C_ACCENT());
         }
 
+        // Theme list
         int listTitleY = btnY + 28;
-        g.drawString(this.font, "📁 Available Themes (Click to Swap)", 15, listTitleY, PhantasiaThemeUtils.C_TEXT(),
-                false);
+        g.drawString(this.font, "Available Themes", 12, listTitleY, C_TEXT(), false);
+        g.drawString(this.font, "click to swap", 12 + this.font.width("Available Themes") + 8,
+                listTitleY, C_DIM(), false);
 
         int itemY = listTitleY + 14;
-        List<String> registryNames = getVisibleRegistryNames(); // Dynamic filtered state view
+        List<String> registryNames = getVisibleRegistryNames();
 
         int maxVisibleThemes = Math.max(1, (this.height - itemY - 15) / 16);
         int maxScroll = Math.max(0, registryNames.size() - maxVisibleThemes);
@@ -425,37 +470,44 @@ public class PhantasiaThemeEditorScreen extends Screen {
         for (int i = scrollOffset; i < registryNames.size() && itemY < this.height - 15; i++) {
             String registeredName = registryNames.get(i);
             boolean isSelected = registeredName.equals(PhantasiaTheme.getActiveName());
-            boolean isHovered = mouseX >= 15 && mouseX <= leftW && mouseY >= itemY && mouseY <= itemY + 14;
+            boolean isHovered = mouseX >= 12 && mouseX <= leftW && mouseY >= itemY && mouseY <= itemY + 14;
 
-            int displayColor = isSelected ? PhantasiaThemeUtils.C_HILIGHT() :
-                    (isHovered ? PhantasiaThemeUtils.C_ACCENT() : PhantasiaThemeUtils.C_TEXT());
-            g.fill(15, itemY, leftW, itemY + 14, isSelected ? PhantasiaThemeUtils.C_BTN_ACT() :
-                    (isHovered ? PhantasiaThemeUtils.C_BTN_HOV() : PhantasiaThemeUtils.C_PANEL()));
-            PhantasiaThemeUtils.drawBorderRect(g, 15, itemY, leftW - 15, 14, PhantasiaThemeUtils.C_BORDER());
+            int rowBg = isSelected ? C_BTN_ACT() : isHovered ? C_BTN_HOV() : C_PANEL();
+            int textCol = isSelected ? C_HILIGHT() : isHovered ? C_ACCENT() : C_TEXT();
+            g.fill(12, itemY, leftW, itemY + 14, rowBg);
+            PhantasiaThemeUtils.drawBorderRect(g, 12, itemY, leftW - 12, 14, C_BORDER());
 
-            g.drawString(this.font, (isSelected ? "● " : "○ ") + registeredName, 22, itemY + 3, displayColor, false);
+            // Small accent dot from that theme
+            PhantasiaTheme theme = PhantasiaTheme.REGISTRY.get(registeredName);
+            if (theme != null) {
+                g.fill(17, itemY + 3, 25, itemY + 11, theme.accent());
+            }
+
+            g.drawString(this.font, (isSelected ? "● " : "○ ") + registeredName, 28, itemY + 3, textCol, false);
 
             if (!PhantasiaTheme.isBuiltIn(registeredName)) {
                 int dX = leftW - 14;
                 int dY = itemY + 1;
-                boolean isDeleteHovered = mouseX >= dX && mouseX <= dX + 12 && mouseY >= dY && mouseY <= dY + 12;
-                g.drawString(this.font, "✕", dX + 2, dY + 2, isDeleteHovered ? 0xFFFF5555 : 0x88FF5555, false);
+                boolean delHov = mouseX >= dX && mouseX <= dX + 12 && mouseY >= dY && mouseY <= dY + 12;
+                g.drawString(this.font, "x", dX + 2, dY + 2, delHov ? 0xFFFF5555 : 0x66FF5555, false);
             }
-
             itemY += 16;
         }
+
+        if (maxScroll > 0)
+            g.drawString(this.font, "scroll", leftW - 36, listTitleY, C_DIM(), false);
     }
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (button == 0) {
-            int sidebarWidth = Math.max(175, this.width / 4);
+            int sidebarWidth = Math.max(185, this.width / 4);
             int leftW = this.width - sidebarWidth - 10;
 
             int pTop = lastPreviewPTop;
-            int pHeight = (this.height > 360) ? 80 : 60;
+            int pHeight = (this.height > 360) ? 90 : 64;
             int btnTitleY = pTop + pHeight + 10;
-            int btnY = btnTitleY + 14;
+            int btnY = btnTitleY + 13;
             int listTitleY = btnY + 28;
             int itemY = listTitleY + 14;
 
@@ -483,7 +535,7 @@ public class PhantasiaThemeEditorScreen extends Screen {
                         }
                     }
 
-                    if (mouseX >= 15 && mouseX <= leftW - 16) {
+                    if (mouseX >= 12 && mouseX <= leftW - 16) {
                         if (hasUnsavedChanges()) {
                             if (!confirmWarningActive || !targetTheme.equals(pendingAction)) {
                                 confirmWarningActive = true;
@@ -507,13 +559,13 @@ public class PhantasiaThemeEditorScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double delta) {
-        int sidebarWidth = Math.max(175, this.width / 4);
+        int sidebarWidth = Math.max(185, this.width / 4);
         if (mouseX < this.width - sidebarWidth - 5) {
             List<String> registryNames = getVisibleRegistryNames();
             int pTop = lastPreviewPTop;
-            int pHeight = (this.height > 360) ? 80 : 60;
+            int pHeight = (this.height > 360) ? 90 : 64;
             int btnTitleY = pTop + pHeight + 10;
-            int btnY = btnTitleY + 14;
+            int btnY = btnTitleY + 13;
             int listTitleY = btnY + 28;
             int itemY = listTitleY + 14;
 
@@ -537,5 +589,16 @@ public class PhantasiaThemeEditorScreen extends Screen {
         Minecraft.getInstance().setScreen(this.parent);
     }
 
-    private record EditBoxWrapper(String label, EditBox box) {}
+    private record EditBoxWrapper(String label, EditBox box, PhantasiaTheme.ThemeColor color) {}
+
+    private static int parseHexSafe(String hex) {
+        if (hex == null || hex.isBlank()) return 0x000000;
+        String clean = hex.replaceAll("[^0-9A-Fa-f]", "");
+        if (clean.length() < 6) return 0x000000;
+        try {
+            return (int) (Long.parseLong(clean.substring(0, 6), 16) & 0xFFFFFFFFL);
+        } catch (NumberFormatException e) {
+            return 0x000000;
+        }
+    }
 }
