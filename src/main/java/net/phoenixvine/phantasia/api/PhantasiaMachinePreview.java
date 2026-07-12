@@ -188,14 +188,26 @@ public final class PhantasiaMachinePreview {
             return;
         }
 
-        if (!isReady()) {
+        if (renderer == null) {
+            // Pattern hasn't loaded at all yet (still async, or sync load hasn't run this
+            // constructor call yet) - nothing to drive.
             renderLoadingSpinner(g, x, y, w, h);
             return;
         }
 
-        // 3-D render
+        // Always drive the renderer once it exists, even before isReady() - isSceneReady()
+        // reports whether the *previous* bake finished, but the bake itself only actually runs
+        // inside render() (see requestBake()'s fullBakeNeeded flag, processed at the top of
+        // PhantasiaWorldRenderer.render()). Gating this call behind isReady() meant the bake this
+        // widget is waiting on would never run in the first place - a permanent "Loading..."
+        // regardless of how fast the pattern itself loaded.
         CameraView view = camera.getView(partialTick);
         renderer.render(view, x, y, w, h);
+
+        if (!isReady()) {
+            renderLoadingSpinner(g, x, y, w, h);
+            return;
+        }
 
         // Subtle "click to view" hint at the bottom
         var font = Minecraft.getInstance().font;
@@ -220,12 +232,15 @@ public final class PhantasiaMachinePreview {
         g.fill(x + w - 1, y, x + w, y + h, C_ACCENT());
 
         if (loadFailed) return;
-        if (!isReady()) {
+        if (renderer == null) {
             renderLoadingSpinner(g, x, y, w, h);
             return;
         }
         CameraView view = camera.getView(partialTick);
         renderer.render(view, x, y, w, h);
+        if (!isReady()) {
+            renderLoadingSpinner(g, x, y, w, h);
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -325,7 +340,8 @@ public final class PhantasiaMachinePreview {
                 for (PhantasiaBlockInfo b : row) {
                     if (b == null) continue;
                     BlockState s = b.getBlockState();
-                    if (s == null || s.isAir() || s.getRenderShape() == net.minecraft.world.level.block.RenderShape.INVISIBLE)
+                    if (s == null || s.isAir() ||
+                            s.getRenderShape() == net.minecraft.world.level.block.RenderShape.INVISIBLE)
                         continue;
                     n++;
                 }

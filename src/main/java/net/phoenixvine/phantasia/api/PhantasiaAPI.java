@@ -206,4 +206,22 @@ public final class PhantasiaAPI {
     public static PhantasiaMachinePreview createPreview(IPhantasiaMultiblockDefinition definition) {
         return new PhantasiaMachinePreview(definition);
     }
+
+    /**
+     * Creates a self-contained 3-D preview widget for an entire multi-machine scene - the scene
+     * analog of {@link #createPreview(String)}. Renders a single static composite of every
+     * placement's default shape (no steps/camera keyframes/item overlays - see
+     * {@link PhantasiaScenePreview}'s class doc for what's intentionally out of scope).
+     *
+     * @param sceneId scene identifier as declared in the scene JSON, e.g. {@code "phoenixvine:ore_line"}
+     * @return a new preview widget, or {@code null} if the scene id is unknown
+     */
+    public static PhantasiaScenePreview createScenePreview(String sceneId) {
+        PhantasiaSceneData scene = PhantasiaScenes.get(sceneId);
+        if (scene == null) {
+            LOGGER.warn("[PhantasiaAPI] createScenePreview: unknown scene id '{}' — returning null.", sceneId);
+            return null;
+        }
+        return new PhantasiaScenePreview(scene);
+    }
 }
