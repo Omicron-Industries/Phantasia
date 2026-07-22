@@ -20,6 +20,39 @@ export class MinecraftAssets {
 
   setTextureLoader(loader) { this._loader = loader; }
 
+  // ── Prefetch ───────────────────────────────────────────────────────────────
+
+  /**
+   * Fire-and-forget: fetches all blockstates + their model chains in parallel so
+   * subsequent buildBlock calls hit the JSON cache instead of making serial HTTP requests.
+   * @param {Array<{block: string, props?: object}>} blockList
+   */
+  async prefetchBlocks(blockList) {
+    // Collect unique block IDs
+    const unique = [...new Set(blockList.map(b => b.block))];
+
+    // Phase 1: fetch all blockstates in parallel
+    const bsResults = await Promise.all(unique.map(async id => {
+      const [ns, blockId] = id.includes(':') ? id.split(':') : ['minecraft', id];
+      const bs = await this.blockstate(ns, blockId);
+      return { ns, blockId, bs };
+    }));
+
+    // Phase 2: collect all model paths and fetch models in parallel
+    const modelPaths = new Set();
+    for (const { ns, bs } of bsResults) {
+      if (!bs) continue;
+      const variants = this.resolveVariants(bs, {});
+      for (const v of variants) {
+        if (v.modelPath) modelPaths.add(`${ns}|${v.modelPath}`);
+      }
+    }
+    await Promise.all([...modelPaths].map(async key => {
+      const [ns, path] = key.split('|');
+      try { await this.resolveModel(ns, path); } catch { /* ignore */ }
+    }));
+  }
+
   // ── JSON helpers ───────────────────────────────────────────────────────────
 
   async fetchJson(path) {

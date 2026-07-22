@@ -163,24 +163,23 @@ function applyVisibility(visible) {
     const key = `${pos.x},${pos.y},${pos.z}`;
     mesh.visible = !visible || isBaseplate || visible.has(key);
   }
+  invalidateRaycastCache();
 }
 
 // ── Scene building ─────────────────────────────────────────────────────────
 
 async function buildScene() {
-  // Clear existing block meshes
   for (const { mesh } of blockMeshes) scene.remove(mesh);
   blockMeshes = [];
+  invalidateRaycastCache();
 
   if (!patternData) return;
 
-  // Build neighbor lookup: "x,y,z" → block type string (for CTM)
   const posTypeMap = new Map();
   for (const b of patternData) posTypeMap.set(`${b.x},${b.y},${b.z}`, b.block);
 
-  // Compute bounds for centering
-  let minY = Infinity, maxY = -Infinity;
   let minX = Infinity, maxX = -Infinity;
+  let minY = Infinity, maxY = -Infinity;
   let minZ = Infinity, maxZ = -Infinity;
   for (const b of patternData) {
     if (b.x < minX) minX = b.x; if (b.x > maxX) maxX = b.x;
@@ -191,48 +190,41 @@ async function buildScene() {
   const cy = (minY + maxY) / 2;
   const cz = (minZ + maxZ) / 2;
 
-  // Auto-zoom camera to fit the structure
   const span = Math.max(maxX - minX, maxY - minY, maxZ - minZ);
   camera.zoom = Math.max(8, span * 1.8);
-  camera.setTarget(cx, cy, -cz); // invert Z for Three.js
+  camera.setTarget(cx, cy, -cz);
+
+  // Prefetch all blockstate + model JSON in parallel before building
+  setLoading(true, 'Fetching assets…', `${patternData.length} blocks`);
+  await assets.prefetchBlocks(patternData);
 
   setLoading(true, 'Building blocks…', `${patternData.length} blocks`);
-  let placed = 0;
 
-  // Build in chunks to keep UI responsive
-  const CHUNK = 50;
-  for (let i = 0; i < patternData.length; i++) {
-    const block = patternData[i];
-
-    try {
-      let ns = 'minecraft', blockId = block.block;
-      if (block.block.includes(':')) {
-        [ns, blockId] = block.block.split(':');
-      }
-
-      // Neighbor checker for CTM: returns true if neighbor at offset is same block type
-      const neighborChecker = (dx, dy, dz) =>
-        posTypeMap.get(`${block.x+dx},${block.y+dy},${block.z+dz}`) === block.block;
-
-      const obj = await blockRenderer.buildBlock(ns, blockId, block.props || {}, neighborChecker);
-      // Position in Three.js: invert Z
-      obj.position.set(block.x - cx, block.y - cy, -(block.z - cz));
-      scene.add(obj);
-      blockMeshes.push({ mesh: obj, pos: block, isBaseplate: !!block.bp });
-    } catch {
-      // silent skip
+  // Build blocks in parallel batches to maximise throughput while keeping UI responsive
+  const PARALLEL = 20;
+  for (let i = 0; i < patternData.length; i += PARALLEL) {
+    const batch = patternData.slice(i, i + PARALLEL);
+    const results = await Promise.all(batch.map(async block => {
+      try {
+        const [ns, blockId] = block.block.includes(':') ? block.block.split(':') : ['minecraft', block.block];
+        const neighborChecker = (dx, dy, dz) =>
+          posTypeMap.get(`${block.x+dx},${block.y+dy},${block.z+dz}`) === block.block;
+        const obj = await blockRenderer.buildBlock(ns, blockId, block.props || {}, neighborChecker);
+        obj.position.set(block.x - cx, block.y - cy, -(block.z - cz));
+        return { obj, block };
+      } catch { return null; }
+    }));
+    for (const r of results) {
+      if (!r) continue;
+      scene.add(r.obj);
+      blockMeshes.push({ mesh: r.obj, pos: r.block, isBaseplate: !!r.block.bp });
     }
-
-    placed++;
-    if (placed % CHUNK === 0) {
-      setLoading(true, 'Building blocks…', `${placed} / ${patternData.length}`);
-      await yieldFrame();
-    }
+    setLoading(true, 'Building blocks…', `${Math.min(i + PARALLEL, patternData.length)} / ${patternData.length}`);
+    await yieldFrame();
   }
 
   setLoading(false);
 
-  // Apply initial visibility
   if (stepList.length) {
     applyVisibility(computeVisible(0));
     applyCameraForStep(0, true);
@@ -400,18 +392,28 @@ const tooltip   = document.getElementById('block-tooltip');
 const raycaster = new THREE.Raycaster();
 const mouse     = new THREE.Vector2();
 
+// Cached flat list of {mesh, parent} for raycasting — rebuilt when visibility changes
+let _raycastCache = null;
+function invalidateRaycastCache() { _raycastCache = null; }
+function getRaycastMeshes() {
+  if (_raycastCache) return _raycastCache;
+  _raycastCache = blockMeshes
+    .filter(b => b.mesh.visible)
+    .flatMap(b => {
+      const arr = [];
+      b.mesh.traverse(c => { if (c.isMesh) arr.push(c); });
+      return arr.map(m => ({ mesh: m, parent: b }));
+    });
+  return _raycastCache;
+}
+
 canvas.addEventListener('mousemove', e => {
   const rect = canvas.getBoundingClientRect();
   mouse.x =  ((e.clientX - rect.left)  / rect.width)  * 2 - 1;
   mouse.y = -((e.clientY - rect.top)   / rect.height) * 2 + 1;
 
   raycaster.setFromCamera(mouse, camera.cam);
-  const meshes = blockMeshes.filter(b => b.mesh.visible)
-    .flatMap(b => {
-      const arr = [];
-      b.mesh.traverse(c => { if (c.isMesh) arr.push(c); });
-      return arr.map(m => ({ mesh: m, parent: b }));
-    });
+  const meshes = getRaycastMeshes();
 
   const hits = raycaster.intersectObjects(meshes.map(m => m.mesh), false);
   if (hits.length) {

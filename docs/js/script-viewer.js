@@ -120,11 +120,22 @@ function computeVisible(stepIdx) {
   return visible;
 }
 
+let _raycastCache = null;
+function invalidateRaycastCache() { _raycastCache = null; }
+function getRaycastMeshes() {
+  if (_raycastCache) return _raycastCache;
+  _raycastCache = blockMeshes
+    .filter(b => b.mesh.visible)
+    .flatMap(b => { const a = []; b.mesh.traverse(c => { if (c.isMesh) a.push(c); }); return a.map(m => ({ mesh: m, block: b })); });
+  return _raycastCache;
+}
+
 function applyVisibility(visible) {
   for (const { mesh, pos } of blockMeshes) {
     const key = `${pos.x},${pos.y},${pos.z}`;
     mesh.visible = !visible || visible.has(key);
   }
+  invalidateRaycastCache();
 }
 
 // ── Scene building ─────────────────────────────────────────────────────────
@@ -132,9 +143,9 @@ function applyVisibility(visible) {
 async function buildScene() {
   for (const { mesh } of blockMeshes) scene.remove(mesh);
   blockMeshes = [];
+  invalidateRaycastCache();
   if (!patternData) return;
 
-  // Neighbor lookup for CTM
   const posTypeMap = new Map();
   for (const b of patternData) posTypeMap.set(`${b.x},${b.y},${b.z}`, b.block);
 
@@ -153,25 +164,30 @@ async function buildScene() {
   camera.zoom = Math.max(8, span * 1.8);
   camera.setTarget(cx, cy, -cz);
 
-  setLoading(true, 'Building blocks…', `${patternData.length} blocks`);
-  const CHUNK = 50;
-  for (let i = 0; i < patternData.length; i++) {
-    const block = patternData[i];
-    try {
-      let ns = 'minecraft', blockId = block.block;
-      if (block.block.includes(':')) [ns, blockId] = block.block.split(':');
-      const neighborChecker = (dx, dy, dz) =>
-        posTypeMap.get(`${block.x+dx},${block.y+dy},${block.z+dz}`) === block.block;
-      const obj = await blockRenderer.buildBlock(ns, blockId, block.props || {}, neighborChecker);
-      obj.position.set(block.x - cx, block.y - cy, -(block.z - cz));
-      scene.add(obj);
-      blockMeshes.push({ mesh: obj, pos: block });
-    } catch { /* silent skip */ }
+  setLoading(true, 'Fetching assets…', `${patternData.length} blocks`);
+  await assets.prefetchBlocks(patternData);
 
-    if (i % CHUNK === 0) {
-      setLoading(true, 'Building blocks…', `${i} / ${patternData.length}`);
-      await yieldFrame();
+  setLoading(true, 'Building blocks…', `${patternData.length} blocks`);
+  const PARALLEL = 20;
+  for (let i = 0; i < patternData.length; i += PARALLEL) {
+    const batch = patternData.slice(i, i + PARALLEL);
+    const results = await Promise.all(batch.map(async block => {
+      try {
+        const [ns, blockId] = block.block.includes(':') ? block.block.split(':') : ['minecraft', block.block];
+        const neighborChecker = (dx, dy, dz) =>
+          posTypeMap.get(`${block.x+dx},${block.y+dy},${block.z+dz}`) === block.block;
+        const obj = await blockRenderer.buildBlock(ns, blockId, block.props || {}, neighborChecker);
+        obj.position.set(block.x - cx, block.y - cy, -(block.z - cz));
+        return { obj, block };
+      } catch { return null; }
+    }));
+    for (const r of results) {
+      if (!r) continue;
+      scene.add(r.obj);
+      blockMeshes.push({ mesh: r.obj, pos: r.block });
     }
+    setLoading(true, 'Building blocks…', `${Math.min(i + PARALLEL, patternData.length)} / ${patternData.length}`);
+    await yieldFrame();
   }
 
   setLoading(false);
@@ -179,7 +195,7 @@ async function buildScene() {
     applyVisibility(computeVisible(0));
     applyCameraForStep(0, true);
   } else {
-    applyVisibility(null); // show all
+    applyVisibility(null);
   }
   buildShoppingList();
 }
@@ -341,8 +357,7 @@ canvas.addEventListener('mousemove', e => {
   mouse.x =  ((e.clientX - rect.left) / rect.width)  * 2 - 1;
   mouse.y = -((e.clientY - rect.top)  / rect.height) * 2 + 1;
   raycaster.setFromCamera(mouse, camera.cam);
-  const meshes = blockMeshes.filter(b => b.mesh.visible)
-    .flatMap(b => { const a = []; b.mesh.traverse(c => { if (c.isMesh) a.push(c); }); return a.map(m => ({ mesh: m, block: b })); });
+  const meshes = getRaycastMeshes();
   const hits = raycaster.intersectObjects(meshes.map(m => m.mesh), false);
   if (hits.length) {
     const hit = meshes.find(m => m.mesh === hits[0].object);
@@ -362,14 +377,8 @@ canvas.addEventListener('mouseleave', () => { tooltip.style.display = 'none'; })
 
 // ── Render loop ────────────────────────────────────────────────────────────
 
-function scheduleAnimate() {
-  let fired = false;
-  const id = requestAnimationFrame(ts => { fired = true; animate(ts); });
-  setTimeout(() => { if (!fired) { cancelAnimationFrame(id); animate(performance.now()); } }, 50);
-}
-
 function animate(ts) {
-  scheduleAnimate();
+  requestAnimationFrame(animate);
   const dt = lastFrameTime !== null ? (ts - lastFrameTime) / 1000 : 0;
   lastFrameTime = ts;
 
@@ -404,7 +413,7 @@ function animate(ts) {
 // ── Init ───────────────────────────────────────────────────────────────────
 
 async function init() {
-  scheduleAnimate();
+  requestAnimationFrame(animate);
 
   const params    = new URLSearchParams(location.search);
   const machineId = params.get('id');
