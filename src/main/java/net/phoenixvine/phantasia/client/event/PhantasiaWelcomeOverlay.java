@@ -11,7 +11,7 @@ import net.phoenixvine.phantasia.Phantasia;
 import net.phoenixvine.phantasia.client.screens.PhantasiaGuideScreen;
 import net.phoenixvine.phantasia.common.data.guides.PhantasiaGuideData;
 import net.phoenixvine.phantasia.common.data.guides.PhantasiaGuideRegistry;
-import net.phoenixvine.phantasia.utils.PhantasiaTheme;
+import net.phoenixvine.wiki.theme.PhoenixTheme;
 
 import java.io.File;
 
@@ -21,20 +21,18 @@ public final class PhantasiaWelcomeOverlay {
     private PhantasiaWelcomeOverlay() {}
 
     private static final java.io.File SEEN_DIR = new java.io.File("phantasia/seen_worlds");
-    // Duration is read from config at show-time; FADE_TICKS is always fixed.
+
     private static final int FADE_TICKS = 40;
 
     private static boolean active = false;
-    private static boolean playerHasMoved = false; // true once movement is detected; starts the countdown
+    private static boolean playerHasMoved = false;
     private static int timer = 0;
     private static boolean wasClicking = false;
 
-    // Toast bounds updated each render frame for click-hit detection.
     private static int toastX, toastY;
     private static final int TOAST_W = 248;
-    private static int TOAST_H = 46; // recalculated each frame based on wrapped content
+    private static int TOAST_H = 46;
 
-    /** Call on world join with a world identifier. Shows the toast once per world, unless disabled in config. */
     public static void checkFirstRun(String worldId) {
         if (!net.phoenixvine.phantasia.configs.PhantasiaConfigs.INSTANCE.phantasiaUI.showWelcomeToast) return;
         String safe = worldId.replaceAll("[^a-zA-Z0-9._\\-]", "_");
@@ -66,7 +64,6 @@ public final class PhantasiaWelcomeOverlay {
 
         long window = mc.getWindow().getWindow();
 
-        // Detect first movement — any WASD / jump / sneak key starts the countdown.
         if (!playerHasMoved) {
             var opt = mc.options;
             if (opt.keyUp.isDown() || opt.keyDown.isDown() || opt.keyLeft.isDown() || opt.keyRight.isDown() ||
@@ -75,7 +72,6 @@ public final class PhantasiaWelcomeOverlay {
             }
         }
 
-        // Only count down once the player has moved.
         if (playerHasMoved) {
             if (timer > 0) {
                 timer--;
@@ -86,7 +82,6 @@ public final class PhantasiaWelcomeOverlay {
             }
         }
 
-        // Click detection — toast click opens the getting-started guide.
         boolean clicking = org.lwjgl.glfw.GLFW.glfwGetMouseButton(
                 window, org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_LEFT) == org.lwjgl.glfw.GLFW.GLFW_PRESS;
 
@@ -118,11 +113,10 @@ public final class PhantasiaWelcomeOverlay {
     private static void renderToast(GuiGraphics g, Minecraft mc) {
         int sw = mc.getWindow().getGuiScaledWidth();
 
-        // Before movement: fully opaque. After movement starts: fade out as timer runs down.
         float alpha = (!playerHasMoved || timer >= FADE_TICKS) ? 1.0f : (float) timer / FADE_TICKS;
 
         var font = mc.font;
-        int innerW = TOAST_W - 16; // 8px padding each side
+        int innerW = TOAST_W - 16;
         int lineH = font.lineHeight + 2;
 
         String title = net.minecraft.network.chat.Component.translatable("ui.phantasia.welcome.installed").getString();
@@ -134,7 +128,6 @@ public final class PhantasiaWelcomeOverlay {
         var instrLines = font.split(net.minecraft.network.chat.Component.literal(instruction), innerW);
         var guideLines = font.split(net.minecraft.network.chat.Component.literal(openGuide), innerW);
 
-        // Height: 6px top pad + title + 3px gap + instruction lines + 3px gap + guide lines + 6px bottom pad
         int contentH = lineH + 3 + instrLines.size() * lineH + 3 + guideLines.size() * lineH;
         TOAST_H = 6 + contentH + 6;
 
@@ -143,15 +136,16 @@ public final class PhantasiaWelcomeOverlay {
         toastX = tx;
         toastY = ty;
 
-        PhantasiaTheme theme = PhantasiaTheme.current();
-        int bgColor = withAlpha(theme.bg(), (int) (0xDD * alpha));
-        int bdrColor = withAlpha(theme.accent(), (int) (0xFF * alpha));
-        int txtColor = withAlpha(theme.text(), (int) (0xFF * alpha));
-        int dimColor = withAlpha(theme.dim(), (int) (0xAA * alpha));
+        PhoenixTheme theme = PhoenixTheme.current();
+        int bgColor = withAlpha(theme.bg.getColor(), (int) (0xDD * alpha));
+        int bdrColor = withAlpha(theme.accent.getColor(), (int) (0xFF * alpha));
+        int txtColor = withAlpha(theme.text.getColor(), (int) (0xFF * alpha));
+        int dimColor = withAlpha(theme.textDim.getColor(), (int) (0xAA * alpha));
 
         g.fill(tx, ty, tx + TOAST_W, ty + TOAST_H, bgColor);
         g.fill(tx, ty, tx + TOAST_W, ty + 1, bdrColor);
-        g.fill(tx, ty + TOAST_H - 1, tx + TOAST_W, ty + TOAST_H, withAlpha(theme.accent(), (int) (0x44 * alpha)));
+        g.fill(tx, ty + TOAST_H - 1, tx + TOAST_W, ty + TOAST_H,
+                withAlpha(theme.accent.getColor(), (int) (0x44 * alpha)));
 
         int lx = tx + 8;
         int y = ty + 6;

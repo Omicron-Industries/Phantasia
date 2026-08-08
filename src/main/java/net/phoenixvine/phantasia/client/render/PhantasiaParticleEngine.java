@@ -26,17 +26,13 @@ public class PhantasiaParticleEngine {
 
     private static final Set<Object> warnedMissingProvider = Collections.newSetFromMap(new IdentityHashMap<>());
 
-    /** Particles we own, keyed by render type — NOT in the vanilla ParticleEngine queue. */
     private static final Map<ParticleRenderType, Queue<Particle>> ownedQueue = new LinkedHashMap<>();
-    /** Flat set for fast alive-check during tick/render. */
+
     private static final Set<Particle> ownedParticles = Collections.newSetFromMap(new IdentityHashMap<>());
 
-    // ── Vanilla queue field — kept for PhantasiaSpriteMarker ─────────────────
     @Nullable
     private static Field particleQueueField = null;
     private static boolean fieldsResolved = false;
-
-    // ── Lifecycle ─────────────────────────────────────────────────────────────
 
     public static void init() {
         Minecraft mc = Minecraft.getInstance();
@@ -65,20 +61,16 @@ public class PhantasiaParticleEngine {
         return Minecraft.getInstance().particleEngine;
     }
 
-    /** Returns the vanilla particle queue field — used by PhantasiaSpriteMarker. */
     @Nullable
     public static Field getParticleListField() {
         return particleQueueField;
     }
-
-    // ── Particle creation ─────────────────────────────────────────────────────
 
     @SuppressWarnings("unchecked")
     @Nullable
     private static Field providersField = null;
     private static boolean providersResolved = false;
 
-    /** Cached hasPhysics field — set false so particles don't collide with real-world terrain. */
     @Nullable
     private static Field f_hasPhysics = null;
     private static boolean hasPhysicsResolved = false;
@@ -117,8 +109,6 @@ public class PhantasiaParticleEngine {
                 return;
             }
 
-            // Disable physics so the particle drifts freely without colliding with
-            // real-world terrain at the scene's coordinates.
             if (!hasPhysicsResolved) {
                 hasPhysicsResolved = true;
                 f_hasPhysics = findField(Particle.class, boolean.class, "hasPhysics", "f_107224_");
@@ -131,10 +121,7 @@ public class PhantasiaParticleEngine {
 
             ParticleRenderType renderType = particle.getRenderType();
             if (renderType != ParticleRenderType.NO_RENDER) {
-                // Add to OUR queue only — NOT the vanilla ParticleEngine queue.
-                // Vanilla ParticleEngine.render would call getLightColor → Level.getBlockState
-                // through GTCEu-patched call sites that bypass our getBlockState override,
-                // reaching getChunk → null → crash.
+
                 ownedQueue.computeIfAbsent(renderType, k -> new ArrayDeque<>()).add(particle);
                 ownedParticles.add(particle);
             }
@@ -174,7 +161,6 @@ public class PhantasiaParticleEngine {
     }
 
     public static void tick() {
-        // Tick owned particles and purge dead ones.
         for (Queue<Particle> queue : ownedQueue.values()) {
             Iterator<Particle> it = queue.iterator();
             while (it.hasNext()) {
@@ -209,8 +195,6 @@ public class PhantasiaParticleEngine {
     public static boolean isOculusBlockingParticles() {
         return false;
     }
-
-    // ── Render ────────────────────────────────────────────────────────────────
 
     public static void renderDirect(
                                     net.minecraft.client.renderer.MultiBufferSource.BufferSource buffers,
@@ -270,8 +254,6 @@ public class PhantasiaParticleEngine {
         }
     }
 
-    // ── Particle field cache ───────────────────────────────────────────────────
-
     private static boolean particleFieldsResolved = false;
     private static Field f_x, f_y, f_z;
     private static Field f_px, f_py, f_pz;
@@ -284,7 +266,6 @@ public class PhantasiaParticleEngine {
         if (particleFieldsResolved) return;
         particleFieldsResolved = true;
 
-        // 1. Resolve Double fields (position coordinates) dynamically by class structure layout
         try {
             List<Field> doubleFields = new ArrayList<>();
             for (Field f : Particle.class.getDeclaredFields()) {
@@ -293,7 +274,7 @@ public class PhantasiaParticleEngine {
                     doubleFields.add(f);
                 }
             }
-            // Particle.class sequentially declares: xo, yo, zo, x, y, z
+
             if (doubleFields.size() >= 6) {
                 f_x = doubleFields.get(0);
                 f_y = doubleFields.get(1);
@@ -306,7 +287,6 @@ public class PhantasiaParticleEngine {
             LOGGER.warn("[Phantasia] Failed to resolve positional fields: {}", e.getMessage());
         }
 
-        // 2. Resolve Float fields (colors and sizes)
         try {
             List<Field> floatFields = new ArrayList<>();
             for (Field f : Particle.class.getDeclaredFields()) {
@@ -328,16 +308,15 @@ public class PhantasiaParticleEngine {
                 scaleIsQuadSize = true;
             } else {
                 f_scale = findField(Particle.class, float.class, "bbWidth", "f_107221_", "f_107395_");
-                // Bulletproof Fallback: The first float field in Particle.class is ALWAYS bbWidth
+
                 if (f_scale == null && !floatFields.isEmpty()) f_scale = floatFields.get(0);
                 scaleIsQuadSize = false;
             }
         } catch (Exception e) {}
 
-        // 3. Resolve Sprite Field
         f_sprite = findField(net.minecraft.client.particle.TextureSheetParticle.class,
                 net.minecraft.client.renderer.texture.TextureAtlasSprite.class,
-                "sprite", "f_108321_", "f_107534_"); // F_108321_ is specific to 1.20 SRG
+                "sprite", "f_108321_", "f_107534_");
 
         if (f_sprite == null) {
             for (Class<?> c = net.minecraft.client.particle.TextureSheetParticle.class; c != null &&
@@ -370,8 +349,6 @@ public class PhantasiaParticleEngine {
         }
         return null;
     }
-
-    // ── Manual quad emission ──────────────────────────────────────────────────
 
     private static void renderParticleManual(
                                              com.mojang.blaze3d.vertex.BufferBuilder bb,
@@ -425,8 +402,6 @@ public class PhantasiaParticleEngine {
             LOGGER.debug("[Phantasia] renderParticleManual: {}", e.getMessage());
         }
     }
-
-    // ── Queue field resolution (vanilla queue — for PhantasiaSpriteMarker) ────
 
     private static void resolveFields(Minecraft mc) {
         if (fieldsResolved) return;

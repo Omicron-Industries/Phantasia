@@ -16,11 +16,6 @@ import org.apache.logging.log4j.Logger;
 
 import java.util.Set;
 
-/**
- * GTCEu-specific dynamic rendering logic, isolated into the compat package so that
- * {@code PhantasiaWorldRenderer} does not directly reference GTCEu classes at bytecode level.
- * Only loaded when GTCEu is present.
- */
 public final class GTCEuDynamicRenderHelper {
 
     private static final Logger LOGGER = LogManager.getLogger("Phantasia/GTCEuDynRender");

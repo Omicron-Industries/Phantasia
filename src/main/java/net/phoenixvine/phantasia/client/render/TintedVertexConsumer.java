@@ -4,32 +4,22 @@ import net.minecraft.client.renderer.RenderType;
 
 import com.mojang.blaze3d.vertex.VertexConsumer;
 
-/**
- * Thin {@link VertexConsumer} wrapper that applies a per-block alpha tint.
- */
 public final class TintedVertexConsumer implements VertexConsumer {
 
     private final VertexConsumer delegate;
-    private RenderType currentRenderType; // Tracks the drawing layer safely
+    private RenderType currentRenderType;
 
-    // Per-fluid-chunk offset (cleared after each block)
     private double offsetX, offsetY, offsetZ;
 
-    // Per-block tint — alpha is the key channel for show/hide transitions
     private float r = 1f, g = 1f, b = 1f, a = 1f;
 
     public TintedVertexConsumer(VertexConsumer delegate) {
         this.delegate = delegate;
     }
 
-    /**
-     * Updates the context with the active RenderType being drawn by the pipeline.
-     */
     public void setCurrentRenderType(RenderType renderType) {
         this.currentRenderType = renderType;
     }
-
-    // ── Tint control ──────────────────────────────────────────────────────────
 
     public void setAlpha(float alpha) {
         this.a = alpha;
@@ -49,8 +39,6 @@ public final class TintedVertexConsumer implements VertexConsumer {
         a = 1f;
     }
 
-    // ── Fluid offset control ──────────────────────────────────────────────────
-
     public void addOffset(double ox, double oy, double oz) {
         offsetX += ox;
         offsetY += oy;
@@ -62,8 +50,6 @@ public final class TintedVertexConsumer implements VertexConsumer {
         offsetY = 0;
         offsetZ = 0;
     }
-
-    // ── VertexConsumer implementation ─────────────────────────────────────────
 
     @Override
     public VertexConsumer vertex(double x, double y, double z) {
@@ -81,9 +67,6 @@ public final class TintedVertexConsumer implements VertexConsumer {
 
     @Override
     public VertexConsumer uv(float u, float v) {
-        // ─── REMOVED REFLECTION/SPRITE MARKING INTERCEPTIONS ──────────────
-        // All tracking blocks are completely axed. Direct straight-line proxy.
-        // ──────────────────────────────────────────────────────────────────
         return delegate.uv(u, v);
     }
 

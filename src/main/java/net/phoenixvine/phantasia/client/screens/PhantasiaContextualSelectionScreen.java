@@ -22,7 +22,6 @@ public class PhantasiaContextualSelectionScreen extends PhantasiaScreen {
     private final List<PhantasiaGuideData> guides;
     private final boolean hasScript;
 
-    // Unified list mapping indices directly to horizontal card items
     private final List<ContextItem> items = new ArrayList<>();
 
     private static final int CARD_W = 104;
@@ -48,7 +47,6 @@ public class PhantasiaContextualSelectionScreen extends PhantasiaScreen {
         this.guides = guides;
         this.hasScript = hasScript;
 
-        // Compile horizontal display elements
         if (hasScript) items.add(new ContextItem(ItemType.SCRIPT, definition));
         for (PhantasiaSceneData scene : manualScenes) items.add(new ContextItem(ItemType.SCENE, scene));
         for (PhantasiaGuideData guide : guides) items.add(new ContextItem(ItemType.GUIDE, guide));
@@ -59,10 +57,8 @@ public class PhantasiaContextualSelectionScreen extends PhantasiaScreen {
 
     @Override
     public void render(GuiGraphics g, int mx, int my, float partial) {
-        // Render dynamic background vignette gradient
         g.fillGradient(0, 0, this.width, this.height, C_BG(), (0xFF << 24) | (C_PANEL() & 0x00FFFFFF));
 
-        // Subtitle Header
         String name = "";
         if (definition != null) {
             name = definition.getDisplayName();
@@ -75,14 +71,12 @@ public class PhantasiaContextualSelectionScreen extends PhantasiaScreen {
         g.drawCenteredString(font, Component.translatable("screen.phantasia.context_selection.subtitle").getString(),
                 this.width / 2, this.height / 2 - 64, C_DIM());
 
-        // Center card grid bounds
         int totalW = items.size() * CARD_W + (items.size() - 1) * CARD_PAD;
         int startX = (this.width - totalW) / 2;
         int startY = (this.height - CARD_H) / 2 - 10;
 
         hoveredIndex = -1;
 
-        // Render matched entries in a centered layout row
         for (int i = 0; i < items.size(); i++) {
             int cx = startX + i * (CARD_W + CARD_PAD);
             int cy = startY;
@@ -94,7 +88,6 @@ public class PhantasiaContextualSelectionScreen extends PhantasiaScreen {
             renderContextCard(g, mx, my, item, cx, cy, hov);
         }
 
-        // Render back button helper at footer edge
         int bw = 80, bh = 16;
         int bx = (this.width - bw) / 2, by = this.height / 2 + CARD_H / 2 + 20;
         boolean bHov = mx >= bx && mx < bx + bw && my >= by && my < by + bh;
@@ -116,7 +109,6 @@ public class PhantasiaContextualSelectionScreen extends PhantasiaScreen {
             g.fill(cx, cy + CARD_H - 1, cx + CARD_W, cy + CARD_H, C_ACCENT());
         }
 
-        // Setup custom visual configurations based on sub-item features
         String cardTitle = "";
         String badgeLabel = "";
 
@@ -155,7 +147,6 @@ public class PhantasiaContextualSelectionScreen extends PhantasiaScreen {
         }
         g.pose().popPose();
 
-        // Truncate names cleanly inside cards
         int maxW = CARD_W - 8;
         if (font.width(cardTitle) > maxW) {
             cardTitle = font.plainSubstrByWidth(cardTitle, maxW - font.width("...")) + "...";

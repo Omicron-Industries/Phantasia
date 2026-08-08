@@ -16,16 +16,6 @@ import java.util.function.Supplier;
 
 import javax.annotation.Nullable;
 
-/**
- * A static (no-recipe) multiblock definition for Ars Nouveau setups that don't
- * have a recipe registry — summoning setups, turrets, sourcelinks, etc.
- * All content is provided via suppliers so block/item registry access is deferred
- * until after mod init.
- *
- * <p>
- * An optional {@link SceneTickHandler} can be supplied to drive per-tick
- * animations (e.g. turret recoil, rotation) without subclassing.
- */
 public class ArsNouveauStaticDefinition implements IPhantasiaMultiblockDefinition {
 
     @FunctionalInterface
@@ -61,7 +51,6 @@ public class ArsNouveauStaticDefinition implements IPhantasiaMultiblockDefinitio
 
     private final List<IPhantasiaMultiblockShape> shapes;
 
-    // Lazy cache
     private ItemStack cachedIcon = null;
     private PhantasiaBlockInfo[][][] cachedLayout = null;
 

@@ -28,33 +28,14 @@ public class PhantasiaScriptData {
     @SerializedName("scriptDuration")
     private int scriptDuration = -1;
 
-    /**
-     * When true, marks this multiblock as expandable. Script steps may use
-     * {@code layerCount} to switch between size variants (each shape index = one layer count).
-     * Also controls whether the Layers editor widget is shown in the script editor.
-     */
     @Setter
     @SerializedName("expandable")
     private boolean expandable = false;
 
-    /**
-     * Optional recipe/ritual ID this scene represents, e.g.
-     * {@code "ars_nouveau:magebloom_seed"} for an apparatus recipe or
-     * {@code "ars_nouveau:ritual_sunrise"} for a ritual. Definitions that
-     * understand recipe IDs use this in {@code onShapeLoaded} to load the
-     * correct item placements. Null = use the definition's default.
-     */
     @Setter
     @SerializedName("recipeId")
     private String recipeId = null;
 
-    /**
-     * Item condition hints displayed in the GuideME-style panel alongside the
-     * autogenned 3D scene. Same model as {@link PhantasiaSceneData.ItemConditionData}
-     * — supports label, description, track animation, and an optional
-     * {@code microsceneId} that opens {@link net.phoenixvine.phantasia.client.screens.PhantasiaItemMicrosceneScreen}
-     * when clicked.
-     */
     @SerializedName("items")
     private List<PhantasiaSceneData.ItemConditionData> items = new ArrayList<>();
 
@@ -67,73 +48,30 @@ public class PhantasiaScriptData {
     @Getter
     public static class OptionalGroupData {
 
-        /**
-         * Unique identifier for this group, used as the key in
-         * {@link net.phoenixvine.phantasia.client.screens.PhantasiaVariantState}.
-         * E.g. "fusion_glass", "energy_hatch", "muffler_hatch".
-         */
         @SerializedName("id")
         public String id = "";
 
-        /** Human-readable name shown in the Variants subscreen. */
         @SerializedName("label")
         public String label = "";
 
-        /**
-         * Which UI category this group appears under.
-         * Valid values: "optional", "hatches_buses", "mufflers", "casings".
-         * Defaults to "optional". Script authors can override to move a group
-         * to a more appropriate category.
-         */
         @SerializedName("category")
         public String category = "optional";
 
-        /**
-         * Whether the primary block is shown by default ({@code true}) or
-         * the fallback ({@code false}).
-         * For most .or() cases, primary is the decorative/cheaper option,
-         * fallback is the structural block (casing, etc.).
-         * For fusion glass specifically, primary = glass (correct/cheap),
-         * fallback = casing (expensive/weird).
-         */
         @SerializedName("shownByDefault")
         public boolean shownByDefault = true;
 
-        /**
-         * Resource location of the primary block state, e.g.
-         * by {@link PhantasiaScript#fromData}.
-         * Null = auto-detect from pattern.
-         */
         @SerializedName("primaryBlock")
         public String primaryBlock = null;
 
-        /**
-         * Resource location of the fallback block state. Null = auto-detect.
-         */
         @SerializedName("fallbackBlock")
         public String fallbackBlock = null;
 
-        /**
-         * If true, this group was auto-detected from the GTCEu pattern and
-         * the script has not overridden it. Used to distinguish auto entries
-         * from manual ones during hot-reload merging.
-         */
         @SerializedName("autoDetected")
         public boolean autoDetected = false;
 
-        /**
-         * Additional block alternatives beyond the binary primary/fallback pair.
-         * E.g. for the beacon: ["minecraft:gold_block", "minecraft:diamond_block", ...].
-         * When present, the variant dropdown will include primary + fallback (if set) + these.
-         */
         @SerializedName("additionalBlocks")
         public List<String> additionalBlocks = new ArrayList<>();
 
-        /**
-         * All positions (in local pattern coords) that belong to this group.
-         * Each entry can optionally override {@code primaryBlock}/{@code fallbackBlock}
-         * for that specific position.
-         */
         @SerializedName("positions")
         public List<VariantPositionData> positions = new ArrayList<>();
 
@@ -168,17 +106,9 @@ public class PhantasiaScriptData {
         @SerializedName("z")
         public int z = 0;
 
-        /**
-         * Per-position override for the primary block.
-         * Null = inherit from the group's {@code primaryBlock}.
-         */
         @SerializedName("primaryBlock")
         public String primaryBlock = null;
 
-        /**
-         * Per-position override for the fallback block.
-         * Null = inherit from the group's {@code fallbackBlock}.
-         */
         @SerializedName("fallbackBlock")
         public String fallbackBlock = null;
 
@@ -234,74 +164,30 @@ public class PhantasiaScriptData {
         @SerializedName("fakeRecipeId")
         public String fakeRecipeId = null;
 
-        /**
-         * If set, the scene screen pauses at this step and calls
-         * {@link net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockDefinition#shouldHoldStep}
-         * with this id each tick. Playback resumes when that method returns false.
-         */
         @SerializedName("hold")
         public String hold = null;
 
-        /**
-         * For expandable multiblocks: how many layers to show at this step.
-         * -1 = no change. Maps to shape index via the definition's getShapeIndexForLayerCount().
-         */
         @SerializedName("layerCount")
         public int layerCount = -1;
 
-        /**
-         * Whether the item panel is visible during this step.
-         * Defaults to {@code true}. Set to {@code false} on steps focused on
-         * structure assembly where recipe context would be distracting.
-         */
         @SerializedName("showItems")
         public boolean showItems = true;
 
-        /**
-         * Item condition hints displayed in the GuideME-style panel during
-         * this step. Empty list = no panel shown (even if {@link #showItems}
-         * is true). Items support labels, descriptions, track animations, and
-         * optional {@code microsceneId} links.
-         */
         @SerializedName("items")
         public List<PhantasiaSceneData.ItemConditionData> items = new ArrayList<>();
 
-        /**
-         * Per-step item placements in the dummy world.
-         * Each entry targets a block entity at local-space coords and places a specific item
-         * in its primary slot (slot 0). Works on any {@link net.minecraft.world.Container}
-         * BE — pedestals, source jars (as display), braziers, chests, etc.
-         * Applied every time this step becomes active, overwriting whatever is currently there.
-         */
         @SerializedName("worldItems")
         public List<WorldItemEntry> worldItems = new ArrayList<>();
 
         @SerializedName("camera")
         public CameraData camera = null;
 
-        /**
-         * Mistake markers active during this step only. Each entry highlights a
-         * specific local-space block position as commonly built wrong. Scoped to
-         * the step (not global to the whole script) since the relevant mistake
-         * usually only matters while that part of the build is on screen.
-         */
         @SerializedName("mistakes")
         public List<MistakeData> mistakes = new ArrayList<>();
 
-        /**
-         * Block highlights shown during this step. Each entry highlights a local-space
-         * position with a colored outline + translucent fill. Color defaults to warm yellow
-         * if omitted. Format: {@code {"x":1,"y":1,"z":0}} or with {@code "color":"#FF4400"}.
-         */
         @SerializedName("highlights")
         public List<HighlightData> highlights = new ArrayList<>();
 
-        /**
-         * Block state transitions applied when this step becomes active.
-         * Each entry swaps a block at local-space coords to a new block state and
-         * fades it in over the renderer's default alpha-step duration.
-         * Format: {@code {"x":1,"y":1,"z":0,"state":"minecraft:furnace[lit=true]"}}.
-         */
         @SerializedName("blockTransitions")
         public List<BlockTransitionData> blockTransitions = new ArrayList<>();
 
@@ -346,7 +232,7 @@ public class PhantasiaScriptData {
         public int y = 0;
         @SerializedName("z")
         public int z = 0;
-        /** Hex color string: "#RRGGBB" or "RRGGBB". Null = default warm yellow (#FFCC44). */
+
         @SerializedName("color")
         public String color = null;
 
@@ -365,7 +251,6 @@ public class PhantasiaScriptData {
             this.color = color;
         }
 
-        /** Returns packed ARGB with alpha fixed at ~80% (0xCC). */
         public int argb() {
             if (color == null || color.isBlank()) return 0xCCFFCC44;
             try {
@@ -391,7 +276,7 @@ public class PhantasiaScriptData {
         public int y = 0;
         @SerializedName("z")
         public int z = 0;
-        /** Full block state string, e.g. {@code "minecraft:furnace[lit=true,facing=north]"}. */
+
         @SerializedName("state")
         public String state = "";
 
@@ -409,30 +294,21 @@ public class PhantasiaScriptData {
         }
     }
 
-    /** A single local-space block entity → item assignment for a script step. */
     @Getter
     public static class WorldItemEntry {
 
-        /** Local X coordinate (same space as pattern local coords). */
         @SerializedName("x")
         public int x = 0;
 
-        /** Local Y coordinate. */
         @SerializedName("y")
         public int y = 0;
 
-        /** Local Z coordinate. */
         @SerializedName("z")
         public int z = 0;
 
-        /**
-         * Item resource location, e.g. {@code "minecraft:diamond"}.
-         * Empty string or {@code "minecraft:air"} clears the slot.
-         */
         @SerializedName("item")
         public String item = "";
 
-        /** Source amount (0–10000) to set on a SourceJarTile. -1 = don't set. */
         @SerializedName("sourceAmount")
         public int sourceAmount = -1;
 

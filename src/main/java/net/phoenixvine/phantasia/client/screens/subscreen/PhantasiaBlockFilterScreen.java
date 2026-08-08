@@ -22,18 +22,6 @@ import java.util.*;
 
 import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
 
-/**
- * PhantasiaBlockFilterScreen
- *
- * Opened from the "Block List" button in PhantasiaSceneScreen.
- * Three tabs:
- * FILTER — toggle which block categories are visible in the scene
- * LIST — shopping list (all block types + count)
- * INSPECT — inspect a clicked block
- *
- * FIX (B5/B6): onClose() now calls applyVisibility() on the parent PhantasiaSceneScreen
- * so filter changes are immediately reflected in the 3D scene on return, with no extra click needed.
- */
 @OnlyIn(Dist.CLIENT)
 public class PhantasiaBlockFilterScreen extends Screen {
 
@@ -47,16 +35,13 @@ public class PhantasiaBlockFilterScreen extends Screen {
     private final PhantasiaLoadedPattern pattern;
     private final PhantasiaScript script;
 
-    // The filter that is active when this screen was opened — updated live as the user clicks
     private PhantasiaSceneScreen.ViewFilter activeFilter;
 
     private Tab tab = Tab.FILTER;
     private int listScrollY = 0;
 
-    // Inspect state
     private BlockPos inspectedWorldPos = null;
 
-    // Pre-built category sets (computed once in constructor)
     private final Set<BlockPos> hatchBusSet;
     private final Set<BlockPos> energySet;
     private final Map<String, List<BlockPos>> blocksByName;
@@ -71,7 +56,6 @@ public class PhantasiaBlockFilterScreen extends Screen {
         this.script = script;
         this.activeFilter = currentFilter;
 
-        // Build category sets
         Set<BlockPos> hb = new HashSet<>(), en = new HashSet<>();
         Map<String, List<BlockPos>> byName = new LinkedHashMap<>();
 
@@ -84,7 +68,6 @@ public class PhantasiaBlockFilterScreen extends Screen {
                 } catch (Exception ignored) {}
                 if (state == null || state.isAir()) continue;
 
-                // Shopping list
                 String name = state.getBlock().getName().getString();
                 byName.computeIfAbsent(name, k -> new ArrayList<>()).add(wp);
 
@@ -107,7 +90,6 @@ public class PhantasiaBlockFilterScreen extends Screen {
         this.hatchBusSet = Collections.unmodifiableSet(hb);
         this.energySet = Collections.unmodifiableSet(en);
 
-        // Sort shopping list by count desc
         List<Map.Entry<String, List<BlockPos>>> sorted = new ArrayList<>(byName.entrySet());
         sorted.sort((a, b) -> b.getValue().size() - a.getValue().size());
         Map<String, List<BlockPos>> ordered = new LinkedHashMap<>();
@@ -115,24 +97,19 @@ public class PhantasiaBlockFilterScreen extends Screen {
         this.blocksByName = Collections.unmodifiableMap(ordered);
     }
 
-    /** Called by PhantasiaSceneScreen when the player right-clicks a block in the scene. */
     public void setInspectedPos(BlockPos worldPos) {
         this.inspectedWorldPos = worldPos;
         this.tab = Tab.INSPECT;
     }
 
-    /** Tick to evaluate per-step mistakes against — mirrors the parent scene's current playback position. */
     private int activeTick() {
         return parent instanceof PhantasiaSceneScreen pss ? pss.getPlaybackTick() : 0;
     }
-
-    // ── Rendering ─────────────────────────────────────────────────────────────
 
     @Override
     public void render(GuiGraphics g, int mx, int my, float partial) {
         g.fill(0, 0, this.width, this.height, C_BG());
 
-        // Header
         g.fill(0, 0, this.width, 22, C_PANEL());
         g.fill(0, 21, this.width, 22, C_ACCENT());
         g.drawString(font,
@@ -148,7 +125,6 @@ public class PhantasiaBlockFilterScreen extends Screen {
             case INSPECT -> renderInspectTab(g, mx, my);
         }
 
-        // Back button
         int bw = 80, bh = 18;
         int bx = (this.width - bw) / 2, by = this.height - bh - 6;
         boolean bHov = isOver(mx, my, bx, by, bw, bh);
@@ -167,8 +143,6 @@ public class PhantasiaBlockFilterScreen extends Screen {
             drawThemedBtn(g, font, tx, y, tw, th, labels[i], hov, active ? C_BTN_ACT() : C_BTN());
         }
     }
-
-    // ── FILTER TAB ────────────────────────────────────────────────────────────
 
     private void renderFilterTab(GuiGraphics g, int mx, int my) {
         int y = 50;
@@ -201,7 +175,6 @@ public class PhantasiaBlockFilterScreen extends Screen {
         g.fill(x, y, x + bw, y + 1, 0x33FFFFFF);
         y += 8;
 
-        // Common mistakes toggle
         if (script.hasCommonMistakes(activeTick())) {
             boolean showM = parent instanceof PhantasiaSceneScreen pss && pss.showMistakes;
             boolean hov = isOver(mx, my, x, y, bw, 18);
@@ -211,7 +184,6 @@ public class PhantasiaBlockFilterScreen extends Screen {
             y += 22;
         }
 
-        // Heatmap tiers
         if (!script.getHeatmapTiers().isEmpty()) {
             g.drawString(font, Component.translatable("screen.phantasia.block_filter.label_heatmap").getString(), x + 6,
                     y, C_DIM(), false);
@@ -232,13 +204,11 @@ public class PhantasiaBlockFilterScreen extends Screen {
         }
 
         y += 6;
-        // Apply & Return button
+
         int aw = 120, ax = (this.width - aw) / 2;
         boolean aHov = isOver(mx, my, ax, y, aw, 18);
         drawThemedBtn(g, font, ax, y, aw, 18, "Apply & Return", aHov, C_BTN());
     }
-
-    // ── LIST TAB ──────────────────────────────────────────────────────────────
 
     private void renderListTab(GuiGraphics g, int mx, int my) {
         int startY = 50;
@@ -254,7 +224,6 @@ public class PhantasiaBlockFilterScreen extends Screen {
                 g.fill(x, y, x + w, y + 18, hov ? C_BTN_HOV() : 0x00000000);
                 if (hov) g.fill(x, y, x + w, y + 1, 0x33FFFFFF);
 
-                // Count badge
                 String cnt = String.valueOf(e.getValue().size());
                 int cntW = font.width(cnt) + 8;
                 g.fill(x, y + 1, x + cntW, y + 17, 0xBB1A2840);
@@ -265,7 +234,6 @@ public class PhantasiaBlockFilterScreen extends Screen {
             y += 20;
         }
 
-        // Scroll indicator
         int total = blocksByName.size() * 20;
         if (total > contentH) {
             int trackH = contentH - 4;
@@ -275,8 +243,6 @@ public class PhantasiaBlockFilterScreen extends Screen {
             g.fill(this.width - 6, thumbY, this.width - 2, thumbY + thumbH, C_ACCENT());
         }
     }
-
-    // ── INSPECT TAB (Enhanced Technical Visual Style) ─────────────────────────
 
     private void renderInspectTab(GuiGraphics g, int mx, int my) {
         int leftCol = 24;
@@ -306,7 +272,6 @@ public class PhantasiaBlockFilterScreen extends Screen {
 
         ItemStack itemStack = new ItemStack(state.getBlock().asItem());
 
-        // --- LEFT COLUMN: IDENTITY & STRUCTURAL DATA ---
         g.pose().pushPose();
         g.pose().translate(leftCol, y, 100);
         g.pose().scale(4.0f, 4.0f, 1.0f);
@@ -315,7 +280,6 @@ public class PhantasiaBlockFilterScreen extends Screen {
 
         y += 75;
 
-        // Wrapped Block Name
         String name = state.getBlock().getName().getString();
         for (net.minecraft.util.FormattedCharSequence seq : font.split(Component.literal(name), leftColWidth)) {
             g.drawString(font, seq, leftCol, y, 0xFFFFFFFF, false);
@@ -323,7 +287,6 @@ public class PhantasiaBlockFilterScreen extends Screen {
         }
         y += 4;
 
-        // Wrapped Registry ID
         ResourceLocation rl = ForgeRegistries.BLOCKS.getKey(state.getBlock());
         if (rl != null) {
             for (net.minecraft.util.FormattedCharSequence seq : font.split(
@@ -341,12 +304,10 @@ public class PhantasiaBlockFilterScreen extends Screen {
         g.drawString(font, "Y: " + inspectedWorldPos.getY(), leftCol + 40, y, C_TEXT(), false);
         g.drawString(font, "Z: " + inspectedWorldPos.getZ(), leftCol + 80, y, C_TEXT(), false);
 
-        // --- RIGHT COLUMN: ATTRIBUTES, TOOLTIPS, & EMI ACTION ---
         y = 60;
         g.drawString(font, Component.translatable("screen.phantasia.block_filter.header_specs").getString(), rightCol,
                 y - 15, C_ACCENT(), false);
 
-        // Dynamic Tag/Role Badges
         if (pattern.hasBlockEntity(inspectedWorldPos)) {
             g.drawString(font, Component.translatable("screen.phantasia.block_filter.feat_block_entity").getString(),
                     rightCol, y, C_WARN(), false);
@@ -370,7 +331,6 @@ public class PhantasiaBlockFilterScreen extends Screen {
 
         y += 6;
 
-        // Dynamic Tooltip Lines Extraction
         if (!itemStack.isEmpty()) {
             List<Component> tooltips = itemStack.getTooltipLines(Minecraft.getInstance().player,
                     net.minecraft.world.item.TooltipFlag.Default.NORMAL);
@@ -386,7 +346,6 @@ public class PhantasiaBlockFilterScreen extends Screen {
 
         y += 8;
 
-        // BlockState Property Grid
         if (!state.getProperties().isEmpty()) {
             g.fill(rightCol, y, rightCol + 120, y + 1, 0x22FFFFFF);
             y += 8;
@@ -408,7 +367,6 @@ public class PhantasiaBlockFilterScreen extends Screen {
 
         y += 14;
 
-        // --- ACTION BUTTONS (EMI RECIPES & CLEAR) ---
         if (!itemStack.isEmpty()) {
             boolean emiHov = isOver(mx, my, rightCol, y, 90, 16);
             drawThemedBtn(g, font, rightCol, y, 90, 16, "EMI Recipes", emiHov, C_BTN());
@@ -421,11 +379,8 @@ public class PhantasiaBlockFilterScreen extends Screen {
         }
     }
 
-    // ── Input ─────────────────────────────────────────────────────────────────
-
     @Override
     public boolean mouseClicked(double mx, double my, int btn) {
-        // Tab bar
         Tab[] tabs = Tab.values();
         int tw = 80, th = 16, ty = 24;
         for (int i = 0; i < tabs.length; i++) {
@@ -436,7 +391,6 @@ public class PhantasiaBlockFilterScreen extends Screen {
             }
         }
 
-        // Back button (centred)
         int bw = 80, bh = 18;
         int bx = (this.width - bw) / 2, by = this.height - bh - 6;
         if (isOver((int) mx, (int) my, bx, by, bw, bh)) {
@@ -460,9 +414,8 @@ public class PhantasiaBlockFilterScreen extends Screen {
                     }
                     y += 26;
                 }
-                y += 16; // separator
+                y += 16;
 
-                // Common mistakes toggle
                 if (script.hasCommonMistakes(activeTick())) {
                     if (isOver((int) mx, (int) my, fx, y, fw, 18)) {
                         if (parent instanceof PhantasiaSceneScreen pss) pss.showMistakes = !pss.showMistakes;
@@ -471,7 +424,6 @@ public class PhantasiaBlockFilterScreen extends Screen {
                     y += 22;
                 }
 
-                // Heatmap tiers
                 if (!script.getHeatmapTiers().isEmpty()) {
                     y += 12;
                     for (int i = 0; i < script.getHeatmapTiers().size(); i++) {
@@ -488,7 +440,6 @@ public class PhantasiaBlockFilterScreen extends Screen {
                     y += 16;
                 }
 
-                // Apply & Return
                 y += 6;
                 int aw = 120, ax = (this.width - aw) / 2;
                 if (isOver((int) mx, (int) my, ax, y, aw, 18)) {
@@ -554,7 +505,7 @@ public class PhantasiaBlockFilterScreen extends Screen {
                             y += 14;
 
                             if (!itemStack.isEmpty()) {
-                                // Check EMI Recipe Button Click
+
                                 if (isOver((int) mx, (int) my, rightCol, y, 90, 16)) {
                                     var manager = dev.emi.emi.api.EmiApi.getRecipeManager();
                                     if (manager != null) {
@@ -608,10 +559,6 @@ public class PhantasiaBlockFilterScreen extends Screen {
         return super.keyPressed(kc, sc, mod);
     }
 
-    /**
-     * FIX (B5/B6): Call applyVisibility() on the parent scene so whatever filter state
-     * was set during this screen is immediately applied when returning to the scene.
-     */
     @Override
     public void onClose() {
         if (parent instanceof PhantasiaSceneScreen pss) {
@@ -624,8 +571,6 @@ public class PhantasiaBlockFilterScreen extends Screen {
     public boolean isPauseScreen() {
         return false;
     }
-
-    // ── Helpers ───────────────────────────────────────────────────────────────
 
     private boolean isOver(int mx, int my, int x, int y, int w, int h) {
         return mx >= x && mx < x + w && my >= y && my < y + h;

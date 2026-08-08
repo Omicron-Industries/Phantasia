@@ -46,7 +46,6 @@ public class ArsNouveauSetupProvider implements IPhantasiaMultiSetupProvider {
                 .findFirst();
     }
 
-    /** Called on resource reload to flush all recipe caches. */
     public void invalidateAll() {
         setups.forEach(ArsNouveauMultiSetup::invalidateCache);
     }

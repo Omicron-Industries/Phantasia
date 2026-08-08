@@ -31,37 +31,11 @@ import java.util.Set;
 
 import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
 
-/**
- * Self-contained 3-D multiblock preview widget for embedding in any screen.
- *
- * <p>
- * Owns its own {@link PhantasiaTrackedDummyWorld} and
- * {@link PhantasiaWorldRenderer} so it never conflicts with the main
- * {@code SHARED_LEVEL} used by {@link net.phoenixvine.phantasia.client.screens.PhantasiaSceneScreen}.
- *
- * <p>
- * Lifecycle:
- * <ol>
- * <li>Obtain via {@link PhantasiaAPI#createPreview(String)}.
- * <li>Call {@link #tick()} each game tick (or {@link #tickAutoSpin(float)} each render frame)
- * to drive the camera spin animation.
- * <li>Call {@link #render(GuiGraphics, int, int, int, int, float)} in your render method.
- * <li>Call {@link #mouseClicked(double, double, int, int, int, int, Screen)} in mouseClicked
- * to open the full Phantasia screen when the widget is clicked.
- * <li>Call {@link #close()} when your screen closes to release GL resources.
- * </ol>
- */
 @OnlyIn(Dist.CLIENT)
 public final class PhantasiaMachinePreview {
 
-    /**
-     * -- GETTER --
-     * The resolved machine definition backing this preview.
-     */
     @Getter
     private final IPhantasiaMultiblockDefinition definition;
-
-    // ── Per-widget rendering resources ────────────────────────────────────────
 
     private final PhantasiaTrackedDummyWorld world;
     private PhantasiaWorldRenderer renderer;
@@ -69,33 +43,16 @@ public final class PhantasiaMachinePreview {
     private PhantasiaPatternLoader loader;
     private boolean closed = false;
 
-    // ── Camera ────────────────────────────────────────────────────────────────
-
-    /**
-     * -- GETTER --
-     * Directly access the camera if you want to set a custom angle or zoom.
-     * The auto-spin still applies unless you call
-     * .
-     */
     @Getter
     private final PhantasiaCamera camera;
-    /** Degrees per second auto-spin. Set to 0 to disable. */
+
     private float autoSpinDegreesPerSecond = 20f;
     private float spinAccum = 0f;
 
-    // ── State ─────────────────────────────────────────────────────────────────
-
     private boolean ready = false;
-    /**
-     * -- GETTER --
-     * if the pattern failed to load (machine had no shapes, etc.).
-     */
+
     @Getter
     private boolean loadFailed = false;
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // Construction
-    // ─────────────────────────────────────────────────────────────────────────
 
     PhantasiaMachinePreview(IPhantasiaMultiblockDefinition definition) {
         this.definition = definition;
@@ -104,30 +61,14 @@ public final class PhantasiaMachinePreview {
         startLoad();
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Public API
-    // ─────────────────────────────────────────────────────────────────────────
-
-    /** {@code true} once the pattern has loaded and the first bake is ready. */
     public boolean isReady() {
         return ready && renderer != null && renderer.isSceneReady();
     }
 
-    /**
-     * Degrees per second the camera auto-spins. Default 20. Set to 0 to disable.
-     */
     public void setAutoSpin(float degreesPerSecond) {
         this.autoSpinDegreesPerSecond = degreesPerSecond;
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Tick / animation
-    // ─────────────────────────────────────────────────────────────────────────
-
-    /**
-     * Call once per game tick (20 Hz) to drive the camera smoothing.
-     * If your screen has a {@code tick()} method, put this there.
-     */
     public void tick() {
         camera.tick();
         if (autoSpinDegreesPerSecond != 0) {
@@ -135,11 +76,6 @@ public final class PhantasiaMachinePreview {
         }
     }
 
-    /**
-     * Alternatively, call once per render frame with the render partial tick
-     * to drive the spin at a framerate-independent rate.
-     * Use this if you don't have access to a screen tick.
-     */
     public void tickAutoSpin(float partialTick) {
         spinAccum += partialTick;
         if (spinAccum >= 1f) {
@@ -154,28 +90,9 @@ public final class PhantasiaMachinePreview {
         }
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Rendering
-    // ─────────────────────────────────────────────────────────────────────────
-
-    /**
-     * Renders the 3-D preview into the given screen-space rectangle.
-     *
-     * <p>
-     * Shows a loading shimmer while the pattern is still baking, and a dimmed
-     * placeholder if loading failed.
-     *
-     * @param g           GuiGraphics from the current render call
-     * @param x           left edge of the widget in screen pixels
-     * @param y           top edge of the widget in screen pixels
-     * @param w           widget width in pixels
-     * @param h           widget height in pixels
-     * @param partialTick render partial tick for smooth camera interpolation
-     */
     public void render(GuiGraphics g, int x, int y, int w, int h, float partialTick) {
         if (closed) return;
 
-        // Background
         g.fill(x, y, x + w, y + h, 0xBB0A0F14);
         g.fill(x, y, x + w, y + 1, C_ACCENT());
         g.fill(x, y + h - 1, x + w, y + h, C_ACCENT());
@@ -189,18 +106,11 @@ public final class PhantasiaMachinePreview {
         }
 
         if (renderer == null) {
-            // Pattern hasn't loaded at all yet (still async, or sync load hasn't run this
-            // constructor call yet) - nothing to drive.
+
             renderLoadingSpinner(g, x, y, w, h);
             return;
         }
 
-        // Always drive the renderer once it exists, even before isReady() - isSceneReady()
-        // reports whether the *previous* bake finished, but the bake itself only actually runs
-        // inside render() (see requestBake()'s fullBakeNeeded flag, processed at the top of
-        // PhantasiaWorldRenderer.render()). Gating this call behind isReady() meant the bake this
-        // widget is waiting on would never run in the first place - a permanent "Loading..."
-        // regardless of how fast the pattern itself loaded.
         CameraView view = camera.getView(partialTick);
         renderer.render(view, x, y, w, h);
 
@@ -209,7 +119,6 @@ public final class PhantasiaMachinePreview {
             return;
         }
 
-        // Subtle "click to view" hint at the bottom
         var font = Minecraft.getInstance().font;
         String hint = "Click to view in Phantasia";
         int hintW = font.width(hint);
@@ -219,10 +128,6 @@ public final class PhantasiaMachinePreview {
         }
     }
 
-    /**
-     * Renders the preview without the "click to view" hint overlay.
-     * Useful if you want to draw your own bottom label.
-     */
     public void renderRaw(GuiGraphics g, int x, int y, int w, int h, float partialTick) {
         if (closed) return;
         g.fill(x, y, x + w, y + h, 0xBB0A0F14);
@@ -243,36 +148,12 @@ public final class PhantasiaMachinePreview {
         }
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Mouse input
-    // ─────────────────────────────────────────────────────────────────────────
-
-    /**
-     * Call from your screen's {@code mouseClicked}. Returns {@code true} and opens
-     * the full Phantasia viewer if the cursor is inside the widget area.
-     *
-     * @param mx           cursor X
-     * @param my           cursor Y
-     * @param x            widget left edge
-     * @param y            widget top edge
-     * @param w            widget width
-     * @param h            widget height
-     * @param parentScreen screen to return to when Phantasia is closed
-     */
     public boolean mouseClicked(double mx, double my, int x, int y, int w, int h, Screen parentScreen) {
         if (closed || !isOver(mx, my, x, y, w, h)) return false;
         PhantasiaAPI.openForDefinition(definition, parentScreen);
         return true;
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Lifecycle
-    // ─────────────────────────────────────────────────────────────────────────
-
-    /**
-     * Releases the GL resources used by this widget's renderer.
-     * Call this when the owning screen closes.
-     */
     public void close() {
         if (closed) return;
         closed = true;
@@ -282,10 +163,6 @@ public final class PhantasiaMachinePreview {
             renderer = null;
         }
     }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // Internal
-    // ─────────────────────────────────────────────────────────────────────────
 
     private void startLoad() {
         List<IPhantasiaMultiblockShape> shapes = definition.getMatchingShapes();
@@ -304,15 +181,6 @@ public final class PhantasiaMachinePreview {
 
         IPhantasiaMultiblockShape shape = shapes.get(0);
 
-        // PhantasiaSceneScreen picks sync-vs-async by block count (see its own loadPattern());
-        // this widget used to *always* go through the async PhantasiaPatternLoader regardless of
-        // size, which meant every embedded preview - no matter how small the structure - resolved
-        // block states off the render thread. That's fine for most blocks, but at least some
-        // integrations (observed with GTCEu multiblocks) apparently aren't safe to resolve there
-        // and the load simply never completed, even for a trivial ~30-block structure that loads
-        // instantly through PhantasiaSceneScreen's own sync path. Mirror that same threshold here
-        // so small structures - the common case for a quest-icon-sized preview - load
-        // synchronously and immediately, and only genuinely large ones pay for the async path.
         int blockCount = countBlocks(shape.getBlocks());
         if (blockCount <= PhantasiaWorldRenderer.STREAMING_THRESHOLD) {
             try {
@@ -348,12 +216,6 @@ public final class PhantasiaMachinePreview {
         return n;
     }
 
-    /**
-     * Synchronous load path for small structures, mirroring
-     * {@code PhantasiaSceneScreen.loadPatternCold()} - writes blocks directly to this widget's
-     * own {@link #world} on the calling thread instead of handing block-state resolution off to
-     * the background pattern-loader thread.
-     */
     private PhantasiaLoadedPattern loadPatternSync(IPhantasiaMultiblockShape shape, PhantasiaScript script) {
         BlockPos renderOrigin = new BlockPos(8, 50, 8);
         PhantasiaBlockInfo[][][] raw = shape.getBlocks();
@@ -363,7 +225,7 @@ public final class PhantasiaMachinePreview {
         Set<BlockPos> baseplatePos = new HashSet<>();
         Set<BlockPos> bePos = new HashSet<>();
 
-        var baseplateState = net.phoenixvine.phantasia.utils.PhantasiaTheme.currentBaseplateBlockState();
+        var baseplateState = net.phoenixvine.phantasia.utils.PhantasiaBaseplateConfig.currentBaseplateBlockState();
         PhantasiaBlockInfo floor = baseplateState != null ? PhantasiaBlockInfo.fromBlockState(baseplateState) : null;
         int sxLen = raw.length;
         int szLen = sxLen > 0 && raw[0].length > 0 ? raw[0][0].length : 0;
@@ -436,7 +298,6 @@ public final class PhantasiaMachinePreview {
     private void onPatternLoaded(PhantasiaLoadedPattern pat) {
         this.pattern = pat;
 
-        // Write blocks to our private world (mirrors what SceneScreen does)
         for (var entry : pat.blockMap.entrySet()) {
             BlockPos wp = entry.getKey();
             PhantasiaBlockInfo info = entry.getValue();
@@ -454,10 +315,8 @@ public final class PhantasiaMachinePreview {
             RenderSystem.recordRenderCall(pat.postWriteTask::run);
         }
 
-        // Create renderer on the render thread
         renderer = new PhantasiaWorldRenderer(world);
 
-        // Configure camera zoom to fit the structure
         float maxDim = 0;
         for (BlockPos lp : pat.localToWorld.keySet()) {
             maxDim = Math.max(maxDim, Math.max(Math.abs(lp.getX()), Math.abs(lp.getZ())));
@@ -467,7 +326,6 @@ public final class PhantasiaMachinePreview {
         camera.setPosition(camera.getYaw(), camera.getPitch(), zoom);
         camera.setTarget(pat.origin.getX() + 4f, pat.origin.getY() + centerY, pat.origin.getZ() + 4f);
 
-        // Show all blocks
         Set<BlockPos> visible = new HashSet<>(pat.baseplatePositions);
         visible.addAll(pat.localToWorld.values());
 
@@ -482,7 +340,7 @@ public final class PhantasiaMachinePreview {
     private void renderLoadingSpinner(GuiGraphics g, int x, int y, int w, int h) {
         var font = Minecraft.getInstance().font;
         long ms = System.currentTimeMillis();
-        // Simple rotating dots indicator
+
         int frame = (int) ((ms / 200) % 4);
         String dots = ".".repeat(frame + 1) + "   ".substring(frame);
         g.drawCenteredString(font, "Loading" + dots, x + w / 2, y + h / 2 - 4, C_DIM());

@@ -20,10 +20,8 @@ import javax.annotation.Nullable;
 @Getter
 public class PhantasiaScript {
 
-    /** A block position to highlight with a colored outline + fill during a step. */
     public record HighlightEntry(BlockPos localPos, int argb) {}
 
-    /** A block state transition to apply when a step becomes active. */
     public record BlockTransitionEntry(BlockPos localPos, String stateString) {}
 
     public record Step(
@@ -88,13 +86,11 @@ public class PhantasiaScript {
         this.totalTicks = steps.isEmpty() ? 60 : steps.get(steps.size() - 1).tickOffset() + 60;
     }
 
-    /** True if the currently active step (at the given tick) has any local mistake markers. */
     public boolean hasCommonMistakes(int currentTick) {
         Step active = getActiveStep(currentTick);
         return active != null && !active.mistakes().isEmpty();
     }
 
-    /** Local mistake markers for whichever step is active at the given tick. Empty if none. */
     public List<LocalWarning> getCommonMistakes(int currentTick) {
         Step active = getActiveStep(currentTick);
         return active != null ? active.mistakes() : List.of();
@@ -138,30 +134,11 @@ public class PhantasiaScript {
 
         List<String> globalMistakes = new ArrayList<>(data.getGlobalMistakes());
         List<HeatmapTier> tiers = new ArrayList<>();
-        // Variant groups require a loaded pattern — compiled later via withVariants().
+
         return new PhantasiaScript(data, steps, globalMistakes, tiers,
                 Collections.emptyList());
     }
 
-    /**
-     * Compiles variant groups for this script given the loaded pattern and active
-     * shape info. Returns a new {@link PhantasiaScript} with the groups attached.
-     *
-     * <p>
-     * Called by {@link PhantasiaSceneScreen} after the pattern has been loaded,
-     * because block world-positions are needed to build the position→group maps.
-     */
-    /**
-     * Compiles variant groups for this script given the loaded pattern and ALL
-     * available shapes for the machine. Passing all shapes is required so that
-     * auto-detection can find blocks that only appear in some shape variants
-     * (e.g. fusion glass only appears in the fusion reactor's shape index 1,
-     * not in the all-casing shape index 0).
-     *
-     * Returns a new {@link PhantasiaScript} with the compiled groups attached.
-     * Called by {@link net.phoenixvine.phantasia.client.screens.PhantasiaSceneScreen}
-     * after the pattern has been loaded.
-     */
     public PhantasiaScript withVariants(IPhantasiaMultiblockDefinition definition,
                                         PhantasiaLoadedPattern pattern) {
         List<PhantasiaVariantGroup> groups = PhantasiaVariantGroup.compile(sourceData, definition, pattern);
@@ -247,7 +224,7 @@ public class PhantasiaScript {
             case "functional" -> localPred(PhantasiaMultiblockRegistry::isFunctionalBlock);
 
             default -> {
-                // parts:expr — full expression (e.g. "parts:@type(parts)", "parts:hatch | @coil")
+
                 if (show.startsWith("parts:")) {
                     yield buildPartsExprPredicate(show.substring(6).trim());
                 }
@@ -256,14 +233,9 @@ public class PhantasiaScript {
         };
     }
 
-    /**
-     * Evaluates a parts-filter expression the same way the script editor's matchToken does,
-     * so the compiled predicate and the editor's live visibility always agree.
-     */
     private static Predicate<BlockPos> buildPartsExprPredicate(String expr) {
         if (expr.isEmpty()) return pos -> true;
 
-        // OR groups
         if (expr.contains("|")) {
             List<Predicate<BlockPos>> preds = new ArrayList<>();
             for (String part : expr.split("\\|"))
@@ -274,7 +246,6 @@ public class PhantasiaScript {
             };
         }
 
-        // AND chains
         if (expr.contains("&")) {
             List<Predicate<BlockPos>> preds = new ArrayList<>();
             for (String part : expr.split("&"))
@@ -285,7 +256,6 @@ public class PhantasiaScript {
             };
         }
 
-        // @type() scopes
         if (expr.startsWith("@type(") && expr.endsWith(")")) {
             String type = expr.substring(6, expr.length() - 1).trim();
             return localPred(switch (type) {
@@ -296,7 +266,6 @@ public class PhantasiaScript {
             });
         }
 
-        // @coil shorthand
         if (expr.equals("@coil")) {
             return localPred(state -> {
                 try {
@@ -308,7 +277,6 @@ public class PhantasiaScript {
             });
         }
 
-        // @ability(xxx) or @block(xxx) — registry path contains value
         if ((expr.startsWith("@ability(") || expr.startsWith("@block(")) && expr.endsWith(")")) {
             String val = expr.substring(expr.indexOf('(') + 1, expr.length() - 1).trim().toLowerCase(Locale.ROOT);
             return localPred(state -> {
@@ -318,7 +286,6 @@ public class PhantasiaScript {
             });
         }
 
-        // Plain keyword — match registry path
         String keyword = expr.toLowerCase(Locale.ROOT);
         return localPred(state -> {
             net.minecraft.resources.ResourceLocation key = net.minecraftforge.registries.ForgeRegistries.BLOCKS
@@ -374,8 +341,6 @@ public class PhantasiaScript {
         private final PhantasiaScriptData data = new PhantasiaScriptData();
         private PhantasiaScriptData.StepData pending = null;
 
-        // Particle effects are client-side only and not part of PhantasiaScriptData.
-        // We accumulate them keyed by step index and attach after compileStep().
         private final List<List<PhantasiaParticleEffect>> pendingParticles = new ArrayList<>();
         private List<PhantasiaParticleEffect> currentParticles = new ArrayList<>();
 
@@ -460,12 +425,6 @@ public class PhantasiaScript {
             return this;
         }
 
-        // ── Particle effects ──────────────────────────────────────────────────
-
-        /**
-         * Adds a named preset particle effect at a local block position.
-         * Presets: HIGHLIGHT, ATTENTION, WARNING, SUCCESS, SMOKE, SPARK.
-         */
         public Builder particle(int x, int y, int z, PhantasiaParticleEffect.Preset preset) {
             currentParticles.add(PhantasiaParticleEffect.preset(new BlockPos(x, y, z), preset));
             return this;
@@ -523,7 +482,7 @@ public class PhantasiaScript {
 
         public PhantasiaScript build() {
             commit();
-            // Compile steps and attach particle effects by step index.
+
             List<PhantasiaScript.Step> compiled = new ArrayList<>();
             int i = 0;
             for (PhantasiaScriptData.StepData sd : data.getSteps()) {
@@ -532,7 +491,7 @@ public class PhantasiaScript {
                 i++;
             }
             List<String> globalMistakes = new ArrayList<>(data.getGlobalMistakes());
-            // Variant groups require a pattern — not available from the Builder path.
+
             return new PhantasiaScript(data, compiled, globalMistakes, List.of(),
                     List.of());
         }

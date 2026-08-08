@@ -18,51 +18,34 @@ import java.util.*;
 
 import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
 
-/**
- * PhantasiaFootprintScreen
- *
- * 2D top-down grid view of the multiblock at a given Y layer.
- * Purely 2D — does not touch the SceneWidget camera.
- *
- * FIX (B5): onClose() calls applyVisibility() on the parent PhantasiaSceneScreen
- * so any filter state set while here is immediately reflected on return.
- */
 @OnlyIn(Dist.CLIENT)
 public class PhantasiaFootprintScreen extends Screen {
 
-    // ── Grid Canvas Constraints ────────────────────────────────────────────────
     private static final int C_GRID_LINE = 0xFF1E2D3C;
     private static final int C_NORMAL = 0xFF3A506A;
     private static final int C_HOVER = 0xAAFFFFFF;
 
     private static final int PANEL_W = 164;
 
-    // ── State ─────────────────────────────────────────────────────────────────
     private final Screen parent;
     @Getter
     private final PhantasiaLoadedPattern pattern;
     private final PhantasiaScript script;
 
-    /** All Y values that have at least one block, sorted ascending. */
     private final List<Integer> layers;
     private int layerIndex = 0;
 
-    // Grid geometry — computed in recalcGrid(), purely local coords
     private int cellSize;
     private int gridPixelX;
     private int gridPixelY;
     private int localMinX, localMinZ;
 
-    // Interaction
     private BlockPos hoveredLocal = null;
     private BlockPos inspectedLocal = null;
 
     private boolean showHeatmap = false;
 
-    // Layer block counts — computed lazily per layer
     private final Map<Integer, Map<String, Integer>> layerBlockCounts = new HashMap<>();
-
-    // ── Constructor ───────────────────────────────────────────────────────────
 
     public PhantasiaFootprintScreen(PhantasiaLoadedPattern pattern, Screen parent, PhantasiaScript script) {
         super(Component.translatable("screen.phantasia.footprint.title"));
@@ -84,8 +67,6 @@ public class PhantasiaFootprintScreen extends Screen {
     private int currentLayerY() {
         return layers.isEmpty() ? 0 : layers.get(layerIndex);
     }
-
-    // ── Grid geometry ─────────────────────────────────────────────────────────
 
     private void recalcGrid() {
         if (pattern.localToWorld.isEmpty()) return;
@@ -116,8 +97,6 @@ public class PhantasiaFootprintScreen extends Screen {
         gridPixelY = 32 + (availH - gridH) / 2;
     }
 
-    // ── Coordinate helpers ────────────────────────────────────────────────────
-
     private BlockPos screenToLocal(int sx, int sy) {
         if (cellSize <= 0) return null;
         int localX = localMinX + Math.floorDiv(sx - gridPixelX, cellSize);
@@ -133,8 +112,6 @@ public class PhantasiaFootprintScreen extends Screen {
     private int localZToScreen(int lz) {
         return gridPixelY + (lz - localMinZ) * cellSize;
     }
-
-    // ── Rendering ─────────────────────────────────────────────────────────────
 
     @Override
     public void render(GuiGraphics g, int mx, int my, float partial) {
@@ -165,17 +142,14 @@ public class PhantasiaFootprintScreen extends Screen {
             int sx = localXToScreen(lp.getX());
             int sz = localZToScreen(lp.getZ());
 
-            // Cell color — base then heatmap override
             int color = cellColor(wp, lp);
             g.fill(sx + 1, sz + 1, sx + cellSize - 1, sz + cellSize - 1, color);
 
-            // Grid lines
             g.fill(sx, sz, sx + cellSize, sz + 1, C_GRID_LINE);
             g.fill(sx, sz + cellSize - 1, sx + cellSize, sz + cellSize, C_GRID_LINE);
             g.fill(sx, sz, sx + 1, sz + cellSize, C_GRID_LINE);
             g.fill(sx + cellSize - 1, sz, sx + cellSize, sz + cellSize, C_GRID_LINE);
 
-            // Hover border
             if (lp.equals(hoveredLocal)) {
                 g.fill(sx, sz, sx + cellSize, sz + 1, C_HOVER);
                 g.fill(sx, sz + cellSize - 1, sx + cellSize, sz + cellSize, C_HOVER);
@@ -183,7 +157,6 @@ public class PhantasiaFootprintScreen extends Screen {
                 g.fill(sx + cellSize - 1, sz, sx + cellSize, sz + cellSize, C_HOVER);
             }
 
-            // Inspect border
             if (lp.equals(inspectedLocal)) {
                 g.fill(sx, sz, sx + cellSize, sz + 1, C_ACCENT());
                 g.fill(sx, sz + cellSize - 1, sx + cellSize, sz + cellSize, C_ACCENT());
@@ -191,7 +164,6 @@ public class PhantasiaFootprintScreen extends Screen {
                 g.fill(sx + cellSize - 1, sz, sx + cellSize, sz + cellSize, C_ACCENT());
             }
 
-            // Abbreviation labels
             if (cellSize >= 10 && PhantasiaSceneScreen.SHARED_LEVEL != null) {
                 try {
                     BlockState bs = PhantasiaSceneScreen.SHARED_LEVEL.getBlockState(wp);
@@ -208,7 +180,6 @@ public class PhantasiaFootprintScreen extends Screen {
                 } catch (Exception ignored) {}
             }
 
-            // Axis labels
             if (cellSize >= 12) {
                 if (drawnX.add(lp.getX()))
                     g.drawString(font, String.valueOf(lp.getX()), sx + 1, 25, C_DIM(), false);
@@ -217,7 +188,6 @@ public class PhantasiaFootprintScreen extends Screen {
             }
         }
 
-        // Tooltip
         if (hoveredLocal != null) {
             BlockPos wp = pattern.toWorld(hoveredLocal);
             if (wp != null && PhantasiaSceneScreen.SHARED_LEVEL != null) {
@@ -249,7 +219,6 @@ public class PhantasiaFootprintScreen extends Screen {
         int y = 28;
         int hw = (PANEL_W - 18) / 2;
 
-        // Layer navigation
         g.drawString(font, Component.translatable("screen.phantasia.footprint.label_layer").getString(), px + 10, y,
                 C_DIM(), false);
         y += 11;
@@ -258,7 +227,6 @@ public class PhantasiaFootprintScreen extends Screen {
                 C_BTN());
         y += 19;
 
-        // Layer pills
         g.drawString(font, Component.translatable("screen.phantasia.footprint.label_jump_to").getString(), px + 10, y,
                 C_DIM(), false);
         y += 11;
@@ -280,14 +248,12 @@ public class PhantasiaFootprintScreen extends Screen {
         g.fill(px + 6, y, this.width - 4, y + 1, 0x33FFFFFF);
         y += 8;
 
-        // Heatmap toggle
         drawThemedBtn(g, font, px + 8, y, PANEL_W - 16, 15,
                 "Heatmap: " + (showHeatmap ? "ON" : "OFF"),
                 isOver(mx, my, px + 8, y, PANEL_W - 16, 15),
                 showHeatmap ? C_ACCENT() : C_BTN());
         y += 20;
 
-        // Inspect panel
         if (inspectedLocal != null) {
             BlockPos wp = pattern.toWorld(inspectedLocal);
             if (wp != null && PhantasiaSceneScreen.SHARED_LEVEL != null) {
@@ -327,7 +293,6 @@ public class PhantasiaFootprintScreen extends Screen {
             y += 8;
         }
 
-        // Layer block counts
         int layerY = currentLayerY();
         Map<String, Integer> counts = layerBlockCounts.computeIfAbsent(layerY, this::computeLayerCounts);
         g.drawString(font, Component.translatable("screen.phantasia.footprint.label_layer_blocks").getString(), px + 10,
@@ -342,7 +307,6 @@ public class PhantasiaFootprintScreen extends Screen {
             y += 10;
         }
 
-        // Back button — pinned to bottom
         drawThemedBtn(g, font, px + 8, this.height - 24, PANEL_W - 16, 18, "\u2190 Back",
                 isOver(mx, my, px + 8, this.height - 24, PANEL_W - 16, 18), C_BTN());
     }
@@ -378,15 +342,12 @@ public class PhantasiaFootprintScreen extends Screen {
         return result;
     }
 
-    // ── Input ─────────────────────────────────────────────────────────────────
-
     @Override
     public boolean mouseClicked(double mx, double my, int btn) {
         int px = this.width - PANEL_W;
         int hw = (PANEL_W - 18) / 2;
         int y = 28;
 
-        // Layer nav buttons
         y += 11;
         if (isOver((int) mx, (int) my, px + 8, y, hw, 15)) {
             cycleLayer(-1);
@@ -398,7 +359,6 @@ public class PhantasiaFootprintScreen extends Screen {
         }
         y += 19;
 
-        // Layer pills
         y += 11;
         int pillX = px + 8;
         for (int i = 0; i < layers.size(); i++) {
@@ -414,16 +374,14 @@ public class PhantasiaFootprintScreen extends Screen {
             pillX += 30;
         }
         y += 18;
-        y += 8; // separator
+        y += 8;
 
-        // Heatmap toggle
         if (isOver((int) mx, (int) my, px + 8, y, PANEL_W - 16, 15)) {
             showHeatmap = !showHeatmap;
             return true;
         }
         y += 20;
 
-        // Inspect / Clear button
         if (inspectedLocal != null) {
             y += 11;
             y += 10;
@@ -442,21 +400,19 @@ public class PhantasiaFootprintScreen extends Screen {
             y += 8;
         }
 
-        // Back button
         if (isOver((int) mx, (int) my, px + 8, this.height - 24, PANEL_W - 16, 18)) {
             onClose();
             return true;
         }
 
-        // Grid click
         if ((int) mx < px) {
             BlockPos lp = screenToLocal((int) mx, (int) my);
             if (lp != null) {
-                // Left Click (0): Inspect the block locally on the layout screen
+
                 if (btn == 0) {
                     inspectedLocal = lp;
                 }
-                // Right Click (1): Seamlessly look up recipes/uses in EMI
+
                 else if (btn == 1) {
                     BlockPos worldPos = pattern.toWorld(lp);
                     if (worldPos != null) {
@@ -526,8 +482,6 @@ public class PhantasiaFootprintScreen extends Screen {
     public boolean isPauseScreen() {
         return false;
     }
-
-    // ── Helpers ───────────────────────────────────────────────────────────────
 
     private boolean isOver(int mx, int my, int x, int y, int w, int h) {
         return mx >= x && mx < x + w && my >= y && my < y + h;

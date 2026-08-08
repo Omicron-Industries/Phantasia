@@ -40,15 +40,11 @@ public final class PhantasiaBlockInfo {
         return blockState;
     }
 
-    /** Creates a new BlockEntity for this block, without setting its level. Returns null if block has no BE. */
     @Nullable
     public BlockEntity getBlockEntity(BlockPos pos) {
         return getBlockEntity(null, pos);
     }
 
-    /**
-     * Creates a new BlockEntity for this block. If world is non-null, sets its level. Returns null if block has no BE.
-     */
     @Nullable
     public BlockEntity getBlockEntity(@Nullable Level world, BlockPos pos) {
         if (blockState.isAir() || !(blockState.getBlock() instanceof EntityBlock eb)) return null;

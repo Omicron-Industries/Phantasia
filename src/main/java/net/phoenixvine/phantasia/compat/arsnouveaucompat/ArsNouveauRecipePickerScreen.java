@@ -22,11 +22,6 @@ import java.util.function.Consumer;
 
 import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
 
-/**
- * Recipe picker modal for the AN script editor.
- * Shows three tabs: Apparatus, Imbuement, Ritual.
- * Selecting an entry writes its ID to the script's {@code recipeId} field.
- */
 @OnlyIn(Dist.CLIENT)
 public class ArsNouveauRecipePickerScreen extends Screen {
 
@@ -49,7 +44,6 @@ public class ArsNouveauRecipePickerScreen extends Screen {
     private EditBox searchBox;
     private int scrollOffset = 0;
 
-    // panel bounds (set in init)
     private int pw, ph, px, py;
 
     public ArsNouveauRecipePickerScreen(Screen parent, PhantasiaScriptData data, Consumer<String> onPick) {
@@ -74,8 +68,6 @@ public class ArsNouveauRecipePickerScreen extends Screen {
         searchBox.setBordered(false);
         setInitialFocus(searchBox);
     }
-
-    // ── data helpers ─────────────────────────────────────────────────────────
 
     private record Entry(String id, String label) {}
 
@@ -130,8 +122,6 @@ public class ArsNouveauRecipePickerScreen extends Screen {
         return slash >= 0 ? path.substring(slash + 1) : path;
     }
 
-    // ── rendering ────────────────────────────────────────────────────────────
-
     @Override
     public void render(GuiGraphics g, int mx, int my, float partial) {
         g.fill(0, 0, this.width, this.height, 0xA0000000);
@@ -141,7 +131,6 @@ public class ArsNouveauRecipePickerScreen extends Screen {
 
         g.drawCenteredString(font, "Pick Recipe / Ritual", px + pw / 2, py + 7, AN_BLUE);
 
-        // tabs
         int tabY = py + HEADER_H;
         int tabW = pw / 3;
         for (Tab t : Tab.values()) {
@@ -153,14 +142,12 @@ public class ArsNouveauRecipePickerScreen extends Screen {
             g.drawCenteredString(font, tabLabel(t), tx + tabW / 2, tabY + 6, act ? AN_BLUE : C_DIM());
         }
 
-        // search bar background
         int sbY = tabY + 20;
         g.fill(px + 4, sbY, px + pw - 4, sbY + 18, 0xFF111111);
         g.fill(px + 4, sbY, px + pw - 4, sbY + 1, 0xFF333333);
 
         super.render(g, mx, my, partial);
 
-        // list
         int listY = sbY + 18;
         int listH = ph - (listY - py) - 24;
         int maxRows = listH / ROW_H;
@@ -185,7 +172,6 @@ public class ArsNouveauRecipePickerScreen extends Screen {
         }
         g.disableScissor();
 
-        // scrollbar
         if (entries.size() > maxRows) {
             int sbX = px + pw - 5;
             float frac = (float) scrollOffset / (entries.size() - maxRows);
@@ -195,14 +181,13 @@ public class ArsNouveauRecipePickerScreen extends Screen {
             g.fill(sbX, thumbY, sbX + 4, thumbY + thumbH, 0xFF555566);
         }
 
-        // bottom bar
         int bbY = py + ph - 22;
         g.fill(px, bbY, px + pw, py + ph, 0xFF111111);
-        // Clear button
+
         boolean clearHov = isOver(mx, my, px + 8, bbY + 4, 60, 14);
         g.fill(px + 8, bbY + 4, px + 68, bbY + 18, clearHov ? C_BTN_HOV() : C_BTN());
         g.drawCenteredString(font, "Clear", px + 38, bbY + 7, clearHov ? C_ACCENT() : C_DIM());
-        // Close button
+
         boolean closeHov = isOver(mx, my, px + pw - 68, bbY + 4, 60, 14);
         g.fill(px + pw - 68, bbY + 4, px + pw - 8, bbY + 18, closeHov ? C_BTN_HOV() : C_BTN());
         g.drawCenteredString(font, "Close", px + pw - 38, bbY + 7, closeHov ? C_ACCENT() : C_DIM());
@@ -220,8 +205,6 @@ public class ArsNouveauRecipePickerScreen extends Screen {
         return mx >= x && mx < x + w && my >= y && my < y + h;
     }
 
-    // ── input ────────────────────────────────────────────────────────────────
-
     @Override
     public boolean mouseClicked(double mx, double my, int btn) {
         if (super.mouseClicked(mx, my, btn)) return true;
@@ -237,7 +220,6 @@ public class ArsNouveauRecipePickerScreen extends Screen {
             }
         }
 
-        // list rows
         int listY = tabY + 20 + 18;
         int listH = ph - (listY - py) - 24;
         int maxRows = listH / ROW_H;
@@ -252,7 +234,6 @@ public class ArsNouveauRecipePickerScreen extends Screen {
             }
         }
 
-        // bottom buttons
         int bbY = py + ph - 22;
         if (isOver((int) mx, (int) my, px + 8, bbY + 4, 60, 14)) {
             onPick.accept(null);

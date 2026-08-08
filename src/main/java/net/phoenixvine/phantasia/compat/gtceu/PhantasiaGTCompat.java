@@ -18,10 +18,6 @@ import net.phoenixvine.phantasia.Phantasia;
 import net.phoenixvine.phantasia.common.PhantasiaTestMultiblocks;
 import net.phoenixvine.phantasia.common.multiblock.PhantasiaMultiblockRegistry;
 
-/**
- * All GTCEu-specific initialization for Phantasia.
- * Loaded only when GTCEu is present, via a {@code ModList} guard in {@link Phantasia}.
- */
 public final class PhantasiaGTCompat {
 
     public static GTRegistrate PHANTASIA_REGISTRATE = GTRegistrate.create(Phantasia.MOD_ID);
@@ -29,11 +25,12 @@ public final class PhantasiaGTCompat {
     private PhantasiaGTCompat() {}
 
     public static void init(IEventBus modEventBus) {
-        GTCEuBlockInspectHelper.register();
         PHANTASIA_REGISTRATE.registerRegistrate();
 
-        // Register our GTCEu provider so Phantasia can resolve GT machines
-        PhantasiaMultiblockRegistry.register(new GTCEuMultiblockProvider());
+        if (net.minecraftforge.fml.loading.FMLEnvironment.dist.isClient()) {
+            GTCEuBlockInspectHelper.register();
+            PhantasiaMultiblockRegistry.register(new GTCEuMultiblockProvider());
+        }
 
         modEventBus.addListener(PhantasiaGTCompat::addMaterialRegistries);
         modEventBus.addListener(PhantasiaGTCompat::addMaterials);

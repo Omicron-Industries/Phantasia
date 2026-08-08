@@ -16,37 +16,8 @@ import java.util.List;
 
 import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
 
-/**
- * PhantasiaSceneMistakesEditorScreen
- *
- * Subscreen for defining layout mistake rules on a {@link PhantasiaSceneData}.
- *
- * A "layout mistake" is a named rule that flags incorrect placement of machines
- * in a multi-machine scene — for example two machines placed too close together,
- * a machine missing from the layout, or a machine rotated the wrong way.
- *
- * Each {@link PhantasiaSceneData.SceneMistakeData} entry holds:
- * - id : unique string key (e.g. "too_close")
- * - description : human-readable explanation shown to the player
- * - severity : INFO | WARNING | ERROR (controls highlight colour)
- * - placements : list of placement indices this rule applies to
- *
- * The screen shows a scrollable list of existing mistakes, an inline expand-to-
- * edit form for each, and an Add-new form at the bottom.
- *
- * NOTE: Requires PhantasiaSceneData to expose:
- * List<SceneMistakeData> mistakes (add this field if absent)
- *
- * And PhantasiaSceneData.SceneMistakeData:
- * String id
- * String description
- * String severity ("INFO" | "WARNING" | "ERROR")
- * List<Integer> placements (placement indices this mistake targets)
- */
 @OnlyIn(Dist.CLIENT)
 public class PhantasiaSceneMistakesEditorScreen extends PhantasiaScreen {
-
-    // ── Theme ─────────────────────────────────────────────────────────────────
 
     private static final int ROW_H = 20;
     private static final int BOTTOM_H = 28;
@@ -56,28 +27,19 @@ public class PhantasiaSceneMistakesEditorScreen extends PhantasiaScreen {
     private static final String[] SEVERITY_LABELS = { "Info", "Warning", "Error" };
     private static final int[] SEVERITY_COLORS = { 0xFF4FC3F7, 0xFFFFB74D, 0xFFFF5252 };
 
-    // ── Parent / data ─────────────────────────────────────────────────────────
     private final net.minecraft.client.gui.screens.Screen parent;
     private List<PhantasiaSceneData.SceneMistakeData> mistakes = new ArrayList<>();
     private Runnable onModified = () -> {};
 
-    // ── State ─────────────────────────────────────────────────────────────────
-    private int expandedRow = -1;   // index of the mistake row that is expanded for editing
+    private int expandedRow = -1;
     private int scrollOffset = 0;
     private String addError = null;
 
-    // ── Widgets ───────────────────────────────────────────────────────────────
-    // Shared add/edit fields (reused per expanded row)
     private EditBox editIdBox;
     private EditBox editDescBox;
-    private EditBox editPlacementsBox;   // comma-separated placement indices: "0, 2"
+    private EditBox editPlacementsBox;
 
-    // Pending severity for add-new form
     private String newSeverity = "WARNING";
-
-    // ── Button list ───────────────────────────────────────────────────────────
-
-    // ─────────────────────────────────────────────────────────────────────────
 
     public PhantasiaSceneMistakesEditorScreen(PhantasiaSceneEditorScreen parent,
                                               PhantasiaSceneData data) {
@@ -102,10 +64,6 @@ public class PhantasiaSceneMistakesEditorScreen extends PhantasiaScreen {
     @Override
     public void hideAllInputs() {}
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Init
-    // ─────────────────────────────────────────────────────────────────────────
-
     @Override
     protected void init() {
         super.init();
@@ -126,10 +84,6 @@ public class PhantasiaSceneMistakesEditorScreen extends PhantasiaScreen {
 
         hideAll();
     }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // Render
-    // ─────────────────────────────────────────────────────────────────────────
 
     @Override
     public void render(GuiGraphics g, int mx, int my, float partial) {
@@ -152,7 +106,6 @@ public class PhantasiaSceneMistakesEditorScreen extends PhantasiaScreen {
                 "\u26A0 Layout Mistakes  \u2014  " + mistakes.size() + " defined",
                 width / 2, (TOP_BAR_H - 8) / 2, C_ACCENT());
 
-        // Done
         int doneW = font.width("\u2713 Done") + 12;
         int doneX = width - 4 - doneW;
         boolean doneHov = isOver(mx, my, doneX, 3, doneW, TOP_BAR_H - 6);
@@ -169,7 +122,6 @@ public class PhantasiaSceneMistakesEditorScreen extends PhantasiaScreen {
         int px = (width - pw) / 2;
         int cy = TOP_BAR_H + 6;
 
-        // ── Existing mistakes ─────────────────────────────────────────────────
         for (int i = 0; i < mistakes.size(); i++) {
             PhantasiaSceneData.SceneMistakeData m = mistakes.get(i);
             boolean expanded = (expandedRow == i);
@@ -183,17 +135,14 @@ public class PhantasiaSceneMistakesEditorScreen extends PhantasiaScreen {
             cy += 22;
         }
 
-        // ── Divider ───────────────────────────────────────────────────────────
         cy += 4;
         g.fill(px, cy, px + pw, cy + 1, 0x33FFFFFF);
         cy += 8;
 
-        // ── Add-new form ──────────────────────────────────────────────────────
         g.drawString(font, Component.translatable("screen.phantasia.scene_mistakes_editor.btn_new").getString(), px + 4,
                 cy, C_ACCENT(), false);
         cy += 12;
 
-        // Severity selector
         g.drawString(font, Component.translatable("screen.phantasia.scene_mistakes_editor.label_severity").getString(),
                 px + 4, cy + 2, C_DIM(), false);
         int sbx = px + 4 +
@@ -216,7 +165,6 @@ public class PhantasiaSceneMistakesEditorScreen extends PhantasiaScreen {
         }
         cy += 16;
 
-        // ID field
         g.drawString(font, Component.translatable("screen.phantasia.scene_mistakes_editor.label_id").getString(),
                 px + 4, cy + 2, C_DIM(), false);
         place(editIdBox,
@@ -225,7 +173,6 @@ public class PhantasiaSceneMistakesEditorScreen extends PhantasiaScreen {
                 cy, 160, 12);
         cy += 16;
 
-        // Description field
         g.drawString(font, Component.translatable("screen.phantasia.scene_mistakes_editor.label_desc").getString(),
                 px + 4, cy + 2, C_DIM(), false);
         place(editDescBox,
@@ -237,7 +184,6 @@ public class PhantasiaSceneMistakesEditorScreen extends PhantasiaScreen {
                 12);
         cy += 16;
 
-        // Placements field
         g.drawString(font,
                 Component.translatable("screen.phantasia.scene_mistakes_editor.label_placements").getString(), px + 4,
                 cy + 2, C_DIM(), false);
@@ -247,13 +193,11 @@ public class PhantasiaSceneMistakesEditorScreen extends PhantasiaScreen {
 
         cy += 16;
 
-        // Error
         if (addError != null) {
             g.drawString(font, addError, px + 4, cy, C_RED(), false);
             cy += 12;
         }
 
-        // Add button
         int addBtnW = pw - 8;
         boolean addHov = isOver(mx, my, px + 4, cy, addBtnW, 14);
         g.fill(px + 4, cy, px + 4 + addBtnW, cy + 14, addHov ? C_BTN_HOV() : C_BTN());
@@ -262,29 +206,22 @@ public class PhantasiaSceneMistakesEditorScreen extends PhantasiaScreen {
         btns.add(new Btn(px + 4, cy, addBtnW, 14, this::commitAdd));
     }
 
-    /**
-     * Renders one row for an existing mistake. If {@code expanded} is true, also
-     * renders the inline edit form immediately below the row.
-     */
     private int renderMistakeRow(GuiGraphics g, int mx, int my,
                                  int px, int cy, int pw,
                                  int idx, PhantasiaSceneData.SceneMistakeData m,
                                  boolean expanded) {
         int sevCol = severityColor(m.severity);
 
-        // Row background
         boolean rowHov = isOver(mx, my, px + 2, cy, pw - 28, ROW_H);
         g.fill(px + 2, cy, px + pw - 2, cy + ROW_H,
                 expanded ? C_BTN_ACT() : (rowHov ? C_BTN_HOV() : C_BTN()));
         g.fill(px + 2, cy, px + 3, cy + ROW_H, sevCol);
 
-        // Severity badge
         String badge = m.severity != null ? m.severity.substring(0, 1) : "?";
         int badgeW = font.width(badge) + 6;
         g.fill(px + 5, cy + 4, px + 5 + badgeW, cy + ROW_H - 4, sevCol & 0x55FFFFFF | 0x55000000);
         g.drawString(font, badge, px + 8, cy + 6, sevCol, false);
 
-        // ID + description
         String idStr = m.id != null ? m.id : "(no id)";
         g.drawString(font, idStr, px + 5 + badgeW + 4, cy + 4, expanded ? C_ACCENT() : C_TEXT(), false);
         if (m.description != null && !m.description.isBlank()) {
@@ -292,14 +229,12 @@ public class PhantasiaSceneMistakesEditorScreen extends PhantasiaScreen {
             g.drawString(font, desc, px + 5 + badgeW + 4, cy + 12, C_DIM(), false);
         }
 
-        // Placement indices badge
         if (m.placements != null && !m.placements.isEmpty()) {
             String pls = "P:" + m.placements.toString().replace(" ", "");
             int plX = px + pw - 48 - font.width(pls);
             g.drawString(font, pls, plX, cy + 6, 0xFF889AAA, false);
         }
 
-        // Remove button
         int rmX = px + pw - 24, rmY = cy + 4;
         boolean rmHov = isOver(mx, my, rmX, rmY, 18, 12);
         g.fill(rmX, rmY, rmX + 18, rmY + 12, rmHov ? C_BTN_HOV() : C_BTN());
@@ -312,7 +247,6 @@ public class PhantasiaSceneMistakesEditorScreen extends PhantasiaScreen {
             else if (expandedRow > fi) expandedRow--;
         }));
 
-        // Click row to expand/collapse edit
         btns.add(new Btn(px + 2, cy, pw - 28, ROW_H, () -> {
             if (expandedRow == fi) {
                 expandedRow = -1;
@@ -323,7 +257,6 @@ public class PhantasiaSceneMistakesEditorScreen extends PhantasiaScreen {
         }));
         cy += ROW_H + 1;
 
-        // Inline edit form
         if (expanded) {
             cy = renderInlineEditForm(g, mx, my, px, cy, pw, idx, m);
         }
@@ -331,14 +264,12 @@ public class PhantasiaSceneMistakesEditorScreen extends PhantasiaScreen {
         return cy;
     }
 
-    /** Inline edit form for an existing mistake (shown when row is expanded). */
     private int renderInlineEditForm(GuiGraphics g, int mx, int my,
                                      int px, int cy, int pw,
                                      int idx, PhantasiaSceneData.SceneMistakeData m) {
         g.fill(px + 2, cy, px + pw - 2, cy + 1, 0x22FFFFFF);
         cy += 4;
 
-        // Severity selector
         int sbx = px + 8;
         for (int si = 0; si < SEVERITIES.length; si++) {
             String sv = SEVERITIES[si];
@@ -359,7 +290,6 @@ public class PhantasiaSceneMistakesEditorScreen extends PhantasiaScreen {
         }
         cy += 16;
 
-        // ID field
         g.drawString(font, Component.translatable("screen.phantasia.scene_mistakes_editor.label_id").getString(),
                 px + 8, cy + 2, C_DIM(), false);
         place(editIdBox,
@@ -368,7 +298,6 @@ public class PhantasiaSceneMistakesEditorScreen extends PhantasiaScreen {
                 cy, 160, 12);
         cy += 16;
 
-        // Description field
         g.drawString(font, Component.translatable("screen.phantasia.scene_mistakes_editor.label_desc").getString(),
                 px + 8, cy + 2, C_DIM(), false);
         place(editDescBox,
@@ -380,7 +309,6 @@ public class PhantasiaSceneMistakesEditorScreen extends PhantasiaScreen {
                 12);
         cy += 16;
 
-        // Placements
         g.drawString(font,
                 Component.translatable("screen.phantasia.scene_mistakes_editor.label_placements").getString(), px + 8,
                 cy + 2, C_DIM(), false);
@@ -391,7 +319,6 @@ public class PhantasiaSceneMistakesEditorScreen extends PhantasiaScreen {
                 cy, 120, 12);
         cy += 16;
 
-        // Apply button
         int applyW = pw - 16;
         boolean applyHov = isOver(mx, my, px + 8, cy, applyW, 12);
         g.fill(px + 8, cy, px + 8 + applyW, cy + 12, applyHov ? C_BTN_HOV() : C_BTN());
@@ -411,10 +338,6 @@ public class PhantasiaSceneMistakesEditorScreen extends PhantasiaScreen {
                 "Mistakes flag incorrect placements \u2014 " + mistakes.size() + " defined",
                 width / 2, by + (BOTTOM_H - 8) / 2, C_DIM());
     }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // Actions
-    // ─────────────────────────────────────────────────────────────────────────
 
     private void commitAdd() {
         addError = null;
@@ -476,10 +399,6 @@ public class PhantasiaSceneMistakesEditorScreen extends PhantasiaScreen {
         Minecraft.getInstance().setScreen(parent);
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Input
-    // ─────────────────────────────────────────────────────────────────────────
-
     @Override
     public boolean mouseClicked(double mx, double my, int button) {
         for (Btn b : btns) if (b.hit(mx, my)) {
@@ -510,10 +429,6 @@ public class PhantasiaSceneMistakesEditorScreen extends PhantasiaScreen {
         return false;
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Helpers
-    // ─────────────────────────────────────────────────────────────────────────
-
     private void hideAll() {
         for (var box : java.util.List.of(editIdBox, editDescBox, editPlacementsBox)) {
             if (box != null) {
@@ -537,7 +452,7 @@ public class PhantasiaSceneMistakesEditorScreen extends PhantasiaScreen {
         return switch (severity.toUpperCase(java.util.Locale.ROOT)) {
             case "INFO" -> SEVERITY_COLORS[0];
             case "ERROR" -> SEVERITY_COLORS[2];
-            default -> SEVERITY_COLORS[1]; // WARNING
+            default -> SEVERITY_COLORS[1];
         };
     }
 

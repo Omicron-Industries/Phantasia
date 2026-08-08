@@ -21,12 +21,10 @@ public class PhantasiaMixinPlugin implements IMixinConfigPlugin {
 
     @Override
     public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
-        // Guard AI Improvements mixins
         if (mixinClassName.contains(".aiimprovements.")) {
             return LoadingModList.get().getModFileById("aiimprovements") != null;
         }
 
-        // Guard Oculus mixins
         if (mixinClassName.contains(".oculus.")) {
             return LoadingModList.get().getModFileById("oculus") != null;
         }

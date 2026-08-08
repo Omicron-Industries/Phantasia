@@ -24,50 +24,34 @@ import java.util.List;
 
 import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
 
-/**
- * Subscreen for editing the "hide positions" list of a script step.
- *
- * Left half: the parent's 3-D renderer showing the multiblock. Hovering a row
- * in the list highlights that position in world-space with a coloured overlay;
- * clicking on a visible block in the viewport adds it to the hide list.
- * Right half: scrollable list of hidden positions with ✕ remove buttons, plus
- * a manual x,y,z add field at the bottom.
- */
 @OnlyIn(Dist.CLIENT)
 public class PhantasiaHidePosEditorScreen extends Screen {
 
     private static final int TOP_BAR_H = 22;
     private static final int BOTTOM_H = 36;
     private static final int ROW_H = 20;
-    private static final int PANEL_W = 260; // right panel width
+    private static final int PANEL_W = 260;
 
     private int viewportW() {
         return this.width - PANEL_W;
     }
 
-    // ── Context (abstracts script-editor vs scene-placement-editor parent) ───────
     private final PhantasiaHidePosContext ctx;
 
-    // ── Camera (own, so we don't disturb parent camera) ───────────────────────
     private PhantasiaCamera camera;
     private boolean isPanning = false;
     private static final float CAM_ORBIT = 0.4f;
     private static final float CAM_PAN = 0.02f;
 
-    // ── Hover state ───────────────────────────────────────────────────────────
-    /** Local XYZ of the row currently hovered in the list, or null. */
     private int[] hoveredListPos = null;
-    /** World-space pos hovered in the viewport (for click-to-add), or null. */
+
     private BlockPos hoveredViewportPos = null;
 
-    // ── Scroll ────────────────────────────────────────────────────────────────
     private int scrollOffset = 0;
 
-    // ── Add-entry input ───────────────────────────────────────────────────────
     private EditBox addBox;
     private String addError = null;
 
-    // ── Button registry ───────────────────────────────────────────────────────
     private record Btn(int x, int y, int w, int h, Runnable action) {
 
         boolean hit(double mx, double my) {
@@ -77,24 +61,17 @@ public class PhantasiaHidePosEditorScreen extends Screen {
 
     private final List<Btn> btns = new ArrayList<>();
 
-    // ─────────────────────────────────────────────────────────────────────────
     public PhantasiaHidePosEditorScreen(PhantasiaHidePosContext ctx) {
         super(Component.translatable("screen.phantasia.hide_pos_editor.title"));
         this.ctx = ctx;
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Init
-    // ─────────────────────────────────────────────────────────────────────────
-
     @Override
     protected void init() {
         super.init();
 
-        // Apply the current pos filter immediately so blocks hide as soon as the screen opens
         ctx.previewVisibility();
 
-        // Clone the parent camera so we start at the same view angle
         if (camera == null && ctx.getParentCamera() != null) {
             PhantasiaCamera pc = ctx.getParentCamera();
             camera = new PhantasiaCamera(pc.getYaw(), pc.getPitch(), pc.getZoom(),
@@ -103,7 +80,6 @@ public class PhantasiaHidePosEditorScreen extends Screen {
             camera = new PhantasiaCamera(-135f, -30f, 30f, 0f, 5f, 0f);
         }
 
-        // Add-box sits in the bottom strip of the right panel
         int addY = this.height - BOTTOM_H + 10;
         int listX = this.width - PANEL_W + 4;
         addBox = addRenderableWidget(new EditBox(font,
@@ -113,19 +89,11 @@ public class PhantasiaHidePosEditorScreen extends Screen {
         addBox.setFilter(s -> s.matches("[\\d\\s,\\-]*"));
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Tick
-    // ─────────────────────────────────────────────────────────────────────────
-
     @Override
     public void tick() {
         super.tick();
         if (camera != null) camera.tick();
     }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // Render
-    // ─────────────────────────────────────────────────────────────────────────
 
     @Override
     public void render(GuiGraphics g, int mx, int my, float partial) {
@@ -138,17 +106,15 @@ public class PhantasiaHidePosEditorScreen extends Screen {
         int viewW = viewportW();
         int viewH = this.height - TOP_BAR_H;
 
-        // ── 3-D Viewport ──────────────────────────────────────────────────────
         PhantasiaWorldRenderer rend = ctx.getRenderer();
         if (rend != null && camera != null) {
-            // Pass mouse only when cursor is in the viewport area
+
             int vmx = (mx < viewW) ? mx : -1;
             int vmy = (my > TOP_BAR_H) ? my : -1;
             rend.setMousePos(vmx, vmy);
             CameraView view = camera.getView(partial);
             rend.render(view, 0, TOP_BAR_H, viewW, viewH);
 
-            // Pick hovered viewport block (only if cursor is in viewport)
             if (mx < viewW && my > TOP_BAR_H) {
                 BlockHitResult hit = rend.getLastHitResult();
                 if (hit != null && hit.getType() == HitResult.Type.BLOCK) {
@@ -167,15 +133,10 @@ public class PhantasiaHidePosEditorScreen extends Screen {
         super.render(g, mx, my, partial);
     }
 
-    // ── Top bar ───────────────────────────────────────────────────────────────
-
     private void renderTopBar(GuiGraphics g, int mx, int my) {
         g.fill(0, 0, this.width, TOP_BAR_H, C_BAR());
         g.fill(0, TOP_BAR_H - 1, this.width, TOP_BAR_H, C_ACCENT());
 
-        // Title is in the right-panel header — top bar holds hint text + buttons only.
-
-        // Done button
         int doneW = font.width(Component.translatable("screen.phantasia.hide_pos_editor.btn_done").getString()) + 12;
         int doneX = this.width - 4 - doneW;
         boolean doneHov = isOver(mx, my, doneX, 3, doneW, TOP_BAR_H - 6);
@@ -188,7 +149,6 @@ public class PhantasiaHidePosEditorScreen extends Screen {
                 (TOP_BAR_H - 8) / 2, doneHov ? C_GREEN() : C_TEXT(), false);
         btns.add(new Btn(doneX, 3, doneW, TOP_BAR_H - 6, this::close));
 
-        // Clear all button
         int clrW = font.width(Component.translatable("screen.phantasia.hide_pos_editor.btn_clear").getString()) + 12;
         int clrX = doneX - 4 - clrW;
         boolean clrHov = isOver(mx, my, clrX, 3, clrW, TOP_BAR_H - 6);
@@ -202,7 +162,6 @@ public class PhantasiaHidePosEditorScreen extends Screen {
             ctx.rebuildVisibility();
         }));
 
-        // Hint: click block in viewport to hide it
         if (hoveredViewportPos != null) {
             g.drawString(font, Component.translatable("screen.phantasia.hide_pos_editor.hint_click").getString(), 8,
                     (TOP_BAR_H - 8) / 2, C_DIM(), false);
@@ -213,14 +172,11 @@ public class PhantasiaHidePosEditorScreen extends Screen {
         }
     }
 
-    // ── Right panel ───────────────────────────────────────────────────────────
-
     private void renderRightPanel(GuiGraphics g, int mx, int my) {
         int px = this.width - PANEL_W;
         g.fill(px, TOP_BAR_H, this.width, this.height, C_PANEL());
         g.fill(px, TOP_BAR_H, px + 1, this.height, C_ACCENT());
 
-        // Panel header — shows full title with step label and hidden count
         g.fill(px, TOP_BAR_H, this.width, TOP_BAR_H + 14, C_BAR());
         String panelTitle = "Hide Positions — " + ctx.getHidePosLabel() + "  (" + ctx.getHidePositions().size() +
                 " hidden)";
@@ -251,7 +207,6 @@ public class PhantasiaHidePosEditorScreen extends Screen {
             return;
         }
 
-        // Scrollbar
         if (positions.size() > visRows) {
             int sbX = this.width - 6;
             g.fill(sbX, listTop, sbX + 4, listBottom, 0x33FFFFFF);
@@ -268,16 +223,13 @@ public class PhantasiaHidePosEditorScreen extends Screen {
             boolean hov = isOver(mx, my, px + 1, ry, PANEL_W - 22, ROW_H);
             if (hov) hoveredListPos = pos;
 
-            // Row background
             g.fill(px + 1, ry, this.width - 6, ry + ROW_H - 1,
                     hov ? 0xBB0D1A2D : (i % 2 == 0 ? 0x11FFFFFF : 0x00000000));
             if (hov) g.fill(px + 1, ry, px + 2, ry + ROW_H - 1, C_ACCENT());
 
-            // Coord label
             String coord = pos[0] + ", " + pos[1] + ", " + pos[2];
             g.drawString(font, coord, px + 7, ry + (ROW_H - 8) / 2, C_ACCENT(), false);
 
-            // Block name (dimmed, right-aligned to avoid coord overlap)
             String blockName = lookupBlockName(pos);
             if (blockName != null) {
                 int maxNameW = PANEL_W - 30 - font.width(coord) - 8;
@@ -287,7 +239,6 @@ public class PhantasiaHidePosEditorScreen extends Screen {
                         px + 7 + font.width(coord) + 6, ry + (ROW_H - 8) / 2, C_DIM(), false);
             }
 
-            // ✕ remove button
             int rbx = this.width - 22;
             boolean rbHov = isOver(mx, my, rbx, ry + 3, 16, ROW_H - 6);
             g.fill(rbx, ry + 3, rbx + 16, ry + ROW_H - 3,
@@ -317,7 +268,7 @@ public class PhantasiaHidePosEditorScreen extends Screen {
 
         g.drawString(font, Component.translatable("screen.phantasia.hide_pos_editor.label_add").getString(), px + 6,
                 barY + 11, C_DIM(), false);
-        // addBox is positioned in init; just draw the Add button beside it
+
         int addBtnX = this.width - PANEL_W + 4 + (PANEL_W - 60) + 4;
         boolean addHov = isOver(mx, my, addBtnX, barY + 8, 44, 16);
         g.fill(addBtnX, barY + 8, addBtnX + 44, barY + 24,
@@ -332,18 +283,11 @@ public class PhantasiaHidePosEditorScreen extends Screen {
             g.drawString(font, addError, px + 6, barY + 24, C_RED(), false);
     }
 
-    // ── Viewport highlight overlays ───────────────────────────────────────────
-
-    /**
-     * Draws a coloured halo in the viewport when a list row is hovered,
-     * and a "click to hide" label when the cursor is over a visible block.
-     */
     private void renderViewportOverlays(GuiGraphics g, int mx, int my) {
         int viewW = viewportW();
 
-        // Viewport click hint
         if (hoveredViewportPos != null && mx < viewW && my > TOP_BAR_H) {
-            // Translate world pos → local for display
+
             int[] local = worldToLocal(hoveredViewportPos);
             String blockName = "";
             try {
@@ -355,7 +299,6 @@ public class PhantasiaHidePosEditorScreen extends Screen {
             String coordStr = local != null ? local[0] + ", " + local[1] + ", " + local[2] :
                     hoveredViewportPos.getX() + ", " + hoveredViewportPos.getY() + ", " + hoveredViewportPos.getZ();
 
-            // Draw tooltip near cursor
             int tipX = mx + 10, tipY = my - 22;
             String line1 = blockName.isEmpty() ? coordStr : blockName;
             String line2 = blockName.isEmpty() ? "" : "  " + coordStr;
@@ -371,22 +314,15 @@ public class PhantasiaHidePosEditorScreen extends Screen {
                 g.drawString(font, line2, tipX + 3, tipY + 13, C_DIM(), false);
         }
 
-        // Dim the viewport when a list row is hovered to draw attention to it
         if (hoveredListPos != null && mx >= this.width - PANEL_W) {
-            // We can't easily draw a 3D overlay here without custom OpenGL,
-            // so instead flash a subtle tint over the viewport edge
+
             g.fill(0, TOP_BAR_H, this.width - PANEL_W, this.height, 0x22FF4444);
 
-            // Draw the local coords in the corner of the viewport
             String coordLabel = "  Hiding: " + hoveredListPos[0] + ", " + hoveredListPos[1] + ", " + hoveredListPos[2];
             g.fill(2, TOP_BAR_H + 2, font.width(coordLabel) + 6, TOP_BAR_H + 14, 0xAA000000);
             g.drawString(font, coordLabel, 4, TOP_BAR_H + 4, C_RED(), false);
         }
     }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // Helpers
-    // ─────────────────────────────────────────────────────────────────────────
 
     private String lookupBlockName(int[] localXYZ) {
         try {
@@ -452,7 +388,7 @@ public class PhantasiaHidePosEditorScreen extends Screen {
         List<int[]> positions = ctx.getHidePositions();
         for (int[] p : positions)
             if (p.length >= 3 && p[0] == local[0] && p[1] == local[1] && p[2] == local[2])
-                return; // already in list
+                return;
 
         ctx.checkpoint();
         positions.add(local);
@@ -476,13 +412,8 @@ public class PhantasiaHidePosEditorScreen extends Screen {
         return mx >= x && mx < x + w && my >= y && my < y + h;
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Input
-    // ─────────────────────────────────────────────────────────────────────────
-
     @Override
     public boolean mouseClicked(double mx, double my, int btn) {
-        // Button registry first
         for (Btn b : btns) if (b.hit(mx, my)) {
             b.action().run();
             return true;
@@ -491,13 +422,11 @@ public class PhantasiaHidePosEditorScreen extends Screen {
 
         int viewW = viewportW();
 
-        // Left-click in viewport → add hovered block to hide list
         if (btn == 0 && mx < viewW && my > TOP_BAR_H && hoveredViewportPos != null) {
             tryAddWorldPos(hoveredViewportPos);
             return true;
         }
 
-        // Middle-click in viewport → panning
         if (btn == 2 && mx < viewW && my > TOP_BAR_H) {
             isPanning = true;
             return true;
@@ -539,10 +468,10 @@ public class PhantasiaHidePosEditorScreen extends Screen {
     public boolean mouseScrolled(double mx, double my, double delta) {
         int viewW = viewportW();
         if (mx < viewW && my > TOP_BAR_H) {
-            // Zoom
+
             if (camera != null) camera.zoom(delta > 0 ? 0.9f : 1.1f, 2f, 300f);
         } else {
-            // List scroll
+
             scrollOffset = Math.max(0, scrollOffset - (int) Math.signum(delta));
         }
         return true;

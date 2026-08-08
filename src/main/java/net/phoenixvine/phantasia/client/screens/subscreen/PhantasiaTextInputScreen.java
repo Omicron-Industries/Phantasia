@@ -20,16 +20,9 @@ import java.util.function.Consumer;
 
 import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
 
-/**
- * PhantasiaTextInputScreen
- *
- * An expanded modal subscreen providing a fully integrated multiline edit
- * environment featuring an integrated cursor insertion color palette.
- */
 @OnlyIn(Dist.CLIENT)
 public class PhantasiaTextInputScreen extends Screen {
 
-    // Standard Minecraft Formats: 0-9, a-f, and r (Reset)
     private static final char[] COLOR_CODES = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd',
             'e', 'f', 'r' };
     private static final int[] COLOR_VALUES = {
@@ -189,14 +182,10 @@ public class PhantasiaTextInputScreen extends Screen {
         return false;
     }
 
-    /**
-     * Bespoke CustomTextArea
-     * Directly maps UI interactions onto MultilineTextField's internal structures.
-     */
     private class CustomTextArea extends AbstractWidget {
 
         private final MultilineTextField textField;
-        private final List<LinePos> linesCache = new ArrayList<>(); // Track rendered positions for accurate clicking
+        private final List<LinePos> linesCache = new ArrayList<>();
 
         public CustomTextArea(int x, int y, int width, int height, Component message) {
             super(x, y, width, height, message);
@@ -256,7 +245,6 @@ public class PhantasiaTextInputScreen extends Screen {
             int cursorIdx = this.textField.cursor();
             String fullText = this.textField.value();
 
-            // Clear and rebuild our coordinate cache map on each draw pass
             linesCache.clear();
             if (fullText.isEmpty()) {
                 linesCache.add(new LinePos(0, 0, ""));
@@ -268,7 +256,6 @@ public class PhantasiaTextInputScreen extends Screen {
                 }
             }
 
-            // Render Selection Box Highlighting Tracks if selection is active
             if (this.textField.hasSelection()) {
                 String selectedText = this.textField.getSelectedText();
                 int selectIdx = fullText.indexOf(selectedText);
@@ -293,7 +280,6 @@ public class PhantasiaTextInputScreen extends Screen {
                 }
             }
 
-            // Render text lines and active blinking caret positions
             for (int i = 0; i < linesCache.size(); i++) {
                 LinePos line = linesCache.get(i);
                 int lineY = textY + (i * 9);
@@ -311,9 +297,6 @@ public class PhantasiaTextInputScreen extends Screen {
             }
         }
 
-        /**
-         * Helper method to accurately translate screen space coordinates to character indices
-         */
         private int getCursorIndexFromCoordinates(double mx, double my) {
             if (linesCache.isEmpty()) return 0;
 
@@ -346,16 +329,13 @@ public class PhantasiaTextInputScreen extends Screen {
             return clickedLine.start + rawCharOffset;
         }
 
-        /**
-         * Safely alters only the cursor index via reflection to preserve the dragging selection anchor.
-         */
         private void setCursorIndexDirectly(int position) {
             try {
                 java.lang.reflect.Field cursorField;
                 try {
                     cursorField = MultilineTextField.class.getDeclaredField("cursor");
                 } catch (NoSuchFieldException e) {
-                    // Fallback to production SRG name for 1.20.x if running obfuscated
+
                     cursorField = MultilineTextField.class.getDeclaredField("f_239201_");
                 }
                 cursorField.setAccessible(true);
@@ -371,7 +351,6 @@ public class PhantasiaTextInputScreen extends Screen {
                 this.setFocused(true);
                 int targetCursor = getCursorIndexFromCoordinates(mx, my);
 
-                // Initial click sets both cursor and anchor to the same spot (collapsing selection)
                 this.textField.seekCursor(net.minecraft.client.gui.components.Whence.ABSOLUTE, targetCursor);
                 return true;
             }
@@ -384,7 +363,6 @@ public class PhantasiaTextInputScreen extends Screen {
             if (this.isFocused() && btn == 0) {
                 int targetCursor = getCursorIndexFromCoordinates(mx, my);
 
-                // Change ONLY the cursor, which forces the text field to stretch the selection range
                 setCursorIndexDirectly(targetCursor);
                 return true;
             }

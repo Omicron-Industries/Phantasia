@@ -42,9 +42,6 @@ import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
 @OnlyIn(Dist.CLIENT)
 public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements PhantasiaHidePosContext {
 
-    // ── Theme ─────────────────────────────────────────────────────────────────
-
-    // Mistake colour palette
     private static final int[] MISTAKE_COLORS = {
             0xFFFFB74D, 0xFFFF5252, 0xFF66BB6A, 0xFF4FC3F7, 0xFFCE93D8, 0xFFFFFFFF
     };
@@ -52,14 +49,12 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
             "Amber", "Red", "Green", "Cyan", "Purple", "White"
     };
 
-    /** Two sub-rows of ~19px each, 4px padding = 42 total */
     private static final int STEP_ROW_H = 42;
     private static final int TIMELINE_H = 22;
     private static final int BOTTOM_H = STEP_ROW_H + TIMELINE_H;
-    /** Height of the camera floating panel that overlaps the 3-D viewport */
+
     private static final int CAM_PANEL_H = 52;
 
-    // --- ROBUST FILTER STATE SEPARATION ---
     public enum FilterMode {
         ALL,
         LAYER,
@@ -69,28 +64,24 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
 
     private FilterMode currentFilterMode = FilterMode.ALL;
 
-    // Private caches so modes never stomp on or erase each other's parameters
     private String cacheRangeMin = "";
     private String cacheRangeMax = "";
-    private String cachePartsExpr = ""; // Replaces the old single persistentExpr
-    // ──────────────────────────────────────
+    private String cachePartsExpr = "";
 
     private static final float CAM_ORBIT_SENSITIVITY = 0.35f;
     private static final float CAM_PAN_SENSITIVITY = 0.02f;
 
-    // Show-mode tabs in row 2 (excludes parts group which opens a modal)
     private static final String[] SHOW_MODES = { "all", "layer", "layers" };
     private static final String[] SHOW_LABELS = { "All",
             Component.translatable("screen.phantasia.script_editor.label_layer_filter").getString(), "Range" };
 
     private String persistentExpr = "";
 
-    // Parts picker — quick-select preset buttons { show value, label, tooltip }
     private static final String[][] PARTS_PRESETS = {
             { "parts:@type(controller)", "Controller", "Multiblock controller block only" },
             { "parts:@type(functional)", "Functional", "All MetaMachine blocks + frame/gearbox blocks" },
             { "parts:@type(parts)", "All I/O Parts", "All system hatches, buses, and ports" },
-            { "parts:@block(...)", "Block Name...", "Inserts a namespaced block filter: @block()" }, // NEW!
+            { "parts:@block(...)", "Block Name...", "Inserts a namespaced block filter: @block()" },
             { "parts:@ability(hatch)", "Hatches", "Filters specifically by hatch capabilities" },
             { "parts:@ability(bus)", "Buses", "Filters specifically by bus capabilities" },
             { "parts:@ability(muffler)", "Mufflers", "Filters specifically by muffler capabilities" },
@@ -101,7 +92,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
             { "parts:@coil", "GT Coils", "Uses GregTech API to find all registered heating elements" }
     };
 
-    // ── Mode ──────────────────────────────────────────────────────────────────
     private enum Mode {
         SELECT,
         ANNOTATE,
@@ -110,113 +100,98 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
 
     private Mode mode = null;
 
-    // ── WORLD mode inline state ───────────────────────────────────────────────
-    private BlockPos wiBlock = null;   // local-space selected block in WORLD mode
+    private BlockPos wiBlock = null;
     private EditBox wiItemBox;
     private EditBox wiSourceBox;
 
-    // ── Data ──────────────────────────────────────────────────────────────────
     protected final PhantasiaSceneScreen parentScene;
     private final String machineId;
     protected PhantasiaScriptData data;
     public boolean dirty = false;
     private int selectedStep = 0;
 
-    // ── Own 3D world ──────────────────────────────────────────────────────────
     PhantasiaWorldRenderer renderer;
     PhantasiaTrackedDummyWorld editorLevel;
     PhantasiaLoadedPattern pattern;
 
-    /** Pre-computed block registry identifiers — avoids repeated registry lookups during filter eval. */
     private Map<BlockPos, String> blockIdentifierCache = new HashMap<>();
-    /** Cached Y-bounds of the pattern so localMinY/localMaxY don't iterate every frame. */
+
     private int cachedLocalMinY = 0, cachedLocalMaxY = 0;
-    /** Ticks remaining until a deferred rebuildVisibility() fires; 0 = none pending. */
+
     private int rebuildCooldown = 0;
-    /** True when any call this tick has requested a visibility rebuild. Fires once in tick(). */
+
     private boolean rebuildPending = false;
-    /** True while the parts-filter editbox had focus last tick; used to detect focus-lost. */
+
     private boolean partsBoxWasFocused = false;
 
-    // ── Camera ────────────────────────────────────────────────────────────────
     PhantasiaCamera camera;
 
-    // ── SELECT mode ───────────────────────────────────────────────────────────
     private static final int SELECT_PANEL_W = 220;
     private static final int SELECT_ROW_H = 20;
 
     private final Set<BlockPos> selectedWorldPos = new LinkedHashSet<>();
     private BlockPos hoveredWorldPos = null;
-    /** Shared pulse used by WORLD-mode world-item markers (and previously SELECT's dot overlay). */
+
     private float selectPulse = 0f;
     private boolean pulseUp = true;
-    /** When true, viewport shows the real filtered ("pos") result instead of all blocks for picking. */
+
     private boolean selectPreviewMode = false;
-    /** Local XYZ of the row currently hovered in the SELECT side panel, or null. */
+
     private int[] selectHoveredListPos = null;
     private int selectScrollOffset = 0;
     private EditBox selectAddBox;
     private String selectAddError = null;
 
-    // ── ANNOTATE mode ─────────────────────────────────────────────────────────
     private BlockPos pendingAnnotationLocalPos = null;
     private String pendingAnnotationLabel = "";
     private int selectedMistakeColor = 0;
     private int hoveredMistakeIndex = -1;
 
-    // ── Layer slider ──────────────────────────────────────────────────────────
     private boolean draggingLayer = false;
     private boolean draggingLayerMax = false;
 
-    // ── Timeline dragging ─────────────────────────────────────────────────────
     private int draggingTimelineDot = -1;
     private boolean dotDragMoved = false;
     private double dotDragStartMX = 0;
     private int timelineGhostX = -1;
     private int timelineGhostTick = -1;
 
-    // ── Step reordering ───────────────────────────────────────────────────────
     private int reorderingStep = -1;
     private int reorderInsertAt = -1;
 
-    // ── SELECT deferred click ─────────────────────────────────────────────────
     private boolean selectClickPending = false;
     private int selectClickBtn = 0;
     private double selectClickMX = 0;
     private double selectClickMY = 0;
 
-    // ── Undo ──────────────────────────────────────────────────────────────────
     private static final int MAX_UNDO = 20;
     private final ArrayDeque<PhantasiaScriptData> undoStack = new ArrayDeque<>();
     private final ArrayDeque<Integer> undoStepStack = new ArrayDeque<>();
-    /** Set true while populateInputsFromStep() runs to suppress EditBox responders from writing back to data. */
+
     private boolean isPopulating = false;
 
-    // ── Preview ───────────────────────────────────────────────────────────────
     private boolean previewing = false;
     private int previewTick = 0;
     private int itemAnimTick = 0;
     private float previewAccum = 0f;
 
-    // ── Dialogs / panels ──────────────────────────────────────────────────────
     private boolean showingCloseConfirm = false;
-    /** Camera floating panel toggle (top-bar tab) */
+
     private boolean showCameraPanel = false;
-    /** Parts picker modal */
+
     private boolean showPartsModal = false;
-    /** Start-camera panel toggle */
+
     private boolean showStartCamPanel = false;
 
-    // ── Inputs ────────────────────────────────────────────────────────────────
     private EditBox tickBox;
-    private EditBox layerCountBox; // expandable size-variant layer count display (read-only label)
+    private EditBox layerCountBox;
     private EditBox hideLayerBox;
     private EditBox hidePosBox;
     private EditBox lerpTicksBox;
     private EditBox partsExprBox;
 
-    private EditBox rangeMinBox; // ADD THIS LINE
-    private EditBox rangeMaxBox; // ADD THIS LINE
+    private EditBox rangeMinBox;
+    private EditBox rangeMaxBox;
     private EditBox camZoomBox;
     private EditBox scriptDurationBox;
     private EditBox scYawBox;
@@ -226,20 +201,11 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
     private EditBox scOffsetYBox;
     private EditBox scOffsetZBox;
 
-    // ── Button registry ───────────────────────────────────────────────────────
-
-    // ── Misc ──────────────────────────────────────────────────────────────────
     private int lastMouseX = 0;
     private int lastMouseY = 0;
     private Mode hoveredModeBtnThisFrame = null;
-    /** Pending tooltip text; set during render, drawn last as a floating overlay */
 
-    // ── Step clipboard (Ctrl+C / Ctrl+V) ──────────────────────────────────────
     private PhantasiaScriptData.StepData stepClipboard = null;
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // Constructor
-    // ─────────────────────────────────────────────────────────────────────────
 
     public PhantasiaScriptEditorScreen(PhantasiaSceneScreen parent,
                                        String machineId,
@@ -264,10 +230,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         selectedStep = Mth.clamp(selectedStep, 0, data.getSteps().size() - 1);
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Init
-    // ─────────────────────────────────────────────────────────────────────────
-
     @Override
     protected void init() {
         super.init();
@@ -276,10 +238,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
             setupEditorWorld();
         }
 
-        // ── Renderer — borrow the parent scene's already-baked renderer ──────────
-        // The editor only changes visibility (GPU state), never geometry, so there
-        // is no reason to re-bake. We adopt parentScene.renderer for the duration of
-        // this screen and restore full visibility on close.
         if (renderer == null) {
             renderer = parentScene != null ? parentScene.renderer : null;
             initCamera();
@@ -297,9 +255,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
             return;
         }
 
-        // Pre-compute block registry identifiers once so evalBlockStateFilter()
-        // never does a registry lookup or string allocation during filtering.
-        // editorLevel is intentionally not created — SHARED_LEVEL already holds the same data.
         blockIdentifierCache = new HashMap<>(pattern.localToWorld.size());
         int minY = Integer.MAX_VALUE, maxY = Integer.MIN_VALUE;
         for (Map.Entry<BlockPos, BlockPos> e : pattern.localToWorld.entrySet()) {
@@ -351,8 +306,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
             } catch (NumberFormatException ignored) {}
         });
 
-        // Hidden backing editbox for layerCount — keeps the value in sync but is never rendered.
-        // The actual UI is the teal +/- stepper drawn in renderStepRow().
         layerCountBox = addW(new EditBox(font, 0, 0, 30, 12, Component.empty()));
         layerCountBox.setMaxLength(3);
         layerCountBox.setFilter(s -> s.matches("\\d*"));
@@ -367,9 +320,8 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         layerCountBox.visible = false;
         layerCountBox.active = false;
 
-        // --- EXPANDED HIDE LAYER BOX (Supports "1,2,3") ───
-        hideLayerBox = addW(new EditBox(font, 0, 0, 45, 12, Component.empty())); // Width synced with layout bounds
-        // (45px)
+        hideLayerBox = addW(new EditBox(font, 0, 0, 45, 12, Component.empty()));
+
         hideLayerBox.setMaxLength(32);
         hideLayerBox.setFilter(s -> s.matches("[\\d,\\s-]*"));
         hideLayerBox.setHint(Component.translatable("screen.phantasia.script_editor.hint_hide_layer"));
@@ -377,10 +329,8 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
             if (isPopulating) return;
             PhantasiaScriptData.StepData stepData = step();
 
-            // Clean out any previous multi-Y layer tokens stored inside the hidePositions collection
             stepData.hidePositions.removeIf(xyz -> xyz.length >= 3 && xyz[0] == Integer.MIN_VALUE);
 
-            // Parse the comma-separated layers and bundle them into the collection as unique out-of-bounds tokens
             if (!v.trim().isEmpty()) {
                 for (String layerStr : v.split(",")) {
                     try {
@@ -390,7 +340,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
                 }
             }
 
-            // Synchronize legacy step primitive for backwards compatibility where possible
             try {
                 stepData.hideLayer = Integer.parseInt(v.trim());
             } catch (NumberFormatException e) {
@@ -400,8 +349,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
             dirty = true;
             rebuildVisibility();
         });
-
-        // REMOVED: hidePosBox initialization code was here
 
         lerpTicksBox = addW(new EditBox(font, 0, 0, 34, 12, Component.empty()));
         lerpTicksBox.setMaxLength(4);
@@ -452,11 +399,9 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         wiSourceBox.visible = false;
         wiSourceBox.active = false;
 
-        // --- DYNAMIC VISIBILITY FLAGS ---
         boolean isRangeMode = (this.currentFilterMode == FilterMode.RANGE);
         boolean isPartsMode = (this.currentFilterMode == FilterMode.PARTS);
 
-        // --- RANGE MIN BOX (Isolated Cache Configuration) ---
         rangeMinBox = addW(new EditBox(font, 0, 0, 30, 12, Component.empty()));
         rangeMinBox.setMaxLength(4);
         rangeMinBox.setFilter(s -> s.matches("\\d*"));
@@ -472,7 +417,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         rangeMinBox.visible = isRangeMode;
         rangeMinBox.active = isRangeMode;
 
-        // --- RANGE MAX BOX (Isolated Cache Configuration) ---
         rangeMaxBox = addW(new EditBox(font, 0, 0, 30, 12, Component.empty()));
         rangeMaxBox.setMaxLength(4);
         rangeMaxBox.setFilter(s -> s.matches("\\d*"));
@@ -488,14 +432,13 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         rangeMaxBox.visible = isRangeMode;
         rangeMaxBox.active = isRangeMode;
 
-        // --- PARTS EXPRESSION BOX (Isolated Cache Configuration) ---
         partsExprBox = addW(new EditBox(font, 0, 0, 200, 12, Component.empty()));
         partsExprBox.setMaxLength(128);
         partsExprBox.setHint(Component.translatable("screen.phantasia.script_editor.hint_parts_expr"));
         partsExprBox.setValue(this.cachePartsExpr);
         partsExprBox.setResponder(v -> {
             if (isPopulating) return;
-            // Only cache; commit + rebuild on focus-lost so large machines don't bake per keystroke.
+
             this.cachePartsExpr = v;
         });
         partsExprBox.visible = isPartsMode;
@@ -571,13 +514,8 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         dirty = true;
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Tick
-    // ─────────────────────────────────────────────────────────────────────────
-
-    /** Schedule a rebuildVisibility() after a short idle delay — safe to call on every keystroke. */
     private void scheduleRebuild() {
-        rebuildCooldown = 3; // ~150 ms at 20 tps
+        rebuildCooldown = 3;
     }
 
     @Override
@@ -588,7 +526,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         if (rebuildCooldown > 0 && --rebuildCooldown == 0) rebuildVisibility();
         if (rebuildPending) flushVisibility();
 
-        // Commit parts-filter and rebuild when the editbox loses focus.
         boolean partsBoxFocused = partsExprBox != null && partsExprBox.isFocused();
         if (partsBoxWasFocused && !partsBoxFocused && partsExprBox != null) {
             checkpoint();
@@ -629,16 +566,10 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         }
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Visibility
-    // ─────────────────────────────────────────────────────────────────────────
-
-    /** Computes and applies the visible set immediately, then clears any pending flag. */
     public void rebuildVisibility() {
         flushVisibility();
     }
 
-    /** Actually computes and pushes the visible set. Called at most once per tick from tick(). */
     private void flushVisibility() {
         rebuildPending = false;
         if (renderer == null || pattern == null) return;
@@ -655,8 +586,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         }
         renderer.setVisible(visible);
     }
-
-    // ── PhantasiaHidePosContext impl ──────────────────────────────────────────
 
     @Override
     public String getHidePosLabel() {
@@ -709,14 +638,12 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         return step().hidePositions;
     }
 
-    /** Mirrors {@link PhantasiaHidePosContext#showAllForPickingMode()} — all blocks clickable while picking. */
     @Override
     public void showAllForPickingMode() {
         selectPreviewMode = false;
         rebuildVisibility();
     }
 
-    /** Mirrors {@link PhantasiaHidePosContext#previewVisibility()} — shows the real "pos" filtered result. */
     @Override
     public void previewVisibility() {
         selectPreviewMode = true;
@@ -728,16 +655,15 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
     }
 
     private boolean evalShowFilter(PhantasiaScriptData.StepData s, BlockPos local, BlockPos world) {
-        // Hide layer predicates evaluate against everything first
         if (s.hideLayer >= 0 && local.getY() == s.hideLayer) return false;
 
         for (int[] xyz : s.hidePositions) {
             if (xyz.length >= 3) {
-                // Check for our multi-Y array token indicator
+
                 if (xyz[0] == Integer.MIN_VALUE) {
                     if (local.getY() == xyz[1]) return false;
                 }
-                // Otherwise, check for normal localized block position hide rule
+
                 else if (xyz[0] == local.getX() && xyz[1] == local.getY() && xyz[2] == local.getZ()) {
                     return false;
                 }
@@ -769,10 +695,10 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
             }
 
             partsExprBox.setValue(this.cachePartsExpr);
-            this.currentFilterMode = FilterMode.PARTS; // Lock into parts mode
+            this.currentFilterMode = FilterMode.PARTS;
             saveFilterStateToStep();
         } else {
-            // Fallback parameters if clicking raw categories
+
             s.show = presetValue;
             this.cachePartsExpr = "";
             partsExprBox.setValue("");
@@ -785,18 +711,13 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
     private boolean evalBlockStateFilter(String show, BlockPos world) {
         if (SHARED_LEVEL == null) return false;
 
-        // 1. CRITICAL: Always check and reject air/null states first.
-        // This prevents empty filter strings from returning 'true' for thousands of air coordinates,
-        // which floods the renderer pass and causes the multiblock to go "poof" and disappear.
         BlockState state = getResolvedState(world);
         if (state == null || state.isAir()) return false;
 
-        // 2. Now check if the selection filter string is empty or clear
         if (show == null || show.isEmpty() || show.equals("all")) return true;
         String expression = show.startsWith("parts:") ? show.substring(6) : show;
         if (expression.trim().isEmpty()) return true;
 
-        // 3. Evaluate the pre-computed identifier for active selection filtering
         String fullIdentifier = blockIdentifierCache.getOrDefault(world, "");
         return evalPartsExpr(expression, fullIdentifier, state);
     }
@@ -804,12 +725,10 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
     private static boolean evalPartsExpr(String expr, String fullIdentifier, BlockState state) {
         if (state == null) return false;
 
-        // CLEAN FALLBACK: If the filter bar is blank, bypass evaluation and show the block!
         if (expr == null || expr.trim().isEmpty()) {
             return true;
         }
 
-        // Ensure the entire registry path is lowercased for safe matching
         String cleanPath = fullIdentifier.toLowerCase(java.util.Locale.ROOT);
         return evalSubExpression(expr.trim(), cleanPath, state);
     }
@@ -817,7 +736,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
     private static boolean evalSubExpression(String expr, String path, BlockState state) {
         if (expr.isEmpty()) return true;
 
-        // 1. Process top-level OR (|) groups, skipping tokens isolated inside parentheses
         List<String> orGroups = new ArrayList<>();
         int bracketDepth = 0;
         int lastSplitIndex = 0;
@@ -833,7 +751,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         }
         orGroups.add(expr.substring(lastSplitIndex));
 
-        // Evaluate OR branches independently
         if (orGroups.size() > 1) {
             for (String group : orGroups) {
                 if (evalSubExpression(group, path, state)) return true;
@@ -841,7 +758,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
             return false;
         }
 
-        // 2. Process top-level AND (&) chains, skipping tokens isolated inside parentheses
         List<String> andTerms = new ArrayList<>();
         bracketDepth = 0;
         lastSplitIndex = 0;
@@ -857,7 +773,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         }
         andTerms.add(expr.substring(lastSplitIndex));
 
-        // Every chained segment must evaluate to true
         if (andTerms.size() > 1) {
             for (String term : andTerms) {
                 if (!evalSubExpression(term, path, state)) return false;
@@ -865,7 +780,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
             return true;
         }
 
-        // 3. Evaluate atomic terms, peeling back brackets or negative indicators
         String term = expr.trim();
         if (term.startsWith("!")) {
             return !evalSubExpression(term.substring(1).trim(), path, state);
@@ -875,7 +789,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
             return evalSubExpression(term.substring(1, term.length() - 1).trim(), path, state);
         }
 
-        // Base verification function for an individual token
         return matchToken(term, path, state);
     }
 
@@ -883,7 +796,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         String cleanToken = token.trim().toLowerCase(java.util.Locale.ROOT);
         if (cleanToken.isEmpty()) return true;
 
-        // 1. Structural Scopes -> @type(controller), @type(functional), @type(parts)
         if (cleanToken.startsWith("@type(") && cleanToken.endsWith(")")) {
             String typeValue = cleanToken.substring(6, cleanToken.length() - 1).trim();
 
@@ -908,11 +820,9 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
             };
         }
 
-        // Add this right alongside your @type, @ability, and @block hooks
         if (cleanToken.equals("@coil")) {
             Block currentBlock = state.getBlock();
 
-            // Scan GregTech's internal API registry map for a direct reference match
             for (java.util.function.Supplier<com.gregtechceu.gtceu.common.block.CoilBlock> coilSupplier : com.gregtechceu.gtceu.api.GTCEuAPI.HEATING_COILS
                     .values()) {
                 if (coilSupplier != null && coilSupplier.get() == currentBlock) {
@@ -922,26 +832,19 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
             return false;
         }
 
-        // 2. Ability Scopes -> @ability(input), @ability(muffler), etc.
         if (cleanToken.startsWith("@ability(") && cleanToken.endsWith(")")) {
             String abilityValue = cleanToken.substring(9, cleanToken.length() - 1).trim();
-            // Checks the registry path string specifically for technical keywords
+
             return path.contains(abilityValue);
         }
 
-        // 3. Strict Block Scopes -> @block(gtceu:input_bus)
         if (cleanToken.startsWith("@block(") && cleanToken.endsWith(")")) {
             String blockTarget = cleanToken.substring(7, cleanToken.length() - 1).trim();
             return path.contains(blockTarget);
         }
 
-        // Fallback: If they type a raw word without a prefix, treat it as a loose block search
         return path.contains(cleanToken);
     }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // Render
-    // ─────────────────────────────────────────────────────────────────────────
 
     @Override
     public void renderAsBackground(GuiGraphics g, float partial) {
@@ -963,7 +866,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
 
         g.fill(0, 0, this.width, this.height, C_BG());
 
-        // 3D scene
         if (renderer != null && camera != null) {
             int sceneH = this.height - TOP_BAR_H - BOTTOM_H;
             boolean overCamPanel = showCameraPanel && isCamPanelHit(mx, my);
@@ -973,7 +875,7 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
             BlockHitResult hit = renderer.getLastHitResult();
             if (hit != null && hit.getType() == HitResult.Type.BLOCK) {
                 BlockPos hp = hit.getBlockPos();
-                // In SELECT mode allow hovering invisible blocks so the user can click to add them
+
                 hoveredWorldPos = (mode == Mode.SELECT || renderer.isVisible(hp)) ? hp : null;
             } else {
                 hoveredWorldPos = null;
@@ -996,14 +898,13 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
                 }
             }
         }
-        // Camera panel floats above the step row
+
         if (showCameraPanel) renderCameraPanel(g, mx, my);
-        // Parts modal dims everything
+
         if (showPartsModal) renderPartsModal(g, mx, my);
 
         super.render(g, mx, my, partial);
 
-        // Block name + local XYZ tooltip (all modes except SELECT, which draws its own)
         if (mode != Mode.SELECT && hoveredWorldPos != null && SHARED_LEVEL != null && pattern != null) {
             try {
                 BlockState bs = getResolvedState(hoveredWorldPos);
@@ -1024,7 +925,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         if (showingCloseConfirm)
             renderCloseConfirmDialog(g, mx, my, this::forceClose, () -> showingCloseConfirm = false);
 
-        // Floating tooltip drawn absolutely last
         renderPendingTooltip(g, mx, my);
     }
 
@@ -1044,15 +944,11 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
             wiSourceBox.active = false;
         }
 
-        // Explicitly handles dynamic mode boxes safely when they are null
         if (rangeMinBox != null) rangeMinBox.visible = false;
         if (rangeMaxBox != null) rangeMaxBox.visible = false;
         if (partsExprBox != null) partsExprBox.visible = false;
         if (scriptDurationBox != null) scriptDurationBox.visible = false;
     }
-    // ─────────────────────────────────────────────────────────────────────────
-    // In-scene overlays
-    // ─────────────────────────────────────────────────────────────────────────
 
     private void renderModeTooltipBanner(GuiGraphics g) {
         if (hoveredModeBtnThisFrame == null || hoveredModeBtnThisFrame == mode) return;
@@ -1119,8 +1015,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         int selViewW = this.width - SELECT_PANEL_W;
         drawBanner(g, hint, hy, C_ACCENT());
 
-        // Cursor-following tooltip on a hoverable block — mirrors HidePos's hoveredViewportPos tooltip,
-        // no 3D crosshairs or dots; the renderer's own block model is the only thing drawn in-world.
         if (!selectPreviewMode && hoveredWorldPos != null && pattern != null && mx < selViewW) {
             BlockPos local = pattern.toLocal(hoveredWorldPos);
             if (local != null && !pattern.baseplatePositions.contains(hoveredWorldPos)) {
@@ -1148,8 +1042,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
             }
         }
 
-        // Dim the viewport when a row is hovered in the side panel — same idea as HidePos's
-        // "can't easily draw a 3D overlay, so flash a subtle tint" approach.
         if (selectHoveredListPos != null && mx >= selViewW) {
             g.fill(0, TOP_BAR_H, selViewW, this.height - BOTTOM_H, 0x2200FF66);
             String coordLabel = "  Selected: " + selectHoveredListPos[0] + ", " + selectHoveredListPos[1] + ", " +
@@ -1204,7 +1096,7 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
             java.util.List<String> gm = data.getGlobalMistakes();
             int ROW = 13;
             int panelW = 260;
-            int panelH = 18 + gm.size() * ROW + ROW; // header + rows + add row
+            int panelH = 18 + gm.size() * ROW + ROW;
             int panelX = this.width - panelW - 6;
             int panelY = this.height - BOTTOM_H - panelH - 4;
             g.fill(panelX, panelY, panelX + panelW, panelY + panelH, C_PANEL());
@@ -1246,10 +1138,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
                 v -> pendingAnnotationLabel = v));
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // WORLD mode overlay + inline panel
-    // ─────────────────────────────────────────────────────────────────────────
-
     private void renderWorldItemOverlay(GuiGraphics g, int mx, int my) {
         if (pattern == null || camera == null || SHARED_LEVEL == null) return;
         CameraView view = camera.getView(0f);
@@ -1290,14 +1178,12 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
             }
         }
 
-        // Banner hint
         if (wiBlock == null) {
             String beCount = entries.isEmpty() ? "" : " (" + entries.size() + " set)";
             drawBanner(g, "Click a block entity to edit its item for this step — right-click to remove entry" + beCount,
                     TOP_BAR_H + 4, C_DIM());
         }
 
-        // Inline panel when a block is selected
         if (wiBlock != null) renderWorldItemPanel(g, mx, my);
     }
 
@@ -1311,7 +1197,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         g.fill(panelX - 2, panelY - 2, panelX + panelW + 2, panelY + WI_PANEL_H + 2, 0xDD070712);
         g.fill(panelX - 2, panelY - 2, panelX + panelW + 2, panelY - 1, C_ACCENT());
 
-        // Block name header
         String label = "World Items — " + wiBlock.toShortString();
         if (SHARED_LEVEL != null) {
             BlockPos wp = pattern != null ? pattern.localToWorld.get(wiBlock) : null;
@@ -1325,21 +1210,18 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         int row1Y = panelY + 14;
         int x = panelX + 4;
 
-        // Item field
         g.drawString(font, Component.translatable("screen.phantasia.script_editor.label_item").getString(), x,
                 row1Y + 2, C_DIM(), false);
         x += font.width(Component.translatable("screen.phantasia.script_editor.label_item").getString()) + 4;
         placeBox(wiItemBox, x, row1Y, panelW - 200, 12);
         x += panelW - 200 + 8;
 
-        // Source field
         g.drawString(font, Component.translatable("screen.phantasia.script_editor.label_source").getString(), x,
                 row1Y + 2, C_DIM(), false);
         x += font.width(Component.translatable("screen.phantasia.script_editor.label_source").getString()) + 4;
         placeBox(wiSourceBox, x, row1Y, 54, 12);
         x += 62;
 
-        // Confirm button
         int confirmW = font.width(Component.translatable("ui.phantasia.btn_confirm").getString()) + 12;
         boolean confHov = isOver(mx, my, x, row1Y, confirmW, 13);
         g.fill(x, row1Y, x + confirmW, row1Y + 13, confHov ? C_BTN_HOV() : C_GREEN());
@@ -1349,7 +1231,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         btns.add(new Btn(x, row1Y, confirmW, 13, this::confirmWorldItemEntry));
         x += confirmW + 4;
 
-        // Remove button
         java.util.List<PhantasiaScriptData.WorldItemEntry> entries = step().worldItems;
         boolean hasEntry = wiBlock != null && entries.stream().anyMatch(
                 wi -> wi.x == wiBlock.getX() && wi.y == wiBlock.getY() && wi.z == wiBlock.getZ());
@@ -1362,12 +1243,10 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
             btns.add(new Btn(x, row1Y, remW, 13, this::removeWorldItemEntry));
         }
 
-        // Row 2: hint
         int row2Y = panelY + 30;
         g.drawString(font, Component.translatable("screen.phantasia.script_editor.hint_item_blank").getString(),
                 panelX + 4, row2Y + 2, C_DIM(), false);
 
-        // recipeId conflict note
         if (data.getRecipeId() != null && !data.getRecipeId().isBlank() && hasEntry) {
             g.drawString(font,
                     Component.translatable("screen.phantasia.script_editor.warn_recipe_override").getString(),
@@ -1418,7 +1297,7 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         if (bs != null && bs.getBlock() instanceof MetaMachineBlock) return false;
 
         if (btn == 1) {
-            // Right-click: remove entry
+
             if (step().worldItems
                     .removeIf(wi -> wi.x == local.getX() && wi.y == local.getY() && wi.z == local.getZ())) {
                 checkpoint();
@@ -1429,7 +1308,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
             return true;
         }
 
-        // Left-click: select block and populate fields
         wiBlock = local;
         PhantasiaScriptData.WorldItemEntry existing = step().worldItems.stream()
                 .filter(wi -> wi.x == local.getX() && wi.y == local.getY() && wi.z == local.getZ())
@@ -1460,10 +1338,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
                 }));
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Top bar
-    // ─────────────────────────────────────────────────────────────────────────
-
     private void renderTopBar(GuiGraphics g, int mx, int my) {
         hoveredModeBtnThisFrame = null;
         g.fill(0, 0, this.width, TOP_BAR_H, C_PANEL());
@@ -1472,8 +1346,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         int x = 6;
         x = modeBtn(g, mx, my, x, Mode.SELECT, "\u25C8 Select");
 
-        // Select pick/preview toggle — mirrors HidePos's previewMode button.
-        // Only shown while actively in SELECT mode.
         if (mode == Mode.SELECT) {
             String selPrevLabel = selectPreviewMode ? "\u25C9 Filtered" : "\u25CB Filtered";
             int selPrevW = font.width(selPrevLabel) + 10;
@@ -1494,8 +1366,7 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         }
 
         x = modeBtn(g, mx, my, x, Mode.ANNOTATE, "\u26A0 Annotate");
-        // GT machines use IItemHandler capability \u2014 their BEs don't expose a visual inventory,
-        // so the World item placer has no effect and should not be shown.
+
         if (!machineId.startsWith("gtceu:")) {
             x = modeBtn(g, mx, my, x, Mode.WORLD, "\u25A6 World");
         } else if (mode == Mode.WORLD) {
@@ -1503,7 +1374,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         }
         x += 6;
 
-        // Preview
         boolean ph = isOver(mx, my, x, 3, 70, TOP_BAR_H - 6);
         g.fill(x, 3, x + 70, TOP_BAR_H - 3, previewing ? C_BTN_ACT() : (ph ? C_BTN_HOV() : C_BTN()));
         if (previewing) g.fill(x, TOP_BAR_H - 3, x + 70, TOP_BAR_H - 2, C_GREEN());
@@ -1514,7 +1384,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         btns.add(new Btn(x, 3, 70, TOP_BAR_H - 6, this::togglePreview));
         x += 74;
 
-        // Camera tab
         int camTabW = 76;
         boolean camHov = isOver(mx, my, x, 3, camTabW, TOP_BAR_H - 6);
         g.fill(x, 3, x + camTabW, TOP_BAR_H - 3,
@@ -1526,7 +1395,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         btns.add(new Btn(x, 3, camTabW, TOP_BAR_H - 6, () -> showCameraPanel = !showCameraPanel));
         x += camTabW + 4;
 
-        // Start Cam tab
         boolean hasStartCam = data.getStartCamera() != null;
         int scTabW = 86;
         boolean scHov = isOver(mx, my, x, 3, scTabW, TOP_BAR_H - 6);
@@ -1540,7 +1408,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         btns.add(new Btn(x, 3, scTabW, TOP_BAR_H - 6, () -> showStartCamPanel = !showStartCamPanel));
         x += scTabW + 4;
 
-        // Right side
         int rx = this.width - 4;
         rx = topBtn(g, mx, my, rx, "\u2715 Back", C_BTN(), "Close the editor (warns if unsaved)", this::onClose);
         rx = topBtn(g, mx, my, rx, "\uD83D\uDCBE Save", C_GREEN(), "Save script to disk and hot-reload in-game",
@@ -1553,7 +1420,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         renderTopBarBadge(g, mx, my, rx);
     }
 
-    /** Override in subclasses to draw a mod badge on the right side of the top bar. */
     protected void renderTopBarBadge(GuiGraphics g, int mx, int my, int rightEdge) {}
 
     private int modeBtn(GuiGraphics g, int mx, int my, int x, Mode m, String label) {
@@ -1568,10 +1434,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         return x + w + 4;
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Layer slider
-    // ─────────────────────────────────────────────────────────────────────────
-
     private int localMinY() {
         return cachedLocalMinY;
     }
@@ -1580,7 +1442,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         return cachedLocalMaxY;
     }
 
-    /** Clamps s.layer / s.layerMin / s.layerMax to local Y bounds in-place. */
     private void clampLayerValues(PhantasiaScriptData.StepData s) {
         if (pattern == null) return;
         int minY = localMinY(), maxY = localMaxY();
@@ -1588,7 +1449,7 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
             if (s.layer < minY || s.layer > maxY)
                 s.layer = (minY + maxY) / 2;
         } else if ("layers".equals(s.show)) {
-            // layerMax==0 with minY==0 is ambiguous — treat as uninitialised when both are 0
+
             boolean uninitialised = s.layerMin == 0 && s.layerMax == 0 && maxY > 0;
             if (uninitialised || s.layerMin < minY || s.layerMin > maxY) s.layerMin = minY;
             if (uninitialised || s.layerMax < minY || s.layerMax > maxY) s.layerMax = maxY;
@@ -1632,8 +1493,8 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
                 int fy = sliderY + (int) (ft * sliderH);
                 g.fill(sliderX + 4, fy, sliderX + 6, fy + 1, 0x33FFFFFF);
             }
-        } else { // FilterMode.RANGE
-            // Secure values within absolute physical boundaries before calculation
+        } else {
+
             int currentMin = Mth.clamp(s.layerMin, minY, maxY);
             int currentMax = Mth.clamp(s.layerMax, minY, maxY);
 
@@ -1652,11 +1513,9 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
             if (hovMin) pendingTooltip = "Drag to set minimum layer (Y=" + currentMin + ")";
             if (hovMax) pendingTooltip = "Drag to set maximum layer (Y=" + currentMax + ")";
 
-            // Sync local tracking strings safely
             this.cacheRangeMin = String.valueOf(currentMin);
             this.cacheRangeMax = String.valueOf(currentMax);
 
-            // FIXED TYPO: Guard correctly against the input widget reference directly
             if (this.rangeMinBox != null && !this.rangeMinBox.isFocused()) {
                 this.rangeMinBox.setValue(this.cacheRangeMin);
             }
@@ -1685,7 +1544,7 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
                 draggingLayerMax = false;
                 return true;
             }
-        } else { // FilterMode.RANGE
+        } else {
             int currentMin = Mth.clamp(s.layerMin, minY, maxY);
             int currentMax = Mth.clamp(s.layerMax, minY, maxY);
 
@@ -1710,9 +1569,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         return false;
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Step row — two clean rows, camera controls live in the camera panel
-    // ─────────────────────────────────────────────────────────────────────────
     private void renderStepRow(GuiGraphics g, int mx, int my) {
         int rowY = this.height - BOTTOM_H;
         g.fill(0, rowY, this.width, rowY + STEP_ROW_H, C_BAR());
@@ -1720,11 +1576,9 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
 
         PhantasiaScriptData.StepData s = step();
 
-        // ── ROW 1: step nav · tick · caption · running · fake recipe ──────────
         int y1 = rowY + 4;
         int x = 8;
 
-        // Step counter + nav
         g.drawString(font, Component.translatable("screen.phantasia.script_editor.label_step").getString(), x, y1 - 2,
                 0xFF334455, false);
         String stepLbl = (selectedStep + 1) + "/" + data.getSteps().size();
@@ -1749,7 +1603,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         g.fill(x, y1, x + 1, y1 + 14, 0x33FFFFFF);
         x += 8;
 
-        // Tick field
         g.drawString(font, Component.translatable("screen.phantasia.script_editor.label_tick").getString(), x, y1 + 3,
                 C_DIM(), false);
         x += font.width(Component.translatable("screen.phantasia.script_editor.label_tick").getString()) + 3;
@@ -1757,7 +1610,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         if (isOver(mx, my, x, y1, 38, 13)) pendingTooltip = "Tick this step activates at (20 ticks = 1 second)";
         x += 44;
 
-        // Caption — click to open sub-screen
         String capVal = s.caption != null ? s.caption : "";
         int capW = Math.min(220, this.width / 2 - x - 10);
         boolean capHov = isOver(mx, my, x, y1, capW, 13);
@@ -1780,7 +1632,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         g.fill(x, y1, x + 1, y1 + 14, 0x33FFFFFF);
         x += 8;
 
-        // Running toggle
         boolean wh = isOver(mx, my, x, y1, 82, 14);
         g.fill(x, y1, x + 82, y1 + 14, s.working ? C_BTN_ACT() : (wh ? C_BTN_HOV() : C_BTN()));
         if (s.working) g.fill(x, y1, x + 82, y1 + 1, C_GREEN());
@@ -1818,7 +1669,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
             x += recBtnW + 4;
         }
 
-        // ── ROW 2: show mode · Parts… · hide controls ──────────────────────────
         int y2 = rowY + STEP_ROW_H / 2 + 5;
         x = 8;
         g.drawString(font, Component.translatable("screen.phantasia.script_editor.label_show").getString(), x, y2 + 2,
@@ -1919,7 +1769,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         }));
         x += partsW + 8;
 
-        // Items… button
         int itemsBtnW = font.width("Items\u2026") + 10;
         boolean itemsHov = isOver(mx, my, x, y2, itemsBtnW, 14);
         boolean itemsActive = !s.items.isEmpty();
@@ -1936,12 +1785,11 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
                 createItemEditorScreen(selectedStep))));
         x += itemsBtnW + 3;
 
-        // Expandable shape stepper — for expandable multiblocks (data flag or auto-detected from shape variants)
         boolean isExpandable = data.isExpandable() || (parentScene != null && parentScene.computeHasRealSizeVariants());
         if (isExpandable) {
             int maxShapes = (parentScene != null && parentScene.availableShapes != null) ?
                     parentScene.availableShapes.size() : 0;
-            // lc == -1 means "no override"; treat as shape 0 for display
+
             int curShape = s.layerCount > 0 ? s.layerCount : 1;
 
             int arrowW = 12;
@@ -1987,10 +1835,8 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
             x += totalW + 3;
         }
 
-        // ── HIDE CONTROLS (Right-aligned layout anchors) ───────────────────
         int rx2 = this.width - 8;
 
-        // 1. HidePos Button (Furthest right)
         int hideCount = s.hidePositions.size();
         String hideBtnLabel = hideCount == 0 ? "HidePos\u2026" : "HidePos (" + hideCount + ")";
         int hideBtnW = font.width(hideBtnLabel) + 10;
@@ -2004,9 +1850,8 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         btns.add(new Btn(rx2, y2, hideBtnW, 14, () -> Minecraft.getInstance().setScreen(
                 new PhantasiaHidePosEditorScreen(this))));
 
-        // 2. HideY Edit Box and Label (Shifted left to provide 45px box space)
-        rx2 -= 8; // Spacer between HidePos button and HideY setup
-        int boxW = 45; // Wider box layout to accommodate lists like "1,2" cleanly
+        rx2 -= 8;
+        int boxW = 45;
         int labelW = font.width(Component.translatable("screen.phantasia.script_editor.label_hideY").getString());
         int combinedW = labelW + 3 + boxW;
 
@@ -2031,23 +1876,11 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         };
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Camera panel (floating overlay above step row)
-    // ─────────────────────────────────────────────────────────────────────────
-
-    // ── Editor item panel ─────────────────────────────────────────────────────
-
     private static final int EIP_W = 186;
     private static final int EIP_ROW = 38;
     private static final int EIP_ICON = 28;
     private static final int EIP_HOV = 36;
 
-    /**
-     * Shows the GuideME-style item panel while authoring, so devs can see how
-     * the current step's items will look to viewers. Tracks animate using the
-     * editor's own {@code previewTick}. Items are clickable to preview the
-     * microscene popup.
-     */
     private void renderEditorItemPanel(GuiGraphics g, int mx, int my) {
         PhantasiaScriptData.StepData s = step();
         if (!s.showItems || s.items.isEmpty()) return;
@@ -2197,7 +2030,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         PhantasiaScriptData.StepData s = step();
         boolean hasCam = s.camera != null;
 
-        // Row 1: Capture / Clear / live info
         int r1Y = panelY + 14;
         int x = panelX + 4;
 
@@ -2235,7 +2067,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
                     x, r1Y + 3, C_DIM(), false);
         }
 
-        // Row 2: Zoom + lerp type + lerp ticks
         int r2Y = panelY + 32;
         x = panelX + 4;
 
@@ -2279,16 +2110,11 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         }
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Parts modal
-    // ─────────────────────────────────────────────────────────────────────────
-
-    /** Computes the height the parts modal needs based on chip wrapping. */
     private int partsModalHeight() {
         int mw = 380;
         int mdx = (this.width - mw) / 2;
         int rowMax = mdx + mw - 10;
-        int cx = mdx + 10, cy = 0; // relative y
+        int cx = mdx + 10, cy = 0;
         for (String[] preset : PARTS_PRESETS) {
             int cw = font.width(preset[1]) + 10;
             if (cx + cw > rowMax) {
@@ -2297,7 +2123,7 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
             }
             cx += cw + 4;
         }
-        // header(22) + label(10) + chips(cy+18) + gap(4) + expr section(28) + hint(12) + clear(20) + padding(8)
+
         return 22 + 10 + (cy + 18) + 4 + 28 + 12 + 20 + 8;
     }
 
@@ -2317,7 +2143,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         g.drawString(font, Component.translatable("screen.phantasia.script_editor.label_parts_filter").getString(),
                 mdx + 10, mdy + 7, C_ACCENT(), false);
 
-        // Close button
         boolean xHov = isOver(mx, my, mdx + mw - 18, mdy + 4, 14, 14);
         g.fill(mdx + mw - 18, mdy + 4, mdx + mw - 4, mdy + 18, xHov ? C_BTN_HOV() : C_BTN());
         g.drawString(font, "\u2715", mdx + mw - 14, mdy + 7, xHov ? C_RED() : C_DIM(), false);
@@ -2326,7 +2151,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
 
         PhantasiaScriptData.StepData s = step();
 
-        // ── Quick-select chips ────────────────────────────────────────────────
         g.drawString(font, Component.translatable("screen.phantasia.script_editor.label_quick_select").getString(),
                 mdx + 10, mdy + 22, C_DIM(), false);
         int cx = mdx + 10, cy = mdy + 32;
@@ -2351,25 +2175,24 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
                 pendingTooltip = tooltip;
             }
 
-            // Add the updated button click handler inside your PARTS_PRESETS loop
             btns.add(new Btn(cx, cy, cw, 14, () -> {
                 checkpoint();
 
                 if (showValue.startsWith("parts:")) {
-                    String token = showValue.substring(6); // Extracts the token string
+                    String token = showValue.substring(6);
                     String currentText = partsExprBox.getValue().trim();
 
                     if (token.equals("@block(...)")) {
-                        // Smart Insertion for the raw block tool
+
                         if (currentText.isEmpty()) {
                             partsExprBox.setValue("@block()");
                         } else {
                             partsExprBox.setValue(currentText + " & @block()");
                         }
-                        // Move the cursor back by 1 character so it sits perfectly inside the ()
+
                         partsExprBox.setCursorPosition(partsExprBox.getValue().length() - 1);
                     } else {
-                        // Standard logic chaining for static capability/type macros
+
                         if (currentText.isEmpty()) {
                             partsExprBox.setValue(token);
                         } else if (!currentText.contains(token)) {
@@ -2378,7 +2201,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
                         }
                     }
 
-                    // CRITICAL: Catch the updated value and lock it into your screen's persistent cache!
                     this.persistentExpr = partsExprBox.getValue();
                     s.show = "parts:" + this.persistentExpr;
                 }
@@ -2391,7 +2213,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         }
         cy += 22;
 
-        // ── Custom expression input ───────────────────────────────────────────
         g.fill(mdx + 8, cy - 1, mdx + mw - 8, cy + 27, 0x22FFFFFF);
         g.drawString(font, Component.translatable("screen.phantasia.script_editor.label_custom_expr").getString(),
                 mdx + 12, cy + 3, C_DIM(), false);
@@ -2399,7 +2220,7 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
                 font.width(Component.translatable("screen.phantasia.script_editor.label_custom_expr").getString()) + 6;
         int exprW = mdx + mw - 8 - exprX - 6;
         placeBox(partsExprBox, exprX, cy, exprW, 13);
-        // inside renderPartsModal()
+
         if (isOver(mx, my, exprX, cy, exprW, 13))
             pendingTooltip = "Filter syntax: () brackets, | (OR), & (AND), ! (NOT), @ (Ability) — e.g. (@hatch | high_temperature) & !muffler";
         cy += 17;
@@ -2408,7 +2229,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
                 mdx + 12, cy, C_DIM(), false);
         cy += 12;
 
-        // ── Clear / show all ─────────────────────────────────────────────────
         boolean clrHov = isOver(mx, my, mdx + 8, cy + 2, mw - 16, 14);
         g.fill(mdx + 8, cy + 2, mdx + mw - 8, cy + 16, clrHov ? C_BTN_HOV() : C_BTN());
         g.drawString(font, "\u2715  Clear \u2014 show all blocks", mdx + 14, cy + 5, clrHov ? C_ACCENT() : C_DIM(),
@@ -2424,10 +2244,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         }));
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Timeline
-    // ─────────────────────────────────────────────────────────────────────────
-
     private void renderTimeline(GuiGraphics g, int mx, int my) {
         int tlY = this.height - TIMELINE_H;
         int margin = 30, trackW = timelineTrackWidth(margin);
@@ -2442,7 +2258,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
 
         if (data.getSteps().isEmpty()) return;
 
-        // Ghost + click-to-add
         timelineGhostX = -1;
         timelineGhostTick = -1;
         boolean mouseOnTrack = isOver(mx, my, margin, tlY, trackW, TIMELINE_H);
@@ -2467,13 +2282,11 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
             }
         }
 
-        // Preview playhead
         if (previewing && total > 0) {
             int px = margin + (int) ((float) previewTick / total * trackW);
             g.fill(px - 1, tlY + 2, px + 1, tlY + TIMELINE_H - 2, 0xAAFFFFFF);
         }
 
-        // Step dots
         for (int i = 0; i < data.getSteps().size(); i++) {
             PhantasiaScriptData.StepData s = data.getSteps().get(i);
             float t = total > 0 ? (float) s.tick / total : 0f;
@@ -2503,7 +2316,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
                     (s.camera != null ? " \uD83C\uDFA5" : "") + (s.caption != null ? ": " + s.caption : "");
         }
 
-        // Tick ruler
         if (total > 0) {
             for (int tick = 0; tick <= total; tick += 60) {
                 int rx = margin + (int) ((float) tick / total * trackW);
@@ -2513,7 +2325,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
 
         g.drawString(font, "\u25C4 \u25BA", margin - 24, midY - 4, C_DIM(), false);
 
-        // Duration box
         int durLabelW = font.width(Component.translatable("screen.phantasia.script_editor.label_total").getString()) +
                 4;
         int durX = this.width - 4 - 46 - durLabelW;
@@ -2525,10 +2336,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         scriptDurationBox.visible = true;
         scriptDurationBox.active = true;
     }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // Start-camera panel
-    // ─────────────────────────────────────────────────────────────────────────
 
     private void renderStartCamPanel(GuiGraphics g, int mx, int my) {
         int pw = 370, ph = 60, px = 6, py = TOP_BAR_H + 2;
@@ -2590,10 +2397,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         dirty = true;
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Mouse / keyboard
-    // ─────────────────────────────────────────────────────────────────────────
-
     @Override
     public boolean mouseClicked(double mx, double my, int btn) {
         if (showingCloseConfirm) {
@@ -2604,12 +2407,12 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
             return true;
         }
         if (showPartsModal) {
-            // Check Btn registry first
+
             for (Btn b : btns) if (b.hit(mx, my)) {
                 b.action().run();
                 return true;
             }
-            // Route clicks to the partsExprBox if it's inside the modal
+
             if (partsExprBox != null && partsExprBox.visible && mx >= partsExprBox.getX() &&
                     mx < partsExprBox.getX() + partsExprBox.getWidth() && my >= partsExprBox.getY() &&
                     my < partsExprBox.getY() + partsExprBox.getHeight()) {
@@ -2617,20 +2420,18 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
                 partsExprBox.mouseClicked(mx, my, btn);
                 return true;
             }
-            // Click inside modal bounds — don't close
+
             int mw = 380, mh = partsModalHeight();
             int mdx = (this.width - mw) / 2;
             int mdy = Math.max(TOP_BAR_H + 4, (this.height - mh) / 2);
             if (isOver(mx, my, mdx, mdy, mw, mh)) return true;
 
-            // --- FIXED FOR CLEAN STATE RESYNC ---
-            // Click outside — lock filter mode to PARTS, save, close, and refresh the screen scene
             this.currentFilterMode = FilterMode.PARTS;
             saveFilterStateToStep();
             showPartsModal = false;
             rebuildVisibility();
             return true;
-            // ------------------------------------
+
         }
         for (Btn b : btns) if (b.hit(mx, my)) {
             b.action().run();
@@ -2767,7 +2568,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
 
     @Override
     public boolean mouseDragged(double mx, double my, int btn, double dx, double dy) {
-        // Only capture layer adjustments if we actually initiated a thumb drag via mouseClicked
         if (draggingLayer && pattern != null) {
             int sceneTop = TOP_BAR_H, sceneBottom = this.height - BOTTOM_H;
             int sliderH = sceneBottom - sceneTop - 24, sliderY = sceneTop + 12;
@@ -2790,14 +2590,10 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
             }
 
             dirty = true;
-            // Defer rebuildVisibility() to mouseReleased — rebuilding per-pixel during drag
-            // is a full VBO bake on every event, which tanks framerate on large machines.
+
             return true;
         }
 
-        // Timeline node drag — move the selected step along the track by re-deriving
-        // its tick from the mouse X position. Re-sorting and visibility rebuild are
-        // deferred to mouseReleased for the same reason as the layer slider above.
         if (draggingTimelineDot >= 0) {
             if (Math.abs(mx - dotDragStartMX) > 1) dotDragMoved = true;
             int margin = 30, trackW = timelineTrackWidth(margin), total = computeTotalTicks();
@@ -2810,24 +2606,22 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
             return true;
         }
 
-        // Default: Let camera pan/orbit catch the movement so moving the multiblock doesn't freeze or crash!
         if (my >= TOP_BAR_H && my < this.height - BOTTOM_H && camera != null) {
-            // Button 1 (Right click) or Button 2 (Middle click) panners
+
             if (btn == 1 || btn == 2) {
-                // 1. Get orientation direction arrays from the camera system
+
                 org.joml.Vector3f right = new org.joml.Vector3f();
                 org.joml.Vector3f up = new org.joml.Vector3f();
                 camera.getRightAndUp(right, up);
 
                 float s = camera.getZoom() * CAM_PAN_ZOOM_SCALE;
 
-                // 3. Project 2D screen adjustments cleanly onto 3D world space axes
                 camera.pan(
                         (right.x * (float) -dx + up.x * (float) dy) * s,
                         (right.y * (float) -dx + up.y * (float) dy) * s,
                         (right.z * (float) -dx + up.z * (float) dy) * s);
             }
-            // Button 0 (Left click) orbit
+
             else if (btn == 0) {
                 camera.orbit((float) dx * CAM_ORBIT_SENSITIVITY, (float) dy * CAM_ORBIT_SENSITIVITY);
             }
@@ -2965,10 +2759,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         return super.keyPressed(kc, sc, mod);
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Undo
-    // ─────────────────────────────────────────────────────────────────────────
-
     public void checkpoint() {
         if (undoStack.size() >= MAX_UNDO) {
             undoStack.pollFirst();
@@ -2989,23 +2779,18 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         rebuildVisibility();
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Actions
-    // ─────────────────────────────────────────────────────────────────────────
-
     private void setMode(Mode m) {
         mode = m;
         wiBlock = null;
         if (m == Mode.SELECT) {
-            selectPreviewMode = true; // start showing filtered result, like HidePos's "always preview"
+            selectPreviewMode = true;
             syncSelectedFromStep();
             if (!"pos".equals(step().show)) {
                 step().show = "pos";
                 dirty = true;
             }
         } else {
-            // Restore show from the current filter mode so that exiting SELECT
-            // doesn't leave show="pos" with an empty positions list (which hides everything).
+
             saveFilterStateToStep();
         }
         pendingAnnotationLocalPos = null;
@@ -3023,25 +2808,19 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         selectedStep = Mth.clamp(i, 0, data.getSteps().size() - 1);
         wiBlock = null;
 
-        // 1. Reconstruct the active FilterMode enum and fill caches from the new step
         populateInputsFromStep();
 
-        // 2. Lock in and compile the filter state to ensure s.show matches exactly
         saveFilterStateToStep();
 
         if (mode == Mode.SELECT) syncSelectedFromStep();
 
-        // 3. Apply the new step's working state to the scene world, then rebake so active
-        // block textures (glows, active coils) immediately reflect the new state.
         if (parentScene != null) parentScene.applyActiveStateToWorld(step().working);
         if (renderer != null) renderer.requestBake();
 
-        // 4. Force-repaint the main world view instantly
         rebuildVisibility();
     }
 
     private void addStepAtTick(int tick) {
-        // Determine what show string we are inheriting from the timeline position
         String inheritedShow = "all";
         for (PhantasiaScriptData.StepData step : data.getSteps()) {
             if (step.tick <= tick) inheritedShow = step.show;
@@ -3062,10 +2841,8 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         checkpoint();
         data.getSteps().add(insertAt, s);
 
-        // Select the newly spawned step index
         selectStep(insertAt);
 
-        // 4. Force our isolated caches to immediately realign with the newly inherited settings!
         populateInputsFromStep();
         saveFilterStateToStep();
         rebuildVisibility();
@@ -3179,7 +2956,7 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         step().positions.clear();
         selectedWorldPos.clear();
         dirty = true;
-        showAllForPickingMode(); // mirrors HidePos's "Clear" button dropping back into pick mode
+        showAllForPickingMode();
     }
 
     private void save() {
@@ -3188,25 +2965,16 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         if (parentScene != null) parentScene.reloadScript();
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Helpers
-    // ─────────────────────────────────────────────────────────────────────────
-
     private int computeTotalTicks() {
         int dur = data.getScriptDuration();
         if (dur > 0) return dur;
         return data.getSteps().isEmpty() ? 60 : data.getSteps().get(data.getSteps().size() - 1).tick + 60;
     }
 
-    /**
-     * Width of the scrubbable timeline track, in pixels, reserving space on the
-     * right for the total-duration edit box so the track ends before it instead
-     * of rendering (and accepting clicks) underneath it.
-     */
     private int timelineTrackWidth(int margin) {
         int durLabelW = font.width(Component.translatable("screen.phantasia.script_editor.label_total").getString()) +
                 4;
-        int durBoxAreaW = durLabelW + 46 + 12; // label + box + breathing room before the track
+        int durBoxAreaW = durLabelW + 46 + 12;
         return (this.width - durBoxAreaW) - margin * 2;
     }
 
@@ -3241,20 +3009,17 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         PhantasiaScriptData.StepData s = step();
         tickBox.setValue(String.valueOf(s.tick));
 
-        // --- READ AND POPULATE MULTI-Y LAYER BOX ---
         String layersString = "";
         String rawShow = s.show != null ? s.show.trim() : "all";
 
         if (rawShow.contains("|hidey:")) {
             String[] parts = rawShow.split("\\|hidey:", 2);
-            layersString = parts[1]; // Extract "1,2"
-            rawShow = parts[0];      // Clean up base mode (e.g., "all", "layers", "parts:...")
+            layersString = parts[1];
+            rawShow = parts[0];
         } else if (s.hideLayer >= 0) {
             layersString = String.valueOf(s.hideLayer);
         }
         hideLayerBox.setValue(layersString);
-
-        // REMOVED: hidePosBox.setValue(...) to fix compilation crash
 
         if (layerCountBox != null)
             layerCountBox.setValue(s.layerCount > 0 ? String.valueOf(s.layerCount) : "");
@@ -3266,7 +3031,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
             scriptDurationBox.setValue(data.getScriptDuration() > 0 ? String.valueOf(data.getScriptDuration()) : "");
         populateStartCamBoxes();
 
-        // 1. Determine active mode from our stripped rawShow base string
         if (s != null && s.show != null) {
             if (rawShow.equals("layers")) {
                 this.currentFilterMode = FilterMode.RANGE;
@@ -3297,7 +3061,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
             }
         }
 
-        // 2. Safely reflect caches back into the text boxes
         if (this.partsExprBox != null && !this.partsExprBox.isFocused()) {
             this.partsExprBox.setValue(this.cachePartsExpr);
         }
@@ -3317,8 +3080,7 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
             case ALL -> s.show = "all";
             case LAYER -> s.show = "layer";
             case RANGE -> {
-                // Write canonical "layers" so evalShowFilter matches it,
-                // and store the values in the struct fields it reads from.
+
                 s.show = "layers";
                 try {
                     s.layerMin = Integer.parseInt(this.cacheRangeMin.trim());
@@ -3329,7 +3091,7 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
             }
             case PARTS -> {
                 String expr = this.cachePartsExpr.trim();
-                // If parts mode is active but expression is empty, show all blocks safely
+
                 s.show = expr.isEmpty() ? "all" : "parts:" + expr;
             }
         }
@@ -3371,8 +3133,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
                 this.height / 2f - (toP.dot(upv) / depth) * fov, depth };
     }
 
-    /** Small button with a tooltip that sets {@link #pendingTooltip} on hover. */
-
     private static List<int[]> parsePosList(String raw) {
         List<int[]> r = new ArrayList<>();
         if (raw == null || raw.isBlank()) return r;
@@ -3396,18 +3156,13 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         return sb.toString();
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Lifecycle
-    // ─────────────────────────────────────────────────────────────────────────
-
     @Override
     public void onClose() {
         if (dirty && !showingCloseConfirm) {
             showingCloseConfirm = true;
             return;
         }
-        // Do NOT close the renderer — it belongs to parentScene and is still needed there.
-        // Restore full visibility so the main scene looks correct when we return.
+
         if (renderer != null && parentScene != null) {
             parentScene.applyVisibility();
         }
@@ -3419,11 +3174,6 @@ public class PhantasiaScriptEditorScreen extends PhantasiaScreen implements Phan
         Minecraft.getInstance().setScreen(parentScene);
     }
 
-    /**
-     * Resolves the block state at a world position using the central variant engine.
-     * This ensures the editor logic (filtering, picking, naming) perfectly matches
-     * the actual visual models shown by the 3D renderer.
-     */
     private BlockState getResolvedState(BlockPos pos) {
         if (SHARED_LEVEL == null || pos == null) return null;
         BlockState baseState = SHARED_LEVEL.getBlockState(pos);

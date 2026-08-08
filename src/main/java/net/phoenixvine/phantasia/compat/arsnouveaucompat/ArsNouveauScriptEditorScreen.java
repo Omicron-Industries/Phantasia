@@ -11,12 +11,6 @@ import net.phoenixvine.phantasia.common.data.script.PhantasiaScriptData;
 
 import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
 
-/**
- * Ars Nouveau–specific script editor.
- * Identical to the generic editor except the "Items…" subscreen is replaced
- * with {@link ArsNouveauScriptStepItemEditorScreen}, which adds a quick-insert
- * chip bar for common AN item IDs.
- */
 @OnlyIn(Dist.CLIENT)
 public class ArsNouveauScriptEditorScreen extends PhantasiaScriptEditorScreen {
 
@@ -31,11 +25,10 @@ public class ArsNouveauScriptEditorScreen extends PhantasiaScriptEditorScreen {
         return new ArsNouveauScriptStepItemEditorScreen(this, data, stepIndex);
     }
 
-    private static final int BADGE_COLOR = 0xFF5B6EFF; // AN blue-violet
+    private static final int BADGE_COLOR = 0xFF5B6EFF;
 
     @Override
     protected void renderTopBarBadge(GuiGraphics g, int mx, int my, int rightEdge) {
-        // "Recipe…" button — opens recipe/ritual picker, highlights when recipeId is set
         boolean hasRecipe = data.getRecipeId() != null;
         int rx = topBtn(g, mx, my, rightEdge,
                 hasRecipe ? "★ Recipe" : "☆ Recipe",
@@ -44,7 +37,6 @@ public class ArsNouveauScriptEditorScreen extends PhantasiaScriptEditorScreen {
                         "Pick a specific apparatus / imbuement / ritual recipe to display",
                 this::openRecipePicker);
 
-        // Static "Ars Nouveau" badge
         String label = "Ars Nouveau";
         int w = font.width(label) + 10;
         int bx = rx - w - 6;

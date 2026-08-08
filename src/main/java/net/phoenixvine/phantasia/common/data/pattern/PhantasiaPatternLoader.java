@@ -17,27 +17,6 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.function.Consumer;
 
-/**
- * PhantasiaPatternLoader
- *
- * Moves the render-thread-blocking work of {@code loadPattern()} off the render
- * thread entirely. The caller gets immediate control back; the loader reports
- * progress through atomics and delivers the finished {@link PhantasiaLoadedPattern}
- * via a {@link Consumer} posted to the render thread with
- * {@link RenderSystem#recordRenderCall}.
- *
- * <h3>Thread safety</h3>
- * <ul>
- * <li>{@code SHARED_LEVEL.setBlock()} / {@code setInnerBlockEntity()} are called
- * on the loader thread. This is safe because the renderer has not yet been
- * given a bake request — nothing reads {@code SHARED_LEVEL} until
- * {@code onPatternLoaded} fires on the render thread and calls
- * {@code renderer.requestBake()}.
- * <li>Structure-forming logic (e.g. GTCEu's {@code onStructureFormed}) is always
- * dispatched back to the render thread via {@code recordRenderCall} inside
- * {@link IPhantasiaMultiblockDefinition#onShapeLoaded}.
- * </ul>
- */
 public final class PhantasiaPatternLoader {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("PhantasiaPatternLoader");
@@ -48,39 +27,20 @@ public final class PhantasiaPatternLoader {
         return t;
     });
 
-    // ── Progress (read from render thread) ────────────────────────────────────
-
-    /** Total blocks to place, including baseplate. Set before work begins. */
     public volatile int blocksTotal = 0;
 
-    /** Blocks placed so far. Incremented on the loader thread. */
     public volatile int blocksPlaced = 0;
 
-    /** Human-readable phase label for the progress bar. */
     public volatile String phase = "Preparing…";
 
-    /** True once the callback has been posted to the render thread. */
     private volatile boolean done = false;
 
-    /** True if loading failed with an exception. */
     private volatile boolean failed = false;
 
     private volatile Future<?> future = null;
 
-    // ── Constructor / launch ──────────────────────────────────────────────────
-
     private PhantasiaPatternLoader() {}
 
-    /**
-     * Starts an asynchronous pattern load and returns the loader immediately.
-     *
-     * @param definition  the multiblock definition to load
-     * @param shapeIndex  which shape variant to use
-     * @param shapes      the full list of available shapes
-     * @param script      the compiled script for this machine
-     * @param sharedLevel the shared dummy world to populate
-     * @param onLoaded    callback invoked on the render thread with the finished pattern
-     */
     public static PhantasiaPatternLoader start(
                                                IPhantasiaMultiblockDefinition definition,
                                                int shapeIndex,
@@ -102,12 +62,9 @@ public final class PhantasiaPatternLoader {
         return failed;
     }
 
-    /** Cancel the in-progress load. Safe to call from any thread. */
     public void cancel() {
         if (future != null) future.cancel(true);
     }
-
-    // ── Core load logic ───────────────────────────────────────────────────────
 
     private void run(
                      IPhantasiaMultiblockDefinition definition,
@@ -121,8 +78,7 @@ public final class PhantasiaPatternLoader {
 
             RenderSystem.recordRenderCall(() -> {
                 done = true;
-                // Clear block entities on the render thread so tickWorld() doesn't
-                // race against this while iterating its internal ticking-BE list.
+
                 sharedLevel.blockEntities.clear();
                 onLoaded.accept(result);
             });
@@ -148,8 +104,6 @@ public final class PhantasiaPatternLoader {
         return loadCold(definition, shape, renderOrigin, sharedLevel, script);
     }
 
-    // ── Cold load ─────────────────────────────────────────────────────────────
-
     private PhantasiaLoadedPattern loadCold(
                                             IPhantasiaMultiblockDefinition definition,
                                             IPhantasiaMultiblockShape shape,
@@ -174,9 +128,8 @@ public final class PhantasiaPatternLoader {
         Set<BlockPos> baseplatePos = new HashSet<>(baseplateCount);
         Set<BlockPos> bePos = new HashSet<>();
 
-        // ── Baseplate ─────────────────────────────────────────────────────────
         phase = "Reading baseplate…";
-        var _baseplateState0 = net.phoenixvine.phantasia.utils.PhantasiaTheme.currentBaseplateBlockState();
+        var _baseplateState0 = net.phoenixvine.phantasia.utils.PhantasiaBaseplateConfig.currentBaseplateBlockState();
         PhantasiaBlockInfo floor = _baseplateState0 != null ? PhantasiaBlockInfo.fromBlockState(_baseplateState0) :
                 null;
 
@@ -190,9 +143,6 @@ public final class PhantasiaPatternLoader {
             }
         }
 
-        // ── Machine blocks ────────────────────────────────────────────────────
-        // NOTE: world writes happen on the render thread (in onAsyncPatternLoaded)
-        // to avoid ConcurrentModificationException in TrackedDummyWorld.tickWorld().
         phase = "Reading blocks…";
 
         for (int x = 0; x < raw.length; x++) {
@@ -204,7 +154,7 @@ public final class PhantasiaPatternLoader {
                     if (info == null) continue;
 
                     BlockState state = info.getBlockState();
-                    // Skip air and invisible predicates (e.g. GTM "any" placeholder blocks).
+
                     if (state == null || state.isAir() ||
                             state.getRenderShape() == net.minecraft.world.level.block.RenderShape.INVISIBLE)
                         continue;
@@ -223,9 +173,6 @@ public final class PhantasiaPatternLoader {
             }
         }
 
-        // ── Prepare post-write task (fires after world is populated on render thread) ──
-        // onShapeLoaded needs the world to be populated; we defer it until after the
-        // render thread writes all blocks in onAsyncPatternLoaded.
         phase = "Forming structure…";
         final Map<BlockPos, PhantasiaBlockInfo> blockMapSnapshot = Map.copyOf(blockMap);
         final Map<BlockPos, BlockPos> localToWorldSnapshot = Map.copyOf(localToWorld);
@@ -234,8 +181,6 @@ public final class PhantasiaPatternLoader {
 
         return buildResult(raw, blockMap, localToWorld, baseplatePos, bePos, renderOrigin, script, postWriteTask);
     }
-
-    // ── Build result ──────────────────────────────────────────────────────────
 
     private static PhantasiaLoadedPattern buildResult(
                                                       PhantasiaBlockInfo[][][] raw,
@@ -272,8 +217,6 @@ public final class PhantasiaPatternLoader {
         return new PhantasiaLoadedPattern(blockMap, localToWorld, baseplatePos,
                 null, bePos, origin, minY, maxY, script, postWriteTask);
     }
-
-    // ── Helpers ───────────────────────────────────────────────────────────────
 
     private static int countNonNull(PhantasiaBlockInfo[][][] raw) {
         int n = 0;

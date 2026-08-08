@@ -24,7 +24,7 @@ public class PhantasiaRenderBypass {
                 currentScreen instanceof PhantasiaBlockInspectScreen ||
                 currentScreen instanceof PhantasiaSceneCreateScreen ||
                 currentScreen instanceof PhantasiaTextInputScreen ||
-                currentScreen instanceof PhantasiaGuideScreen ||       // Added
-                currentScreen instanceof PhantasiaGuideEditorScreen;   // Added
+                currentScreen instanceof PhantasiaGuideScreen ||
+                currentScreen instanceof PhantasiaGuideEditorScreen;
     }
 }

@@ -71,8 +71,6 @@ public final class VanillaMultiblockProvider implements IPhantasiaMultiblockProv
         return Optional.empty();
     }
 
-    // ── Structure builders ────────────────────────────────────────────────────
-
     private static IPhantasiaMultiblockDefinition buildBeacon() {
         PhantasiaBlockInfo iron = b(Blocks.IRON_BLOCK.defaultBlockState());
         PhantasiaBlockInfo beacon = b(Blocks.BEACON.defaultBlockState());
@@ -90,7 +88,6 @@ public final class VanillaMultiblockProvider implements IPhantasiaMultiblockProv
                 "The Beacon activates and shoots a beam of light into the sky! Right-click to choose a status effect.",
                 "all", true));
 
-        // Single material variant group: one dropdown cycles iron/gold/diamond/netherite/emerald.
         List<PhantasiaScriptData.VariantPositionData> ironPositions = new ArrayList<>();
         for (int tier = 1; tier <= 4; tier++) {
             for (int layer = 0; layer < tier; layer++) {
@@ -161,7 +158,6 @@ public final class VanillaMultiblockProvider implements IPhantasiaMultiblockProv
 
         PhantasiaBlockInfo endPortal = b(Blocks.END_PORTAL.defaultBlockState());
 
-        // Single flat 5x1x5 shape: eye-frames on the outside ring, portal in the 3x3 center.
         PhantasiaBlockInfo[][][] grid = new PhantasiaBlockInfo[5][1][5];
         grid[1][0][0] = b(frameNE);
         grid[2][0][0] = b(frameNE);
@@ -179,7 +175,6 @@ public final class VanillaMultiblockProvider implements IPhantasiaMultiblockProv
             for (int z = 1; z <= 3; z++)
                 grid[x][0][z] = endPortal;
 
-        // Build the 12 frame positions for step 0 show="pos" (no-eye frames shown first).
         PhantasiaScriptData.StepData step0 = new PhantasiaScriptData.StepData();
         step0.tick = 0;
         step0.caption = "Place 12 End Portal Frame blocks in a ring - 3 on each side. Each frame must face inward toward the centre.";
@@ -193,7 +188,7 @@ public final class VanillaMultiblockProvider implements IPhantasiaMultiblockProv
                 { 4, 0, 1 }, { 4, 0, 2 }, { 4, 0, 3 }
         };
         for (int[] fp : framePositions) step0.positions.add(fp);
-        // Also include the 3×3 portal block positions so players can see where the portal will form.
+
         for (int x = 1; x <= 3; x++)
             for (int z = 1; z <= 3; z++)
                 step0.positions.add(new int[] { x, 0, z });
@@ -337,8 +332,6 @@ public final class VanillaMultiblockProvider implements IPhantasiaMultiblockProv
         return defWithMob("minecraft:snow_golem", "Snow Golem", new ItemStack(Items.SNOW_BLOCK),
                 List.of(shape(grid)), script, net.minecraft.world.entity.EntityType.SNOW_GOLEM, 40);
     }
-
-    // ── Helpers ───────────────────────────────────────────────────────────────
 
     private static PhantasiaBlockInfo b(BlockState state) {
         return PhantasiaBlockInfo.fromBlockState(state);

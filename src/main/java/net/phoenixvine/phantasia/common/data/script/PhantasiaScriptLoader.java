@@ -101,7 +101,7 @@ public class PhantasiaScriptLoader {
         var scenes = PhantasiaSceneSelectionScreen.PHANTASIA_SCENES;
 
         List<IPhantasiaMultiblockDefinition> all = PhantasiaMultiblockRegistry.getAllDefinitions();
-        // Show vanilla (minecraft:*) entries last, unless there are no non-vanilla entries.
+
         boolean hasNonVanilla = all.stream().anyMatch(d -> !"minecraft".equals(d.getId().getNamespace()));
         if (hasNonVanilla) {
             all.sort((a, b) -> {
@@ -122,8 +122,7 @@ public class PhantasiaScriptLoader {
             if (!Files.exists(path)) {
                 writeDefaultScript(def, machineId, path);
             } else {
-                // Overwrite only if the file looks like an empty stub (< 300 bytes) and the default has steps.
-                // Avoids reading every script file on every world join — the full read is expensive at scale.
+
                 PhantasiaScriptData defaultData = def.getDefaultScriptData();
                 if (defaultData != null && !defaultData.getSteps().isEmpty()) {
                     try {

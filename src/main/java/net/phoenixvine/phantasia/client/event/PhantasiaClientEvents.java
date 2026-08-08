@@ -27,22 +27,11 @@ public class PhantasiaClientEvents {
 
     private PhantasiaClientEvents() {}
 
-    /**
-     * Updated to .Pre to match PhantasiaKeybind's logic.
-     * This allows the UI to render on the highest layer (PLAYER_LIST)
-     * and ensures it stays above maps/other HUD elements.
-     */
     @SubscribeEvent
     public static void onRenderOverlay(RenderGuiOverlayEvent.Pre event) {
         PhantasiaKeybind.onRenderOverlay(event);
     }
 
-    /**
-     * Reset the lazy-reload flag when the player disconnects so that the next
-     * world join re-runs the deferred script load. This matters if the player
-     * connects to a server where different addons are loaded, or rejoins after
-     * a /reload that re-registered machines.
-     */
     @SubscribeEvent
     public static void onLogout(ClientPlayerNetworkEvent.LoggingOut event) {
         PhantasiaScriptLoader.resetLazyReload();
@@ -55,7 +44,6 @@ public class PhantasiaClientEvents {
         Player player = mc.player;
         if (player == null) return;
 
-        // Check both hands for the capture wand
         ItemStack wand = ItemStack.EMPTY;
         for (net.minecraft.world.InteractionHand hand : net.minecraft.world.InteractionHand.values()) {
             ItemStack held = player.getItemInHand(hand);
@@ -78,21 +66,20 @@ public class PhantasiaClientEvents {
 
         MultiBufferSource.BufferSource source = mc.renderBuffers().bufferSource();
 
-        // Corner 1 marker — green
         if (pos1 != null) {
             renderBox(ps, source,
                     new AABB(pos1.getX(), pos1.getY(), pos1.getZ(),
                             pos1.getX() + 1, pos1.getY() + 1, pos1.getZ() + 1).inflate(0.003),
                     0f, 1f, 0f, 1f);
         }
-        // Corner 2 marker — red
+
         if (pos2 != null) {
             renderBox(ps, source,
                     new AABB(pos2.getX(), pos2.getY(), pos2.getZ(),
                             pos2.getX() + 1, pos2.getY() + 1, pos2.getZ() + 1).inflate(0.003),
                     1f, 0f, 0f, 1f);
         }
-        // Full selection — yellow, slightly expanded
+
         if (pos1 != null && pos2 != null) {
             int x0 = Math.min(pos1.getX(), pos2.getX()), x1 = Math.max(pos1.getX(), pos2.getX()) + 1;
             int y0 = Math.min(pos1.getY(), pos2.getY()), y1 = Math.max(pos1.getY(), pos2.getY()) + 1;

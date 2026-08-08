@@ -7,7 +7,6 @@ import com.lowdragmc.lowdraglib.utils.BlockInfo;
 import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockShape;
 import net.phoenixvine.phantasia.utils.PhantasiaBlockInfo;
 
-/** Wraps GTCEu's {@link MultiblockShapeInfo} as an {@link IPhantasiaMultiblockShape}. */
 public class GTCEuMultiblockShape implements IPhantasiaMultiblockShape {
 
     private final MultiblockShapeInfo shapeInfo;

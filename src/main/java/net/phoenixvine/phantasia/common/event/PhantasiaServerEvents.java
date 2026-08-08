@@ -9,9 +9,6 @@ import net.minecraftforge.fml.common.Mod;
 import net.phoenixvine.phantasia.Phantasia;
 import net.phoenixvine.phantasia.common.PhantasiaItems;
 
-/**
- * Server-side events. Runs on both integrated and dedicated servers.
- */
 @Mod.EventBusSubscriber(modid = Phantasia.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE)
 public final class PhantasiaServerEvents {
 
@@ -31,7 +28,7 @@ public final class PhantasiaServerEvents {
         if (!data.getBoolean(NBT_KEY)) {
             data.putBoolean(NBT_KEY, true);
             ItemStack manual = new ItemStack(PhantasiaItems.PHANTASIA_MANUAL.get());
-            // Try hotbar slot 8 (far right) first, then any empty slot
+
             if (player.getInventory().getItem(8).isEmpty()) {
                 player.getInventory().setItem(8, manual);
             } else {

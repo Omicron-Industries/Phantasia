@@ -28,22 +28,6 @@ import java.util.*;
 
 import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
 
-/**
- * PhantasiaSceneEditorScreen
- *
- * Manual scene editor. Mirrors the style of {@link PhantasiaScriptEditorScreen} but
- * operates on {@link PhantasiaSceneData} instead of per-machine script data.
- *
- * Key differences from the machine editor:
- * - A Component.translatable("screen.phantasia.scene_editor.section_placements").getString() side panel (toggle with ⊞
- * button in top bar) for adding,
- * removing, and repositioning machine placements.
- * - Per-placement visibility overrides in the step row, shown when a placement
- * is selected in the placements panel.
- * - No SELECT mode block-position picking (positions are global across the merged
- * world; use the pos show mode with manual entry or future click-to-add support).
- * - World is rebuilt when placements change.
- */
 @OnlyIn(Dist.CLIENT)
 public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
 
@@ -51,7 +35,6 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
     private static final int TIMELINE_H = 22;
     private static final int BOTTOM_H = STEP_ROW_H + TIMELINE_H;
 
-    /** Height of the camera floating panel that overlaps the 3-D viewport */
     private static final int CAM_PANEL_H = 52;
 
     private static final float CAM_ORBIT_SENSITIVITY = 0.35f;
@@ -60,29 +43,24 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
     private static final String[] SHOW_MODES = { "all", "layer", "layers", "pos" };
     private static final String[] SHOW_LABELS = { "All", "Layer", "Range", "Pos" };
 
-    // ── Data ──────────────────────────────────────────────────────────────────
     private final Screen parent;
     PhantasiaSceneData data;
     private EditBox sceneIconBox;
     boolean dirty = false;
     int selectedStep = 0;
 
-    // ── World ─────────────────────────────────────────────────────────────────
     PhantasiaWorldRenderer renderer;
     PhantasiaTrackedDummyWorld editorLevel;
     PhantasiaScenePattern scenePattern;
 
-    // ── Camera ────────────────────────────────────────────────────────────────
     PhantasiaCamera camera;
-    /** Camera floating panel toggle (top-bar tab) */
+
     private boolean showCameraPanel = false;
 
-    // ── WORLD mode ────────────────────────────────────────────────────────────
-    /** World-item floating panel toggle (top-bar tab) */
     private boolean showWorldItemPanel = false;
-    /** Local-space selected block in WORLD mode (relative to placement offset). */
+
     private BlockPos wiBlock = null;
-    /** Which placement wiBlock belongs to. */
+
     private int wiPlacementIdx = -1;
     private EditBox wiItemBox;
     private EditBox wiSourceBox;
@@ -91,74 +69,58 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
     private boolean sceneSelectPulseUp = true;
     private static final int WI_PANEL_H = 62;
 
-    // ── Placements panel ──────────────────────────────────────────────────────
     private boolean showPlacementsPanel = true;
-    private int selectedPlacement = -1; // -1 = no selection / global step view
+    private int selectedPlacement = -1;
     private static final int PLACEMENTS_PANEL_W = 220;
 
-    // ── Timeline ─────────────────────────────────────────────────────────────
     private int draggingTimelineDot = -1;
     private boolean dotDragMoved = false;
     private double dotDragStartMX = 0;
     private int timelineGhostTick = -1;
 
-    // ── Preview ───────────────────────────────────────────────────────────────
     private boolean previewing = false;
     private int previewTick = 0;
     private float previewAccum = 0f;
     private int sceneTick = 0;
 
-    // ── Start-cam panel ───────────────────────────────────────────────────────
     private boolean showStartCamPanel = false;
     private EditBox scYawBox;
     private EditBox scPitchBox;
     private EditBox scZoomBox;
 
-    // ── Unsaved confirm ───────────────────────────────────────────────────────
     private boolean showingCloseConfirm = false;
 
-    // ── Undo ──────────────────────────────────────────────────────────────────
     private static final int MAX_UNDO = 20;
     private final ArrayDeque<PhantasiaSceneData> undoStack = new ArrayDeque<>();
 
-    // ── Clipboard ─────────────────────────────────────────────────────────────
-    /** Deep-copied step held by Ctrl+C; null until the user copies something. */
     private PhantasiaSceneData.StepData clipboard = null;
 
-    // ── Inputs ────────────────────────────────────────────────────────────────
     private EditBox captionBox;
     private EditBox descriptionBox;
     private EditBox tickBox;
     private EditBox lerpTicksBox;
     private EditBox camZoomBox;
 
-    // Per-placement override boxes (reused for whichever placement is selected)
     private EditBox ovLayerBox;
     private EditBox ovHidePosBox;
-    // Per-placement recipe / particle override boxes
+
     private EditBox ovFakeRecipeBox;
     private EditBox ovParticleBox;
-    // Add-placement inputs
+
     private EditBox newMachineIdBox;
     private EditBox newOffsetXBox;
     private EditBox newOffsetYBox;
     private EditBox newOffsetZBox;
-    // Scene metadata
+
     private EditBox sceneNameBox;
     private EditBox tooltipItemBox;
 
     private int lastMX, lastMY;
 
-    // ── Item panel hover state ─────────────────────────────────────────────────
     private int hoveredItemPlacement = -1;
     private int hoveredItemIndex = -1;
-    /**
-     * Screen bounds of the currently-rendered item strip panel, or null if not showing. Used for
-     * click-outside-to-close.
-     */
-    private int[] itemStripBounds = null;
 
-    // ─────────────────────────────────────────────────────────────────────────
+    private int[] itemStripBounds = null;
 
     public PhantasiaSceneEditorScreen(Screen parent, PhantasiaSceneData original) {
         super(Component.translatable("screen.phantasia.scene_editor.title"));
@@ -175,10 +137,6 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         }
         selectedStep = Mth.clamp(selectedStep, 0, data.steps.size() - 1);
     }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // Init
-    // ─────────────────────────────────────────────────────────────────────────
 
     @Override
     protected void init() {
@@ -219,9 +177,6 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         applyWorldItemsToEditorLevel();
         rebuildVisibility();
 
-        // onShapeLoaded defers onStructureFormed via recordRenderCall — queue a second
-        // applyActiveStateToScene so it fires AFTER onStructureFormed, ensuring
-        // RecipeLogic stays WORKING instead of being reset by onStructureFormed.
         final boolean deferredWorking = step().working;
         com.mojang.blaze3d.systems.RenderSystem.recordRenderCall(
                 () -> applyActiveStateToScene(deferredWorking));
@@ -312,7 +267,6 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
             dirty = true;
         });
 
-        // WORLD mode boxes
         wiItemBox = addW(new EditBox(font, 0, 0, 200, 12, Component.empty()));
         wiItemBox.setMaxLength(120);
         wiItemBox.setHint(Component.translatable("screen.phantasia.scene_editor.hint_world_item"));
@@ -326,7 +280,6 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         wiSourceBox.visible = false;
         wiSourceBox.active = false;
 
-        // Per-placement override boxes
         ovLayerBox = addW(new EditBox(font, 0, 0, 28, 12, Component.empty()));
         ovLayerBox.setMaxLength(4);
         ovLayerBox.setFilter(s -> s.matches("-?\\d*"));
@@ -374,7 +327,6 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
             dirty = true;
         });
 
-        // Add-placement inputs
         newMachineIdBox = addW(new EditBox(font, 0, 0, 160, 12, Component.empty()));
         newMachineIdBox.setMaxLength(128);
         newMachineIdBox.setHint(Component.translatable("screen.phantasia.scene_editor.hint_machine_id"));
@@ -403,7 +355,6 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         tooltipItemBox.setMaxLength(128);
         tooltipItemBox.setHint(Component.translatable("screen.phantasia.scene_editor.hint_tooltip_item"));
 
-        // Start-cam panel boxes
         scYawBox = addW(new EditBox(font, 0, 0, 44, 12, Component.empty()));
         scYawBox.setMaxLength(10);
         scYawBox.setResponder(v -> {
@@ -444,10 +395,6 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         return b;
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Tick
-    // ─────────────────────────────────────────────────────────────────────────
-
     @Override
     public void tick() {
         super.tick();
@@ -482,10 +429,6 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
             }
         }
     }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // Visibility
-    // ─────────────────────────────────────────────────────────────────────────
 
     @Override
     public void renderAsBackground(net.minecraft.client.gui.GuiGraphics g, float partial) {
@@ -570,10 +513,6 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         if (!rebakePos.isEmpty() && renderer != null) renderer.requestPartialBake(rebakePos);
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Render
-    // ─────────────────────────────────────────────────────────────────────────
-
     @Override
     public void render(GuiGraphics g, int mx, int my, float partial) {
         btns.clear();
@@ -584,7 +523,6 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
 
         g.fill(0, 0, this.width, this.height, C_BG());
 
-        // 3D scene
         if (renderer != null && camera != null) {
             int sceneX = showPlacementsPanel ? PLACEMENTS_PANEL_W : 0;
             int sceneW = this.width - sceneX;
@@ -596,7 +534,7 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
                     (overCamPanel || overWiPanel || overScPanel) ? -1 : my);
             CameraView view = camera.getView(partial);
             renderer.render(view, sceneX, TOP_BAR_H, sceneW, sceneH);
-            // Track hovered block for WORLD mode
+
             net.minecraft.world.phys.BlockHitResult hit = renderer.getLastHitResult();
             if (hit != null && hit.getType() == net.minecraft.world.phys.HitResult.Type.BLOCK) {
                 BlockPos hp = hit.getBlockPos();
@@ -620,11 +558,8 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         if (showingCloseConfirm)
             renderCloseConfirmDialog(g, mx, my, this::forceClose, () -> showingCloseConfirm = false);
 
-        // Floating tooltip — drawn absolutely last so it is always on top
         renderPendingTooltip(g, mx, my);
     }
-
-    // ── Top bar ───────────────────────────────────────────────────────────────
 
     private void renderTopBar(GuiGraphics g, int mx, int my) {
         g.fill(0, 0, this.width, TOP_BAR_H, C_BAR());
@@ -632,7 +567,6 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
 
         int x = 6;
 
-        // Placements panel toggle
         boolean ppHov = isOver(mx, my, x, 3, 86, TOP_BAR_H - 6);
         g.fill(x, 3, x + 86, TOP_BAR_H - 3, showPlacementsPanel ? C_BTN_ACT() : (ppHov ? C_BTN_HOV() : C_BTN()));
         if (showPlacementsPanel) g.fill(x, TOP_BAR_H - 3, x + 86, TOP_BAR_H - 2, C_ACCENT());
@@ -642,7 +576,6 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         btns.add(new Btn(x, 3, 86, TOP_BAR_H - 6, () -> showPlacementsPanel = !showPlacementsPanel));
         x += 92;
 
-        // Preview
         boolean ph = isOver(mx, my, x, 3, 70, TOP_BAR_H - 6);
         g.fill(x, 3, x + 70, TOP_BAR_H - 3, previewing ? C_BTN_ACT() : (ph ? C_BTN_HOV() : C_BTN()));
         if (previewing) g.fill(x, TOP_BAR_H - 3, x + 70, TOP_BAR_H - 2, C_GREEN());
@@ -653,7 +586,6 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         btns.add(new Btn(x, 3, 70, TOP_BAR_H - 6, this::togglePreview));
         x += 76;
 
-        // Camera panel tab
         int camTabW = 76;
         boolean camHov = isOver(mx, my, x, 3, camTabW, TOP_BAR_H - 6);
         g.fill(x, 3, x + camTabW, TOP_BAR_H - 3, showCameraPanel ? C_BTN_ACT() : (camHov ? C_BTN_HOV() : C_BTN()));
@@ -664,7 +596,6 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         btns.add(new Btn(x, 3, camTabW, TOP_BAR_H - 6, () -> showCameraPanel = !showCameraPanel));
         x += camTabW + 6;
 
-        // World items panel tab
         int wiTabW = 70;
         boolean wiHov = isOver(mx, my, x, 3, wiTabW, TOP_BAR_H - 6);
         g.fill(x, 3, x + wiTabW, TOP_BAR_H - 3, showWorldItemPanel ? C_BTN_ACT() : (wiHov ? C_BTN_HOV() : C_BTN()));
@@ -676,7 +607,7 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
             wiBlock = null;
         }));
         x += wiTabW + 6;
-        // Start camera tab (left-side, after World Items)
+
         String startCamLabel = data.startCamera != null ? "\uD83C\uDFA5 StartCam \u2713" : "\uD83C\uDFA5 StartCam";
         int scTabW = font.width(startCamLabel) + 10;
         boolean scHov = isOver(mx, my, x, 3, scTabW, TOP_BAR_H - 6);
@@ -689,7 +620,6 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         btns.add(new Btn(x, 3, scTabW, TOP_BAR_H - 6, () -> showStartCamPanel = !showStartCamPanel));
         int leftEdge = x + scTabW + 6;
 
-        // Right buttons
         int rx = this.width - 4;
         rx = topBtn(g, mx, my, rx, "\u2715 Back", C_BTN(), "Close the editor (warns if unsaved)", this::onClose);
         rx = topBtn(g, mx, my, rx, "\uD83D\uDCBE Save", C_GREEN(), "Save scene to disk", this::save);
@@ -702,8 +632,6 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         }
         int rightEdge = rx - 4;
     }
-
-    // ── Camera panel (floating overlay above step row) ────────────────────────
 
     private boolean isCamPanelHit(int mx, int my) {
         int panelW = Math.min(500, this.width - 16);
@@ -727,7 +655,6 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         PhantasiaSceneData.StepData s = step();
         boolean hasCam = s.camera != null;
 
-        // Row 1: Capture / Clear / live info
         int r1Y = panelY + 14;
         int x = panelX + 4;
 
@@ -765,7 +692,6 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
                     x, r1Y + 3, C_DIM(), false);
         }
 
-        // Row 2: Zoom + lerp type + lerp ticks
         int r2Y = panelY + 32;
         x = panelX + 4;
 
@@ -808,8 +734,6 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         }
     }
 
-    // ── Start-cam panel ───────────────────────────────────────────────────────
-
     private boolean isStartCamPanelHit(int mx, int my) {
         int panelW = 320, panelH = 42;
         int panelX = showPlacementsPanel ? PLACEMENTS_PANEL_W + 6 : 6;
@@ -832,14 +756,13 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         g.drawString(font, "Start Camera", x, row1 + 1, C_ACCENT(), false);
         x += font.width("Start Camera") + 10;
 
-        // Yaw / Pitch / Zoom fields
         x = scField(g, mx, my, x, row1, "Yaw", scYawBox, "Yaw angle (degrees)", hasSC);
         x = scField(g, mx, my, x, row1, "Pitch", scPitchBox, "Pitch angle (degrees)", hasSC);
         x = scField(g, mx, my, x, row1, "Zoom", scZoomBox, "Camera distance from target", hasSC);
 
         int row2 = py + 22;
         x = px + 6;
-        // Capture button
+
         int capW = font.width("⊙ Capture View") + 12;
         boolean capHov = isOver(mx, my, x, row2, capW, 14);
         g.fill(x, row2, x + capW, row2 + 14, capHov ? C_BTN_HOV() : C_BTN());
@@ -849,7 +772,7 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         x += capW + 6;
 
         if (hasSC) {
-            // Clear button
+
             int clrW = font.width("✕ Clear") + 10;
             boolean clrHov = isOver(mx, my, x, row2, clrW, 14);
             g.fill(x, row2, x + clrW, row2 + 14, clrHov ? C_BTN_HOV() : C_BTN());
@@ -857,7 +780,7 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
             if (clrHov) pendingTooltip = "Remove start camera override";
             btns.add(new Btn(x, row2, clrW, 14, this::clearStartCam));
             x += clrW + 8;
-            // Live info
+
             String info = String.format("Yaw %.1f°  Pitch %.1f°  Zoom %.1f",
                     data.startCamera.yaw, data.startCamera.pitch,
                     data.startCamera.zoom > 0 ? data.startCamera.zoom : 0f);
@@ -913,8 +836,6 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
             scZoomBox.setValue("");
         }
     }
-
-    // ── World items overlay ───────────────────────────────────────────────────
 
     private boolean isWiPanelHit(int mx, int my) {
         int panelX = showPlacementsPanel ? PLACEMENTS_PANEL_W + 6 : 6;
@@ -982,9 +903,6 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         int panelX = showPlacementsPanel ? PLACEMENTS_PANEL_W + 6 : 6;
         int panelY = Math.max(TOP_BAR_H + 4, this.height - BOTTOM_H - WI_PANEL_H - 4);
 
-        // Compute the actual content width first (labels + boxes + buttons), then
-        // clamp the whole row to fit on-screen by shrinking the item box rather than
-        // letting later widgets (source box / confirm / remove) run off the edge.
         String itemLabel = Component.translatable("screen.phantasia.scene_editor.label_item").getString();
         String sourceLabel = Component.translatable("screen.phantasia.scene_editor.label_source").getString();
         String confirmLabel = Component.translatable("ui.phantasia.btn_confirm").getString();
@@ -1005,8 +923,6 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         int maxPanelW = this.width - panelX - 10;
         int panelW = Math.min(contentW, maxPanelW);
 
-        // If everything doesn't fit, shrink the item box first (it has the most slack)
-        // before anything else gets clipped or pushed off-screen.
         if (contentW > maxPanelW) {
             int overflow = contentW - maxPanelW;
             itemBoxW = Math.max(60, itemBoxW - overflow);
@@ -1080,7 +996,6 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         ov.worldItems.add(entry);
         dirty = true;
 
-        // Apply change immediately to the editor level for visual feedback
         if (editorLevel != null && scenePattern != null && wiPlacementIdx < scenePattern.placements.size()) {
             BlockPos worldPos = wiBlock.offset(scenePattern.placements.get(wiPlacementIdx).offset);
             net.minecraft.world.level.block.entity.BlockEntity be = editorLevel.getBlockEntity(worldPos);
@@ -1149,7 +1064,6 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
                 .getBlock() instanceof com.gregtechceu.gtceu.api.block.MetaMachineBlock)
             return false;
 
-        // Find which placement this world position belongs to
         int foundPlacement = -1;
         for (PhantasiaScenePattern.PlacementEntry pe : scenePattern.placements) {
             if (pe.worldPositions.contains(hoveredWorldPos)) {
@@ -1173,10 +1087,9 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
             return true;
         }
 
-        // Left-click: select
         wiPlacementIdx = foundPlacement;
         wiBlock = local;
-        // Select this placement in the panel too
+
         if (selectedPlacement != foundPlacement) {
             selectedPlacement = foundPlacement;
             populateOverrideBoxes();
@@ -1222,8 +1135,6 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         return new float[] { screenX, screenY, depth };
     }
 
-    // ── Placements panel ──────────────────────────────────────────────────────
-
     private void renderPlacementsPanel(GuiGraphics g, int mx, int my) {
         int pw = PLACEMENTS_PANEL_W;
         int ph = this.height - TOP_BAR_H - BOTTOM_H;
@@ -1232,12 +1143,10 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         g.fill(px, py, px + pw, py + ph, C_PANEL());
         g.fill(px + pw - 1, py, px + pw, py + ph, 0x44FFFFFF);
 
-        // Header
         g.fill(px, py, px + pw, py + 14, C_BAR());
         g.drawString(font, Component.translatable("screen.phantasia.scene_editor.section_placements").getString(),
                 px + 6, py + 3, C_ACCENT(), false);
 
-        // Scene name field
         g.drawString(font, Component.translatable("screen.phantasia.scene_editor.label_name").getString(), px + 6,
                 py + 18, C_DIM(), false);
         placeBox(sceneNameBox,
@@ -1248,7 +1157,6 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         sceneNameBox.visible = true;
         sceneNameBox.active = true;
 
-        // Icon field
         g.drawString(font, Component.translatable("screen.phantasia.scene_editor.label_icon").getString(), px + 6,
                 py + 34, C_DIM(), false);
         placeBox(sceneIconBox,
@@ -1259,7 +1167,6 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         sceneIconBox.visible = true;
         sceneIconBox.active = true;
 
-        // ── Tooltip Items ─────────────────────────────────────────────────────
         int tiY = py + 48;
         g.fill(px + 4, tiY, px + pw - 4, tiY + 1, 0x22FFFFFF);
         tiY += 4;
@@ -1289,7 +1196,6 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
             }
         }
 
-        // Add tooltip item input row
         int addTiW = font.width(Component.translatable("ui.phantasia.btn_add").getString()) + 8;
         placeBox(tooltipItemBox, px + 4, tiY - 1, pw - addTiW - 14, 12);
         tooltipItemBox.visible = true;
@@ -1312,14 +1218,12 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         }));
         tiY += 16;
 
-        // ── Placement list ────────────────────────────────────────────────────
-        // Clip the list+form to the panel height so they can't overflow the screen.
         int listY = tiY;
         int rowH = 38;
-        int clipMaxY = py + ph; // nothing should render below this line
+        int clipMaxY = py + ph;
 
         for (int i = 0; i < data.placements.size(); i++) {
-            if (listY + rowH > clipMaxY) break; // stop drawing if we'd overflow
+            if (listY + rowH > clipMaxY) break;
 
             PhantasiaSceneData.PlacementData pd = data.placements.get(i);
             boolean sel = (i == selectedPlacement);
@@ -1359,7 +1263,6 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
             listY += rowH;
         }
 
-        // ── Add-placement form ────────────────────────────────────────────────
         int formY = listY + 4;
         if (formY + 54 <= clipMaxY) {
             g.fill(px + 2, formY - 2, px + pw - 2, Math.min(formY + 54, clipMaxY), 0x220A0A20);
@@ -1395,19 +1298,17 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
                         "Add a new machine placement to this scene", this::tryAddPlacement);
         }
 
-        // ── Per-placement override section (when a placement is selected) ─────
         if (selectedPlacement >= 0 && selectedPlacement < data.placements.size()) {
             int ovY = formY + 22;
             PhantasiaSceneData.MachineOverride ov = step().getOverride(selectedPlacement);
             PhantasiaSceneData.PlacementData pd = data.placements.get(selectedPlacement);
 
-            if (ovY + 10 > clipMaxY) return; // no room left
+            if (ovY + 10 > clipMaxY) return;
 
             g.fill(px + 2, ovY - 2, px + pw - 2, Math.min(ovY + 160, clipMaxY), 0x220A0A20);
             g.drawString(font, "#" + selectedPlacement + " override", px + 6, ovY, C_ACCENT(), false);
             ovY += 10;
 
-            // Show mode buttons
             String curShow = ov != null && ov.show != null ? ov.show : "(global)";
             if (ovY + 12 <= clipMaxY) {
                 g.drawString(font, Component.translatable("screen.phantasia.scene_editor.label_show").getString(),
@@ -1471,7 +1372,6 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
                 ovY += 16;
             }
 
-            // Layer field
             if (ov != null && ("layer".equals(ov.show) || "layers".equals(ov.show)) && ovY + 12 <= clipMaxY) {
                 g.drawString(font, Component.translatable("screen.phantasia.scene_editor.label_layer").getString(),
                         px + 6, ovY + 2, C_DIM(), false);
@@ -1484,7 +1384,6 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
                 ovY += 16;
             }
 
-            // HidePos
             if (ovY + 12 <= clipMaxY) {
                 g.drawString(font, Component.translatable("screen.phantasia.scene_editor.label_hidepos").getString(),
                         px + 6, ovY + 2, C_DIM(), false);
@@ -1501,7 +1400,6 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
                 ovY += 16;
             }
 
-            // Working state
             if (ovY + 12 <= clipMaxY) {
                 g.drawString(font, Component.translatable("screen.phantasia.scene_editor.label_working").getString(),
                         px + 6, ovY + 2, C_DIM(), false);
@@ -1541,7 +1439,6 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
                 ovY += 16;
             }
 
-            // Fake recipe ID
             if (ovY + 12 <= clipMaxY) {
                 g.drawString(font, Component.translatable("screen.phantasia.scene_editor.label_recipe").getString(),
                         px + 6, ovY + 2, C_DIM(), false);
@@ -1558,7 +1455,6 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
                 ovY += 16;
             }
 
-            // Particle effects
             if (ovY + 12 <= clipMaxY) {
                 g.drawString(font, Component.translatable("screen.phantasia.scene_editor.label_particles").getString(),
                         px + 6, ovY + 2, C_DIM(), false);
@@ -1579,7 +1475,6 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
                 ovY += 16;
             }
 
-            // Clear override button
             if (ov != null && ovY + 12 <= clipMaxY) {
                 tipBtn(g, mx, my, px + 6, ovY, pw - 12, 12, "\u2715 Clear override", C_BTN(),
                         "Remove all overrides for this placement on this step", () -> {
@@ -1592,7 +1487,6 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
                 ovY += 16;
             }
 
-            // Item summary + edit button
             ovY += 2;
             if (!pd.items.isEmpty() && ovY + 11 <= clipMaxY) {
                 StringBuilder sb = new StringBuilder();
@@ -1640,7 +1534,6 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         };
     }
 
-    /** Returns [minY, maxY] for the currently selected placement, or null. */
     private int[] selectedPlacementYBounds() {
         if (scenePattern == null || selectedPlacement < 0) return null;
         for (PhantasiaScenePattern.PlacementEntry pe : scenePattern.placements) {
@@ -1648,8 +1541,6 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         }
         return null;
     }
-
-    // ── Step row ──────────────────────────────────────────────────────────────
 
     private void renderStepRow(GuiGraphics g, int mx, int my) {
         int rowY = this.height - BOTTOM_H;
@@ -1660,7 +1551,6 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         int y1 = rowY + 5;
         int x = 8;
 
-        // Step nav
         g.drawString(font, Component.translatable("screen.phantasia.scene_editor.label_step").getString(), x, y1 - 2,
                 0xFF334455, false);
         String stepLbl = (selectedStep + 1) + "/" + data.steps.size();
@@ -1685,7 +1575,6 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         g.fill(x, y1, x + 1, y1 + 14, 0x33FFFFFF);
         x += 8;
 
-        // Tick
         g.drawString(font, Component.translatable("screen.phantasia.scene_editor.label_tick").getString(), x, y1 + 3,
                 C_DIM(), false);
         x += font.width(Component.translatable("screen.phantasia.scene_editor.label_tick").getString()) + 3;
@@ -1693,7 +1582,6 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         if (isOver(mx, my, x, y1, 38, 13)) pendingTooltip = "Tick this step activates at (20 ticks = 1 second)";
         x += 44;
 
-        // Caption — click to open sub-screen, matching the script editor pattern
         String capVal = s.caption != null ? s.caption : "";
         int capW = Math.min(200, this.width / 2 - x - 10);
         boolean capHov = isOver(mx, my, x, y1, capW, 13);
@@ -1717,7 +1605,6 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         g.fill(x, y1, x + 1, y1 + 14, 0x33FFFFFF);
         x += 8;
 
-        // Camera capture button (now just the capture shortcut — full controls live in the camera panel)
         boolean hasCam = s.camera != null;
         boolean cch = isOver(mx, my, x, y1, 110, 14);
         g.fill(x, y1, x + 110, y1 + 14, hasCam ? C_BTN_ACT() : (cch ? C_BTN_HOV() : C_BTN()));
@@ -1730,7 +1617,6 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         btns.add(new Btn(x, y1, 110, 14, this::captureCamera));
         x += 114;
 
-        // Working state toggle
         boolean isWorking = s.working;
         int wW = font.width(isWorking ? "Working" : "Idle") + 12;
         boolean wHov = isOver(mx, my, x, y1, wW, 14);
@@ -1748,7 +1634,6 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         }));
         x += wW + 6;
 
-        // Show items toggle
         boolean showIt = s.showItems;
         int siW = font.width("Items") + 12;
         boolean siHov = isOver(mx, my, x, y1, siW, 14);
@@ -1763,7 +1648,6 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
             dirty = true;
         }));
 
-        // ── Row 2: global show-mode buttons + description box ─────────────────
         int y2 = rowY + 27;
         x = 8;
 
@@ -1791,13 +1675,11 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
             x += mw + 3;
         }
 
-        // Layer value hint
         if ("layer".equals(s.show))
             g.drawString(font, " Y=" + s.layer, x, y2 + 2, C_ACCENT(), false);
         else if ("layers".equals(s.show))
             g.drawString(font, " " + s.layerMin + "\u2192" + s.layerMax, x, y2 + 2, C_ACCENT(), false);
 
-        // Description button — right portion of row 2, opens terminal editor like caption
         int descX = this.width / 2;
         int descW = this.width - descX - 12;
         String descLabel = Component.translatable("screen.phantasia.scene_editor.label_desc").getString();
@@ -1823,8 +1705,6 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
                         }))));
     }
 
-    // ── Timeline ─────────────────────────────────────────────────────────────
-
     private static final int TL_MARGIN = 30;
 
     private int tlY() {
@@ -1848,13 +1728,11 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         g.fill(margin - 1, midY - 3, margin, midY + 3, 0xFF3A506A);
         g.fill(margin + trackW, midY - 3, margin + trackW + 1, midY + 3, 0xFF3A506A);
 
-        // Preview playhead
         if (previewing && total > 0) {
             int px = margin + (int) ((float) previewTick / total * trackW);
             g.fill(px - 1, tlY + 2, px + 1, tlY + TIMELINE_H - 2, 0xAAFFFFFF);
         }
 
-        // Ghost + click-to-add
         timelineGhostTick = -1;
         boolean onTrack = isOver(mx, my, margin, tlY, trackW, TIMELINE_H);
         if (onTrack && draggingTimelineDot < 0) {
@@ -1877,7 +1755,6 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
             }
         }
 
-        // Step dots
         for (int i = 0; i < data.steps.size(); i++) {
             PhantasiaSceneData.StepData s = data.steps.get(i);
             float t = total > 0 ? (float) s.tick / total : 0f;
@@ -1889,13 +1766,12 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
             int ringCol = sel || drag ? C_ACCENT() : (hov ? 0xFFAADDFF : 0xFF3A506A);
             g.fill(dotX - 7, midY - 7, dotX + 7, midY + 7, ringCol);
             g.fill(dotX - 5, midY - 5, dotX + 5, midY + 5, drag ? 0xFFFFFFFF : (sel ? 0xFF1A3C5C : 0xFF0A1520));
-            // Camera pip
+
             if (s.camera != null) g.fill(dotX - 3, midY - 7, dotX + 3, midY - 5, C_ACCENT());
 
             g.drawCenteredString(font, String.valueOf(i + 1), dotX, midY - 3,
                     sel || drag ? C_ACCENT() : (hov ? 0xFFCCEEFF : C_DIM()));
 
-            // Line to next dot
             if (i + 1 < data.steps.size()) {
                 PhantasiaSceneData.StepData next = data.steps.get(i + 1);
                 float nt = total > 0 ? (float) next.tick / total : 0f;
@@ -1903,12 +1779,10 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
                 g.fill(dotX + 7, midY, nextX - 7, midY + 1, 0xFF1E3A52);
             }
 
-            // Step label below dot
             String lbl = (sel || drag) ? "#" + (i + 1) + "  t=" + s.tick : "#" + (i + 1);
             int lx = Mth.clamp(dotX - font.width(lbl) / 2, margin, margin + trackW - font.width(lbl));
             g.drawString(font, lbl, lx, midY + 9, sel || drag ? C_ACCENT() : C_DIM(), false);
 
-            // Hover: faint X hint (right-click to delete)
             if (hov && !sel && !drag)
                 g.drawCenteredString(font, "\u2715", dotX, midY - 16, 0x88FF5252);
 
@@ -1921,7 +1795,6 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
             btns.add(new Btn(dotX - 9, midY - 9, 18, 18, () -> selectStep(fi)));
         }
 
-        // Tick ruler every 60 ticks
         if (total > 0) {
             for (int tick = 0; tick <= total; tick += 60) {
                 int rx = margin + (int) ((float) tick / total * trackW);
@@ -1929,13 +1802,11 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
             }
         }
 
-        // Clipboard hint
         if (clipboard != null) {
             String hint = "Ctrl+V to paste step";
             g.drawString(font, hint, margin, tlY + 3, 0x554FC3F7, false);
         }
 
-        // Duration readout — plain label, computed automatically from last step
         int total2 = computeTotalTicks();
         int durLabelW = font.width(Component.translatable("screen.phantasia.scene_editor.label_total").getString()) + 4;
         int durX = this.width - 4 - font.width(String.valueOf(total2)) - 10 - durLabelW;
@@ -1945,8 +1816,6 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         if (isOver(mx, my, durX, tlY, durLabelW + 50, TIMELINE_H))
             pendingTooltip = "Total scene length = last step tick + 60 ticks";
     }
-
-    // ── Item panel (GuideME-style) ────────────────────────────────────────────
 
     private static final int ITEM_PANEL_W = 186;
     private static final int ITEM_ROW_H = 38;
@@ -2093,8 +1962,6 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         }
     }
 
-    // ── Confirm dialog ────────────────────────────────────────────────────────
-
     @Override
     public boolean mouseClicked(double mx, double my, int btn) {
         if (showingCloseConfirm) {
@@ -2109,8 +1976,6 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
             return true;
         }
 
-        // Click outside the Items popup closes it (the toggle button itself is a
-        // Btn above, so this only fires for genuine clicks elsewhere on screen).
         if (itemStripBounds != null &&
                 !isOver(mx, my, itemStripBounds[0], itemStripBounds[1], itemStripBounds[2], itemStripBounds[3])) {
             step().showItems = false;
@@ -2120,7 +1985,6 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
 
         if (super.mouseClicked(mx, my, btn)) return true;
 
-        // Timeline
         int tlY = tlY();
         int margin = TL_MARGIN, trackW = tlTrackW();
         int total = computeTotalTicks();
@@ -2128,7 +1992,7 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         boolean onTimeline = isOver(mx, my, 0, tlY, this.width, TIMELINE_H);
 
         if (onTimeline) {
-            // Right-click on a dot → delete step
+
             if (btn == 1) {
                 for (int i = 0; i < data.steps.size(); i++) {
                     PhantasiaSceneData.StepData s = data.steps.get(i);
@@ -2153,7 +2017,6 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
             return true;
         }
 
-        // Scene area – WORLD mode click
         int sceneBottom = this.height - BOTTOM_H;
         if (my >= TOP_BAR_H && my < sceneBottom && showWorldItemPanel) {
             return handleWorldItemClick(mx, my, btn);
@@ -2199,7 +2062,7 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         if (my < TOP_BAR_H || my >= sceneBottom) return super.mouseDragged(mx, my, btn, dx, dy);
 
         if (camera != null) {
-            // Right-click OR middle-click → pan (matches script editor)
+
             if (btn == 1 || btn == 2) {
                 Vector3f rgt = new Vector3f(), up = new Vector3f();
                 camera.getRightAndUp(rgt, up);
@@ -2291,10 +2154,6 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         return super.keyPressed(kc, sc, mod);
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Undo
-    // ─────────────────────────────────────────────────────────────────────────
-
     void checkpoint() {
         if (undoStack.size() >= MAX_UNDO) undoStack.pollFirst();
         undoStack.addLast(data.copy());
@@ -2308,10 +2167,6 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         populateInputsFromStep();
         rebuildVisibility();
     }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // Actions
-    // ─────────────────────────────────────────────────────────────────────────
 
     private void tryAddPlacement() {
         String machine = newMachineIdBox.getValue().trim();
@@ -2399,8 +2254,6 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         dirty = true;
     }
 
-    // toggleStartCamera is no longer used — panel toggle is inlined in renderTopBar
-
     private void captureCamera() {
         PhantasiaSceneData.StepData s = step();
         if (s.camera == null) s.camera = new PhantasiaScriptData.CameraData();
@@ -2437,10 +2290,6 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         if (!previewing) rebuildVisibility();
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Override helpers
-    // ─────────────────────────────────────────────────────────────────────────
-
     private PhantasiaSceneData.MachineOverride ensureOverride() {
         if (selectedPlacement < 0) return null;
         PhantasiaSceneData.MachineOverride ov = step().getOverride(selectedPlacement);
@@ -2463,10 +2312,6 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
             ovParticleBox
                     .setValue(ov != null && ov.particleEffects != null ? String.join("; ", ov.particleEffects) : "");
     }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // Helpers
-    // ─────────────────────────────────────────────────────────────────────────
 
     private int computeTotalTicks() {
         return data.steps.isEmpty() ? 60 : data.steps.get(data.steps.size() - 1).tick + 60;
@@ -2527,10 +2372,6 @@ public class PhantasiaSceneEditorScreen extends PhantasiaScreen {
         }
         return sb.toString();
     }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // Lifecycle
-    // ─────────────────────────────────────────────────────────────────────────
 
     @Override
     public void onClose() {

@@ -1,7 +1,6 @@
 package net.phoenixvine.phantasia.common.data.scene;
 
 import net.minecraftforge.fml.loading.FMLPaths;
-import net.phoenixvine.phantasia.common.data.script.PhantasiaScriptLoader;
 
 import java.io.IOException;
 import java.io.Reader;
@@ -9,44 +8,21 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-/**
- * PhantasiaSceneLoader — lifecycle management for manual scene JSONs.
- *
- * Directory: {@code <gamedir>/phantasia/scenes/<namespace>/<name>.json}
- *
- * Unlike the script loader, scenes are not auto-generated — the directory
- * starts empty and the user creates scenes through the editor. There is no
- * discovery pass; we simply load every JSON we find.
- */
 public class PhantasiaSceneLoader {
 
     private static final Path SCENE_DIR = FMLPaths.GAMEDIR.get()
             .resolve("phantasia/scenes");
 
-    // ── Public API ────────────────────────────────────────────────────────────
-
-    /**
-     * Called during FMLClientSetupEvent alongside {@link PhantasiaScriptLoader#discoverAndLoad()}.
-     * Ensures the scenes directory exists and loads any existing scene JSONs.
-     */
     public static void load() {
         ensureDir(SCENE_DIR);
         loadAll();
     }
 
-    /** Clears the scene registry and re-reads all files from disk. */
     public static void reload() {
         PhantasiaScenes.clearAll();
         loadAll();
     }
 
-    /**
-     * Saves a scene to disk and registers it immediately.
-     * The file path is derived from the scene's ID:
-     * {@code "phoenixvine:ore_line"} → {@code .../scenes/phoenixvine/ore_line.json}
-     *
-     * @param scene the scene data to persist (must have a non-blank id)
-     */
     public static void save(PhantasiaSceneData scene) {
         if (scene.id == null || scene.id.isBlank()) {
             logErr("Cannot save scene with blank id.");
@@ -64,10 +40,6 @@ public class PhantasiaSceneLoader {
         log("Saved and registered scene '" + scene.id + "'.");
     }
 
-    /**
-     * Deletes a scene's JSON file and removes it from the registry.
-     * No-op if the file doesn't exist.
-     */
     public static void delete(String sceneId) {
         PhantasiaScenes.remove(sceneId);
         Path path = pathFor(sceneId);
@@ -79,13 +51,10 @@ public class PhantasiaSceneLoader {
         }
     }
 
-    /** Returns the canonical disk path for a given scene ID. */
     public static Path pathFor(String sceneId) {
         String[] parts = sceneId.contains(":") ? sceneId.split(":", 2) : new String[] { "phantasia", sceneId };
         return SCENE_DIR.resolve(parts[0]).resolve(parts[1] + ".json");
     }
-
-    // ── Loading ───────────────────────────────────────────────────────────────
 
     private static void loadAll() {
         if (!Files.exists(SCENE_DIR)) return;
@@ -106,7 +75,6 @@ public class PhantasiaSceneLoader {
         try (Reader reader = Files.newBufferedReader(path, StandardCharsets.UTF_8)) {
             PhantasiaSceneData scene = PhantasiaSceneData.fromJson(reader);
 
-            // Infer ID from file path if missing
             if (scene.id == null || scene.id.isBlank()) {
                 scene.id = inferId(path);
             }
@@ -135,8 +103,6 @@ public class PhantasiaSceneLoader {
             return null;
         }
     }
-
-    // ── Helpers ───────────────────────────────────────────────────────────────
 
     private static void ensureDir(Path dir) {
         try {

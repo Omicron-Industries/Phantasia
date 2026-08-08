@@ -13,7 +13,7 @@ public final class TutorialSequence {
     public final Component title;
     public final Component description;
     public final String iconItem;
-    public final String category; // PLAYER or DEV
+    public final String category;
     public final List<TutorialSlide> slides;
 
     public TutorialSequence(String id, Component title, Component description,

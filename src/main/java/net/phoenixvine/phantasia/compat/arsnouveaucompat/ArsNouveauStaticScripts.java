@@ -2,13 +2,7 @@ package net.phoenixvine.phantasia.compat.arsnouveaucompat;
 
 import net.phoenixvine.phantasia.common.data.script.PhantasiaScriptData;
 
-/**
- * Default scene scripts for static Ars Nouveau setups (no recipe registry).
- * Each method returns the JSON-compiled script for one machine type.
- */
 public final class ArsNouveauStaticScripts {
-
-    // ── Spell Turrets ──────────────────────────────────────────────────────────
 
     public static PhantasiaScriptData basicSpellTurret() {
         return PhantasiaScriptData.fromJson(
@@ -226,8 +220,6 @@ public final class ArsNouveauStaticScripts {
                         }
                         """);
     }
-
-    // ── Wixie Cauldron ─────────────────────────────────────────────────────────
 
     public static PhantasiaScriptData wixieCauldron() {
         return PhantasiaScriptData.fromJson(
@@ -478,8 +470,6 @@ public final class ArsNouveauStaticScripts {
                         """);
     }
 
-    // ── Ritual Brazier ─────────────────────────────────────────────────────────
-
     public static PhantasiaScriptData ritualBrazier() {
         return PhantasiaScriptData.fromJson(
                 """
@@ -537,8 +527,6 @@ public final class ArsNouveauStaticScripts {
                         }
                         """);
     }
-
-    // ── Sourcelinks ────────────────────────────────────────────────────────────
 
     public static PhantasiaScriptData agronomicSourcelink() {
         return PhantasiaScriptData.fromJson(

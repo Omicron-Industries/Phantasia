@@ -15,7 +15,6 @@ import com.hollingsworth.arsnouveau.setup.registry.RecipeRegistry;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Represents one Ars Nouveau machine type (Enchanting Apparatus or Imbuement Chamber). */
 public class ArsNouveauMultiSetup implements IPhantasiaMultiSetup {
 
     public enum SetupType {
@@ -27,11 +26,9 @@ public class ArsNouveauMultiSetup implements IPhantasiaMultiSetup {
     private final ResourceLocation id;
     private final String displayName;
 
-    // Lazily resolved after registries are populated
     private ItemStack cachedIcon = null;
     private PhantasiaBlockInfo[][][] cachedLayout = null;
 
-    // Lazily populated from recipe manager on first call
     private List<IPhantasiaSetupRecipe> cachedRecipes = null;
 
     public ArsNouveauMultiSetup(SetupType type, ResourceLocation id, String displayName) {
@@ -91,16 +88,13 @@ public class ArsNouveauMultiSetup implements IPhantasiaMultiSetup {
         return cachedRecipes;
     }
 
-    /** Invalidate cache on resource reload so recipes stay current. */
     public void invalidateCache() {
         cachedRecipes = null;
     }
 
-    // ── loaders ────────────────────────────────────────────────────────────────
-
     private void loadApparatusRecipes(RecipeManager rm) {
         rm.getAllRecipesFor(RecipeRegistry.APPARATUS_TYPE.get()).forEach(recipe -> {
-            // No instanceof needed because the registry type guarantees this object type
+
             EnchantingApparatusRecipe r = (EnchantingApparatusRecipe) recipe;
 
             List<ItemStack> pedItems = r.pedestalItems.stream()
@@ -125,7 +119,7 @@ public class ArsNouveauMultiSetup implements IPhantasiaMultiSetup {
 
     private void loadImbuementRecipes(RecipeManager rm) {
         rm.getAllRecipesFor(RecipeRegistry.IMBUEMENT_TYPE.get()).forEach(recipe -> {
-            // No instanceof needed because the registry type guarantees this object type
+
             ImbuementRecipe r = (ImbuementRecipe) recipe;
 
             ItemStack input = r.input.getItems().length > 0 ? r.input.getItems()[0] : ItemStack.EMPTY;

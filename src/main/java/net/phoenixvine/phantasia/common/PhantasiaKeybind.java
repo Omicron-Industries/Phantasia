@@ -40,9 +40,6 @@ public class PhantasiaKeybind {
     private static IPhantasiaMultiblockDefinition tooltipTarget = null;
     private static String tooltipItemTarget = null;
 
-    // -------------------------------------------------------------------------
-    // KEY CHECK
-    // -------------------------------------------------------------------------
     private static boolean isPhantasiaKeyDown() {
         Minecraft mc = Minecraft.getInstance();
         InputConstants.Key key = PhoenixKeybinds.OPEN_PHANTASIA_MENU.getKey();
@@ -54,9 +51,6 @@ public class PhantasiaKeybind {
         };
     }
 
-    // -------------------------------------------------------------------------
-    // TOOLTIP
-    // -------------------------------------------------------------------------
     @SubscribeEvent
     public static void onItemTooltip(ItemTooltipEvent event) {
         var mode = PhantasiaConfigs.INSTANCE.phantasiaUI.displayMode;
@@ -83,8 +77,6 @@ public class PhantasiaKeybind {
             }
         }
 
-        // Not a multiblock component — clear any stale multiblock tooltip target so guide/scene
-        // tooltip items aren't shadowed by a previously hovered script icon.
         tooltipTarget = null;
 
         ResourceLocation itemId = ForgeRegistries.ITEMS.getKey(stack.getItem());
@@ -116,9 +108,6 @@ public class PhantasiaKeybind {
         return false;
     }
 
-    // -------------------------------------------------------------------------
-    // CLIENT TICK
-    // -------------------------------------------------------------------------
     @SubscribeEvent
     public static void onClientTick(TickEvent.ClientTickEvent event) {
         if (event.phase != TickEvent.Phase.END) return;
@@ -126,14 +115,13 @@ public class PhantasiaKeybind {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || mc.player == null) return;
 
-        // Multiblock crosshair takes priority over tooltip-item keybind.
         IPhantasiaMultiblockDefinition currentTarget = getTargetDefinition(mc);
         if (currentTarget == null) currentTarget = tooltipTarget;
         if (currentTarget == null) tooltipTarget = null;
 
         String currentItemTarget = null;
         if (currentTarget == null) {
-            // No multiblock in sight — fall back to held/looked-at tooltip item.
+
             currentItemTarget = getTargetItemId(mc);
             if (currentItemTarget == null) currentItemTarget = tooltipItemTarget;
             if (currentItemTarget == null) tooltipItemTarget = null;
@@ -165,7 +153,7 @@ public class PhantasiaKeybind {
 
     private static void openForMultiblock(Minecraft mc, IPhantasiaMultiblockDefinition defToOpen) {
         String targetId = defToOpen.getId().getPath().toLowerCase(java.util.Locale.ROOT);
-        // Also match scenes/guides that listed the controller's icon item in their tooltipItems.
+
         ResourceLocation iconKey = ForgeRegistries.ITEMS.getKey(defToOpen.getIcon().getItem());
         String iconItemKey = iconKey != null ? iconKey.toString() : null;
 
@@ -209,7 +197,7 @@ public class PhantasiaKeybind {
         for (var guide : net.phoenixvine.phantasia.common.data.guides.PhantasiaGuideRegistry.all()) {
             if (guide.tooltipItems != null && guide.tooltipItems.contains(itemKey)) matchingGuides.add(guide);
         }
-        // Also find any script whose multiblock definition icon item matches this key.
+
         IPhantasiaMultiblockDefinition matchingScript = null;
         for (var def : PhantasiaSceneSelectionScreen.PHANTASIA_SCENES) {
             ResourceLocation iconKey = ForgeRegistries.ITEMS.getKey(def.getIcon().getItem());
@@ -236,9 +224,6 @@ public class PhantasiaKeybind {
         }
     }
 
-    // -------------------------------------------------------------------------
-    // OVERLAY
-    // -------------------------------------------------------------------------
     @SubscribeEvent
     public static void onRenderOverlay(RenderGuiOverlayEvent.Pre event) {
         if (event.getOverlay() != VanillaGuiOverlay.PLAYER_LIST.type()) return;
@@ -266,9 +251,6 @@ public class PhantasiaKeybind {
         }
     }
 
-    // -------------------------------------------------------------------------
-    // TOAST RENDERING
-    // -------------------------------------------------------------------------
     private static void renderPhantasiaToast(GuiGraphics g, Minecraft mc,
                                              IPhantasiaMultiblockDefinition def,
                                              int timer, int fade) {
@@ -313,9 +295,6 @@ public class PhantasiaKeybind {
         g.pose().popPose();
     }
 
-    // -------------------------------------------------------------------------
-    // HELPERS
-    // -------------------------------------------------------------------------
     private static String truncate(String s, int maxPx, Minecraft mc) {
         if (mc.font.width(s) <= maxPx) return s;
         String e = "...";

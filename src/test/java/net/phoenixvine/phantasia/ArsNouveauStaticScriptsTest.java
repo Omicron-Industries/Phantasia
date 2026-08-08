@@ -13,18 +13,7 @@ import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/**
- * Regression tests for every static script factory in ArsNouveauStaticScripts.
- * Each test ensures:
- * - The factory does not throw.
- * - The returned script is non-null with a non-blank machine ID.
- * - Every step has a non-negative tick.
- * - Steps that have items have valid item strings (non-empty).
- * - No step item has both guideId and microsceneId set to the same string (sanity).
- */
 class ArsNouveauStaticScriptsTest {
-
-    // ── parameterized "well-formed script" contract ─────────────────────────
 
     record ScriptEntry(String name, PhantasiaScriptData script) {}
 
@@ -87,8 +76,6 @@ class ArsNouveauStaticScriptsTest {
                             " must be >= previous step tick=" + steps.get(i - 1).tick);
         }
     }
-
-    // ── specific script behaviour ───────────────────────────────────────────
 
     @Test
     void turretScriptsIncludeSpellParchmentItem() {
@@ -180,7 +167,6 @@ class ArsNouveauStaticScriptsTest {
 
     @Test
     void allScriptFactoriesReturnDistinctInstances() {
-        // Calling the factory twice returns new instances (not a cached singleton)
         assertNotSame(ArsNouveauStaticScripts.basicSpellTurret(),
                 ArsNouveauStaticScripts.basicSpellTurret());
     }

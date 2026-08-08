@@ -7,12 +7,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
-/**
- * Compat-mod inspection hook for PhantasiaBlockInspectScreen.
- * Each optional dependency registers an inspector here when its mod is present.
- * PhantasiaBlockInspectScreen calls {@link #apply} without ever importing
- * any optional-mod classes, so it is safe to load when those mods are absent.
- */
 public final class PhantasiaBlockInspectCompat {
 
     @FunctionalInterface

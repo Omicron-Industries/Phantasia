@@ -14,7 +14,6 @@ import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.phoenixvine.phantasia.client.screens.editors.PhantasiaGuideEditorScreen;
 import net.phoenixvine.phantasia.client.screens.editors.PhantasiaSceneEditorScreen;
-import net.phoenixvine.phantasia.client.screens.editors.PhantasiaThemeEditorScreen;
 import net.phoenixvine.phantasia.client.tutorial.PhantasiaTutorials;
 import net.phoenixvine.phantasia.client.tutorial.TutorialSequence;
 import net.phoenixvine.phantasia.common.data.guides.PhantasiaGuideData;
@@ -34,20 +33,11 @@ import java.util.Locale;
 
 import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
 
-/**
- * PhantasiaSceneSelectionScreen
- *
- * Card-grid selection screen with an active search filter. Each card shows:
- * - The controller block or configured scene icon as a 2D item sprite
- * - Machine name / Scene name
- * - Script step count (green dot = has custom script / elements)
- */
 @OnlyIn(Dist.CLIENT)
 public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
 
     public static final List<IPhantasiaMultiblockDefinition> PHANTASIA_SCENES = new ArrayList<>();
 
-    // Runtime filtered list matching the search query
     private final List<IPhantasiaMultiblockDefinition> filteredScenes = new ArrayList<>();
     private final List<PhantasiaSceneData> filteredManualScenes = new ArrayList<>();
     private final List<PhantasiaGuideData> filteredGuides = new ArrayList<>();
@@ -62,13 +52,11 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
 
     private Tab activeTab = Tab.MULTIBLOCKS;
 
-    // ── Colors ────────────────────────────────────────────────────────────────
     private static final int C_BG_BOT = 0xFF0B0B18;
     private static final int C_CARD = 0xBB111128;
     private static final int C_CARD_HOV = 0xBB182040;
     private static final int C_SCRIPT = 0xFF66BB6A;
 
-    // ── Layout ────────────────────────────────────────────────────────────────
     private static final int CARD_W = 104;
     private static final int CARD_H = 86;
     private static final int CARD_PAD = 8;
@@ -80,13 +68,12 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
 
     private final Screen parent;
     private EditBox searchBox;
-    private int scrollOffset = 0; // in rows (card grid tabs)
-    private int settingsScrollPx = 0; // pixel scroll for the settings panel
+    private int scrollOffset = 0;
+    private int settingsScrollPx = 0;
     private int tutPlayerScroll = 0;
     private int tutDevScroll = 0;
     private int hoveredCard = -1;
 
-    /** null = All mods; otherwise filters multiblock tab to this namespace */
     private String modFilter = null;
 
     public PhantasiaSceneSelectionScreen(Screen parent) {
@@ -101,12 +88,10 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
     protected void init() {
         super.init();
 
-        // Compute search bar width matching the exact layout grid width
         int totalGridW = COLS * CARD_W + (COLS - 1) * CARD_PAD;
         int searchX = (this.width - totalGridW) / 2;
         int searchY = HEADER_H + 4;
 
-        // Initialize Minecraft's built-in text field widget
         this.searchBox = new EditBox(this.font, searchX, searchY, totalGridW, 16,
                 Component.translatable("screen.phantasia.scene_selection.search_box"));
         this.searchBox.setHint(Component.translatable("screen.phantasia.scene_selection.search_hint")
@@ -114,13 +99,11 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
         this.searchBox.setBordered(true);
         this.searchBox.setMaxLength(32);
 
-        // Listen for typing events to update results actively
         this.searchBox.setResponder(this::onSearchChanged);
 
         this.addWidget(this.searchBox);
         this.setInitialFocus(this.searchBox);
 
-        // Re-run filter on init to capture initial list state or retain previous queries
         updateFilteredList();
     }
 
@@ -131,7 +114,6 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
     private void updateFilteredList() {
         String query = searchBox != null ? searchBox.getValue().toLowerCase(Locale.ROOT).trim() : "";
 
-        // Multiblocks
         filteredScenes.clear();
         for (IPhantasiaMultiblockDefinition def : PHANTASIA_SCENES) {
             if (modFilter != null && !modFilter.equals(def.getId().getNamespace())) continue;
@@ -148,7 +130,6 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
             if (idPath.toLowerCase(Locale.ROOT).contains(query)) filteredScenes.add(def);
         }
 
-        // Manual scenes
         filteredManualScenes.clear();
         for (PhantasiaSceneData scene : PhantasiaScenes.all()) {
             if (query.isEmpty()) {
@@ -162,7 +143,6 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
             if (scene.id != null && scene.id.toLowerCase(Locale.ROOT).contains(query)) filteredManualScenes.add(scene);
         }
 
-        // Guides
         filteredGuides.clear();
         for (PhantasiaGuideData guide : PhantasiaGuideRegistry.all()) {
             if (query.isEmpty()) {
@@ -178,10 +158,6 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
 
         this.scrollOffset = 0;
     }
-
-    // ──────────────────────────────────────────────────────────────────────────
-    // Rendering
-    // ──────────────────────────────────────────────────────────────────────────
 
     @Override
     public void render(GuiGraphics g, int mx, int my, float partial) {
@@ -202,7 +178,6 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
         renderFooter(g, mx, my);
     }
 
-    /** Returns the left X of each tab (Multiblocks, Scenes, Guides, Tutorials, Settings), centered on screen. */
     private int[] computeTabXs() {
         String[] labels = { "Multiblocks", "Scenes", "Guides", "Tutorials", "⚙ Settings" };
         int gap = 6;
@@ -225,7 +200,6 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
         g.drawCenteredString(font, Component.translatable("screen.phantasia.scene_selection.subtitle").getString(),
                 this.width / 2, 20, C_DIM());
 
-        // Tab row — centered on actual screen width so tabs don't clip at narrow GUI scales.
         int tabY = 32;
         int[] txs = computeTabXs();
         renderTab(g, mx, my, txs[0], tabY, "Multiblocks", Tab.MULTIBLOCKS);
@@ -273,10 +247,9 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
         int startX = gridStartX - maxW - 12;
         if (startX < 2) return;
         int py = HEADER_H + SEARCH_H + 6;
-        // Reserve space for the footer and a potential "▼" overflow indicator.
+
         int maxPy = this.height - FOOTER_H - 18;
 
-        // "All" pill
         String allLabel = "All";
         boolean allSel = modFilter == null;
         boolean allHov = isOver(mx, my, startX, py, maxW, 12);
@@ -345,7 +318,7 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
     private void renderCards(GuiGraphics g, int mx, int my) {
         int totalW = COLS * CARD_W + (COLS - 1) * CARD_PAD;
         int startX = (this.width - totalW) / 2;
-        int startY = HEADER_H + SEARCH_H + 6; // Grid stays locked at the top bounds
+        int startY = HEADER_H + SEARCH_H + 6;
         int maxRows = visibleRows();
 
         hoveredCard = -1;
@@ -386,7 +359,6 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
             g.fill(cx, cy + CARD_H - 1, cx + CARD_W, cy + CARD_H, C_ACCENT());
         }
 
-        // Block icon (2D Item Sprite)
         ItemStack icon = def.getIcon();
         if (!icon.isEmpty()) {
             int iconSize = 32;
@@ -400,7 +372,6 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
             g.pose().popPose();
         }
 
-        // Machine name
         String name = def.getDisplayName();
         if (name == null || name.isEmpty()) {
             name = def.getId().getPath().replace('_', ' ');
@@ -416,7 +387,6 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
 
         g.drawString(font, name, cx + 4, nameY, hovered ? C_ACCENT() : C_TEXT(), false);
 
-        // Script info (Green status dot switches to theme's progress feedback color)
         boolean hasScript = PhantasiaScripts.has(def);
         if (hasScript) {
             g.fill(cx + CARD_W - 8, cy + 4, cx + CARD_W - 4, cy + 8, C_GREEN());
@@ -437,7 +407,6 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
 
         hoveredCard = -1;
 
-        // "＋ New Scene" card is always first
         int newCardRow = 0 - scrollOffset;
         int newCardCol = 0;
         if (newCardRow >= 0 && newCardRow < maxRows) {
@@ -448,7 +417,6 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
             renderNewSceneCard(g, cx, cy, hov);
         }
 
-        // Existing scene cards (offset by 1 for the new-scene card)
         for (int i = 0; i < filteredManualScenes.size(); i++) {
             int slot = i + 1;
             int row = slot / COLS - scrollOffset;
@@ -493,7 +461,6 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
             g.fill(cx, cy + CARD_H - 1, cx + CARD_W, cy + CARD_H, C_ACCENT());
         }
 
-        // Icon
         String iconRes = scene.iconItem != null ? scene.iconItem : "minecraft:chest";
         ResourceLocation rl = iconRes.contains(":") ?
                 new ResourceLocation(iconRes) :
@@ -511,14 +478,12 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
         g.renderItem(stack, 0, 0);
         g.pose().popPose();
 
-        // Name
         String name = scene.name != null && !scene.name.isBlank() ? scene.name : scene.id;
         int maxWidth = CARD_W - 8;
         if (font.width(name) > maxWidth)
             name = font.plainSubstrByWidth(name, maxWidth - font.width("...")) + "...";
         g.drawString(font, name, cx + 4, cy + CARD_H - 34, hov ? C_ACCENT() : C_TEXT(), false);
 
-        // Machine/step count
         int count = scene.placements.size();
         String countStr = count + " machine" + (count == 1 ? "" : "s");
         int steps = scene.steps != null ? scene.steps.size() : 0;
@@ -528,7 +493,6 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
         if (!scene.placements.isEmpty())
             g.fill(cx + CARD_W - 8, cy + 4, cx + CARD_W - 4, cy + 8, C_GREEN());
 
-        // ── Action buttons ───────────────────
         boolean hasGuide = scene.steps != null && scene.steps.stream()
                 .anyMatch(s -> (s.caption != null && !s.caption.isBlank()) ||
                         (s.description != null && !s.description.isBlank()) || (s.showItems && scene.placements.stream()
@@ -537,7 +501,6 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
         int btnY = cy + CARD_H - 12;
         int btnH = 11;
 
-        // View Button
         int viewW = font.width(Component.translatable("screen.phantasia.scene_selection.btn_view").getString()) + 6;
         int viewX = cx + 3;
         boolean viewHov = isOver(mx, my, viewX, btnY, viewW, btnH);
@@ -549,7 +512,6 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
                 btnY + 2,
                 viewHov ? C_ACCENT() : (hov ? C_TEXT() : C_DIM()), false);
 
-        // Guide Button
         if (hasGuide) {
             int guideW = font.width(Component.translatable("screen.phantasia.scene_selection.btn_read").getString()) +
                     6;
@@ -565,8 +527,6 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
         }
     }
 
-    // ── Guide cards (Guides tab) ───────────────────────────────────────────────
-
     private void renderGuideCards(GuiGraphics g, int mx, int my) {
         int totalW = COLS * CARD_W + (COLS - 1) * CARD_PAD;
         int startX = (this.width - totalW) / 2;
@@ -575,7 +535,6 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
 
         hoveredCard = -1;
 
-        // "＋ New Guide" card always at index 0 in grid
         int newRow = 0 - scrollOffset;
         if (newRow >= 0 && newRow < maxRows) {
             int cx = startX;
@@ -609,7 +568,7 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
         }
 
         for (int i = 0; i < filteredGuides.size(); i++) {
-            int gridPos = i + 1; // +1 for New Guide card
+            int gridPos = i + 1;
             int row = gridPos / COLS - scrollOffset;
             int col = gridPos % COLS;
             if (row < 0 || row >= maxRows) continue;
@@ -636,7 +595,6 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
             g.fill(cx, cy + CARD_H - 1, cx + CARD_W, cy + CARD_H, C_ACCENT());
         }
 
-        // Icon
         String iconRes = guide.iconItem != null ? guide.iconItem : "minecraft:book";
         try {
             net.minecraft.resources.ResourceLocation rl = iconRes.contains(":") ?
@@ -655,23 +613,19 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
             g.pose().popPose();
         } catch (Exception ignored) {}
 
-        // Title
         String title = guide.title != null && !guide.title.isBlank() ? guide.title : guide.id;
         int maxW = CARD_W - 8;
         if (font.width(title) > maxW) title = font.plainSubstrByWidth(title, maxW - font.width("…")) + "…";
         g.drawString(font, title, cx + 4, cy + CARD_H - 33, hov ? C_ACCENT() : C_TEXT(), false);
 
-        // Page count + tag
         int pages = guide.pages != null ? guide.pages.size() : 0;
         String sub = pages + " page" + (pages == 1 ? "" : "s");
         if (guide.tag != null && !guide.tag.isBlank()) sub += "  #" + guide.tag;
         g.drawString(font, sub, cx + 4, cy + CARD_H - 22, C_DIM(), false);
 
-        // ── Open / Edit buttons at bottom ───────────────────────────────────────
         int btnY = cy + CARD_H - 12, btnH = 11;
         int buttonIdleBg = (0x44 << 24) | (C_PANEL() & 0x00FFFFFF);
 
-        // Read Button
         int openW = font.width("📖 Read") + 6;
         boolean openHov = isOver(mx, my, cx + 3, btnY, openW, btnH);
 
@@ -679,7 +633,6 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
         if (openHov) g.fill(cx + 3, btnY, cx + 3 + openW, btnY + 1, C_ACCENT());
         g.drawString(font, "📖 Read", cx + 6, btnY + 2, openHov ? C_ACCENT() : (hov ? C_TEXT() : C_DIM()), false);
 
-        // Edit Button
         if (Minecraft.getInstance().player != null && Minecraft.getInstance().player.getAbilities().instabuild) {
             int editW = font.width("✏") + 6;
             int editX = cx + CARD_W - 3 - editW;
@@ -691,70 +644,65 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
         }
     }
 
-    // ── Settings layout constants (shared between render and click) ──────────────
-    // All positions are relative to panelY. Computed once so render ↔ click never drift.
-    // rowH=18 is the standard row height.
     private static final int S_ROW_H = 18;
 
-    /**
-     * Returns the y-positions of each interactive settings row.
-     * panelY is the virtual top of the content (already offset by scroll).
-     */
     private int[] settingsRowYs(int panelY) {
         int rh = S_ROW_H;
         int y = panelY + 12;
-        // Camera section
-        y += rh - 4;               // past section label
-        int camY = y;              // [0] camera toggle
+
+        y += rh - 4;
+        int camY = y;
         y += rh;
-        y += 3 * (rh - 4) + 4;    // past 3 wrapped desc lines + small gap
-        int sensY = y;             // [1] camera sensitivity stepper
+        y += 3 * (rh - 4) + 4;
+        int sensY = y;
         y += rh;
-        int zoomY = y;             // [2] zoom speed stepper
-        y += rh + 8;               // + gap before border
-        // Display section
-        y += 8;                    // past border gap
-        y += rh - 4;               // past section label
-        int dispY = y;             // [3] display mode stepper
-        y += rh;
-        int ticksY = y;            // [4] activation ticks stepper
-        y += rh;
-        int autoPlayY = y;         // [5] auto-play toggle
-        y += rh;
-        int baseplateY = y;        // [6] show baseplate toggle
+        int zoomY = y;
         y += rh + 8;
-        // Performance section
-        y += 8;                    // past border gap
-        y += rh - 4;               // past section label
-        int streamY = y;           // [7] streaming mode cycler
+
+        y += 8;
+        y += rh - 4;
+        int dispY = y;
         y += rh;
-        y += 2 * (rh - 4) + 8;    // past 2 desc lines + gap before border
-        // Appearance section
-        y += 8;                    // past border gap
-        y += rh - 4;               // past section label
-        int themeY = y;            // [8] theme editor button
-        return new int[] { camY, sensY, zoomY, dispY, ticksY, autoPlayY, baseplateY, streamY, themeY };
+        int ticksY = y;
+        y += rh;
+        int autoPlayY = y;
+        y += rh;
+        int baseplateY = y;
+        y += rh + 8;
+
+        y += 8;
+        y += rh - 4;
+        int streamY = y;
+        y += rh;
+        y += 2 * (rh - 4) + 8;
+
+        y += 8;
+        y += rh - 4;
+        int themeY = y;
+        y += 20;
+        int baseplateBlockY = y;
+        y += 20;
+        int wikiY = y;
+        return new int[] { camY, sensY, zoomY, dispY, ticksY, autoPlayY, baseplateY, streamY, themeY,
+                baseplateBlockY, wikiY };
     }
 
-    /** Total pixel height of the settings content (used to cap scroll). */
     private int settingsContentH() {
-        int[] ys = settingsRowYs(0); // relative to virtual panelY=0
-        return ys[8] + 20 + 12;     // themeY + button height + bottom padding
+        int[] ys = settingsRowYs(0);
+        return ys[10] + 20 + 12;
     }
 
     private void renderSettings(GuiGraphics g, int mx, int my) {
         int totalGridW = COLS * CARD_W + (COLS - 1) * CARD_PAD;
         int panelX = (this.width - totalGridW) / 2;
-        int panelYScreen = HEADER_H + SEARCH_H - 4;           // fixed screen position of panel top
+        int panelYScreen = HEADER_H + SEARCH_H - 4;
         int panelW = totalGridW;
         int panelH = this.height - panelYScreen - FOOTER_H - 4;
         int rh = S_ROW_H;
 
-        // Background + top border drawn at fixed screen coords
         g.fill(panelX, panelYScreen, panelX + panelW, panelYScreen + panelH, C_PANEL());
         g.fill(panelX, panelYScreen, panelX + panelW, panelYScreen + 1, C_BORDER());
 
-        // Scrollbar
         int contentH = settingsContentH();
         if (contentH > panelH) {
             int trackH = panelH - 4;
@@ -764,7 +712,6 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
             g.fill(panelX + panelW - 4, thumbY, panelX + panelW - 2, thumbY + thumbH, 0xAAFFFFFF);
         }
 
-        // Scissor to panel area so scrolled content doesn't bleed into header/footer
         com.mojang.blaze3d.platform.GlStateManager._enableScissorTest();
         double scale = Minecraft.getInstance().getWindow().getGuiScale();
         com.mojang.blaze3d.platform.GlStateManager._scissorBox(
@@ -773,7 +720,6 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
                 (int) (panelW * scale),
                 (int) (panelH * scale));
 
-        // Virtual panelY is shifted upward by the scroll amount
         int panelY = panelYScreen - settingsScrollPx;
         int rowX = panelX + 12;
 
@@ -781,7 +727,6 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
         int[] ys = settingsRowYs(panelY);
         int arrowW = font.width("◄") + 8;
 
-        // ── Camera section ────────────────────────────────────────────────────
         g.drawString(font, Component.translatable("screen.phantasia.scene_selection.section_camera").getString(), rowX,
                 panelY + 12, C_ACCENT(), false);
 
@@ -797,7 +742,6 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
             g.drawString(font, descLines.get(li), rowX + 4, descY + li * (rh - 4), C_DIM(), false);
         }
 
-        // Camera sensitivity stepper [1]
         String sensLabel = "Camera sensitivity  (" + String.format("%.2f", cfg.cameraSensitivity) + "x)";
         g.drawString(font, sensLabel, rowX + 4, ys[1] + 2, C_TEXT(), false);
         String sensStr = String.format("%.2f", cfg.cameraSensitivity);
@@ -810,7 +754,6 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
         g.drawCenteredString(font, sensStr, sensX + sensW / 2, ys[1] + 3, C_TEXT());
         g.drawString(font, "►", sensX + sensW - arrowW + 4, ys[1] + 3, sensHovR ? C_ACCENT() : C_DIM(), false);
 
-        // Zoom speed stepper [2]
         String zoomLabel = "Scroll zoom speed  (" + String.format("%.2f", cfg.scrollZoomSpeed) + "x)";
         g.drawString(font, zoomLabel, rowX + 4, ys[2] + 2, C_TEXT(), false);
         String zoomStr = String.format("%.2f", cfg.scrollZoomSpeed);
@@ -823,8 +766,7 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
         g.drawCenteredString(font, zoomStr, zoomX + zoomW / 2, ys[2] + 3, C_TEXT());
         g.drawString(font, "►", zoomX + zoomW - arrowW + 4, ys[2] + 3, zoomHovR ? C_ACCENT() : C_DIM(), false);
 
-        // ── Display section ───────────────────────────────────────────────────
-        int borderY1 = ys[2] + rh + 8;  // matches settingsRowYs: zoomY + rh + 8
+        int borderY1 = ys[2] + rh + 8;
         g.fill(panelX + 6, borderY1, panelX + panelW - 6, borderY1 + 1, C_BORDER());
         g.drawString(font, Component.translatable("screen.phantasia.scene_selection.section_display").getString(), rowX,
                 borderY1 + 8, C_ACCENT(), false);
@@ -857,7 +799,6 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
         renderToggleRow(g, mx, my, panelX, panelW, rowX, ys[5], "Auto-play scripts on open", cfg.autoPlayScripts);
         renderToggleRow(g, mx, my, panelX, panelW, rowX, ys[6], "Show floor baseplate in previews", cfg.showBaseplate);
 
-        // ── Performance section ───────────────────────────────────────────────
         int borderY2 = ys[6] + rh + 8;
         g.fill(panelX + 6, borderY2, panelX + panelW - 6, borderY2 + 1, C_BORDER());
         g.drawString(font, Component.translatable("screen.phantasia.scene_selection.section_performance").getString(),
@@ -886,8 +827,7 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
             g.drawString(font, streamDescLines.get(li), rowX + 4, streamDescY + li * (rh - 4), C_DIM(), false);
         }
 
-        // ── Appearance section ────────────────────────────────────────────────
-        int borderY3 = ys[7] + rh + 2 * (rh - 4) + 8;  // matches settingsRowYs
+        int borderY3 = ys[7] + rh + 2 * (rh - 4) + 8;
         g.fill(panelX + 6, borderY3, panelX + panelW - 6, borderY3 + 1, C_BORDER());
         g.drawString(font, Component.translatable("screen.phantasia.scene_selection.section_appearance").getString(),
                 rowX, borderY3 + 8, C_ACCENT(), false);
@@ -904,10 +844,34 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
         g.drawCenteredString(font, themeLabel, themeBtnX + themeBtnW / 2, ys[8] + 4,
                 themeHov ? C_ACCENT() : C_TEXT());
 
+        String baseplateBlockLabel = "🧱 Baseplate Block: " +
+                net.phoenixvine.phantasia.utils.PhantasiaBaseplateConfig.currentBaseplateBlockId();
+        int baseplateBlockBtnW = font.width(baseplateBlockLabel) + 16;
+        int baseplateBlockBtnX = panelX + (panelW - baseplateBlockBtnW) / 2;
+        boolean baseplateBlockHov = isOver(mx, my, baseplateBlockBtnX, ys[9], baseplateBlockBtnW, 16);
+        g.fill(baseplateBlockBtnX, ys[9], baseplateBlockBtnX + baseplateBlockBtnW, ys[9] + 16,
+                baseplateBlockHov ? C_BTN_HOV() : C_BTN());
+        if (baseplateBlockHov) {
+            g.fill(baseplateBlockBtnX, ys[9], baseplateBlockBtnX + baseplateBlockBtnW, ys[9] + 1, C_ACCENT());
+            g.fill(baseplateBlockBtnX, ys[9] + 15, baseplateBlockBtnX + baseplateBlockBtnW, ys[9] + 16, C_ACCENT());
+        }
+        g.drawCenteredString(font, baseplateBlockLabel, baseplateBlockBtnX + baseplateBlockBtnW / 2, ys[9] + 4,
+                baseplateBlockHov ? C_ACCENT() : C_TEXT());
+
+        String wikiLabel = "📖 Open Wiki →";
+        int wikiBtnW = font.width(wikiLabel) + 16;
+        int wikiBtnX = panelX + (panelW - wikiBtnW) / 2;
+        boolean wikiHov = isOver(mx, my, wikiBtnX, ys[10], wikiBtnW, 16);
+        g.fill(wikiBtnX, ys[10], wikiBtnX + wikiBtnW, ys[10] + 16, wikiHov ? C_BTN_HOV() : C_BTN());
+        if (wikiHov) {
+            g.fill(wikiBtnX, ys[10], wikiBtnX + wikiBtnW, ys[10] + 1, C_ACCENT());
+            g.fill(wikiBtnX, ys[10] + 15, wikiBtnX + wikiBtnW, ys[10] + 16, C_ACCENT());
+        }
+        g.drawCenteredString(font, wikiLabel, wikiBtnX + wikiBtnW / 2, ys[10] + 4, wikiHov ? C_ACCENT() : C_TEXT());
+
         com.mojang.blaze3d.platform.GlStateManager._disableScissorTest();
     }
 
-    /** Render a labelled ON/OFF toggle row at the given y. */
     private void renderToggleRow(GuiGraphics g, int mx, int my,
                                  int panelX, int panelW, int rowX,
                                  int y, String label, boolean value) {
@@ -927,15 +891,14 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
         int panelW = totalGridW;
         int panelYScreen = HEADER_H + SEARCH_H - 4;
         int panelH = this.height - panelYScreen - FOOTER_H - 4;
-        // Reject clicks outside the panel area
+
         if (my < panelYScreen || my > panelYScreen + panelH) return false;
-        int panelY = panelYScreen - settingsScrollPx; // virtual top, shifted by scroll
+        int panelY = panelYScreen - settingsScrollPx;
         int arrowW = font.width("◄") + 8;
 
         PhantasiaConfigs.PhantasiaUIConfig cfg = PhantasiaConfigs.INSTANCE.phantasiaUI;
         int[] ys = settingsRowYs(panelY);
 
-        // [0] Camera toggle
         int camBtnW = font.width(cfg.scriptLockCamera ? "ON" : "OFF") + 10;
         if (isOver(mx, my, panelX + panelW - 12 - camBtnW, ys[0], camBtnW, 13)) {
             cfg.scriptLockCamera = !cfg.scriptLockCamera;
@@ -943,7 +906,6 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
             return true;
         }
 
-        // [1] Camera sensitivity
         String sensStr = String.format("%.2f", cfg.cameraSensitivity);
         int sensW = arrowW + font.width(sensStr) + 8 + arrowW;
         int sensX = panelX + panelW - 12 - sensW;
@@ -958,7 +920,6 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
             return true;
         }
 
-        // [2] Scroll zoom speed
         String zoomStr = String.format("%.2f", cfg.scrollZoomSpeed);
         int zoomW = arrowW + font.width(zoomStr) + 8 + arrowW;
         int zoomX = panelX + panelW - 12 - zoomW;
@@ -973,7 +934,6 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
             return true;
         }
 
-        // [3] Display mode
         String dispStr = cfg.displayMode.name().replace('_', ' ');
         int dispW = arrowW + font.width(dispStr) + 8 + arrowW;
         int dispX = panelX + panelW - 12 - dispW;
@@ -990,7 +950,6 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
             return true;
         }
 
-        // [4] Activation ticks
         int tickW = arrowW + font.width(String.valueOf(cfg.activationTicks)) + 8 + arrowW;
         int tickX = panelX + panelW - 12 - tickW;
         if (isOver(mx, my, tickX, ys[4], arrowW, 13)) {
@@ -1004,7 +963,6 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
             return true;
         }
 
-        // [5] Auto-play toggle
         int apW = font.width(cfg.autoPlayScripts ? "ON" : "OFF") + 10;
         if (isOver(mx, my, panelX + panelW - 12 - apW, ys[5], apW, 13)) {
             cfg.autoPlayScripts = !cfg.autoPlayScripts;
@@ -1012,7 +970,6 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
             return true;
         }
 
-        // [6] Show baseplate toggle
         int bpW = font.width(cfg.showBaseplate ? "ON" : "OFF") + 10;
         if (isOver(mx, my, panelX + panelW - 12 - bpW, ys[6], bpW, 13)) {
             cfg.showBaseplate = !cfg.showBaseplate;
@@ -1020,7 +977,6 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
             return true;
         }
 
-        // [7] Streaming mode
         PhantasiaConfigs.PhantasiaUIConfig.StreamingMode[] smVals = PhantasiaConfigs.PhantasiaUIConfig.StreamingMode
                 .values();
         String streamStr = cfg.streamingMode.name();
@@ -1037,18 +993,49 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
             return true;
         }
 
-        // [8] Theme editor button
         String themeLabel = "🎨 Open Theme Editor →";
         int themeBtnW = font.width(themeLabel) + 16;
         int themeBtnX = panelX + (panelW - themeBtnW) / 2;
         if (isOver(mx, my, themeBtnX, ys[8], themeBtnW, 16)) {
-            Minecraft.getInstance().setScreen(new PhantasiaThemeEditorScreen(this));
+            Minecraft.getInstance().setScreen(new net.phoenixvine.wiki.theme.PhoenixThemeEditorScreen(this,
+                    "Phantasia"));
+            return true;
+        }
+
+        String baseplateBlockLabel = "🧱 Baseplate Block: " +
+                net.phoenixvine.phantasia.utils.PhantasiaBaseplateConfig.currentBaseplateBlockId();
+        int baseplateBlockBtnW = font.width(baseplateBlockLabel) + 16;
+        int baseplateBlockBtnX = panelX + (panelW - baseplateBlockBtnW) / 2;
+        if (isOver(mx, my, baseplateBlockBtnX, ys[9], baseplateBlockBtnW, 16)) {
+            Minecraft.getInstance()
+                    .setScreen(new net.phoenixvine.phantasia.client.screens.subscreen.PhantasiaTextInputScreen(
+                            this, "Baseplate Block", "e.g. minecraft:deepslate_bricks",
+                            net.phoenixvine.phantasia.utils.PhantasiaBaseplateConfig.currentBaseplateBlockId(), 128,
+                            str -> net.phoenixvine.phantasia.utils.PhantasiaBaseplateConfig.setCurrentBaseplateBlockId(
+                                    str.isBlank() ? "minecraft:deepslate_bricks" : str.trim())));
+            return true;
+        }
+
+        String wikiLabel = "📖 Open Wiki →";
+        int wikiBtnW = font.width(wikiLabel) + 16;
+        int wikiBtnX = panelX + (panelW - wikiBtnW) / 2;
+        if (isOver(mx, my, wikiBtnX, ys[10], wikiBtnW, 16)) {
+            openWiki();
             return true;
         }
         return false;
     }
 
-    /** Writes current config values to the toma YAML file and syncs ConfigValue state. */
+    private void openWiki() {
+        if (minecraft == null) return;
+        net.phoenixvine.wiki.theme.PhoenixTheme t = net.phoenixvine.wiki.theme.PhoenixTheme.current();
+        net.phoenixvine.wiki.client.screen.WikiTheme wikiTheme = new net.phoenixvine.wiki.client.screen.WikiTheme(
+                t.bg.getColor(), t.panel.getColor(), t.header.getColor(), t.border.getColor(),
+                t.accent.getColor(), t.text.getColor(), t.textDim.getColor(), t.textFaint.getColor(),
+                t.done.getColor(), t.activeColor.getColor());
+        net.phoenixvine.wiki.PhoenixWikiAPI.open(this, "phantasia", "wiki", wikiTheme);
+    }
+
     private void savePhantasiaConfig() {
         try {
             PhantasiaConfigs.PhantasiaUIConfig ui = PhantasiaConfigs.INSTANCE.phantasiaUI;
@@ -1086,7 +1073,6 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
                     Component.translatable("screen.phantasia.scene_selection.hint_scroll").getString(), this.width / 2,
                     fy + 4, C_DIM());
 
-        // Back button \u2014 on Settings tab this returns to Multiblocks, otherwise closes the screen
         String backLabel = activeTab == Tab.SETTINGS ? "\u2190 Back to List" : "\u2190 Back";
         int bw = font.width(backLabel) + 24, bh = 18;
         int bx = (this.width - bw) / 2, by = fy + (FOOTER_H - bh) / 2;
@@ -1100,16 +1086,11 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
                 bHov ? C_ACCENT() : C_TEXT(), false);
     }
 
-    // ──────────────────────────────────────────────────────────────────────────
-    // Input
-    // ──────────────────────────────────────────────────────────────────────────
-
     @Override
     public boolean mouseClicked(double mx, double my, int btn) {
         if (this.searchBox != null && this.searchBox.mouseClicked(mx, my, btn))
             return true;
 
-        // Tab clicks — positions must match renderHeader exactly.
         int tabY = 32;
         int[] txs = computeTabXs();
         String[] tabLabels = { "Multiblocks", "Scenes", "Guides", "Tutorials", "⚙ Settings" };
@@ -1155,12 +1136,10 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
             return true;
         }
 
-        // Settings tab interactions
         if (activeTab == Tab.SETTINGS) {
             if (handleSettingsClick((int) mx, (int) my)) return true;
         }
 
-        // Back button — Settings tab goes back to Multiblocks, otherwise closes
         String backLabel = activeTab == Tab.SETTINGS ? "← Back to List" : "← Back";
         int fy = this.height - FOOTER_H;
         int bw = font.width(backLabel) + 24, bh = 18;
@@ -1195,7 +1174,6 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
             if (hoveredCard >= 0 && hoveredCard < filteredGuides.size()) {
                 PhantasiaGuideData guide = filteredGuides.get(hoveredCard);
 
-                // Hit-test the ✏ edit button (admin only)
                 if (Minecraft.getInstance().player != null &&
                         Minecraft.getInstance().player.getAbilities().instabuild) {
                     int totalW = COLS * CARD_W + (COLS - 1) * CARD_PAD;
@@ -1338,8 +1316,6 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
         Minecraft.getInstance().setScreen(parent);
     }
 
-    // ── Tutorial cards ────────────────────────────────────────────────────────
-
     private void renderTutorialCards(GuiGraphics g, int mx, int my) {
         List<TutorialSequence> allTuts = PhantasiaTutorials.all();
         List<TutorialSequence> playerTuts = allTuts.stream()
@@ -1355,14 +1331,11 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
 
         hoveredCard = -1;
 
-        // Player section — top half
         renderTutorialSection(g, mx, my, playerTuts, 0,
                 "For Players", C_ACCENT(), false, startX, contentTop, midY - 3, tutPlayerScroll);
 
-        // Divider
         g.fill(startX, midY - 1, startX + totalW, midY, 0x44FFFFFF);
 
-        // Dev section — bottom half
         renderTutorialSection(g, mx, my, devTuts, playerTuts.size(),
                 "For Pack Authors", C_WARN(), true, startX, midY + 2, contentBot, tutDevScroll);
     }
@@ -1434,7 +1407,6 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
         }
         g.disableScissor();
 
-        // Scroll overflow indicators — rendered outside scissor so they're always visible
         int totalW = COLS * CARD_W + (COLS - 1) * CARD_PAD;
         int indicatorX = startX + totalW / 2;
         if (scroll > 0) {
@@ -1444,8 +1416,6 @@ public class PhantasiaSceneSelectionScreen extends PhantasiaScreen {
             g.drawCenteredString(font, "▼", indicatorX, panelBot - font.lineHeight - 1, 0x88FFFFFF);
         }
     }
-
-    // ── Helpers ───────────────────────────────────────────────────────────────
 
     private int visibleRows() {
         return Math.max(1, (this.height - HEADER_H - SEARCH_H - FOOTER_H - 8) / (CARD_H + CARD_PAD));

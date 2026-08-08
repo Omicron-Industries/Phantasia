@@ -9,30 +9,20 @@ import net.minecraftforge.api.distmarker.OnlyIn;
 import net.phoenixvine.phantasia.client.screens.PhantasiaSceneSelectionScreen;
 import net.phoenixvine.phantasia.common.data.guides.PhantasiaGuideRegistry;
 import net.phoenixvine.phantasia.common.data.script.PhantasiaScripts;
-import net.phoenixvine.phantasia.utils.PhantasiaTheme;
+import net.phoenixvine.wiki.theme.PhoenixTheme;
 
 import java.util.List;
 
 import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
 
-/**
- * All hardcoded tutorial sequences.
- * Each slide's MockRenderer scales a 480×300 virtual screen into the mock area
- * and faithfully replicates the look of the real Phantasia screens, using
- * real machine/guide/script data where available.
- */
 @OnlyIn(Dist.CLIENT)
 public final class PhantasiaTutorials {
 
     private PhantasiaTutorials() {}
 
-    // ── Virtual screen size ───────────────────────────────────────────────────
-    // All mock renderers paint into a 480×300 virtual coordinate space.
-    // withScale() maps that into the actual mock rect.
     private static final int VW = 480;
     private static final int VH = 300;
 
-    /** Builds the tutorial list fresh each call so keybind text reflects the player's current binding. */
     public static List<TutorialSequence> all() {
         return List.of(
                 gettingStarted(),
@@ -44,18 +34,16 @@ public final class PhantasiaTutorials {
                 devScenes());
     }
 
-    // ── Scale helper ──────────────────────────────────────────────────────────
-
     @FunctionalInterface
     private interface DrawTask {
 
-        void run(GuiGraphics g, Font f, PhantasiaTheme t, int tick);
+        void run(GuiGraphics g, Font f, PhoenixTheme t, int tick);
     }
 
     private static TutorialSlide.MockRenderer mock(DrawTask task) {
         return (g, mx, my, mw, mh, tick) -> {
             Font f = Minecraft.getInstance().font;
-            PhantasiaTheme t = PhantasiaTheme.current();
+            PhoenixTheme t = PhoenixTheme.current();
             float s = Math.min(mw / (float) VW, mh / (float) VH);
             int ox = mx + (mw - (int) (VW * s)) / 2;
             int oy = my + (mh - (int) (VH * s)) / 2;
@@ -67,9 +55,6 @@ public final class PhantasiaTutorials {
         };
     }
 
-    // ── First registered machine helpers ─────────────────────────────────────
-
-    /** Full display name of the first registered multiblock scene, or a generic fallback. */
     private static String firstMachineName() {
         var machines = PhantasiaSceneSelectionScreen.PHANTASIA_SCENES;
         if (!machines.isEmpty()) {
@@ -81,10 +66,6 @@ public final class PhantasiaTutorials {
         return "Multiblock Machine";
     }
 
-    /**
-     * Short label for the first machine (acronym of each word, e.g. "Electric Blast Furnace" → "EBF").
-     * Falls back to the first 6 characters if the name is a single word.
-     */
     private static String firstMachineShortLabel() {
         String name = firstMachineName();
         String[] words = name.split("\\s+");
@@ -96,30 +77,22 @@ public final class PhantasiaTutorials {
         return name.length() > 6 ? name.substring(0, 6) : name;
     }
 
-    // ── Selection screen replica (PhantasiaSceneSelectionScreen) ─────────────
-    // HEADER_H=52, CARD_W=104, CARD_H=86, CARD_PAD=8, COLS=3, TAB_H=16,
-    // SEARCH_H=24, FOOTER_H=30
-
     private static final int SEL_HEADER_H = 52;
     private static final int SEL_CARD_W = 104;
     private static final int SEL_CARD_H = 86;
     private static final int SEL_CARD_PAD = 8;
-    private static final int SEL_GRID_W = 3 * SEL_CARD_W + 2 * SEL_CARD_PAD; // 328
+    private static final int SEL_GRID_W = 3 * SEL_CARD_W + 2 * SEL_CARD_PAD;
 
-    private static void drawSelectionScreen(GuiGraphics g, Font f, PhantasiaTheme t, int tick, int activeTab) {
+    private static void drawSelectionScreen(GuiGraphics g, Font f, PhoenixTheme t, int tick, int activeTab) {
         int gridX = (VW - SEL_GRID_W) / 2;
 
-        // Background
         g.fillGradient(0, 0, VW, VH, C_BG(), 0xFF0B0B18);
 
-        // Header
         g.fill(0, 0, VW, SEL_HEADER_H, 0xCC0A0A14);
         g.fill(0, SEL_HEADER_H - 2, VW, SEL_HEADER_H, C_ACCENT());
         g.drawCenteredString(f, "✶ Phantasia", VW / 2, 8, C_ACCENT());
         g.drawCenteredString(f, "Multiblock machines, scenes, and guides", VW / 2, 20, C_DIM());
 
-        // Tabs — mirror real screen's renderTabs() layout exactly:
-        // Multiblocks at gridX, Scenes at gridX+104 (hardcoded), rest use font.width+20 gaps
         int tx = gridX;
         renderMockTab(g, f, tx, 32, "Multiblocks", activeTab == 0);
         tx = gridX + 104;
@@ -129,8 +102,7 @@ public final class PhantasiaTutorials {
         tx += f.width("Guides") + 20;
         renderMockTab(g, f, tx, 32, "Tutorials", activeTab == 3);
 
-        // Search box — SEARCH_H=24, matches real screen (not 16)
-        int searchY = SEL_HEADER_H;  // real: HEADER_H = 52
+        int searchY = SEL_HEADER_H;
         int searchH = 24;
         g.fill(gridX, searchY, gridX + SEL_GRID_W, searchY + searchH, 0xFF0A0A14);
         g.fill(gridX, searchY, gridX + SEL_GRID_W, searchY + 1, 0xFF333355);
@@ -139,14 +111,12 @@ public final class PhantasiaTutorials {
         g.fill(gridX + SEL_GRID_W - 1, searchY, gridX + SEL_GRID_W, searchY + searchH, 0xFF333355);
         g.drawString(f, "Search...", gridX + 4, searchY + 8, 0xFF888888, false);
 
-        // Cards — real: HEADER_H + SEARCH_H + 6 = 52 + 24 + 6 = 82
         int cardsY = searchY + searchH + 6;
         if (activeTab == 0) drawMachineCards(g, f, gridX, cardsY);
         else if (activeTab == 1) drawSceneCardsSelection(g, f, t, gridX, cardsY);
         else if (activeTab == 2) drawGuideCardsSelection(g, f, t, gridX, cardsY);
         else if (activeTab == 3) drawTutorialCardsSelection(g, f, t, gridX, cardsY);
 
-        // Footer
         int footerY = VH - 26;
         g.fill(0, footerY, VW, VH, 0xCC0A0A14);
         g.fill(0, footerY, VW, footerY + 1, 0x33FFFFFF);
@@ -166,7 +136,6 @@ public final class PhantasiaTutorials {
     private static void drawMachineCards(GuiGraphics g, Font f, int gridX, int startY) {
         var machines = PhantasiaSceneSelectionScreen.PHANTASIA_SCENES;
 
-        // Fallback names if machines haven't loaded yet
         String[] fallbackNames = { "Multiblock A", "Multiblock B", "Multiblock C",
                 "Multiblock D", "Multiblock E", "Multiblock F" };
         boolean[] fallbackSteps = { true, true, false, true, false, false };
@@ -176,12 +145,10 @@ public final class PhantasiaTutorials {
             int cx = gridX + col * (SEL_CARD_W + SEL_CARD_PAD);
             int cy = startY + row * (SEL_CARD_H + SEL_CARD_PAD);
 
-            // card background — mirrors renderCard() in selection screen
             int cardBg = (0xBB << 24) | (C_PANEL() & 0x00FFFFFF);
             g.fill(cx, cy, cx + SEL_CARD_W, cy + SEL_CARD_H, cardBg);
             g.fill(cx, cy, cx + SEL_CARD_W, cy + 2, C_BORDER());
 
-            // Item icon
             if (i < machines.size()) {
                 var icon = machines.get(i).getIcon();
                 if (!icon.isEmpty()) {
@@ -196,7 +163,6 @@ public final class PhantasiaTutorials {
                 g.fill(cx + 36, cy + 6, cx + 68, cy + 7, 0x44FFFFFF);
             }
 
-            // Machine name
             String name = (i < machines.size()) ? machines.get(i).getDisplayName() : fallbackNames[i];
             if (name == null || name.isEmpty()) {
                 name = (i < machines.size()) ? machines.get(i).getId().getPath().replace('_', ' ') : fallbackNames[i];
@@ -205,7 +171,6 @@ public final class PhantasiaTutorials {
                 name = f.plainSubstrByWidth(name, SEL_CARD_W - 8 - f.width("...")) + "...";
             g.drawString(f, name, cx + 4, cy + SEL_CARD_H - 22, C_TEXT(), false);
 
-            // Green dot + step count
             boolean hasScript = (i < machines.size()) ? PhantasiaScripts.has(machines.get(i)) : fallbackSteps[i];
             if (hasScript) {
                 g.fill(cx + SEL_CARD_W - 8, cy + 4, cx + SEL_CARD_W - 4, cy + 8, C_GREEN());
@@ -220,8 +185,7 @@ public final class PhantasiaTutorials {
         }
     }
 
-    private static void drawGuideCardsSelection(GuiGraphics g, Font f, PhantasiaTheme t, int gridX, int startY) {
-        // "+ New Guide" card always at grid position 0 (matches real screen)
+    private static void drawGuideCardsSelection(GuiGraphics g, Font f, PhoenixTheme t, int gridX, int startY) {
         {
             int cx = gridX;
             int cy = startY;
@@ -237,13 +201,13 @@ public final class PhantasiaTutorials {
         String[] fallbackIcons = { "minecraft:knowledge_book", "minecraft:iron_ore",
                 "minecraft:redstone", "minecraft:furnace", "minecraft:crafting_table" };
         for (int i = 0; i < 5; i++) {
-            int gridPos = i + 1; // offset by 1 to leave slot 0 for New Guide card
+            int gridPos = i + 1;
             int col = gridPos % 3, row = gridPos / 3;
             int cx = gridX + col * (SEL_CARD_W + SEL_CARD_PAD);
             int cy = startY + row * (SEL_CARD_H + SEL_CARD_PAD);
             g.fill(cx, cy, cx + SEL_CARD_W, cy + SEL_CARD_H, (0xBB << 24) | (C_PANEL() & 0x00FFFFFF));
             g.fill(cx, cy, cx + SEL_CARD_W, cy + 2, C_BORDER());
-            // Icon — real guide icon if available, fallback item otherwise
+
             String iconRes = (i < guides.size() && guides.get(i).iconItem != null) ? guides.get(i).iconItem :
                     fallbackIcons[i % fallbackIcons.length];
             try {
@@ -268,13 +232,13 @@ public final class PhantasiaTutorials {
         }
     }
 
-    private static void drawSceneCardsSelection(GuiGraphics g, Font f, PhantasiaTheme t, int gridX, int startY) {
+    private static void drawSceneCardsSelection(GuiGraphics g, Font f, PhoenixTheme t, int gridX, int startY) {
         String[] fallbackTitles = { "Ore Processing Line", "Steel Production", "Power Grid",
                 "Blast Array", "Chemical Plant" };
         String[] fallbackIcons = { "minecraft:chest", "minecraft:blast_furnace", "minecraft:redstone_block",
                 "minecraft:iron_block", "minecraft:cauldron" };
         int[] fallbackMachines = { 3, 2, 4, 5, 2 };
-        // Slot 0: "+ New Scene" card
+
         {
             int cx = gridX;
             int cy = startY;
@@ -283,7 +247,7 @@ public final class PhantasiaTutorials {
             g.drawCenteredString(f, "+", cx + SEL_CARD_W / 2, cy + SEL_CARD_H / 2 - 10, C_DIM());
             g.drawCenteredString(f, "New Scene", cx + SEL_CARD_W / 2, cy + SEL_CARD_H - 22, C_DIM());
         }
-        // Slots 1-5: placeholder scene cards
+
         for (int i = 0; i < 5; i++) {
             int slot = i + 1;
             int col = slot % 3, row = slot / 3;
@@ -311,8 +275,7 @@ public final class PhantasiaTutorials {
         }
     }
 
-    private static void drawTutorialCardsSelection(GuiGraphics g, Font f, PhantasiaTheme t, int gridX, int startY) {
-        // Section label — mirrors renderTutorialCards() section headers
+    private static void drawTutorialCardsSelection(GuiGraphics g, Font f, PhoenixTheme t, int gridX, int startY) {
         g.drawString(f, "For Players", gridX, startY, C_ACCENT(), false);
         startY += 12;
         String[][] playerTuts = { { "Getting Started", "Overview" }, { "Understanding Guides", "Guides" },
@@ -338,37 +301,28 @@ public final class PhantasiaTutorials {
         }
     }
 
-    // ── Guide screen replica (PhantasiaGuideScreen) ───────────────────────────
-    // TOP_BAR_H=22, NAV_H=30, COL_W=360 (we use 380 for our 480 virtual width)
-
-    private static void drawGuideScreen(GuiGraphics g, Font f, PhantasiaTheme t,
+    private static void drawGuideScreen(GuiGraphics g, Font f, PhoenixTheme t,
                                         String title, String headline, String body,
                                         int pageIdx, int pageCount) {
         int TOP_BAR_H = 22, NAV_H = 30;
         int colW = 380, colX = (VW - colW) / 2;
 
-        // Background
         g.fillGradient(0, 0, VW, VH, 0xFF07070E, 0xFF0D0D1E);
 
-        // Top bar
         g.fill(0, 0, VW, TOP_BAR_H, C_BAR());
         g.fill(0, TOP_BAR_H - 1, VW, TOP_BAR_H, C_ACCENT());
         g.drawCenteredString(f, title, VW / 2, (TOP_BAR_H - 8) / 2, C_ACCENT());
 
-        // Back button
         int bw = f.width("← Back") + 12;
         g.fill(4, 3, 4 + bw, TOP_BAR_H - 3, C_BTN());
         g.drawString(f, "← Back", 10, (TOP_BAR_H - 8) / 2, C_TEXT(), false);
 
-        // Edit button (creative only, shown for demo)
         int ew = f.width("✏ Edit") + 12;
         g.fill(VW - 4 - ew, 3, VW - 4, TOP_BAR_H - 3, C_BTN());
         g.drawString(f, "✏ Edit", VW - 4 - ew + 6, (TOP_BAR_H - 8) / 2, C_TEXT(), false);
 
-        // Content area
         int y = TOP_BAR_H + 14;
 
-        // Headline
         if (headline != null && !headline.isEmpty()) {
             g.fill(colX, y, colX + colW, y + 1, C_ACCENT());
             y += 7;
@@ -383,14 +337,12 @@ public final class PhantasiaTutorials {
             y += 8;
         }
 
-        // Page counter
         if (pageCount > 1) {
             g.drawString(f, "Page " + (pageIdx + 1) + " of " + pageCount, colX, y, C_DIM(), false);
             y += f.lineHeight + 5;
         }
         y += 4;
 
-        // Body text — lines ending with → are rendered as link buttons
         if (body != null) {
             for (String rawLine : body.split("\n", -1)) {
                 if (y + f.lineHeight > VH - NAV_H - 4) break;
@@ -407,23 +359,19 @@ public final class PhantasiaTutorials {
             }
         }
 
-        // Nav bar
         int navY = VH - NAV_H;
         g.fill(0, navY, VW, VH, 0xDD0A0A14);
         g.fill(0, navY, VW, navY + 1, 0x33FFFFFF);
         int midX = VW / 2;
         int bY = navY + 6, bH = NAV_H - 12;
 
-        // Prev
         boolean hasPrev = pageIdx > 0;
         int prevW = f.width("◄  Prev") + 14;
         g.fill(midX - prevW - 26, bY, midX - 26, bY + bH, hasPrev ? C_BTN() : 0x33111128);
         g.drawCenteredString(f, "◄  Prev", midX - 26 - prevW / 2, bY + (bH - 8) / 2, hasPrev ? C_TEXT() : C_DIM());
 
-        // Page indicator
         g.drawCenteredString(f, (pageIdx + 1) + " / " + pageCount, midX, bY + (bH - 8) / 2, C_DIM());
 
-        // Next
         boolean hasNext = pageIdx < pageCount - 1;
         int nextW = f.width("Next  ►") + 14;
         g.fill(midX + 26, bY, midX + 26 + nextW, bY + bH, hasNext ? C_BTN() : 0x33111128);
@@ -432,29 +380,22 @@ public final class PhantasiaTutorials {
                 hasNext ? C_ACCENT() : C_DIM());
     }
 
-    // ── Guide editor replica (PhantasiaGuideEditorScreen) ────────────────────
-    // TOP_H=22, rightWidth≈280
-
-    private static void drawGuideEditor(GuiGraphics g, Font f, PhantasiaTheme t,
+    private static void drawGuideEditor(GuiGraphics g, Font f, PhoenixTheme t,
                                         String guideTitle, String headline, String bodyText, int tick) {
         int TOP_H = 22, rightW = 220;
         int previewW = VW - rightW;
         int colW = Math.min(320, previewW - 48);
         int colX = previewW / 2 - colW / 2;
 
-        // Background
         g.fill(0, 0, VW, VH, C_BG());
 
-        // Top bar
         g.fill(0, 0, VW, TOP_H, C_BAR());
         g.fill(0, TOP_H - 1, VW, TOP_H, C_ACCENT());
 
-        // Back button
         int backW = f.width("← Back") + 10;
         g.fill(4, 3, 4 + backW, TOP_H - 3, C_BTN());
         g.drawString(f, "← Back", 9, (TOP_H - 8) / 2, C_TEXT(), false);
 
-        // Title label + title box
         int titleLabelX = 4 + backW + 8;
         g.drawString(f, "Title:", titleLabelX, (TOP_H - 8) / 2, C_DIM(), false);
         int titleBoxX = titleLabelX + f.width("Title:") + 4;
@@ -462,27 +403,23 @@ public final class PhantasiaTutorials {
         g.fill(titleBoxX, 3, titleBoxX + 140, 4, 0xFF333355);
         g.drawString(f, guideTitle, titleBoxX + 3, (TOP_H - 8) / 2, C_TEXT(), false);
 
-        // Save button (right side)
         int saveW = f.width("💾 Save") + 10;
         g.fill(VW - 4 - saveW, 3, VW - 4, TOP_H - 3, C_BTN());
         g.drawString(f, "💾 Save", VW - 4 - saveW + 5, (TOP_H - 8) / 2, C_TEXT(), false);
 
-        // Preview button
         int prevBtnW = f.width("► Preview") + 10;
         g.fill(VW - 4 - saveW - 4 - prevBtnW, 3, VW - 4 - saveW - 4, TOP_H - 3, C_BTN());
         g.drawString(f, "► Preview", VW - 4 - saveW - 4 - prevBtnW + 5, (TOP_H - 8) / 2, C_TEXT(), false);
 
-        // Left panel: dark editing area
         g.fill(0, TOP_H, previewW, VH, 0xFF070710);
-        // Right panel separator line
+
         g.fill(previewW - 1, TOP_H, previewW, VH, C_ACCENT());
 
-        // Headline editor box
         int y = TOP_H + 12;
         int hlH = 32;
         boolean hlFocused = (tick / 60) % 2 == 0;
         g.fill(colX - 4, y, colX + colW + 4, y + hlH, hlFocused ? 0xFF0D1C2A : 0xBB0D131A);
-        // border
+
         g.fill(colX - 4, y, colX + colW + 4, y + 1, hlFocused ? C_ACCENT() : 0xFF223544);
         g.fill(colX - 4, y + hlH - 1, colX + colW + 4, y + hlH, hlFocused ? C_ACCENT() : 0xFF223544);
         g.fill(colX - 4, y, colX - 3, y + hlH, hlFocused ? C_ACCENT() : 0xFF223544);
@@ -492,7 +429,6 @@ public final class PhantasiaTutorials {
 
         y += hlH + 8;
 
-        // Body text editor box
         int bodyH = VH - y - 30;
         boolean bodyFocused = !hlFocused;
         g.fill(colX - 4, y, colX + colW + 4, y + bodyH, bodyFocused ? 0xFF091612 : 0xBB0A0F0D);
@@ -510,7 +446,6 @@ public final class PhantasiaTutorials {
             }
         }
 
-        // Right panel — page list + items
         int rpx = previewW + 4;
         g.fill(previewW, TOP_H, VW, VH, C_BG());
 
@@ -524,43 +459,34 @@ public final class PhantasiaTutorials {
             g.drawString(f, pages[i], rpx + 2, py, sel ? C_ACCENT() : C_TEXT(), false);
         }
 
-        // + Add Page button
         int addY = TOP_H + 18 + 3 * 18 + 4;
         g.fill(rpx - 2, addY, VW - 4, addY + 12, C_BTN());
         g.drawCenteredString(f, "+ Add Page", (rpx - 2 + VW - 4) / 2, addY + 2, C_ACCENT());
 
-        // Divider
         g.fill(rpx - 2, addY + 18, VW - 4, addY + 19, 0x33FFFFFF);
 
-        // Items label
         g.drawString(f, "Items", rpx, addY + 24, C_DIM(), false);
     }
 
-    // ── Script editor replica (PhantasiaScriptEditorScreen) ──────────────────
-    // Layout: top bar (22px) · 3D viewport · step row (42px) · timeline (22px)
-    // No right panel — all editing controls are in the bottom strip.
-
-    private static void drawScriptEditor(GuiGraphics g, Font f, PhantasiaTheme t,
+    private static void drawScriptEditor(GuiGraphics g, Font f, PhoenixTheme t,
                                          String machineName, int selectedStep,
                                          List<String> stepCaptions, int tick) {
         drawScriptEditor(g, f, t, machineName, selectedStep, stepCaptions, tick, false);
     }
 
-    private static void drawScriptEditor(GuiGraphics g, Font f, PhantasiaTheme t,
+    private static void drawScriptEditor(GuiGraphics g, Font f, PhoenixTheme t,
                                          String machineName, int selectedStep,
                                          List<String> stepCaptions, int tick,
                                          boolean showCamPanel) {
         final int TOP_H = 22;
-        final int STEP_H = 42;  // two sub-rows
+        final int STEP_H = 42;
         final int TL_H = 22;
         final int BOT_H = STEP_H + TL_H;
         int vpH = VH - TOP_H - BOT_H;
 
-        // ── Top bar ───────────────────────────────────────────────────────────
         g.fill(0, 0, VW, TOP_H, C_BAR());
         g.fill(0, TOP_H - 1, VW, TOP_H, C_ACCENT());
 
-        // Mode tabs
         int x = 6;
         String[] modeTabs = { "◈ Select", "⚠ Annotate", "◦ World" };
         for (String tab : modeTabs) {
@@ -571,25 +497,21 @@ public final class PhantasiaTutorials {
         }
         x += 4;
 
-        // Preview button
         int pvW = f.width("► Preview") + 10;
         g.fill(x, 3, x + pvW, TOP_H - 3, C_BTN());
         g.drawString(f, "► Preview", x + 5, (TOP_H - 8) / 2, C_DIM(), false);
         x += pvW + 4;
 
-        // Camera tab (highlighted if open)
         int camTabW = f.width("🎥 Camera") + 10;
         g.fill(x, 3, x + camTabW, TOP_H - 3, showCamPanel ? C_BTN_ACT() : C_BTN());
         if (showCamPanel) g.fill(x, TOP_H - 3, x + camTabW, TOP_H - 2, C_ACCENT());
         g.drawString(f, "🎥 Camera", x + 5, (TOP_H - 8) / 2, showCamPanel ? C_ACCENT() : C_DIM(), false);
         x += camTabW + 4;
 
-        // Start Cam tab
         int scW = f.width("⊙ Start Cam") + 10;
         g.fill(x, 3, x + scW, TOP_H - 3, C_BTN());
         g.drawString(f, "⊙ Start Cam", x + 5, (TOP_H - 8) / 2, C_DIM(), false);
 
-        // Right side: back + save
         int rx = VW - 4;
         int saveW = f.width("💾 Save") + 10;
         rx -= saveW;
@@ -602,10 +524,8 @@ public final class PhantasiaTutorials {
         g.fill(rx, 3, rx + backW, TOP_H - 3, C_BTN());
         g.drawString(f, "✕ Back", rx + 5, (TOP_H - 8) / 2, C_TEXT(), false);
 
-        // ── 3D viewport ───────────────────────────────────────────────────────
         g.fill(0, TOP_H, VW, TOP_H + vpH, 0xFF07070F);
 
-        // Isometric machine blocks
         int cx2 = VW / 2 - 28, cy2 = TOP_H + vpH / 2 - 18;
         float angle = (tick % 360) / 360f * 2f * (float) Math.PI;
         int rot = (int) (Math.cos(angle) * 6);
@@ -624,21 +544,20 @@ public final class PhantasiaTutorials {
                 }
             }
         }
-        // Pulse highlight on active layer
+
         float pulse = 0.5f + 0.5f * (float) Math.sin(tick * 0.15f);
         int pa = (int) (35 * pulse);
         g.fill(cx2 - 4, cy2 - 4 - (selectedStep % 4) * 7,
                 cx2 + 48 + rot, cy2 + 14 - (selectedStep % 4) * 7,
                 (pa << 24) | (C_ACCENT() & 0xFFFFFF));
 
-        // Camera panel — floats above the step row, spanning most of the screen width (matches real editor)
         if (showCamPanel) {
             int cpH = 54, cpX = 6, cpW = VW - 12;
             int cpY = VH - BOT_H - cpH - 4;
             g.fill(cpX - 2, cpY - 2, cpX + cpW + 2, cpY + cpH + 2, 0xDD070712);
             g.fill(cpX - 2, cpY - 2, cpX + cpW + 2, cpY - 1, C_ACCENT());
             g.drawString(f, "🎥  Camera — step " + (selectedStep + 1), cpX + 4, cpY + 3, C_ACCENT(), false);
-            // Row 1: Capture Cam · Clear · live info
+
             int r1Y = cpY + 14;
             int bxc = cpX + 4;
             int capBtnW = f.width("📷 Capture Cam") + 12;
@@ -651,7 +570,7 @@ public final class PhantasiaTutorials {
             g.drawString(f, "✕ Clear", bxc + 5, r1Y + 3, C_DIM(), false);
             bxc += clrW + 10;
             g.drawString(f, "Yaw -135.0°  Pitch -30.0°  Zoom 40.0", bxc, r1Y + 3, C_DIM(), false);
-            // Row 2: Zoom · lerp type · over · lerp ticks · ticks
+
             int r2Y = cpY + 32;
             bxc = cpX + 4;
             g.drawString(f, "Zoom:", bxc, r2Y + 2, C_DIM(), false);
@@ -674,22 +593,18 @@ public final class PhantasiaTutorials {
             g.drawString(f, "ticks", bxc, r2Y + 2, C_DIM(), false);
         }
 
-        // ── Step row (STEP_H = 42, two sub-rows) ─────────────────────────────
         int botY = VH - BOT_H;
         g.fill(0, botY, VW, botY + STEP_H, C_BAR());
         g.fill(0, botY, VW, botY + 1, C_ACCENT());
 
-        // Row 1: step counter + nav + tick + caption + Running
         int y1 = botY + 4;
         int bx3 = 8;
 
-        // Step counter
         String stepLbl = (selectedStep + 1) + "/" + stepCaptions.size();
         g.drawString(f, "Step", bx3, y1 - 2, 0xFF334455, false);
         g.drawString(f, stepLbl, bx3, y1 + 6, C_ACCENT(), false);
         bx3 += f.width(stepLbl) + 10;
 
-        // Nav buttons: + − Dup ◄ ►
         for (String nav : new String[] { "+", "−", "Dup", "◄", "►" }) {
             int nw = f.width(nav) + 8;
             g.fill(bx3, y1, bx3 + nw, y1 + 14, C_BTN());
@@ -698,7 +613,6 @@ public final class PhantasiaTutorials {
         }
         bx3 += 4;
 
-        // Tick field
         g.drawString(f, "Tick", bx3, y1 + 3, C_DIM(), false);
         bx3 += f.width("Tick") + 3;
         g.fill(bx3, y1, bx3 + 38, y1 + 13, 0xFF0A0A14);
@@ -707,7 +621,6 @@ public final class PhantasiaTutorials {
         g.drawString(f, String.valueOf(stepTick), bx3 + 3, y1 + 3, C_TEXT(), false);
         bx3 += 44;
 
-        // Caption button
         String cap = selectedStep < stepCaptions.size() ? stepCaptions.get(selectedStep) : "";
         int capW = Math.max(100, VW - bx3 - 130);
         g.fill(bx3, y1, bx3 + capW, y1 + 13, C_BTN());
@@ -716,11 +629,9 @@ public final class PhantasiaTutorials {
         g.drawString(f, capDisp, bx3 + 4, y1 + 3, cap.isEmpty() ? C_DIM() : C_TEXT(), false);
         bx3 += capW + 8;
 
-        // Running toggle
         g.fill(bx3, y1, bx3 + 82, y1 + 14, C_BTN());
         g.drawString(f, "○ Running", bx3 + 5, y1 + 3, C_DIM(), false);
 
-        // Row 2: Show mode tabs
         int y2 = botY + STEP_H / 2 + 5;
         int bx4 = 8;
         g.drawString(f, "Show:", bx4, y2 + 2, C_DIM(), false);
@@ -735,7 +646,6 @@ public final class PhantasiaTutorials {
             bx4 += sw + 4;
         }
 
-        // ── Timeline (TL_H = 22, very bottom) ────────────────────────────────
         int tlY = VH - TL_H;
         g.fill(0, tlY, VW, VH, C_PANEL());
         g.fill(0, tlY, VW, tlY + 1, 0x33FFFFFF);
@@ -743,11 +653,10 @@ public final class PhantasiaTutorials {
         int margin = 30, trackW = VW - margin * 2;
         int midY = tlY + TL_H / 2;
         g.fill(margin, midY - 1, margin + trackW, midY + 1, 0xFF1A2C3C);
-        // End caps
+
         g.fill(margin - 1, midY - 3, margin, midY + 3, 0xFF3A506A);
         g.fill(margin + trackW, midY - 3, margin + trackW + 1, midY + 3, 0xFF3A506A);
 
-        // Step dots with numbers
         int nSteps = stepCaptions.size();
         for (int di = 0; di < nSteps; di++) {
             float frac = nSteps > 1 ? (float) di / (nSteps - 1) : 0f;
@@ -759,7 +668,7 @@ public final class PhantasiaTutorials {
             g.drawCenteredString(f, String.valueOf(di + 1), dotX, midY - 3,
                     sel ? C_ACCENT() : C_DIM());
         }
-        // Preview playhead
+
         if (nSteps > 1) {
             float prog = (float) selectedStep / (nSteps - 1);
             int phX = margin + (int) (prog * trackW);
@@ -767,28 +676,22 @@ public final class PhantasiaTutorials {
         }
     }
 
-    // ── Scene viewer replica (PhantasiaSceneScreen) ───────────────────────────
-    // Layout: viewport fills screen; right panel (168px full / 18px collapsed);
-    // timeline bar at very bottom (26px); caption strip above it (38px overlay).
-
-    private static void drawSceneViewer(GuiGraphics g, Font f, PhantasiaTheme t,
+    private static void drawSceneViewer(GuiGraphics g, Font f, PhoenixTheme t,
                                         String machineName, int tick) {
         drawSceneViewer(g, f, t, machineName, tick, false, 0, null);
     }
 
-    private static void drawSceneViewer(GuiGraphics g, Font f, PhantasiaTheme t,
+    private static void drawSceneViewer(GuiGraphics g, Font f, PhoenixTheme t,
                                         String machineName, int tick,
                                         boolean panelExpanded, int activeStep,
                                         List<String> steps) {
         final int PANEL_W = panelExpanded ? 168 : 18;
-        final int TL_H = 26;   // timeline height
-        final int CAP_H = 38;   // caption strip height
+        final int TL_H = 26;
+        final int CAP_H = 38;
         int vpW = VW - PANEL_W;
 
-        // 3D viewport background
         g.fill(0, 0, vpW, VH, 0xFF07070F);
 
-        // Fake machine blocks — isometric grid
         int cx = vpW / 2 - 28, cy = VH / 2 - 18;
         float angle = (tick % 360) / 360f * 2f * (float) Math.PI;
         int rot = (int) (Math.cos(angle) * 8);
@@ -813,11 +716,9 @@ public final class PhantasiaTutorials {
             g.fill(cx - 4, cy - 4, cx + 52 + rot, cy + 28, (alpha << 24) | (C_ACCENT() & 0xFFFFFF));
         }
 
-        // ── Right side panel ──────────────────────────────────────────────────
         g.fill(vpW, 0, VW, VH, C_PANEL());
         g.fill(vpW, 0, vpW + 1, VH, C_ACCENT());
 
-        // Collapse/expand button
         String arrow = panelExpanded ? "▶" : "◀";
         int cbx = VW - 18;
         g.fill(cbx, 0, VW, 18, C_BTN());
@@ -832,7 +733,6 @@ public final class PhantasiaTutorials {
             g.fill(vpW + 4, py, VW - 4, py + 1, 0x33FFFFFF);
             py += 6;
 
-            // Show: view filter tabs (2-column grid, mirrors real screen)
             g.drawString(f, "Show:", vpW + 8, py, C_DIM(), false);
             py += 12;
             int fw = (PANEL_W - 25) / 2;
@@ -847,7 +747,6 @@ public final class PhantasiaTutorials {
             }
             py += 8;
 
-            // Layer navigation
             g.drawString(f, "Layer:", vpW + 8, py + 4, C_DIM(), false);
             g.fill(vpW + 10, py + 14, vpW + 10 + bW, py + 28, C_BTN());
             g.drawCenteredString(f, "◀", vpW + 10 + bW / 2, py + 17, C_TEXT());
@@ -856,7 +755,6 @@ public final class PhantasiaTutorials {
             g.drawCenteredString(f, "▶", lX + lW + 2 + bW / 2, py + 17, C_TEXT());
             py += 32;
 
-            // Feature buttons (mirrors real panel order)
             String[] btns = { "🧱 Build Mode", "🗺 Footprint", "⊕ Center Camera", "🔍 Block List", "🧮 Materials" };
             for (String b : btns) {
                 g.fill(vpW + 4, py, VW - 4, py + 13, C_BTN());
@@ -865,7 +763,6 @@ public final class PhantasiaTutorials {
             }
         }
 
-        // ── Caption strip (overlay, above timeline) ───────────────────────────
         int capY = VH - TL_H - CAP_H;
         g.fill(0, capY, vpW, capY + CAP_H, 0xDD08080F);
         g.fill(0, capY, vpW, capY + 1, C_ACCENT());
@@ -873,12 +770,10 @@ public final class PhantasiaTutorials {
                 "Heating Coils — Place GregTech coil blocks in the center ring.";
         g.drawCenteredString(f, caption, vpW / 2, capY + (CAP_H - f.lineHeight) / 2, 0xFFDDDDDD);
 
-        // ── Timeline bar (very bottom) ────────────────────────────────────────
         int tlY = VH - TL_H;
         g.fill(0, tlY, vpW, VH, C_TL_BG());
         g.fill(0, tlY, vpW, tlY + 1, C_ACCENT());
 
-        // Playback buttons
         g.fill(4, tlY + 4, 22, tlY + TL_H - 4, C_BTN());
         g.drawCenteredString(f, "⏸", 13, tlY + 8, C_TEXT());
         g.fill(26, tlY + 4, 44, tlY + TL_H - 4, C_BTN());
@@ -886,7 +781,6 @@ public final class PhantasiaTutorials {
         g.fill(48, tlY + 4, 62, tlY + TL_H - 4, C_BTN());
         g.drawString(f, "1x", 51, tlY + 9, C_TEXT(), false);
 
-        // Scrubber track
         int nSteps = steps != null ? steps.size() : 8;
         int tx = 68, tw = vpW - tx - 50, midY = tlY + TL_H / 2;
         g.fill(tx, midY - 1, tx + tw, midY + 1, 0xFF1A2C3C);
@@ -898,17 +792,12 @@ public final class PhantasiaTutorials {
             boolean sel = steps != null && di == activeStep;
             g.fill(dx - 2, dy - 3, dx + 2, dy + 3, sel ? C_ACCENT() : C_BTN());
         }
-        // Playhead
+
         int phX = tx + (int) (tw * prog);
         g.fill(phX - 2, midY - 4, phX + 2, midY + 4, C_ACCENT());
     }
 
-    // ── Scene editor replica (PhantasiaSceneEditorScreen) ────────────────────
-    // Top bar: ⊞ Placements | ► Preview | 🎥 Camera | ▦ World | name (center) | ✕ Back | 💾 Save
-    // Left placements panel (220px) when open. Step row (50px) + Timeline (22px) at bottom.
-    // Camera panel floats above step row like script editor.
-
-    private static void drawSceneEditor(GuiGraphics g, Font f, PhantasiaTheme t,
+    private static void drawSceneEditor(GuiGraphics g, Font f, PhoenixTheme t,
                                         String sceneName, boolean showPlacements,
                                         boolean showCamPanel, int activeStep,
                                         List<String> steps, int tick) {
@@ -920,7 +809,6 @@ public final class PhantasiaTutorials {
         int vpW = VW - PNL_W;
         int vpH = VH - TOP_H - BOT_H;
 
-        // ── Top bar ───────────────────────────────────────────────────────────
         g.fill(0, 0, VW, TOP_H, C_BAR());
         g.fill(0, TOP_H - 1, VW, TOP_H, C_ACCENT());
         int x = 6;
@@ -954,7 +842,6 @@ public final class PhantasiaTutorials {
         g.drawString(f, "💾 Save", rx + 5, (TOP_H - 8) / 2, C_GREEN(), false);
         g.drawCenteredString(f, sceneName, VW / 2, (TOP_H - 8) / 2, C_DIM());
 
-        // ── Placements panel ─────────────────────────────────────────────────
         if (showPlacements) {
             g.fill(0, TOP_H, PNL_W, VH - BOT_H, C_PANEL());
             g.fill(PNL_W - 1, TOP_H, PNL_W, VH - BOT_H, 0x44FFFFFF);
@@ -984,7 +871,6 @@ public final class PhantasiaTutorials {
             g.drawCenteredString(f, "+ Add Machine", PNL_W / 2, addBtnY + 3, C_ACCENT());
         }
 
-        // ── 3D viewport ───────────────────────────────────────────────────────
         int vpX = PNL_W;
         g.fill(vpX, TOP_H, VW, TOP_H + vpH, 0xFF07070F);
         int cx = vpX + vpW / 2 - 44;
@@ -1009,7 +895,6 @@ public final class PhantasiaTutorials {
             }
         }
 
-        // ── Camera panel ─────────────────────────────────────────────────────
         if (showCamPanel) {
             int cpH2 = 54, cpX2 = vpX + 6, cpW2 = VW - vpX - 12;
             int cpY2 = VH - BOT_H - cpH2 - 4;
@@ -1039,7 +924,6 @@ public final class PhantasiaTutorials {
             g.drawString(f, "over 30 ticks", bxc2, r2Y2 + 2, C_DIM(), false);
         }
 
-        // ── Step row ─────────────────────────────────────────────────────────
         int rowY = VH - BOT_H;
         g.fill(0, rowY, VW, rowY + STEP_H, C_BAR());
         g.fill(0, rowY, VW, rowY + 1, C_ACCENT());
@@ -1060,7 +944,7 @@ public final class PhantasiaTutorials {
         g.fill(bx3, y1, bx3 + capW2, y1 + 13, C_BTN());
         g.fill(bx3, y1, bx3 + capW2, y1 + 1, 0x33FFFFFF);
         g.drawString(f, f.plainSubstrByWidth(capText, capW2 - 12), bx3 + 4, y1 + 3, C_TEXT(), false);
-        // Row 2: per-machine visibility toggles
+
         int y2 = rowY + STEP_H / 2 + 5;
         bx3 = 8;
         g.drawString(f, "Visible:", bx3, y2 + 2, C_DIM(), false);
@@ -1077,7 +961,6 @@ public final class PhantasiaTutorials {
         bx3 += 8;
         g.drawString(f, "Running: all", bx3, y2 + 2, C_DIM(), false);
 
-        // ── Timeline ─────────────────────────────────────────────────────────
         int tlY2 = VH - TL_H;
         g.fill(0, tlY2, VW, VH, C_PANEL());
         g.fill(0, tlY2, VW, tlY2 + 1, 0x33FFFFFF);
@@ -1094,15 +977,9 @@ public final class PhantasiaTutorials {
         }
     }
 
-    // ═════════════════════════════════════════════════════════════════════════
-    // Tutorial sequences
-    // ═════════════════════════════════════════════════════════════════════════
-
     private static final List<String> EBF_STEPS = List.of(
             "Introduction", "Foundation Layer", "Casing Walls",
             "Heating Coils", "Muffler & Maintenance", "Energy Hatch", "Item I/O", "Complete");
-
-    // ── Getting Started ───────────────────────────────────────────────────────
 
     static TutorialSequence gettingStarted() {
         return new TutorialSequence(
@@ -1122,14 +999,12 @@ public final class PhantasiaTutorials {
                                         Component.translatable("tutorial.phantasia.getting_started.s1.body",
                                                 net.phoenixvine.phantasia.client.keybind.PhoenixKeybinds.keyDisplay()))
                                 .mock(mock((g, f, t, tick) -> {
-                                    // World scene with hold-bar overlay at bottom
+
                                     g.fill(0, 0, VW, VH, 0xFF060C14);
 
-                                    // World sky gradient
                                     g.fillGradient(0, 0, VW, VH / 2, 0xFF1A2840, 0xFF0A1420);
                                     g.fill(0, VH / 2, VW, VH, 0xFF0A0A08);
 
-                                    // Machine block in the world — use first registered machine name
                                     String mName = firstMachineName();
                                     String mShort = firstMachineShortLabel();
                                     int bx = VW / 2 - 24, by = VH / 2 - 40;
@@ -1139,16 +1014,13 @@ public final class PhantasiaTutorials {
                                     g.fill(bx + 4, by + 4, bx + 44, by + 44, 0xFF223355);
                                     g.drawCenteredString(f, mShort, bx + 24, by + 20, C_ACCENT());
 
-                                    // Crosshair
                                     g.fill(VW / 2 - 4, VH / 2 - 1, VW / 2 + 4, VH / 2 + 1, 0x88FFFFFF);
                                     g.fill(VW / 2 - 1, VH / 2 - 4, VW / 2 + 1, VH / 2 + 4, 0x88FFFFFF);
 
-                                    // Tooltip: machine name
                                     int ttW = Math.max(140, f.width(mName) + 24);
                                     g.fill(VW / 2 - ttW / 2, VH / 2 + 30, VW / 2 + ttW / 2, VH / 2 + 42, 0xCC07070E);
                                     g.drawCenteredString(f, mName, VW / 2, VH / 2 + 33, C_ACCENT());
 
-                                    // Hold-to-phantasize bar (bottom of screen, like real keybind overlay)
                                     float pct = ((tick % 100) / 100f);
                                     int barW = 200, barH = 28;
                                     int barX = (VW - barW) / 2, barY = VH - 44;
@@ -1158,7 +1030,7 @@ public final class PhantasiaTutorials {
                                             net.phoenixvine.phantasia.client.keybind.PhoenixKeybinds.keyDisplay() +
                                                     " Hold to Phantasize",
                                             barX + 8, barY + 5, C_TEXT(), false);
-                                    // Progress bar
+
                                     g.fill(barX + 8, barY + 18, barX + barW - 8, barY + 24, 0x33FFFFFF);
                                     g.fill(barX + 8, barY + 18, barX + 8 + (int) ((barW - 16) * pct), barY + 24,
                                             C_PROG());
@@ -1176,7 +1048,6 @@ public final class PhantasiaTutorials {
                                     g.fillGradient(0, 0, VW, VH / 2, 0xFF1A2840, 0xFF0A1420);
                                     g.fill(0, VH / 2, VW, VH, 0xFF0A0A08);
 
-                                    // World block in center — use first registered machine name
                                     String dmName = firstMachineName();
                                     String dmShort = firstMachineShortLabel();
                                     int bx = VW / 2 - 20, by = VH / 2 - 36;
@@ -1185,7 +1056,6 @@ public final class PhantasiaTutorials {
                                     g.fill(bx, by, bx + 1, by + 40, 0x22FFFFFF);
                                     g.drawCenteredString(f, dmShort, bx + 20, by + 16, C_ACCENT());
 
-                                    // Crosshair
                                     g.fill(VW / 2 - 4, VH / 2 - 14 - 1, VW / 2 + 4, VH / 2 - 14 + 1, 0x88FFFFFF);
                                     g.fill(VW / 2 - 1, VH / 2 - 18, VW / 2 + 1, VH / 2 - 10, 0x88FFFFFF);
 
@@ -1193,7 +1063,7 @@ public final class PhantasiaTutorials {
                                     String modeLabel;
 
                                     if (mode == 0) {
-                                        // JADE — top-left HUD corner
+
                                         modeLabel = "JADE";
                                         int jw = Math.max(130, f.width(dmName) + 14);
                                         int jh = 18;
@@ -1203,7 +1073,7 @@ public final class PhantasiaTutorials {
                                         g.fill(jx, jy, jx + 1, jy + jh, C_ACCENT());
                                         g.drawString(f, dmName, jx + 5, jy + 5, C_ACCENT(), false);
                                     } else if (mode == 1) {
-                                        // TOOLTIP — near cursor / crosshair
+
                                         modeLabel = "TOOLTIP";
                                         int ttW = Math.max(160, f.width(dmName) + 32);
                                         int ttH = 22;
@@ -1212,7 +1082,7 @@ public final class PhantasiaTutorials {
                                         g.fill(ttX, ttY, ttX + ttW, ttY + 1, C_ACCENT());
                                         g.drawCenteredString(f, dmName, VW / 2, ttY + (ttH - 8) / 2, C_ACCENT());
                                     } else {
-                                        // HOTBAR — above hotbar
+
                                         modeLabel = "HOTBAR";
                                         int hbW = Math.max(160, f.width(dmName) + 24);
                                         int hbH = 16;
@@ -1220,14 +1090,13 @@ public final class PhantasiaTutorials {
                                         g.fill(hbX, hbY, hbX + hbW, hbY + hbH, 0xCC07070E);
                                         g.fill(hbX, hbY, hbX + hbW, hbY + 1, C_ACCENT());
                                         g.drawCenteredString(f, dmName, VW / 2, hbY + 4, C_ACCENT());
-                                        // Fake hotbar below
+
                                         int htW = 182, htH = 22;
                                         int htX = (VW - htW) / 2, htY = VH - 24;
                                         g.fill(htX, htY, htX + htW, htY + htH, 0xBB1A1A2A);
                                         g.fill(htX, htY, htX + htW, htY + 1, 0x55FFFFFF);
                                     }
 
-                                    // Mode badge
                                     int bW = f.width("Mode: " + modeLabel) + 8;
                                     g.fill(VW - bW - 6, VH - 28, VW - 6, VH - 14, 0xCC0A0A14);
                                     g.fill(VW - bW - 6, VH - 28, VW - 6, VH - 27, C_ACCENT());
@@ -1241,9 +1110,7 @@ public final class PhantasiaTutorials {
                         TutorialSlide.of("tutorial.phantasia.getting_started.s3.title",
                                 "tutorial.phantasia.getting_started.s3.body")
                                 .mock(mock((g, f, t, tick) -> {
-                                    // WP0 travel=40 (covers reset sweep from Tutorials back to Multiblocks).
-                                    // WP1-3 travel=20. Cycle = (40+60)+(20+60)×3 = 340 ticks.
-                                    // Tab switches at cursor arrival: WP0@40, WP1@120, WP2@200, WP3@280.
+
                                     int c = tick % 340;
                                     int tab = c < 120 ? 0 : c < 200 ? 1 : c < 280 ? 2 : 3;
                                     drawSelectionScreen(g, f, t, tick, tab);
@@ -1262,8 +1129,6 @@ public final class PhantasiaTutorials {
                                 }))
                                 .build()));
     }
-
-    // ── Understanding Guides ──────────────────────────────────────────────────
 
     static TutorialSequence guides() {
         return new TutorialSequence(
@@ -1325,8 +1190,6 @@ public final class PhantasiaTutorials {
                                 .build()));
     }
 
-    // ── Understanding Scripts ─────────────────────────────────────────────────
-
     static TutorialSequence scripts() {
         return new TutorialSequence(
                 "scripts",
@@ -1359,8 +1222,6 @@ public final class PhantasiaTutorials {
                                 .highlight(0.65f, 0.0f, 0.35f, 1.0f, "Right panel")
                                 .build()));
     }
-
-    // ── Understanding Scenes ──────────────────────────────────────────────────
 
     static TutorialSequence scenes() {
         return new TutorialSequence(
@@ -1398,8 +1259,6 @@ public final class PhantasiaTutorials {
                                 .highlight(0.0f, 0.260f, 1.0f, 0.120f, "Mistake banners")
                                 .build()));
     }
-
-    // ── Dev: Creating Guides ──────────────────────────────────────────────────
 
     static TutorialSequence devGuides() {
         return new TutorialSequence(
@@ -1466,17 +1325,7 @@ public final class PhantasiaTutorials {
                                 .build()));
     }
 
-    // ── Dev: Writing Scripts ──────────────────────────────────────────────────
-
     static TutorialSequence devScripts() {
-        // VH=300, BOT_H=64(STEP_H42+TL22), TOP_H=22
-        // Step row: botY=VH-BOT_H=236 → relY=236/300=0.787, relH=42/300=0.140
-        // Row-1 centre: y1=240, button centre y=247 → relY=0.823
-        // Row-2 centre: y2=262, button centre y=269 → relY=0.897
-        // Camera panel: cpY=VH-BOT_H-54-4=178, border at 176 → relY=0.587, H(with border)=58 → 0.193
-        // Capture Cam button: bxc=cpX+4=10, r1Y=cpY+14=192, centre y=199 → relY=0.663
-        // Camera tab in top bar (after 3 mode-tabs+gap+Preview): centre x≈293 → relX≈0.610
-        // Save button (rightmost): x≈430, w≈46, centre x=453 → relX=0.944
         return new TutorialSequence(
                 "dev_scripts",
                 Component.translatable("tutorial.phantasia.dev_scripts.title"),
@@ -1494,7 +1343,7 @@ public final class PhantasiaTutorials {
                                 "tutorial.phantasia.dev_scripts.s1.body")
                                 .mock(mock((g, f, t, tick) -> drawScriptEditor(g, f, t, firstMachineName(),
                                         (tick / 60) % EBF_STEPS.size(), EBF_STEPS, tick)))
-                                // Select tab: x=6, tw≈56, centre x=34→0.071
+
                                 .cursor(0.071f, 0.037f, 20, 60, true)
                                 .cursor(0.500f, 0.430f, 20, 50, true)
                                 .highlight(0.013f, 0.000f, 0.117f, 0.073f, "◈ Select")
@@ -1504,7 +1353,7 @@ public final class PhantasiaTutorials {
                                 "tutorial.phantasia.dev_scripts.s2.body")
                                 .mock(mock((g, f, t, tick) -> drawScriptEditor(g, f, t, firstMachineName(),
                                         (tick / 60) % EBF_STEPS.size(), EBF_STEPS, tick)))
-                                // Annotate tab: after Select (tw≈56+4=60 gap) → x=66, tw≈72, centre x=102→0.213
+
                                 .cursor(0.213f, 0.037f, 20, 60, true)
                                 .cursor(0.500f, 0.350f, 20, 50, true)
                                 .highlight(0.138f, 0.000f, 0.150f, 0.073f, "⚠ Annotate")
@@ -1514,7 +1363,7 @@ public final class PhantasiaTutorials {
                                 "tutorial.phantasia.dev_scripts.s3.body")
                                 .mock(mock((g, f, t, tick) -> drawScriptEditor(g, f, t, firstMachineName(),
                                         (tick / 60) % EBF_STEPS.size(), EBF_STEPS, tick)))
-                                // Preview button: after 3 mode-tabs+gap → x≈200, pvW≈59, centre x=229→0.477
+
                                 .cursor(0.477f, 0.037f, 20, 60, true)
                                 .highlight(0.417f, 0.000f, 0.123f, 0.073f, "► Preview")
                                 .build(),
@@ -1523,9 +1372,9 @@ public final class PhantasiaTutorials {
                                 "tutorial.phantasia.dev_scripts.s4.body")
                                 .mock(mock((g, f, t, tick) -> drawScriptEditor(g, f, t, firstMachineName(),
                                         (tick / 60) % EBF_STEPS.size(), EBF_STEPS, tick)))
-                                // cursor clicks the + button (first nav button after step label)
+
                                 .cursor(0.094f, 0.823f, 25, 50, true)
-                                // then drifts to caption field
+
                                 .cursor(0.50f, 0.823f, 20, 50, false)
                                 .highlight(0.0f, 0.787f, 1.0f, 0.140f, "Step row")
                                 .build(),
@@ -1536,9 +1385,7 @@ public final class PhantasiaTutorials {
                                     int s = (tick / 80) % EBF_STEPS.size();
                                     drawScriptEditor(g, f, t, firstMachineName(), s, EBF_STEPS, tick);
                                 }))
-                                // cursor clicks the show-mode tabs in row 2
-                                // "All" centre: bx4=38,sw=22→x=49→0.102; "Layer" sw=39→x=83→0.173; "Range"
-                                // sw=40→x=127→0.265
+
                                 .cursor(0.102f, 0.897f, 20, 50, true)
                                 .cursor(0.173f, 0.897f, 15, 40, true)
                                 .cursor(0.265f, 0.897f, 15, 40, true)
@@ -1549,10 +1396,9 @@ public final class PhantasiaTutorials {
                                 "tutorial.phantasia.dev_scripts.s6.body")
                                 .mock(mock((g, f, t, tick) -> drawScriptEditor(g, f, t, firstMachineName(),
                                         (tick / 70) % EBF_STEPS.size(), EBF_STEPS, tick, true)))
-                                // cursor clicks Camera button in top bar (after 3 mode-tabs+gap+Preview → centre≈0.610)
+
                                 .cursor(0.610f, 0.037f, 20, 60, true)
-                                // then moves into the camera panel (📷 Capture Cam button: bxc=10, r1Y=192, centre
-                                // y=0.663)
+
                                 .cursor(0.110f, 0.663f, 20, 50, true)
                                 .highlight(0.0f, 0.587f, 1.0f, 0.193f, "Camera panel")
                                 .build(),
@@ -1563,10 +1409,9 @@ public final class PhantasiaTutorials {
                                     int s = (tick / 70) % EBF_STEPS.size();
                                     drawScriptEditor(g, f, t, firstMachineName(), s, EBF_STEPS, tick);
                                 }))
-                                // ◦ World button: after ◈ Select(tw≈56+4) + ⚠ Annotate(tw≈72+4) = x=142, tw≈50,
-                                // centre=167→0.348
+
                                 .cursor(0.348f, 0.037f, 20, 60, true)
-                                // then clicks into the viewport centre
+
                                 .cursor(0.50f, 0.43f, 20, 50, true)
                                 .highlight(0.296f, 0.000f, 0.104f, 0.073f, "◦ World")
                                 .build(),
@@ -1579,26 +1424,13 @@ public final class PhantasiaTutorials {
                                     int step = (tick / 40) % EBF_STEPS.size();
                                     drawScriptEditor(g, f, t, firstMachineName(), step, EBF_STEPS, tick);
                                 }))
-                                // Save is rightmost button: x≈430, w≈46, centre x=453→0.944
+
                                 .cursor(0.944f, 0.037f, 20, 50, true)
                                 .highlight(0.896f, 0.010f, 0.096f, 0.053f, "💾 Save")
                                 .build()));
     }
 
-    // ── Dev: Writing Scenes ───────────────────────────────────────────────────
-
     static TutorialSequence devScenes() {
-        // Scene editor: TOP_H=22, STEP_H=50, TL_H=22, BOT_H=72, PNL_W=220
-        // Step row: rowY=VH-BOT_H=228 → relY=0.760, relH=50/300=0.167
-        // Row-1 centre: y1=232, button centre y=239 → relY=0.797
-        // Row-2 centre: y2=258, button centre y=265 → relY=0.883
-        // Camera panel (showPlacements=false, vpX=0): cpY2=300-72-54-4=170, border at 168 → relY=0.560, H(with
-        // border)=58 → 0.193
-        // Placements panel: x=0..220, y=TOP_H..rowY=22..228 → relX 0..0.458, relH=(228-22)/300=0.687
-        // addBtnY=TOP_H+50+3*28+4=160, centre y=167 → relY=0.557
-        // Top bar: Placements(x=6,ppW≈80) centre≈46/480=0.096
-        // Camera(hardcoded w=76, after Placements+Preview≈153) centre≈191/480=0.394
-        // Save(left of Back): x≈380, w≈46, centre x=403 → relX=0.840
         List<String> sceneSteps = List.of(
                 "Place outer casing",
                 "Add heating coils",
@@ -1628,11 +1460,11 @@ public final class PhantasiaTutorials {
                                         drawSelectionScreen(g, f, t, tick, 1);
                                     }
                                 }))
-                                // cursor clicks + New Scene card (slot 0: col=0,row=0 → gridX centre)
+
                                 .cursor(0.267f, 0.417f, 20, 60, true)
-                                // cursor clicks Placements button in editor
+
                                 .cursor(0.096f, 0.037f, 20, 60, true)
-                                // cursor clicks + Add Machine
+
                                 .cursor(0.229f, 0.557f, 20, 50, true)
                                 .highlight(0.0f, 0.073f, 0.458f, 0.687f, "Placements panel")
                                 .build(),
@@ -1643,9 +1475,9 @@ public final class PhantasiaTutorials {
                                     int s = (tick / 80) % sceneSteps.size();
                                     drawSceneEditor(g, f, t, "Processing Line", true, false, s, sceneSteps, tick);
                                 }))
-                                // cursor clicks step + button (y1=232, centre y=239→0.797)
+
                                 .cursor(0.094f, 0.797f, 25, 50, true)
-                                // then clicks a machine visibility toggle in row 2 (y2=258, centre y=265→0.883)
+
                                 .cursor(0.200f, 0.883f, 15, 50, true)
                                 .highlight(0.0f, 0.760f, 1.0f, 0.167f, "Step row + visibility toggles")
                                 .build(),
@@ -1655,9 +1487,9 @@ public final class PhantasiaTutorials {
                                 .mock(mock((g, f, t, tick) -> drawSceneEditor(g, f, t,
                                         "Processing Line", false, true, (tick / 70) % sceneSteps.size(),
                                         sceneSteps, tick)))
-                                // cursor clicks Camera button in top bar (hardcoded w=76, centre≈0.394)
+
                                 .cursor(0.394f, 0.037f, 20, 60, true)
-                                // then clicks Save (left of Back: x≈380, w≈46, centre≈0.840)
+
                                 .cursor(0.840f, 0.037f, 20, 50, true)
                                 .highlight(0.0f, 0.560f, 1.0f, 0.193f, "Camera panel")
                                 .highlight(0.792f, 0.010f, 0.096f, 0.053f, "💾 Save")

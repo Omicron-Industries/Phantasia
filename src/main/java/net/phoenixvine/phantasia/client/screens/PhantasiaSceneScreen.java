@@ -56,21 +56,10 @@ import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
 @OnlyIn(Dist.CLIENT)
 public class PhantasiaSceneScreen extends Screen {
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Shared dummy world
-    // ─────────────────────────────────────────────────────────────────────────
-
     public static PhantasiaTrackedDummyWorld SHARED_LEVEL;
-    /**
-     * Persists the machine working state across screen instances (e.g. opening
-     * the script editor subscreen creates a new PhantasiaSceneScreen instance on
-     * return). Stored statically alongside SHARED_LEVEL so the VBO is always
-     * restored to the correct active state without recalculating from playbackTick,
-     * which would be 0 on a fresh instance and produce the wrong result.
-     * Only reset when the scene screen itself is fully closed via onClose().
-     */
+
     private static boolean machineWorking = false;
-    private static final int REGION_SIZE = 512; // retained for any external references
+    private static final int REGION_SIZE = 512;
 
     public static void invalidateSharedLevel() {
         if (SHARED_LEVEL != null) {
@@ -88,10 +77,6 @@ public class PhantasiaSceneScreen extends Screen {
         return BlockPos.ZERO;
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Layout constants
-    // ─────────────────────────────────────────────────────────────────────────
-
     private static final int FULL_PANEL_W = 168;
     private static final int COLLAPSED_PANEL_W = 18;
     private static final int TIMELINE_H = 26;
@@ -100,7 +85,6 @@ public class PhantasiaSceneScreen extends Screen {
     private final java.util.Map<net.minecraft.core.BlockPos, PhantasiaVariantGroup> positionToVariantGroupCache = new java.util.HashMap<>();
     private boolean cacheInitialized = false;
 
-    // Set to true to emit periodic screen render timing reports to the log.
     private static final boolean ENABLE_PROFILER = true;
 
     private static final long SCREEN_PROFILE_WINDOW_NS = 5_000_000_000L;
@@ -110,10 +94,6 @@ public class PhantasiaSceneScreen extends Screen {
     private long maxScreenSpikeNs = 0;
     private long totalVariantLookupTimeNs = 0;
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Camera defaults
-    // ─────────────────────────────────────────────────────────────────────────
-
     private static final float CAM_TARGET_Y_BIAS = 0.0f;
     private static final float CAM_DEFAULT_PITCH = 5.0f;
     private static final float CAM_DEFAULT_ZOOM = 40.0f;
@@ -122,49 +102,28 @@ public class PhantasiaSceneScreen extends Screen {
     private static final float CAM_ZOOM_MIN = 2.0f;
     private static final float CAM_ZOOM_MAX = 300.0f;
     private static final float CAM_ORBIT_SENSITIVITY = 0.5f;
-    // Pan speed scales with current zoom so one drag gesture always feels the same
-    // regardless of structure size. 0.0005 × zoom=40 = 0.02, matching the old fixed value.
-    public static final float CAM_PAN_ZOOM_SCALE = 0.0005f;
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Core state
-    // ─────────────────────────────────────────────────────────────────────────
+    public static final float CAM_PAN_ZOOM_SCALE = 0.0005f;
 
     private final Screen parent;
     public final IPhantasiaMultiblockDefinition definition;
     public PhantasiaScript script;
 
-    // ── API event timing ──────────────────────────────────────────────────────
-    /** System.currentTimeMillis() when the screen was first opened (not on sub-screen returns). */
     private long openedAtMs = -1;
 
     private PhantasiaLoadedPattern pattern;
-    /** Largest axis of the current pattern in blocks; drives zoom-max and pan-speed scaling. */
+
     private float patternMaxDim = 0f;
 
-    /** Non-null while a cold pattern load is in progress on a background thread. */
     private PhantasiaPatternLoader asyncLoader;
 
-    /**
-     * Our custom renderer. Created once on first init(), survives re-inits
-     * (window resize, sub-screen returns) so VBOs are preserved.
-     * Explicitly closed in onClose() and on shape changes.
-     */
     public PhantasiaWorldRenderer renderer;
 
     private int shapeIndex = 0;
     public List<IPhantasiaMultiblockShape> availableShapes = new ArrayList<>();
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Camera
-    // ─────────────────────────────────────────────────────────────────────────
-
     private PhantasiaCamera camera;
     private boolean isPanning = false;
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // Playback
-    // ─────────────────────────────────────────────────────────────────────────
 
     private boolean playing = PhantasiaConfigs.INSTANCE == null ||
             PhantasiaConfigs.INSTANCE.phantasiaUI.autoPlayScripts;
@@ -180,10 +139,6 @@ public class PhantasiaSceneScreen extends Screen {
     public int getPlaybackTick() {
         return this.playbackTick;
     }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // View / filter
-    // ─────────────────────────────────────────────────────────────────────────
 
     public enum ViewFilter {
         ALL,
@@ -202,28 +157,16 @@ public class PhantasiaSceneScreen extends Screen {
     private Set<BlockPos> filteredHasBE = null;
     private Set<BlockPos> filteredController = null;
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Build-order mode
-    // ─────────────────────────────────────────────────────────────────────────
-
     private boolean buildOrderMode = false;
     private int buildOrderGroup = 0;
     private float buildPulse = 0f;
     private int savedManualLayer = -1;
     private boolean buildPulseUp = true;
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Caption
-    // ─────────────────────────────────────────────────────────────────────────
-
     private float captionAlpha = 0f;
     private String captionCurrent = null;
     private String captionOutgoing = null;
     private float captionOutAlpha = 0f;
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // UI
-    // ─────────────────────────────────────────────────────────────────────────
 
     private final List<PhantasiaUIUtils.ButtonAction> activeButtons = new ArrayList<>();
     private boolean sidePanelCollapsed = false;
@@ -231,10 +174,6 @@ public class PhantasiaSceneScreen extends Screen {
 
     public boolean showMistakes = false;
     public int selectedTierIndex = -1;
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // Constructor
-    // ─────────────────────────────────────────────────────────────────────────
 
     public PhantasiaSceneScreen(IPhantasiaMultiblockDefinition definition, Screen parent) {
         super(Component.literal(definition.getDisplayName()));
@@ -252,17 +191,13 @@ public class PhantasiaSceneScreen extends Screen {
         }
         this.lastAppliedStep = null;
         this.playbackTick = 0;
-        // Reset machine working state so blocks are restored to inactive appearance.
+
         machineWorking = false;
         applyActiveStateToWorld(false);
         applyVisibility();
     }
 
     private List<PhantasiaBlockInfo> coilTiers = new ArrayList<>();
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // Camera helpers
-    // ─────────────────────────────────────────────────────────────────────────
 
     private PhantasiaCamera buildFreshCamera() {
         float[] yp = resolveStartingYawPitch();
@@ -274,7 +209,7 @@ public class PhantasiaSceneScreen extends Screen {
         if (PhantasiaConfigs.INSTANCE != null) {
             boolean follow = PhantasiaConfigs.INSTANCE.phantasiaUI.scriptLockCamera;
             cam.setLocked(follow);
-            if (!follow) cam.setPlayerOwned(true); // scripts never move camera when config is OFF
+            if (!follow) cam.setPlayerOwned(true);
         }
         return cam;
     }
@@ -314,9 +249,7 @@ public class PhantasiaSceneScreen extends Screen {
             if (s0.hasCamera() && s0.zoom() > 0) return s0.zoom();
         }
         if (pattern == null) return CAM_DEFAULT_ZOOM;
-        // Compute the bounding box of THIS pattern only — do NOT use
-        // SHARED_LEVEL.getSize(), which spans every region ever added to the
-        // shared world and grows without bound as the player switches shapes.
+
         int sxLen = 0, syLen = 0, szLen = 0;
         for (BlockPos lp : pattern.localToWorld.keySet()) {
             sxLen = Math.max(sxLen, lp.getX() + 1);
@@ -330,9 +263,7 @@ public class PhantasiaSceneScreen extends Screen {
     private float[] resolveTarget() {
         if (pattern == null) return new float[] { 0, 0, 0 };
         float cx, cy, cz;
-        // Compute the centroid from this pattern's own world positions only.
-        // SHARED_LEVEL.getMinPos()/getMaxPos() spans ALL ever-added regions
-        // and drifts far from the current pattern after structure-size switches.
+
         int wxMin = Integer.MAX_VALUE, wxMax = Integer.MIN_VALUE;
         int wzMin = Integer.MAX_VALUE, wzMax = Integer.MIN_VALUE;
         for (BlockPos wp : pattern.blockMap.keySet()) {
@@ -378,20 +309,10 @@ public class PhantasiaSceneScreen extends Screen {
         return -135f;
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // ─────────────────────────────────────────────────────────────────────────
-    // Async pattern loading
-    // ─────────────────────────────────────────────────────────────────────────
-
-    /** Called on the render thread when the async cold-load completes. */
     private void onAsyncPatternLoaded(PhantasiaLoadedPattern p) {
         asyncLoader = null;
         this.pattern = p;
 
-        // Write all blocks to the shared world HERE on the render thread.
-        // The loader deliberately skipped addBlock() to avoid ConcurrentModificationException
-        // in TrackedDummyWorld.tickWorld() (which the render thread iterates every frame).
-        // Use addBlocks() to preserve the full PhantasiaBlockInfo (model overrides, etc.), not just state.
         SHARED_LEVEL.renderedBlocks.clear();
         SHARED_LEVEL.blockEntities.clear();
         SHARED_LEVEL.addBlocks(p.blockMap);
@@ -406,7 +327,6 @@ public class PhantasiaSceneScreen extends Screen {
             }
         }
 
-        // Fire any post-world-write task (e.g. onShapeLoaded for GTM structure forming).
         if (p.postWriteTask != null) {
             try {
                 p.postWriteTask.run();
@@ -419,18 +339,11 @@ public class PhantasiaSceneScreen extends Screen {
         finishPatternSetup(p);
     }
 
-    /**
-     * Completes all pattern-dependent setup after the pattern is available.
-     * Called immediately for warm loads (in init()) and from the async callback
-     * for cold loads.
-     */
     private float camZoomMax() {
-        // Allow zooming out to ~3× the starting distance so large structures stay navigable.
         return Math.max(CAM_ZOOM_MAX, patternMaxDim * 9.0f);
     }
 
     private void finishPatternSetup(PhantasiaLoadedPattern p) {
-        // Cache maxDim for zoom-max and pan-speed scaling.
         int sx = 0, sy = 0, sz = 0;
         for (BlockPos lp : p.localToWorld.keySet()) {
             sx = Math.max(sx, lp.getX() + 1);
@@ -447,8 +360,7 @@ public class PhantasiaSceneScreen extends Screen {
         vs.setOnChangeCallback(() -> {
             if (renderer == null || pattern == null) return;
             this.cacheInitialized = false;
-            // Sync active state into renderedBlocks before the bake thread reads them,
-            // so variant blocks get the correct active property without a race.
+
             applyActiveStateToWorld(machineWorking);
             Set<BlockPos> variantPositions = buildVariantWorldPositions(vs);
             if (variantPositions.isEmpty()) renderer.requestBake();
@@ -468,9 +380,6 @@ public class PhantasiaSceneScreen extends Screen {
         applyVisibility();
         ensureVariantCachePopulated();
     }
-
-    // Pattern loading (Fully Fake World Schema approach)
-    // ─────────────────────────────────────────────────────────────────────────
 
     private PhantasiaLoadedPattern loadPattern(IPhantasiaMultiblockShape shape) {
         BlockPos renderOrigin = new BlockPos(8, 50, 8);
@@ -519,7 +428,7 @@ public class PhantasiaSceneScreen extends Screen {
         Set<BlockPos> bePos = new HashSet<>();
         BlockPos controllerWP = null;
 
-        var _baseplateState0 = net.phoenixvine.phantasia.utils.PhantasiaTheme.currentBaseplateBlockState();
+        var _baseplateState0 = net.phoenixvine.phantasia.utils.PhantasiaBaseplateConfig.currentBaseplateBlockState();
         PhantasiaBlockInfo floor = _baseplateState0 != null ? PhantasiaBlockInfo.fromBlockState(_baseplateState0) :
                 null;
         int sxLen = raw.length;
@@ -542,7 +451,7 @@ public class PhantasiaSceneScreen extends Screen {
                     if (info == null) continue;
 
                     BlockState state = info.getBlockState();
-                    if (state.isAir()) continue; // skip "any"/air placeholder positions
+                    if (state.isAir()) continue;
 
                     BlockPos lp = new BlockPos(x, y, z);
                     BlockPos wp = renderOrigin.offset(x, y, z);
@@ -573,12 +482,6 @@ public class PhantasiaSceneScreen extends Screen {
         return result;
     }
 
-    /**
-     * Re-fires {@link IPhantasiaMultiblockDefinition#onShapeLoaded} on the current
-     * SHARED_LEVEL using the latest script data. Call this after any change to the
-     * script that affects item/block placement (e.g. {@code recipeId} changed).
-     * No-op if the pattern hasn't loaded yet.
-     */
     public void refireShapeLoaded() {
         if (pattern == null || SHARED_LEVEL == null) return;
         PhantasiaScriptData scriptData = script != null ? script.getSourceData() : null;
@@ -615,10 +518,6 @@ public class PhantasiaSceneScreen extends Screen {
                 controllerWP, bePos, origin, minY, maxY, script);
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Visibility
-    // ─────────────────────────────────────────────────────────────────────────
-
     public void applyVisibility() {
         if (renderer == null || pattern == null || SHARED_LEVEL == null) return;
         PhantasiaScript.Step step = script.getActiveStep(playbackTick);
@@ -628,29 +527,22 @@ public class PhantasiaSceneScreen extends Screen {
             if (isBlockVisible(e.getKey(), e.getValue(), step))
                 next.add(e.getValue());
         }
-        // Do NOT call applyActiveStateToWorld here — running applyWorkingState over every
-        // block position on every step change is expensive for large AE2/TFC scenes.
-        // Working state is synced by updateMachineState() (called right after this in tick())
-        // and by finishPatternSetup() on initial load.
+
         renderer.setVisible(next);
         renderer.requestBake();
     }
 
     public boolean isBlockVisible(BlockPos local, BlockPos world, PhantasiaScript.Step step) {
-        // ViewFilter always takes priority — it is an explicit "show only X" selection.
         if (viewFilter != ViewFilter.ALL) {
             Set<BlockPos> fs = getFilterSet(viewFilter);
             return fs == null || fs.contains(world);
         }
-        // Build-order mode is checked BEFORE manualLayer: build mode drives its own
-        // layer visibility and must never be overridden by whatever layer was set in
-        // the normal view. When build mode is active, manualLayer is ignored entirely.
+
         if (buildOrderMode) {
             int g = pattern.getGroupIndex(local);
             return g != -1 && g <= buildOrderGroup;
         }
-        // Manual layer filter (◀/▶ buttons in normal view).
-        // manualLayer is in local (pattern-space) Y — same coordinate space as local.getY().
+
         if (manualLayer >= 0) return local.getY() == manualLayer;
         if (step != null) return step.filter().test(local);
         return true;
@@ -661,10 +553,6 @@ public class PhantasiaSceneScreen extends Screen {
         viewFilter = vf;
         applyVisibility();
     }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // Filter sets (lazy build)
-    // ─────────────────────────────────────────────────────────────────────────
 
     public boolean computeHasRealSizeVariants() {
         if (availableShapes == null || availableShapes.size() <= 1) return false;
@@ -707,10 +595,6 @@ public class PhantasiaSceneScreen extends Screen {
         }
     }
 
-    /**
-     * Nulls all filter-set caches so the next getFilterSet() call rebuilds them
-     * against the current pattern. Must be called whenever pattern changes.
-     */
     private void invalidateFilterSets() {
         filteredHatchBus = null;
         filteredEnergyIO = null;
@@ -733,12 +617,10 @@ public class PhantasiaSceneScreen extends Screen {
     protected void init() {
         super.init();
 
-        // Invalidate our high-performance zero-allocation cache on screen re-initialization
         this.cacheInitialized = false;
         org.slf4j.LoggerFactory.getLogger("PhantasiaScreenCache")
                 .info("[Phantasia] Screen init triggered: Invalidating variant lookup cache maps.");
 
-        // Fire open event once per fresh open (not on sub-screen returns)
         if (openedAtMs < 0) {
             openedAtMs = System.currentTimeMillis();
             net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(
@@ -752,7 +634,6 @@ public class PhantasiaSceneScreen extends Screen {
             }
             SHARED_LEVEL = new PhantasiaTrackedDummyWorld();
 
-            // Particle management is handled by PhantasiaParticleEngine.
         }
 
         availableShapes = definition.getMatchingShapes();
@@ -764,13 +645,12 @@ public class PhantasiaSceneScreen extends Screen {
             if (shapeIndex >= availableShapes.size()) shapeIndex = 0;
             pattern = loadPattern(availableShapes.get(shapeIndex));
             if (pattern != null) {
-                // Warm load: pattern is ready immediately, finish setup now.
+
                 finishPatternSetup(pattern);
             }
-            // Cold load: pattern is null here; setup deferred to onAsyncPatternLoaded.
+
         }
 
-        // ── Renderer ──────────────────────────────────────────────────────────
         if (renderer == null) {
             renderer = new PhantasiaWorldRenderer(SHARED_LEVEL);
         }
@@ -787,11 +667,9 @@ public class PhantasiaSceneScreen extends Screen {
             renderer.requestBake();
         }
 
-        // Initialise the isolated particle engine for this scene.
         net.phoenixvine.phantasia.client.render.PhantasiaParticleEngine.init();
         SHARED_LEVEL.clearSceneEntities();
 
-        // ── Camera ────────────────────────────────────────────────────────────
         if (camera == null) {
             camera = buildFreshCamera();
         } else if (camera.hasSavedSnapshot()) {
@@ -800,13 +678,11 @@ public class PhantasiaSceneScreen extends Screen {
             resetCameraToDefault(LerpType.SNAP, 0);
         }
 
-        // ── Synchronize Layer Visibility ──────────────────────────────────────
         if (pattern != null) {
             applyVisibility();
 
         }
 
-        // Trigger an immediate proactive populate step on startup to verify cache alignment
         ensureVariantCachePopulated();
         org.slf4j.LoggerFactory.getLogger("PhantasiaScreenCache").info(String.format(
                 "[Phantasia] Cache initialization finalized successfully. Pre-cached %d variant blocks for O(1) rendering lookups.",
@@ -842,12 +718,10 @@ public class PhantasiaSceneScreen extends Screen {
             }
         }
 
-        // animateTick is now handled by PhantasiaWorldRenderer (capped at ANIMATE_TICK_BUDGET/tick).
         if (SHARED_LEVEL != null && renderer != null && !scrubbing && pattern != null) {
             definition.onSceneTick(SHARED_LEVEL, pattern.localToWorld, sceneTick++);
         }
 
-        // Emit script-defined particle effects for the active step.
         if (SHARED_LEVEL != null && !scrubbing && playing && script != null) {
             PhantasiaScript.Step step = script.getActiveStep(playbackTick);
             if (step != null && !step.particleEffects().isEmpty()) {
@@ -862,8 +736,7 @@ public class PhantasiaSceneScreen extends Screen {
         }
 
         if (!playing || scrubbing || buildOrderMode || script == null || viewFilter != ViewFilter.ALL) return;
-        // Hold playback until the initial bake is fully uploaded so the script
-        // doesn't advance before the multiblock is visible.
+
         if (renderer != null && !renderer.isSceneReady()) {
             tickAccum = 0f;
             return;
@@ -882,7 +755,6 @@ public class PhantasiaSceneScreen extends Screen {
 
         PhantasiaScript.Step step = script.getActiveStep(playbackTick);
 
-        // If the active step has a hold id, ask the definition whether to pin.
         if (step != null && step.hold() != null && SHARED_LEVEL != null && pattern != null) {
             if (definition.shouldHoldStep(SHARED_LEVEL, pattern.localToWorld, step.hold(), sceneTick)) {
                 playbackTick = step.tickOffset();
@@ -917,11 +789,9 @@ public class PhantasiaSceneScreen extends Screen {
                 sceneTick = 0;
                 invalidateFilterSets();
                 init();
-                return; // init() already calls applyVisibility
+                return;
             }
 
-            // Expandable multiblock: layerCount in a step switches to the shape that
-            // matches that layer count, triggering a full rebake.
             if (step != null && step.layerCount() != -1 && definition != null && script != null &&
                     script.getSourceData().isExpandable() && availableShapes != null) {
                 int targetIdx = definition.getShapeIndexForLayerCount(step.layerCount());
@@ -962,12 +832,6 @@ public class PhantasiaSceneScreen extends Screen {
         }
     }
 
-    /**
-     * Applies {@link PhantasiaScriptData.WorldItemEntry} placements for the active step.
-     * Resolves local coords to world coords via the loaded pattern, then places the item
-     * on any {@link net.minecraft.world.Container} BE, or sets source on a SourceJarTile.
-     * No-op if the step has no world-item entries.
-     */
     private void applyWorldItems(PhantasiaScript.Step step) {
         if (step == null || SHARED_LEVEL == null || pattern == null) return;
         var entries = step.worldItems();
@@ -983,7 +847,6 @@ public class PhantasiaSceneScreen extends Screen {
             if (be == null) continue;
             if (be.getLevel() == null) be.setLevel(SHARED_LEVEL);
 
-            // Source jar — set source amount
             if (e.sourceAmount >= 0) {
                 try {
                     if (be instanceof com.hollingsworth.arsnouveau.common.block.tile.SourceJarTile jar) {
@@ -994,7 +857,6 @@ public class PhantasiaSceneScreen extends Screen {
                 } catch (Exception ignored) {}
             }
 
-            // Item slot — set on any Container BE, or via IItemHandler capability (GT hatches, etc.)
             if (e.item != null && !e.item.isBlank()) {
                 try {
                     net.minecraft.resources.ResourceLocation rl = new net.minecraft.resources.ResourceLocation(e.item);
@@ -1060,14 +922,6 @@ public class PhantasiaSceneScreen extends Screen {
         }
     }
 
-    /**
-     * Writes the ACTIVE block state property to the controller AND all coil blocks
-     * in SHARED_LEVEL. Called whenever the working state changes or when coil types
-     * are swapped, so the VBO always rebakes with the correct active states.
-     *
-     * GT's internal notifyBlockEntityChanged → sendBlockUpdated chain is a no-op in
-     * TrackedDummyWorld, so we must write to SHARED_LEVEL explicitly.
-     */
     public void applyActiveStateToWorld(boolean working) {
         if (SHARED_LEVEL == null || pattern == null) return;
         definition.applyWorkingState(SHARED_LEVEL, pattern.blockMap.keySet(), pattern.blockMap, working);
@@ -1086,11 +940,6 @@ public class PhantasiaSceneScreen extends Screen {
         if (renderer != null) renderer.requestBake();
     }
 
-    /**
-     * Scans the pattern blockMap for the first CoilBlock and returns its index
-     * in coilTiers, so coilIndex stays in sync with what's actually displayed.
-     * Returns 0 (lowest tier) if no match found.
-     */
     private int detectCoilIndex(PhantasiaLoadedPattern pat) {
         if (pat == null || coilTiers.isEmpty()) return 0;
         for (PhantasiaBlockInfo info : pat.blockMap.values()) {
@@ -1101,10 +950,6 @@ public class PhantasiaSceneScreen extends Screen {
         }
         return 0;
     }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // render()
-    // ─────────────────────────────────────────────────────────────────────────
 
     private void ensureVariantCachePopulated() {
         if (cacheInitialized || script == null) return;
@@ -1129,7 +974,6 @@ public class PhantasiaSceneScreen extends Screen {
         double maxScreenSpike = maxScreenSpikeNs / toMs;
         double avgLookupTime = (totalVariantLookupTimeNs / (double) screenProfiledFramesCount) / toMs;
 
-        // Using standard logger matching your renderer structure
         net.minecraft.client.Minecraft.getInstance().getReportingContext();
         org.slf4j.LoggerFactory.getLogger("PhantasiaScreenProfiler").info(String.format(
                 "\n======= [PHANTASIA UI SCREEN PROFILER] =======\n" +
@@ -1142,7 +986,6 @@ public class PhantasiaSceneScreen extends Screen {
                 screenProfiledFramesCount, avgScreenTotal, maxScreenSpike, avgLookupTime,
                 positionToVariantGroupCache.size()));
 
-        // Reset trackers cleanly
         screenProfileWindowStart = System.nanoTime();
         screenProfiledFramesCount = 0;
         totalScreenRenderTimeNs = 0;
@@ -1172,12 +1015,10 @@ public class PhantasiaSceneScreen extends Screen {
         activeButtons.clear();
         ensureVariantCachePopulated();
 
-        // ── FIX EMBEDDIUM CONTROLLER SHADER ANIMATION FREEZE ──
         if (Minecraft.getInstance().level != null) {
             long gameTime = Minecraft.getInstance().level.getGameTime();
             RenderSystem.setShaderGameTime(gameTime, partial);
         }
-        // ──────────────────────────────────────────────────────
 
         int pw = getCurrentPanelWidth();
         int sw = this.width - pw;
@@ -1188,7 +1029,6 @@ public class PhantasiaSceneScreen extends Screen {
         if (renderer != null && camera != null) {
             CameraView view = camera.getView(partial);
 
-            // ── FIX: Apply viewport offset context to mouse coords handed down to the FBO color-pick pass ──
             renderer.setMousePos(mx, my);
             renderer.render(view, 0, CAPTION_STRIP_H, sw, sh);
 
@@ -1196,7 +1036,6 @@ public class PhantasiaSceneScreen extends Screen {
             if (hit != null && hit.getType() == HitResult.Type.BLOCK) {
                 BlockPos hp = hit.getBlockPos();
 
-                // ── FIX: Ensure baseplate blocks are recognized as valid elements to hover over ──
                 boolean isBaseplate = pattern != null && pattern.baseplatePositions.contains(hp);
                 hoveredPos = (renderer.isVisible(hp) || isBaseplate) ? hp : null;
             } else {
@@ -1226,7 +1065,7 @@ public class PhantasiaSceneScreen extends Screen {
             try {
                 BlockState st = null;
                 if (script != null) {
-                    // Fully flattened O(1) cache lookup—completely bypassing nested iterator loop allocation!
+
                     var group = positionToVariantGroupCache.get(hoveredPos);
                     if (group != null) {
                         int activeSel = PhantasiaVariantState.get()
@@ -1237,7 +1076,6 @@ public class PhantasiaSceneScreen extends Screen {
                     }
                 }
 
-                // Fallback to the base level state if it's not a variant block
                 if (st == null) {
                     st = SHARED_LEVEL.getBlockState(hoveredPos);
                 }
@@ -1252,7 +1090,6 @@ public class PhantasiaSceneScreen extends Screen {
             }
         }
 
-        // ── Async cold-load overlay ────────────────────────────────────────────
         if (asyncLoader != null && !asyncLoader.isDone()) {
             g.fill(0, 0, this.width, this.height, 0xCC000000);
             int cx = this.width / 2, cy = this.height / 2;
@@ -1282,22 +1119,11 @@ public class PhantasiaSceneScreen extends Screen {
         }
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Timeline
-    // ─────────────────────────────────────────────────────────────────────────
-
-    // ── Script item panel ─────────────────────────────────────────────────────
-
     private static final int SIP_W = 186;
     private static final int SIP_ROW = 38;
     private static final int SIP_ICON = 28;
     private static final int SIP_HOV = 36;
 
-    /**
-     * Renders the GuideME-style item panel for the current script step.
-     * Docked to the right, above the timeline. Only shown when the active
-     * step has items and {@code showItems == true}.
-     */
     private void renderScriptItemPanel(GuiGraphics g, int mx, int my) {
         if (script == null) return;
         PhantasiaScriptData sd = script.getSourceData();
@@ -1317,14 +1143,13 @@ public class PhantasiaSceneScreen extends Screen {
         int maxScroll = Math.max(0, totalH - panelH);
         sipScrollOffset = Mth.clamp(sipScrollOffset, 0, maxScroll);
 
-        // Clamp so it doesn't go off-screen on narrow displays
         if (panelX < 4) panelX = 4;
 
         g.fill(panelX, panelY, panelX + SIP_W, panelY + panelH, 0xDD070712);
         g.fill(panelX, panelY, panelX + SIP_W, panelY + 1, C_ACCENT());
         g.fill(panelX, panelY, panelX + 1, panelY + panelH, 0x554FC3F7);
         if (maxScroll > 0) {
-            // Scroll bar
+
             int sbH = Math.max(12, panelH * panelH / totalH);
             int sbY = panelY + (int) ((panelH - sbH) * (sipScrollOffset / (float) maxScroll));
             g.fill(panelX + SIP_W - 3, panelY, panelX + SIP_W - 1, panelY + panelH, 0x33FFFFFF);
@@ -1338,12 +1163,10 @@ public class PhantasiaSceneScreen extends Screen {
                     isOver(mx, my, panelX + 2, ry, SIP_W - 4, SIP_ROW - 1);
             int ac = it.accentColor();
 
-            // Row bg
             g.fill(panelX + 2, ry, panelX + SIP_W - 2, ry + SIP_ROW - 1,
                     hov ? 0xBB0D1A2D : 0x22000000);
             g.fill(panelX + 2, ry, panelX + 3, ry + SIP_ROW - 1, ac);
 
-            // Track animation
             float[] anim = computeSipTrackOffset(it, itemAnimTick);
             int alpha = Math.max(0, Math.min(255, (int) (anim[2] * 255)));
             int iconSize = hov ? SIP_HOV : SIP_ICON;
@@ -1364,7 +1187,6 @@ public class PhantasiaSceneScreen extends Screen {
                 g.drawCenteredString(font, "?", iconX + SIP_HOV / 2, iconCY - 4, 0xFFFF5252);
             }
 
-            // Text
             int tx = panelX + 5 + SIP_HOV + 4;
             int tw = SIP_W - (tx - panelX) - 5;
             int ty = ry + 3;
@@ -1393,7 +1215,6 @@ public class PhantasiaSceneScreen extends Screen {
                 }
             }
 
-            // Click hint + button
             boolean hasGuide = it.guideId != null && !it.guideId.isBlank();
             boolean hasScene = it.microsceneId != null && !it.microsceneId.isBlank();
             boolean hasContent = hasGuide || hasScene || (it.description != null && !it.description.isBlank());
@@ -1505,17 +1326,13 @@ public class PhantasiaSceneScreen extends Screen {
         g.drawString(font, formatTicks(playbackTick), tx + tw + 8, barY + 9, C_DIM(), false);
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Caption strip
-    // ─────────────────────────────────────────────────────────────────────────
-
     private void renderCaption(GuiGraphics g) {
         if (captionCurrent == null && captionOutgoing == null) return;
         g.pose().pushPose();
         g.pose().translate(0, 0, 500);
 
         int sw = this.width - getCurrentPanelWidth();
-        int maxW = sw - 24;                                      // horizontal margin each side
+        int maxW = sw - 24;
         int stripY = this.height - TIMELINE_H - CAPTION_STRIP_H;
 
         g.fill(0, stripY, sw, stripY + CAPTION_STRIP_H, 0xDD08080F);
@@ -1533,31 +1350,24 @@ public class PhantasiaSceneScreen extends Screen {
         g.pose().popPose();
     }
 
-    /**
-     * Splits {@code text} into at most 3 lines at word boundaries, appending
-     * "…" to the last line if more text was cut. Lines are drawn centred
-     * horizontally and vertically within the caption strip.
-     */
     private void drawWrappedCenteredCaption(GuiGraphics g, String text,
                                             int sw, int stripY, int maxW, int col) {
-        // font.split respects maxW and splits on whitespace
         var allLines = font.split(net.minecraft.network.chat.Component.literal(text), maxW);
 
         boolean truncated = allLines.size() > 3;
         var lines = truncated ? allLines.subList(0, 3) : allLines;
 
-        int lineH = font.lineHeight + 1;   // 9px per line
+        int lineH = font.lineHeight + 1;
         int totalH = lines.size() * lineH - 1;
         int startY = stripY + (CAPTION_STRIP_H - totalH) / 2;
 
         for (int i = 0; i < lines.size(); i++) {
             net.minecraft.util.FormattedCharSequence line = lines.get(i);
 
-            // On the last displayed line, append "…" if we had to cut
             if (truncated && i == lines.size() - 1) {
                 String truncStr = net.minecraft.network.chat.FormattedText
                         .of(line.toString()).getString();
-                // Trim + append ellipsis so the line still fits maxW
+
                 String withEllipsis = trunc(
                         net.minecraft.network.chat.Component.literal(truncStr)
                                 .getVisualOrderText().toString(),
@@ -1569,9 +1379,6 @@ public class PhantasiaSceneScreen extends Screen {
             }
         }
     }
-    // ─────────────────────────────────────────────────────────────────────────
-    // Build-order banner
-    // ─────────────────────────────────────────────────────────────────────────
 
     private void renderBuildPulseBanner(GuiGraphics g) {
         if (buildOrderGroup >= pattern.buildOrder.size()) return;
@@ -1587,15 +1394,6 @@ public class PhantasiaSceneScreen extends Screen {
                 sceneW / 2, by + 5, col);
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Mistakes overlay
-    // ─────────────────────────────────────────────────────────────────────────
-
-    /**
-     * Per-block mistakes are always visible — no toggle needed, since they're tied to
-     * specific blocks. Scoped to whichever step is currently active, since a mistake
-     * marker is usually only relevant while that part of the build is on screen.
-     */
     private void renderLocalMistakesOverlay(GuiGraphics g) {
         List<PhantasiaScript.LocalWarning> local = script.getCommonMistakes(playbackTick);
         int x = 8, y = TIMELINE_H + 26;
@@ -1612,11 +1410,10 @@ public class PhantasiaSceneScreen extends Screen {
         }
     }
 
-    /** Global (script-wide) mistakes stay behind the "Common Mistakes" toggle button. */
     private void renderGlobalMistakesOverlay(GuiGraphics g) {
         List<String> global = script.getGlobalMistakes();
         int x = 8;
-        // Stack below the local overlay if it's also showing, so the two never overlap.
+
         int y = TIMELINE_H + 26;
         if (script.hasCommonMistakes(playbackTick)) y += script.getCommonMistakes(playbackTick).size() * 12 + 10 + 6;
         int ph = global.size() * 12 + 10;
@@ -1628,10 +1425,6 @@ public class PhantasiaSceneScreen extends Screen {
         }
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Side panel
-    // ─────────────────────────────────────────────────────────────────────────
-
     private void renderSidePanel(GuiGraphics g, int mx, int my) {
         int pw = getCurrentPanelWidth();
         int px = this.width - pw;
@@ -1640,7 +1433,6 @@ public class PhantasiaSceneScreen extends Screen {
         g.fill(px, 0, this.width, this.height, C_PANEL());
         g.fill(px, 0, px + 1, this.height, C_ACCENT());
 
-        // Collapse/Expand button
         int collapseBtnX = this.width - COLLAPSED_PANEL_W;
         String collapseBtnLabel = sidePanelCollapsed ? "▶" : "◀";
         regBtn(g, mx, my, collapseBtnX, 0, COLLAPSED_PANEL_W, 18, collapseBtnLabel, () -> {
@@ -1648,7 +1440,7 @@ public class PhantasiaSceneScreen extends Screen {
         });
 
         int y = 10;
-        if (sidePanelCollapsed) return; // Only show title if not collapsed
+        if (sidePanelCollapsed) return;
 
         g.drawString(font, trunc(definition.getDisplayName(), pw - 20),
                 px + 10, y, C_ACCENT(), false);
@@ -1661,7 +1453,7 @@ public class PhantasiaSceneScreen extends Screen {
         if (hasRealSizeVariants) {
             regBtn(g, mx, my, px + 10, y, pw - 20, 16,
                     "Structure Size: " + (shapeIndex + 1), () -> {
-                        // Advance to the next shape and rebuild the renderer + pattern.
+
                         shapeIndex = (shapeIndex + 1) % availableShapes.size();
                         if (definition != null)
                             PhantasiaVariantState.get().setShapeIndex(definition.getId().toString(), shapeIndex);
@@ -1696,20 +1488,19 @@ public class PhantasiaSceneScreen extends Screen {
 
         y += 8;
 
-        // ── Layer navigation (only shown when NOT in build mode) ──────────────
         if (!buildOrderMode && pattern != null) {
             g.drawString(font, Component.translatable("screen.phantasia.scene.label_layer").getString(), px + 10, y + 4,
                     C_DIM(), false);
             String layerLabel = manualLayer >= 0 ? "Y=" + manualLayer : "All";
-            // ◀ button
+
             regBtn(g, mx, my, px + 10, y + 14, bW, 14, "◀",
                     () -> nudgeLayer(-1));
-            // Layer display (centered)
+
             g.drawCenteredString(font, layerLabel, lX + lW / 2, y + 17, C_ACCENT());
-            // ▶ button
+
             regBtn(g, mx, my, lX + lW + 2, y + 14, bW, 14, "▶",
                     () -> nudgeLayer(1));
-            // Reset to "All" button
+
             if (manualLayer >= 0) {
                 regBtn(g, mx, my, px + 10, y + 31, pw - 20, 12, "Show All Layers",
                         () -> {
@@ -1722,7 +1513,6 @@ public class PhantasiaSceneScreen extends Screen {
             }
         }
 
-        // ── Build-order step buttons (only shown when IN build mode) ──────────
         if (buildOrderMode && pattern != null) {
             int totalGroups = pattern.buildOrder.size();
             g.drawString(font, Component.translatable("screen.phantasia.scene.label_build_step").getString(), px + 10,
@@ -1739,13 +1529,12 @@ public class PhantasiaSceneScreen extends Screen {
                 buildOrderMode, () -> {
                     buildOrderMode = !buildOrderMode;
                     if (buildOrderMode) {
-                        // Entering build mode: save and clear any active layer filter
-                        // so build mode always starts from group 0 with a clean slate.
+
                         savedManualLayer = manualLayer;
                         manualLayer = -1;
                         buildOrderGroup = 0;
                     } else {
-                        // Leaving build mode: restore the layer selection (or -1 = all).
+
                         manualLayer = savedManualLayer;
                     }
                     applyVisibility();
@@ -1766,18 +1555,17 @@ public class PhantasiaSceneScreen extends Screen {
             y += 20;
         }
 
-        // ── Expandable size stepper (only for expandable multiblocks) ─────────
         if (script != null && script.getSourceData().isExpandable() && availableShapes != null &&
                 availableShapes.size() > 1) {
             int maxL = availableShapes.size();
             int curL = shapeIndex + 1;
             int teal = 0xFF4DB8B8;
             int tealDim = 0xFF1A3A3A;
-            // Label
+
             g.drawString(font, Component.translatable("screen.phantasia.scene.label_size").getString(), px + 10, y + 4,
                     teal, false);
             int lblW = font.width(Component.translatable("screen.phantasia.scene.label_size").getString()) + 4;
-            // "−" button
+
             int minX = px + 10 + lblW;
             int btnH = 14;
             boolean minHov = mx >= minX && mx < minX + btnH && my >= y && my < y + btnH;
@@ -1798,13 +1586,13 @@ public class PhantasiaSceneScreen extends Screen {
                     init();
                 }
             });
-            // Value display
+
             int valX = minX + btnH + 2;
             int valW = font.width("00/00") + 6;
             g.fill(valX, y, valX + valW, y + btnH, 0xFF1A2A2A);
             g.fill(valX, y + btnH - 1, valX + valW, y + btnH, teal);
             g.drawCenteredString(font, curL + "/" + maxL, valX + valW / 2, y + (btnH - 8) / 2, teal);
-            // "+" button
+
             int plusX = valX + valW + 2;
             boolean plusHov = mx >= plusX && mx < plusX + btnH && my >= y && my < y + btnH;
             g.fill(plusX, y, plusX + btnH, y + btnH, plusHov ? 0xFF2A5A5A : tealDim);
@@ -1848,10 +1636,6 @@ public class PhantasiaSceneScreen extends Screen {
         }
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Input
-    // ─────────────────────────────────────────────────────────────────────────
-
     @Override
     public boolean mouseClicked(double mx, double my, int btn) {
         for (PhantasiaUIUtils.ButtonAction b : activeButtons) {
@@ -1875,7 +1659,7 @@ public class PhantasiaSceneScreen extends Screen {
         }
 
         if (mx < px && my > CAPTION_STRIP_H && my < tlY) {
-            // FIX: Solved the dangling 'if' syntax block and hooked up the inspector subscreen
+
             if (btn == 1 && hoveredPos != null && SHARED_LEVEL != null) {
                 if (!SHARED_LEVEL.getBlockState(hoveredPos).isAir()) {
                     Minecraft.getInstance().setScreen(new PhantasiaBlockInspectScreen(hoveredPos, pattern, this));
@@ -1916,19 +1700,17 @@ public class PhantasiaSceneScreen extends Screen {
         }
 
         if (btn == 0) {
-            // Cache current focal values to freeze them during rotation
+
             float originalZoom = camera.getZoom();
             float targetX = camera.getTargetX();
             float targetY = camera.getTargetY();
             float targetZ = camera.getTargetZ();
 
-            // Perform pure rotation
             float orbitMult = PhantasiaConfigs.INSTANCE != null ?
                     PhantasiaConfigs.INSTANCE.phantasiaUI.cameraSensitivity : 1f;
             camera.orbit((float) dx * CAM_ORBIT_SENSITIVITY * orbitMult,
                     (float) dy * CAM_ORBIT_SENSITIVITY * orbitMult);
 
-            // Re-bind to the fixed pivot point and distance
             camera.setTarget(targetX, targetY, targetZ);
             camera.setPosition(camera.getYaw(), camera.getPitch(), originalZoom);
             return true;
@@ -1940,7 +1722,7 @@ public class PhantasiaSceneScreen extends Screen {
     @Override
     public boolean mouseScrolled(double mx, double my, double delta) {
         if (mx >= this.width - getCurrentPanelWidth()) return false;
-        // If over the SIP panel, scroll it instead of zooming
+
         if (script != null) {
             PhantasiaScriptData sd = script.getSourceData();
             int stepIdx = sd != null ? script.getActiveStepIndex(playbackTick) : -1;
@@ -1982,10 +1764,6 @@ public class PhantasiaSceneScreen extends Screen {
         return super.mouseReleased(mx, my, btn);
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Actions
-    // ─────────────────────────────────────────────────────────────────────────
-
     private void toggleViewFilter(ViewFilter vf) {
         if (viewFilter == vf) {
             viewFilter = ViewFilter.ALL;
@@ -2004,17 +1782,13 @@ public class PhantasiaSceneScreen extends Screen {
     private void centerCamera() {
         if (camera == null || pattern == null) return;
 
-        // 1. Resolve where the camera is *going* to go
         float[] defaultTarget = resolveTarget();
 
-        // 2. Calculate the Euclidean distance from where the camera is *currently* looking
         float dx = camera.getTargetX() - defaultTarget[0];
         float dy = camera.getTargetY() - defaultTarget[1];
         float dz = camera.getTargetZ() - defaultTarget[2];
         double distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
 
-        // 3. Scale the ticks dynamically using Minecraft's Mth utility.
-        // Small jump (e.g., distance ~0) = 12 ticks. Max jump caps out at 26 ticks.
         int dynamicTicks = (int) Mth.clamp(12 + (distance * 0.4), 12, 26);
 
         resetCameraToDefault(LerpType.EASE_OUT, dynamicTicks);
@@ -2023,8 +1797,7 @@ public class PhantasiaSceneScreen extends Screen {
     private void nudgeLayer(int delta) {
         if (pattern == null) return;
         if (manualLayer < 0) {
-            // FIX (bug 3): initialise to the boundary layer on first nudge,
-            // then always clamp to [minY, maxY] so the set is never empty.
+
             manualLayer = (delta < 0) ? pattern.maxY : pattern.minY;
         } else {
             manualLayer = Mth.clamp(manualLayer + delta, pattern.minY, pattern.maxY);
@@ -2050,19 +1823,13 @@ public class PhantasiaSceneScreen extends Screen {
             applyVisibility();
             applyWorldItems(step);
             applyHighlights(step);
-            // Transitions are not applied on scrub — scrub snaps directly to final state.
-            // Always re-evaluate active states on scrub — machineWorking may be stale
-            // if the user jumped over a working→idle transition without the tick loop firing.
+
             boolean working = step != null && step.working() && playbackTick < script.getTotalTicks();
             machineWorking = working;
             applyActiveStateToWorld(working);
             if (renderer != null) renderer.requestBake();
         }
     }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // Sub-screen navigation
-    // ─────────────────────────────────────────────────────────────────────────
 
     private void openScriptEditor() {
         if (camera != null) camera.save();
@@ -2102,10 +1869,6 @@ public class PhantasiaSceneScreen extends Screen {
                 new PhantasiaVariantsScreen(this, PhantasiaVariantState.get()));
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Accessors
-    // ─────────────────────────────────────────────────────────────────────────
-
     public float getRotationYaw() {
         return camera != null ? camera.getYaw() : 0f;
     }
@@ -2117,10 +1880,6 @@ public class PhantasiaSceneScreen extends Screen {
     public PhantasiaLoadedPattern getLoadedPattern() {
         return pattern;
     }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // Button helpers
-    // ─────────────────────────────────────────────────────────────────────────
 
     private void regBtn(GuiGraphics g, int mx, int my,
                         int x, int y, int w, int h, String label, Runnable action) {
@@ -2147,10 +1906,6 @@ public class PhantasiaSceneScreen extends Screen {
         activeButtons.add(new PhantasiaUIUtils.ButtonAction(x, y, w, h, action));
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Misc
-    // ─────────────────────────────────────────────────────────────────────────
-
     private int getCurrentPanelWidth() {
         return sidePanelCollapsed ? COLLAPSED_PANEL_W : FULL_PANEL_W;
     }
@@ -2170,26 +1925,17 @@ public class PhantasiaSceneScreen extends Screen {
         return String.format("%d.%02ds", t / 20, (t % 20) * 5);
     }
 
-    /**
-     * Returns the world-space positions of all blocks belonging to any variant group.
-     * Used by the variant onChange callback to scope the partial bake to only the
-     * positions that could have changed, rather than the whole pattern.
-     */
     private Set<BlockPos> buildVariantWorldPositions(PhantasiaVariantState vs) {
         if (pattern == null || script == null) return Set.of();
         Set<BlockPos> result = new HashSet<>();
 
         for (PhantasiaVariantGroup group : script.getVariantGroups()) {
-            // FIX: Grab the world positions directly from the compiled group map keys
+
             result.addAll(group.getPositionBaseIndex().keySet());
         }
 
         return result;
     }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // Lifecycle
-    // ─────────────────────────────────────────────────────────────────────────
 
     @Override
     public void onClose() {

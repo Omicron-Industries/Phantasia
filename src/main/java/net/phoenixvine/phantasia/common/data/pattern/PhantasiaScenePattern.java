@@ -16,33 +16,19 @@ import net.phoenixvine.phantasia.utils.PhantasiaBlockInfo;
 
 import java.util.*;
 
-/**
- * PhantasiaScenePattern
- *
- * The merged world representation of a {@link PhantasiaSceneData}.
- * Built when the scene editor opens, and rebuilt whenever placements change.
- *
- * Each placement uses {@link MultiblockMachineDefinition#getMatchingShapes()} to get
- * its first available shape (index 0), then stamps it into a temporary isolated
- * {@link PhantasiaTrackedDummyWorld} — mirroring exactly what
- * does — before merging the resulting block map into the shared scene world at the
- * declared offset.
- */
 public class PhantasiaScenePattern {
-
-    // ── Per-placement data ────────────────────────────────────────────────────
 
     public static class PlacementEntry {
 
         public final int index;
         public final String machineId;
         public final BlockPos offset;
-        /** Centroid of the machine's block footprint — use this for camera centering. */
+
         public final float centerX;
         public final float centerZ;
-        /** World positions belonging to this placement (non-baseplate). */
+
         public final Set<BlockPos> worldPositions;
-        /** World positions of this placement's baseplate. */
+
         public final Set<BlockPos> baseplatePositions;
         public final int minY;
         public final int maxY;
@@ -71,15 +57,12 @@ public class PhantasiaScenePattern {
             }
         }
 
-        /** Derives local→world mapping from worldPositions and offset (local = worldPos - offset). */
         public java.util.Map<BlockPos, BlockPos> computeLocalToWorld() {
             java.util.Map<BlockPos, BlockPos> map = new java.util.HashMap<>();
             for (BlockPos wp : worldPositions) map.put(wp.subtract(offset), wp);
             return map;
         }
     }
-
-    // ── Fields ────────────────────────────────────────────────────────────────
 
     public final List<PlacementEntry> placements;
     public final Map<BlockPos, PhantasiaBlockInfo> mergedBlockMap;
@@ -98,15 +81,6 @@ public class PhantasiaScenePattern {
         this.maxY = maxY;
     }
 
-    // ── Factory ───────────────────────────────────────────────────────────────
-
-    /**
-     * Builds the pattern and populates the given world with all blocks.
-     *
-     * @param sceneData the scene definition
-     * @param world     an empty PhantasiaTrackedDummyWorld to populate
-     * @return the built pattern, or null if no placements resolved
-     */
     public static PhantasiaScenePattern build(PhantasiaSceneData sceneData,
                                               PhantasiaTrackedDummyWorld world) {
         List<PlacementEntry> placements = new ArrayList<>();
@@ -141,13 +115,11 @@ public class PhantasiaScenePattern {
                                                  PhantasiaTrackedDummyWorld sharedWorld,
                                                  Map<BlockPos, PhantasiaBlockInfo> mergedMap,
                                                  Set<BlockPos> allBaseplates) {
-        // ── Try multiblock first ──────────────────────────────────────────────
         MultiblockMachineDefinition def = resolveMultiblockDefinition(pd.machine);
         if (def != null) {
             return buildMultiblockPlacement(index, pd, def, sharedWorld, mergedMap, allBaseplates);
         }
 
-        // ── Fall back to singleblock (any MachineDefinition or plain block) ───
         return buildSingleblockPlacement(index, pd, sharedWorld, mergedMap, allBaseplates);
     }
 
@@ -162,7 +134,6 @@ public class PhantasiaScenePattern {
         List<MultiblockShapeInfo> shapes = def.getMatchingShapes();
         if (shapes == null || shapes.isEmpty()) return null;
 
-        // Use shape 0 — the canonical/default shape for this machine.
         MultiblockShapeInfo shape = shapes.get(0);
         com.lowdragmc.lowdraglib.utils.BlockInfo[][][] rawLdlib = shape.getBlocks();
         if (rawLdlib == null || rawLdlib.length == 0) return null;
@@ -179,7 +150,6 @@ public class PhantasiaScenePattern {
             }
         }
 
-        // Declared scene-space origin for this placement
         BlockPos origin = new BlockPos(pd.x, pd.y, pd.z);
 
         int sxLen = raw.length;
@@ -196,8 +166,7 @@ public class PhantasiaScenePattern {
         BlockPos controllerWP = null;
         MultiblockControllerMachine controller = null;
 
-        // Baseplate
-        var _baseplateState0 = net.phoenixvine.phantasia.utils.PhantasiaTheme.currentBaseplateBlockState();
+        var _baseplateState0 = net.phoenixvine.phantasia.utils.PhantasiaBaseplateConfig.currentBaseplateBlockState();
         PhantasiaBlockInfo floor = _baseplateState0 != null ? PhantasiaBlockInfo.fromBlockState(_baseplateState0) :
                 null;
         if (floor != null) for (int bx = -padX; bx < sxLen + padX; bx++)
@@ -207,11 +176,8 @@ public class PhantasiaScenePattern {
                 baseplatePos.add(wp);
             }
 
-        // Machine blocks — use a temporary isolated world for BE initialisation
-        // so block entities get the right level reference before we merge.
-        // FIX: Pass active client level into the constructor instance
         PhantasiaTrackedDummyWorld tempWorld = new PhantasiaTrackedDummyWorld();
-        tempWorld.addBlocks(placementMap); // add baseplate first
+        tempWorld.addBlocks(placementMap);
 
         for (int x = 0; x < raw.length; x++)
             for (int y = 0; y < raw[x].length; y++)
@@ -223,7 +189,7 @@ public class PhantasiaScenePattern {
                     try {
                         var be = info.getBlockEntity(wp);
                         if (be instanceof MetaMachineBlockEntity mbe) {
-                            mbe.setLevel(sharedWorld); // use shared world for rendering
+                            mbe.setLevel(sharedWorld);
                             var machine = mbe.getMetaMachine();
                             if (machine instanceof MultiblockControllerMachine ctrl && controllerWP == null) {
                                 controller = ctrl;
@@ -237,9 +203,6 @@ public class PhantasiaScenePattern {
                     localToWorld.put(lp, wp);
                 }
 
-        // Stamp into shared world and register BEs using the already-initialized instances.
-        // Calling info.getBlockEntity() again would create a new un-initialized BE instance
-        // (without setLevel) which can cause NPEs when the renderer queries it.
         sharedWorld.addBlocks(placementMap);
         for (BlockPos bp : bePos) {
             try {
@@ -248,16 +211,12 @@ public class PhantasiaScenePattern {
             } catch (Exception ignored) {}
         }
 
-        // Fire onShapeLoaded via the definition — handles patternLock, matchContext, parts
-        // correctly; checkPatternAt silently fails in the dummy world environment.
         net.phoenixvine.phantasia.common.multiblock.PhantasiaMultiblockRegistry.resolve(pd.machine)
                 .ifPresent(iDef -> iDef.onShapeLoaded(sharedWorld, origin, placementMap, localToWorld));
 
-        // Merge into scene map
         mergedMap.putAll(placementMap);
         allBaseplates.addAll(baseplatePos);
 
-        // Compute Y bounds from machine blocks (not baseplate)
         int minY = Integer.MAX_VALUE, maxY = Integer.MIN_VALUE;
         for (BlockPos lp : localToWorld.keySet()) {
             int wy = origin.getY() + lp.getY();
@@ -269,19 +228,12 @@ public class PhantasiaScenePattern {
             maxY = pd.y;
         }
 
-        // World positions = all machine blocks (non-baseplate)
         Set<BlockPos> worldPositions = new HashSet<>(localToWorld.values());
 
         return new PlacementEntry(index, pd.machine, origin,
                 worldPositions, baseplatePos, minY, maxY);
     }
 
-    /**
-     * Builds a placement for a singleblock machine or plain block.
-     * Places one block at the declared origin, with a small baseplate around it.
-     * Works for any GTCEu MachineDefinition (including singleblock machines) as
-     * well as any block registered in the Forge block registry.
-     */
     private static PlacementEntry buildSingleblockPlacement(int index,
                                                             PhantasiaSceneData.PlacementData pd,
                                                             PhantasiaTrackedDummyWorld sharedWorld,
@@ -289,7 +241,6 @@ public class PhantasiaScenePattern {
                                                             Set<BlockPos> allBaseplates) {
         BlockPos origin = new BlockPos(pd.x, pd.y, pd.z);
 
-        // Resolve block: try GTCEu machine registry first, then Forge block registry
         PhantasiaBlockInfo blockInfo = resolveBlockInfo(pd.machine);
         if (blockInfo == null) {
             net.phoenixvine.phantasia.Phantasia.LOGGER.warn(
@@ -301,8 +252,7 @@ public class PhantasiaScenePattern {
         Map<BlockPos, PhantasiaBlockInfo> placementMap = new HashMap<>();
         Set<BlockPos> baseplatePos = new HashSet<>();
 
-        // Small 5×5 baseplate centered on origin
-        var _baseplateState1 = net.phoenixvine.phantasia.utils.PhantasiaTheme.currentBaseplateBlockState();
+        var _baseplateState1 = net.phoenixvine.phantasia.utils.PhantasiaBaseplateConfig.currentBaseplateBlockState();
         PhantasiaBlockInfo floor = _baseplateState1 != null ? PhantasiaBlockInfo.fromBlockState(_baseplateState1) :
                 null;
         if (floor != null) for (int bx = -2; bx <= 2; bx++)
@@ -312,10 +262,8 @@ public class PhantasiaScenePattern {
                 baseplatePos.add(wp);
             }
 
-        // The single machine block at origin
         placementMap.put(origin, blockInfo);
 
-        // Register block entity if present
         try {
             var be = blockInfo.getBlockEntity(origin);
             if (be instanceof MetaMachineBlockEntity mbe) {
@@ -333,18 +281,12 @@ public class PhantasiaScenePattern {
                 worldPositions, baseplatePos, origin.getY(), origin.getY());
     }
 
-    /**
-     * Resolves a machine/block ID to a {@link PhantasiaBlockInfo}.
-     * Tries the GTCEu machine registry first (for singleblock MetaMachines),
-     * then falls back to the Forge block registry.
-     */
     private static PhantasiaBlockInfo resolveBlockInfo(String id) {
         try {
             net.minecraft.resources.ResourceLocation rl = id.contains(":") ?
                     new net.minecraft.resources.ResourceLocation(id) :
                     new net.minecraft.resources.ResourceLocation("gtceu", id);
 
-            // GTCEu machine registry
             var machineDef = GTRegistries.MACHINES.get(rl);
             if (machineDef != null) {
                 var block = machineDef.getBlock();
@@ -352,7 +294,6 @@ public class PhantasiaScenePattern {
                     return PhantasiaBlockInfo.fromBlockState(block.defaultBlockState());
             }
 
-            // Forge block registry fallback
             var block = net.minecraftforge.registries.ForgeRegistries.BLOCKS.getValue(rl);
             if (block != null && block != net.minecraft.world.level.block.Blocks.AIR)
                 return PhantasiaBlockInfo.fromBlockState(block.defaultBlockState());
@@ -361,12 +302,6 @@ public class PhantasiaScenePattern {
         return null;
     }
 
-    // ── Visibility ────────────────────────────────────────────────────────────
-
-    /**
-     * Computes the set of world positions that should be visible for a given step,
-     * applying the global show mode then per-placement overrides.
-     */
     public Set<BlockPos> computeVisible(PhantasiaSceneData.StepData step,
                                         PhantasiaSceneData sceneData) {
         Set<BlockPos> visible = new HashSet<>(allBaseplatePositions);
@@ -384,7 +319,7 @@ public class PhantasiaScenePattern {
                     step.hidePositions;
 
             for (BlockPos wp : pe.worldPositions) {
-                // Placement-relative coords for layer/pos filtering
+
                 int relY = wp.getY() - pe.offset.getY();
                 int relX = wp.getX() - pe.offset.getX();
                 int relZ = wp.getZ() - pe.offset.getZ();
@@ -407,7 +342,7 @@ public class PhantasiaScenePattern {
             case "layer" -> y == layer;
             case "layers" -> y >= layerMin && y <= layerMax;
             case "pos" -> !posListContains(positions, x, y, z);
-            default -> true; // "all" and anything unrecognised
+            default -> true;
         };
     }
 
@@ -423,17 +358,12 @@ public class PhantasiaScenePattern {
         return false;
     }
 
-    // ── Lookup ────────────────────────────────────────────────────────────────
-
-    /** Returns which placement owns the given world position, or null. */
     public PlacementEntry placementFor(BlockPos worldPos) {
         for (PlacementEntry pe : placements)
             if (pe.worldPositions.contains(worldPos) || pe.baseplatePositions.contains(worldPos))
                 return pe;
         return null;
     }
-
-    // ── Helpers ───────────────────────────────────────────────────────────────
 
     private static MultiblockMachineDefinition resolveMultiblockDefinition(String machineId) {
         try {

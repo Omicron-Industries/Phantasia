@@ -6,10 +6,6 @@ import net.phoenixvine.phantasia.Phantasia;
 import net.phoenixvine.phantasia.common.multiblock.PhantasiaMultiblockRegistry;
 import net.phoenixvine.phantasia.common.multisetup.PhantasiaMultiSetupRegistry;
 
-/**
- * All Ars Nouveau-specific initialization for Phantasia.
- * Loaded only when ars_nouveau is present, via a ModList guard in {@link Phantasia}.
- */
 public final class PhantasiaArsCompat {
 
     private static ArsNouveauSetupProvider provider;
@@ -21,7 +17,6 @@ public final class PhantasiaArsCompat {
         PhantasiaMultiSetupRegistry.register(provider);
         PhantasiaMultiblockRegistry.register(new ArsNouveauMultiblockProvider());
 
-        // Flush recipe caches whenever datapacks reload so recipes stay in sync
         MinecraftForge.EVENT_BUS.addListener(PhantasiaArsCompat::onReload);
 
         Phantasia.LOGGER.info("[Phantasia] Ars Nouveau compat initialized.");

@@ -16,22 +16,8 @@ import java.util.List;
 
 import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
 
-/**
- * PhantasiaScriptStepItemEditorScreen
- *
- * Subscreen opened from the script editor's "Items…" button.
- * Lets devs manage the {@link PhantasiaScriptData.StepData#items} list for a
- * specific step: add items with full label/description/track/microsceneId
- * support, edit or remove existing ones, and toggle {@code showItems}.
- *
- * The same item model ({@link PhantasiaSceneData.ItemConditionData}) is shared
- * with manual scenes, so all features — animated tracks, clickable microscene
- * links — work identically in autogenned script views.
- */
 @OnlyIn(Dist.CLIENT)
 public class PhantasiaScriptStepItemEditorScreen extends PhantasiaScreen {
-
-    // ── Theme ─────────────────────────────────────────────────────────────────
 
     private static final int PANEL_W = 440;
 
@@ -40,17 +26,14 @@ public class PhantasiaScriptStepItemEditorScreen extends PhantasiaScreen {
     private static final String[] TRACKS = { "none", "left", "right", "up", "down", "pulse" };
     private static final String[] TRACK_LABELS = { "Fixed", "→", "←", "↑", "↓", "Pulse" };
 
-    // ── Parent ────────────────────────────────────────────────────────────────
     private final PhantasiaScriptEditorScreen parent;
     private final PhantasiaScriptData scriptData;
     private final int stepIndex;
 
-    // ── State ─────────────────────────────────────────────────────────────────
     private int editingItem = -1;
     private String newItemType = "input";
     private String newItemTrack = "none";
 
-    // ── Widgets ───────────────────────────────────────────────────────────────
     private EditBox itemIdBox;
     private EditBox itemCountBox;
     private EditBox itemLabelBox;
@@ -58,10 +41,6 @@ public class PhantasiaScriptStepItemEditorScreen extends PhantasiaScreen {
     private EditBox itemDescBox;
     private EditBox itemMicrosceneBox;
     private EditBox itemGuideIdBox;
-
-    // ── Btn ───────────────────────────────────────────────────────────────────
-
-    // ─────────────────────────────────────────────────────────────────────────
 
     public PhantasiaScriptStepItemEditorScreen(PhantasiaScriptEditorScreen parent,
                                                PhantasiaScriptData scriptData,
@@ -78,10 +57,6 @@ public class PhantasiaScriptStepItemEditorScreen extends PhantasiaScreen {
     private PhantasiaScriptData.StepData step() {
         return scriptData.getSteps().get(stepIndex);
     }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // Init
-    // ─────────────────────────────────────────────────────────────────────────
 
     @Override
     protected void init() {
@@ -121,10 +96,6 @@ public class PhantasiaScriptStepItemEditorScreen extends PhantasiaScreen {
         hideAll();
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Render
-    // ─────────────────────────────────────────────────────────────────────────
-
     @Override
     public void render(GuiGraphics g, int mx, int my, float partial) {
         btns.clear();
@@ -146,7 +117,6 @@ public class PhantasiaScriptStepItemEditorScreen extends PhantasiaScreen {
         int rx = width - 4;
         rx = topBtn(g, mx, my, rx, "\u2190 Back", C_BTN(), this::goBack);
 
-        // showItems toggle
         boolean si = step().showItems;
         int siW = font.width(si ? "Items: Visible" : "Items: Hidden") + 12;
         int siX = rx - siW;
@@ -185,7 +155,6 @@ public class PhantasiaScriptStepItemEditorScreen extends PhantasiaScreen {
 
         PhantasiaScriptData.StepData s = step();
 
-        // ── Existing items ────────────────────────────────────────────────────
         if (s.items.isEmpty()) {
             g.drawString(font, Component.translatable("screen.phantasia.script_step_item_editor.empty").getString(),
                     px + 10, cy + 2, C_DIM(), false);
@@ -196,18 +165,15 @@ public class PhantasiaScriptStepItemEditorScreen extends PhantasiaScreen {
             cy = renderItemRow(g, mx, my, px, cy, pw, s, ii);
         }
 
-        // ── Divider ───────────────────────────────────────────────────────────
         cy += 4;
         g.fill(px + 8, cy, px + pw - 8, cy + 1, 0x33FFFFFF);
         cy += 8;
 
-        // ── Add item form ─────────────────────────────────────────────────────
         g.drawString(font,
                 Component.translatable("screen.phantasia.script_step_item_editor.btn_add_section").getString(), px + 8,
                 cy, C_ACCENT(), false);
         cy += 12;
 
-        // Type selector
         int bx = px + 8;
         for (int ti = 0; ti < TYPES.length; ti++) {
             String t = TYPES[ti];
@@ -225,11 +191,9 @@ public class PhantasiaScriptStepItemEditorScreen extends PhantasiaScreen {
         }
         cy += 18;
 
-        // Item ID
         cy = labeledBox(g, Component.translatable("screen.phantasia.script_step_item_editor.label_item").getString(),
                 px, cy, pw, itemIdBox);
 
-        // Count + Label
         g.drawString(font, Component.translatable("screen.phantasia.script_step_item_editor.label_count").getString(),
                 px + 8, cy + 2, C_DIM(), false);
         int cntX = px + 8 +
@@ -248,7 +212,6 @@ public class PhantasiaScriptStepItemEditorScreen extends PhantasiaScreen {
                 12);
         cy += 16;
 
-        // Track
         g.drawString(font, Component.translatable("screen.phantasia.script_step_item_editor.label_track").getString(),
                 px + 8, cy + 2, C_DIM(), false);
         int tbx = px + 8 +
@@ -279,14 +242,11 @@ public class PhantasiaScriptStepItemEditorScreen extends PhantasiaScreen {
         }
         cy += 16;
 
-        // Description
         cy = labeledBox(g, "Desc:", px, cy, pw, itemDescBox);
 
-        // Microscene / Guide links
         cy = labeledBox(g, "Scene:", px, cy, pw, itemMicrosceneBox);
         cy = labeledBox(g, "Guide ID:", px, cy, pw, itemGuideIdBox);
 
-        // Add button
         int addBtnW = pw - 16;
         boolean addHov = isOver(mx, my, px + 8, cy, addBtnW, 14);
         g.fill(px + 8, cy, px + 8 + addBtnW, cy + 14, addHov ? C_BTN_HOV() : C_BTN());
@@ -308,7 +268,6 @@ public class PhantasiaScriptStepItemEditorScreen extends PhantasiaScreen {
                 editing ? C_BTN_ACT() : (rowHov ? C_BTN_HOV() : C_BTN()));
         g.fill(px + 4, cy, px + 5, cy + 14, ac);
 
-        // Type badge
         String badge = switch (it.type == null ? "input" : it.type.toLowerCase(java.util.Locale.ROOT)) {
             case "output" -> "out";
             case "catalyst" -> "cat";
@@ -318,12 +277,10 @@ public class PhantasiaScriptStepItemEditorScreen extends PhantasiaScreen {
         g.fill(px + 7, cy + 2, px + 7 + badgeW, cy + 12, ac & 0x44FFFFFF | 0x44000000);
         g.drawString(font, badge, px + 10, cy + 3, ac, false);
 
-        // Name
         String nm = it.item.contains(":") ? it.item.split(":")[1].replace('_', ' ') : it.item;
         String disp = (it.label != null && !it.label.isBlank()) ? it.label + "  (" + nm + ")" : nm;
         g.drawString(font, trunc(disp, pw - badgeW - 60), px + 10 + badgeW, cy + 3, C_TEXT(), false);
 
-        // Track indicator
         if (it.track != null && !"none".equals(it.track)) {
             String ti = switch (it.track) {
                 case "left" -> "→";
@@ -336,11 +293,9 @@ public class PhantasiaScriptStepItemEditorScreen extends PhantasiaScreen {
             g.drawString(font, ti, px + pw - 54, cy + 3, C_ACCENT(), false);
         }
 
-        // Count
         if (it.count > 1)
             g.drawString(font, "x" + it.count, px + pw - 42, cy + 3, C_DIM(), false);
 
-        // Remove
         int rmX = px + pw - 24;
         boolean rmH = isOver(mx, my, rmX, cy + 1, 18, 12);
         g.fill(rmX, cy + 1, rmX + 18, cy + 13, rmH ? C_BTN_HOV() : C_BTN());
@@ -364,9 +319,8 @@ public class PhantasiaScriptStepItemEditorScreen extends PhantasiaScreen {
         }));
         cy += 15;
 
-        // Inline edit form
         if (editing) {
-            // Type selector
+
             int bx = px + 8;
             for (int ti = 0; ti < TYPES.length; ti++) {
                 String t = TYPES[ti];
@@ -411,7 +365,6 @@ public class PhantasiaScriptStepItemEditorScreen extends PhantasiaScreen {
                     12);
             cy += 16;
 
-            // Track row
             g.drawString(font,
                     Component.translatable("screen.phantasia.script_step_item_editor.label_track").getString(), px + 8,
                     cy + 2, C_DIM(), false);
@@ -451,7 +404,6 @@ public class PhantasiaScriptStepItemEditorScreen extends PhantasiaScreen {
             cy = labeledBox(g, "Scene:", px, cy, pw, itemMicrosceneBox);
             cy = labeledBox(g, "Guide ID:", px, cy, pw, itemGuideIdBox);
 
-            // Apply & close
             int applyW = pw - 16;
             boolean applyHov = isOver(mx, my, px + 8, cy, applyW, 12);
             g.fill(px + 8, cy, px + 8 + applyW, cy + 12, applyHov ? C_BTN_HOV() : C_BTN());
@@ -486,10 +438,6 @@ public class PhantasiaScriptStepItemEditorScreen extends PhantasiaScreen {
         }
         return cy;
     }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // Actions
-    // ─────────────────────────────────────────────────────────────────────────
 
     private void commitAdd() {
         String id = itemIdBox.getValue().trim();
@@ -540,10 +488,6 @@ public class PhantasiaScriptStepItemEditorScreen extends PhantasiaScreen {
         Minecraft.getInstance().setScreen(parent);
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Input
-    // ─────────────────────────────────────────────────────────────────────────
-
     @Override
     public boolean mouseClicked(double mx, double my, int button) {
         for (Btn b : btns) if (b.hit(mx, my)) {
@@ -568,10 +512,6 @@ public class PhantasiaScriptStepItemEditorScreen extends PhantasiaScreen {
         return false;
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Helpers
-    // ─────────────────────────────────────────────────────────────────────────
-
     private void hideAll() {
         for (var box : List.of(itemIdBox, itemCountBox, itemLabelBox, itemDurationBox,
                 itemDescBox, itemMicrosceneBox, itemGuideIdBox)) {
@@ -582,7 +522,6 @@ public class PhantasiaScriptStepItemEditorScreen extends PhantasiaScreen {
         }
     }
 
-    /** Places a labeled EditBox, returns next Y. */
     private int labeledBox(GuiGraphics g, String lbl, int px, int cy, int pw, EditBox box) {
         g.drawString(font, lbl, px + 8, cy + 2, C_DIM(), false);
         place(box, px + 8 + font.width(lbl) + 4, cy, pw - 20 - font.width(lbl) - 4, 12);

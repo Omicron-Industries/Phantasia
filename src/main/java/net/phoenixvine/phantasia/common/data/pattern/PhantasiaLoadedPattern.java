@@ -33,10 +33,6 @@ public class PhantasiaLoadedPattern {
     @Getter
     public final PhantasiaScript script;
 
-    /**
-     * Optional task to run on the render thread after world writes complete (cold loads only).
-     * Used to call definition.onShapeLoaded() after SHARED_LEVEL has been populated.
-     */
     @Nullable
     public final Runnable postWriteTask;
 
@@ -80,7 +76,7 @@ public class PhantasiaLoadedPattern {
 
         Map<String, Integer> counts = new LinkedHashMap<>();
         for (Map.Entry<BlockPos, BlockPos> e : localToWorld.entrySet()) {
-            PhantasiaBlockInfo info = blockMap.get(e.getValue()); // world-pos key
+            PhantasiaBlockInfo info = blockMap.get(e.getValue());
             if (info == null) continue;
             BlockState state = info.getBlockState();
             if (state == null || state.isAir()) continue;

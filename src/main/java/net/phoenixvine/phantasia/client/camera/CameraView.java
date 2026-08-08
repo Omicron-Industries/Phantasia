@@ -2,12 +2,6 @@ package net.phoenixvine.phantasia.client.camera;
 
 import org.joml.Vector3f;
 
-/**
- * The result of {@link PhantasiaCamera#getView(float)}: the two vectors that
- * define where the camera is and what it is looking at for a given render frame.
- *
- * Produced every frame, never stored — the camera fields are the source of truth.
- */
 public record CameraView(Vector3f eyePos, Vector3f lookAt) {
 
     public float eyeX() {
@@ -34,7 +28,6 @@ public record CameraView(Vector3f eyePos, Vector3f lookAt) {
         return lookAt.z();
     }
 
-    /** Direction vector eye → lookAt, not normalised. */
     public Vector3f direction() {
         return new Vector3f(lookAt).sub(eyePos);
     }

@@ -33,8 +33,6 @@ import javax.annotation.Nullable;
 @OnlyIn(Dist.CLIENT)
 public class PhantasiaTrackedDummyWorld extends PhantasiaDummyWorld {
 
-    // ── Block tracking ────────────────────────────────────────────────────────
-
     private Predicate<BlockPos> renderFilter;
     public final Map<BlockPos, PhantasiaBlockInfo> renderedBlocks = new HashMap<>();
     public final Map<BlockPos, BlockEntity> blockEntities = new HashMap<>();
@@ -88,18 +86,12 @@ public class PhantasiaTrackedDummyWorld extends PhantasiaDummyWorld {
         if (renderFilter != null && !renderFilter.test(pos)) return null;
         BlockEntity existing = blockEntities.get(pos);
         if (existing != null) return existing;
-        // Build outside the map to avoid recursive computeIfAbsent (Java HashMap does not support re-entrant compute)
+
         BlockEntity created = renderedBlocks.getOrDefault(pos, PhantasiaBlockInfo.EMPTY).getBlockEntity(this, pos);
         if (created != null) blockEntities.put(pos, created);
         return created;
     }
 
-    /**
-     * LDLib's WorldSceneRendererImpl.getModelData() calls getExistingBlockEntity() to retrieve per-block
-     * ModelData (e.g. IE's SUBMODEL_OFFSET for basic_split OBJ sliced models). The base Level
-     * implementation routes through the chunk system and returns null in a dummy world, so we
-     * override here to delegate to our blockEntities map, ensuring model data is always reachable.
-     */
     @Override
     @Nullable
     public BlockEntity getExistingBlockEntity(@Nonnull BlockPos pos) {
@@ -134,8 +126,6 @@ public class PhantasiaTrackedDummyWorld extends PhantasiaDummyWorld {
         this.renderFilter = filter;
     }
 
-    // Post-tick hooks run after all BEs have been ticked.
-    // Register here to re-apply manual state (e.g. beacon beam sections) that vanilla ticks reset.
     private final List<Runnable> postTickHooks = new ArrayList<>();
 
     public void addPostTickHook(Runnable hook) {
@@ -146,9 +136,6 @@ public class PhantasiaTrackedDummyWorld extends PhantasiaDummyWorld {
         postTickHooks.clear();
     }
 
-    // Pre-render hooks run at the start of drawTileEntities, immediately before any BER is called.
-    // Use this to force state (e.g. beacon beamSections) onto freshly-created BEs, since a bake
-    // may have evicted and recreated the cached BE since the last post-tick hook ran.
     private final List<Runnable> preRenderHooks = new ArrayList<>();
 
     public void addPreRenderHook(Runnable hook) {
@@ -194,8 +181,6 @@ public class PhantasiaTrackedDummyWorld extends PhantasiaDummyWorld {
         }
     }
 
-    // ── Scene entity list ──────────────────────────────────────────────────────
-
     private final List<Entity> sceneEntities = new ArrayList<>();
 
     public void addSceneEntity(Entity e) {
@@ -210,8 +195,6 @@ public class PhantasiaTrackedDummyWorld extends PhantasiaDummyWorld {
         return Collections.unmodifiableList(sceneEntities);
     }
 
-    // ── Variant state overlay ─────────────────────────────────────────────────
-
     private final Map<BlockPos, BlockState> variantOverrides = new HashMap<>();
 
     public void setVariantOverride(BlockPos pos, BlockState state) {
@@ -221,8 +204,6 @@ public class PhantasiaTrackedDummyWorld extends PhantasiaDummyWorld {
     public void clearVariantOverrides() {
         variantOverrides.clear();
     }
-
-    // ── Chunk source isolation ────────────────────────────────────────────────
 
     @Override
     public net.minecraft.world.level.chunk.ChunkSource getChunkSource() {
@@ -255,8 +236,6 @@ public class PhantasiaTrackedDummyWorld extends PhantasiaDummyWorld {
         return collisions;
     }
 
-    // ── Particle routing ──────────────────────────────────────────────────────
-
     @Override
     public void addParticle(ParticleOptions data, double x, double y, double z, double vx, double vy, double vz) {
         PhantasiaParticleEngine.addParticle(data, x, y, z, vx, vy, vz);
@@ -267,8 +246,6 @@ public class PhantasiaTrackedDummyWorld extends PhantasiaDummyWorld {
                                          double vz) {
         addParticle(data, x, y, z, vx, vy, vz);
     }
-
-    // ── animateTick ───────────────────────────────────────────────────────────
 
     public void tickAnimateForPos(BlockPos pos, RandomSource random) {
         BlockState state = getBlockState(pos);

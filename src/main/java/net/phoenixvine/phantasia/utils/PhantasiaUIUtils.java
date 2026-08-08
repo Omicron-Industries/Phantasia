@@ -2,9 +2,6 @@ package net.phoenixvine.phantasia.utils;
 
 public class PhantasiaUIUtils {
 
-    /**
-     * Stores the hitbox and the logic for a clickable UI element.
-     */
     public record ButtonAction(int x, int y, int w, int h, Runnable action) {
 
         public boolean hit(double mx, double my) {
@@ -12,10 +9,6 @@ public class PhantasiaUIUtils {
         }
     }
 
-    /**
-     * A simple helper to truncate strings with an ellipsis (...)
-     * if they exceed a certain pixel width.
-     */
     public static String truncate(net.minecraft.client.gui.Font font, String s, int maxPx) {
         if (s == null) return "";
         String result = s;

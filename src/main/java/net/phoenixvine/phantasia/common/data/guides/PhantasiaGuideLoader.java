@@ -8,10 +8,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.stream.Stream;
 
-/**
- * Discovers and loads standalone text guides from the local configuration folder.
- * Populates the {@link PhantasiaGuideRegistry}.
- */
 public final class PhantasiaGuideLoader {
 
     private PhantasiaGuideLoader() {}
@@ -21,7 +17,7 @@ public final class PhantasiaGuideLoader {
         Phantasia.LOGGER.info("[Phantasia] Discovering standalone guides...");
 
         try {
-            // Locate config/phantasia/guides directory
+
             Path guidesDir = Minecraft.getInstance().gameDirectory.toPath()
                     .resolve("phantasia/guides");
 
@@ -31,7 +27,6 @@ public final class PhantasiaGuideLoader {
                 return;
             }
 
-            // Walk the folder and search for all .json files recursively
             try (Stream<Path> walk = Files.walk(guidesDir)) {
                 walk.filter(Files::isRegularFile)
                         .filter(path -> path.toString().endsWith(".json"))
@@ -46,9 +41,6 @@ public final class PhantasiaGuideLoader {
         }
     }
 
-    /**
-     * Clears the guide registry and re-reads all files from disk.
-     */
     public static void reload() {
         load();
     }

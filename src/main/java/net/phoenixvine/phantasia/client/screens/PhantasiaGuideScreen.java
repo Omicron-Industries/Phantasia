@@ -25,14 +25,9 @@ import java.util.*;
 
 import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
 
-/**
- * PhantasiaGuideScreen — GuideME-style reader.
- * Updated to support standalone links directly into 3D automated GregTech machine scripts!
- */
 @OnlyIn(Dist.CLIENT)
 public class PhantasiaGuideScreen extends PhantasiaScreen {
 
-    // ── Theme ─────────────────────────────────────────────────────────────────
     private static final int C_CARD = 0xCC101022;
     private static final int C_CARD_HOV = 0xCC182042;
     private static final int C_HEAD = 0xFFEEEEFF;
@@ -49,15 +44,8 @@ public class PhantasiaGuideScreen extends PhantasiaScreen {
 
     private CardEntry preview3DCard = null;
 
-    // ── 3D Spinning Item Preview State Fields ─────────────────────────
     private float itemSpinRotation = 0.0f;
 
-    // ── Normalised page model ─────────────────────────────────────────────────
-
-    /**
-     * Flat page record used for rendering — source-agnostic.
-     * Updated to support linkedScriptId parameter compilation.
-     */
     private record GuidePage(
                              String headline,
                              String text,
@@ -65,16 +53,14 @@ public class PhantasiaGuideScreen extends PhantasiaScreen {
                              List<PhantasiaSceneData.SceneMistakeData> mistakes,
                              String linkedGuideId,
                              String linkedSceneId,
-                             String linkedScriptId, // Added compilation token
+                             String linkedScriptId,
                              Object editTarget) {}
 
     private record CardEntry(PhantasiaSceneData.ItemConditionData item, ItemStack stack) {}
 
-    // ── Source tracking ───────────────────────────────────────────────────────
     private final String guideTitle;
     private final Object source;
 
-    // ── State ─────────────────────────────────────────────────────────────────
     private final Screen parent;
     private final List<GuidePage> pages = new ArrayList<>();
     private int pageIndex = 0;
@@ -123,8 +109,6 @@ public class PhantasiaGuideScreen extends PhantasiaScreen {
         scrollY = 0;
     }
 
-    // ── Page builders ─────────────────────────────────────────────────────────
-
     private void buildFromGuideData(PhantasiaGuideData gd) {
         List<PhantasiaSceneData.SceneMistakeData> guideMistakes = gd.mistakes != null ? gd.mistakes : List.of();
         for (PageData pd : gd.pages) {
@@ -156,7 +140,6 @@ public class PhantasiaGuideScreen extends PhantasiaScreen {
             }
         }
 
-        // Mistakes get their own final page so they don't clutter every step.
         if (!sceneMistakes.isEmpty()) {
             pages.add(new GuidePage("Layout Notes", null, List.of(), sceneMistakes, null, null, null, sd));
         }
@@ -169,8 +152,6 @@ public class PhantasiaGuideScreen extends PhantasiaScreen {
             out.add(new CardEntry(it, resolveStack(it)));
         return out;
     }
-
-    // ── Render ────────────────────────────────────────────────────────────────
 
     @Override
     public void render(GuiGraphics g, int mx, int my, float partial) {
@@ -203,8 +184,6 @@ public class PhantasiaGuideScreen extends PhantasiaScreen {
         return mc.player != null && mc.player.getAbilities().instabuild;
     }
 
-    // ── Content Panel Rendering ───────────────────────────────────────────────
-
     private void renderContent(GuiGraphics g, int mx, int my) {
         if (pages.isEmpty()) return;
         GuidePage page = pages.get(pageIndex);
@@ -219,7 +198,6 @@ public class PhantasiaGuideScreen extends PhantasiaScreen {
 
         int y = areaTop + 28 - scrollY;
 
-        // Headline
         if (page.headline() != null && !page.headline().isBlank()) {
             g.fill(colX, y, colX + colW, y + 1, C_ACCENT());
             y += 7;
@@ -242,7 +220,6 @@ public class PhantasiaGuideScreen extends PhantasiaScreen {
             y += 8;
         }
 
-        // Page Counter Indicator
         if (pages.size() > 1) {
             g.drawString(font,
                     (source instanceof PhantasiaGuideData ? "Page " : "Step ") + (pageIndex + 1) + " of " +
@@ -252,7 +229,6 @@ public class PhantasiaGuideScreen extends PhantasiaScreen {
         }
         y += 4;
 
-        // Body Paragraph Text
         if (page.text() != null && !page.text().isBlank()) {
             for (String para : page.text().split("\n", -1)) {
                 if (para.isBlank()) {
@@ -268,7 +244,6 @@ public class PhantasiaGuideScreen extends PhantasiaScreen {
             y += 10;
         }
 
-        // Item Conditions Grid
         if (!page.cards().isEmpty()) {
             g.fill(colX, y, colX + colW, y + 1, C_RULE);
             y += 6;
@@ -306,12 +281,10 @@ public class PhantasiaGuideScreen extends PhantasiaScreen {
             y = rowStartY + (col > 0 ? CARD_H + CARD_GAP : 0) + 8;
         }
 
-        // Mistake Banners
         for (PhantasiaSceneData.SceneMistakeData m : page.mistakes()) {
             y = renderMistakeBanner(g, m, colX, y, colW) + 6;
         }
 
-        // ── Navigation Link Target Buttons ───────────────────────────────────
         if (page.linkedGuideId() != null && !page.linkedGuideId().isBlank()) {
             if (PhantasiaGuideRegistry.get(page.linkedGuideId()) != null) {
                 y = renderLinkBtn(g, mx, my, colX, y, colW,
@@ -328,7 +301,6 @@ public class PhantasiaGuideScreen extends PhantasiaScreen {
             }
         }
 
-        // ── ADDED: Script Verification and Navigation Button Block ───────────
         if (page.linkedScriptId() != null && !page.linkedScriptId().isBlank()) {
             ResourceLocation rl = ResourceLocation.parse(page.linkedScriptId());
             var defOpt = net.phoenixvine.phantasia.common.multiblock.PhantasiaMultiblockRegistry.resolve(rl.toString());
@@ -342,10 +314,9 @@ public class PhantasiaGuideScreen extends PhantasiaScreen {
 
         g.disableScissor();
 
-        // Content Scrollbar Calculations
         lastContentH = (y + scrollY) - (areaTop + 28);
         int areaH = areaBottom - areaTop;
-        // The content starts 28px into the area, so the true overflow is lastContentH - (areaH - 28).
+
         if (lastContentH > areaH - 28) {
             int sbX = width - 5;
             int maxSc = lastContentH - (areaH - 28);
@@ -355,8 +326,6 @@ public class PhantasiaGuideScreen extends PhantasiaScreen {
             g.fill(sbX, thumbY, sbX + 3, thumbY + thumbH, C_SCROLL_TH);
         }
     }
-
-    // ── Card Drawing Mechanics ────────────────────────────────────────────────
 
     private void renderCard(GuiGraphics g, CardEntry ce, int cx, int cy, boolean hov) {
         PhantasiaSceneData.ItemConditionData it = ce.item();
@@ -468,8 +437,6 @@ public class PhantasiaGuideScreen extends PhantasiaScreen {
         if (enabled) btns.add(new Btn(x, y, w, h, action));
     }
 
-    // ── 3D Item Showcase Modal Popup Engine ───────────────────────────────────
-
     private void render3DPreviewModal(GuiGraphics g, int mx, int my) {
         if (preview3DCard == null) return;
 
@@ -578,7 +545,6 @@ public class PhantasiaGuideScreen extends PhantasiaScreen {
 
     @Override
     public boolean mouseClicked(double mx, double my, int btn) {
-        // FIX: Replaced unbound 'preview3DItem' check with correct dialog wrapper 'preview3DCard'
         if (preview3DCard != null) {
             for (Btn b : btns) {
                 if (b.hit(mx, my)) {
@@ -586,7 +552,7 @@ public class PhantasiaGuideScreen extends PhantasiaScreen {
                     return true;
                 }
             }
-            return true; // Abundant absorption blocks click-through bleed completely
+            return true;
         }
 
         for (Btn b : btns) {
@@ -631,8 +597,6 @@ public class PhantasiaGuideScreen extends PhantasiaScreen {
         return super.keyPressed(kc, sc, mod);
     }
 
-    // ── Navigation Execution Routes ───────────────────────────────────────────
-
     private void navigate(int delta) {
         int next = Mth.clamp(pageIndex + delta, 0, pages.size() - 1);
         if (next != pageIndex) {
@@ -670,8 +634,6 @@ public class PhantasiaGuideScreen extends PhantasiaScreen {
     public boolean isPauseScreen() {
         return false;
     }
-
-    // ── Static Stack Compiler Helpers ─────────────────────────────────────────
 
     private static ItemStack resolveStack(PhantasiaSceneData.ItemConditionData it) {
         if (it == null || it.item == null || it.item.isBlank()) return ItemStack.EMPTY;

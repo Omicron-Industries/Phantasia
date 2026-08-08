@@ -35,27 +35,22 @@ public class PhantasiaGuideEditorScreen extends Screen {
     private static final int TOP_H = 22;
     private static final int ROW_H = 18;
 
-    // ── State ─────────────────────────────────────────────────────────────────
     private final Screen parent;
     private PhantasiaGuideData data;
     private boolean dirty = false;
 
-    // Resizable Sidebar Config
     private int rightWidth = 280;
     private boolean isResizingSidebar = false;
 
-    // Undo
     private static final int MAX_UNDO = 20;
     private final ArrayDeque<PhantasiaGuideData> undoStack = new ArrayDeque<>();
 
-    // Selection tracking
     private int selectedPage = 0;
     private int pageScrollOffset = 0;
     private int itemGridScrollOffset = 0;
 
     private int rightItemsScrollOffset = 0;
 
-    // Custom Interactive Multi-line Text Engine State
     private int activeTextFocus = 1;
     private int cursorLine = 0;
     private int cursorColumn = 0;
@@ -63,20 +58,16 @@ public class PhantasiaGuideEditorScreen extends Screen {
     private int anchorColumn = 0;
     private int frameTickCounter = 0;
 
-    // Layout tracking for text dragging selection
     private int hlBoxY = 0;
     private int bodyBoxY = 0;
     private int leftTextStartX = 0;
 
-    // Wrapped Lines Cache for rendering/input calculations
     private final List<WrappedLineMapping> cachedWrappedLines = new ArrayList<>();
 
-    // Standard Inputs
     private EditBox titleBox;
     private EditBox iconItemBox;
-    private EditBox tooltipItemBox; // for adding tooltip item IDs
+    private EditBox tooltipItemBox;
 
-    // Item management variables
     private int selectedItem = -1;
     private EditBox itemIdBox;
     private EditBox itemLabelBox;
@@ -94,8 +85,6 @@ public class PhantasiaGuideEditorScreen extends Screen {
 
     private final List<Btn> btns = new ArrayList<>();
 
-    // ─────────────────────────────────────────────────────────────────────────
-
     public PhantasiaGuideEditorScreen(Screen parent, PhantasiaGuideData data) {
         super(Component.translatable("screen.phantasia.guide_editor.title"));
         this.parent = parent;
@@ -105,7 +94,7 @@ public class PhantasiaGuideEditorScreen extends Screen {
     @Override
     protected void init() {
         super.init();
-        // Clamp sidebar so the text-editor panel always has at least 260px.
+
         rightWidth = Math.min(280, Math.max(160, this.width - 260));
         buildWidgets();
         populateFromPage();
@@ -177,8 +166,6 @@ public class PhantasiaGuideEditorScreen extends Screen {
         itemCountBox.setValue("1");
         itemTypeSelected = "input";
     }
-
-    // ── Midline Terminal-Style Text Calculations Engine (With Word Wrap) ───────
 
     private List<String> getEditableLines() {
         PageData p = page();
@@ -275,7 +262,6 @@ public class PhantasiaGuideEditorScreen extends Screen {
         ensureCursorBounds(lines);
         boolean shift = Screen.hasShiftDown();
 
-        // ── Ctrl shortcuts ─────────────────────────────────────────────────
         if ((modifiers & GLFW.GLFW_MOD_CONTROL) != 0) {
             if (keyCode == GLFW.GLFW_KEY_A) {
                 anchorLine = 0;
@@ -332,7 +318,6 @@ public class PhantasiaGuideEditorScreen extends Screen {
             }
         }
 
-        // ── Backspace / Delete ────────────────────────────────────────────────
         if (keyCode == InputConstants.KEY_BACKSPACE) {
             if (hasSelection()) {
                 checkpoint();
@@ -375,7 +360,6 @@ public class PhantasiaGuideEditorScreen extends Screen {
             return true;
         }
 
-        // ── Arrow keys ──────────────────────────────────────────────────────
         if (keyCode == InputConstants.KEY_LEFT) {
             if (!shift && hasSelection()) {
                 int[] s = selStart(lines);
@@ -535,8 +519,6 @@ public class PhantasiaGuideEditorScreen extends Screen {
         frameTickCounter++;
     }
 
-    // ── Render ────────────────────────────────────────────────────────────────
-
     @Override
     public void render(GuiGraphics g, int mx, int my, float partial) {
         btns.clear();
@@ -589,8 +571,6 @@ public class PhantasiaGuideEditorScreen extends Screen {
         g.fill(dividerX - 1, TOP_H, dividerX + 1, height, (hover || isResizingSidebar) ? C_ACCENT() : 0x44FFFFFF);
     }
 
-    // ── Left Custom Terminal-Style Interactive Input Engine ─────────────────────
-
     private void renderLeftInteractivePanel(GuiGraphics g, int mx, int my) {
         int previewW = width - rightWidth;
         int colW = Math.min(500, previewW - 48);
@@ -609,14 +589,12 @@ public class PhantasiaGuideEditorScreen extends Screen {
         int y = TOP_H + 12;
         int currentFocusBeforeRender = activeTextFocus;
 
-        // ── 1. INTERACTIVE HEADLINE ───────
         activeTextFocus = 0;
         List<String> headlineLines = getEditableLines();
         boolean hlFocused = (currentFocusBeforeRender == 0);
         int hlBoxBg = hlFocused ? 0xFF0D1C2A : 0xBB0D131A;
         int hlBoxHeight = 16 + (headlineLines.size() * (font.lineHeight + 2));
 
-        // Cache layout positions for drag tracking
         this.hlBoxY = y;
         this.leftTextStartX = colX + 4;
 
@@ -678,7 +656,6 @@ public class PhantasiaGuideEditorScreen extends Screen {
 
         y += hlBoxHeight + 8;
 
-        // ── 2. INTERACTIVE MULTI-LINE BODY TEXT ───
         activeTextFocus = 1;
         List<String> bodyLines = getEditableLines();
         boolean bodyFocused = (currentFocusBeforeRender == 1);
@@ -689,7 +666,6 @@ public class PhantasiaGuideEditorScreen extends Screen {
         int bodyAreaHeight = height - y - 120;
         if (bodyAreaHeight < 90) bodyAreaHeight = 90;
 
-        // Cache layout positions for drag tracking
         this.bodyBoxY = y;
 
         g.fill(colX - 4, y, colX + colW + 4, y + bodyAreaHeight, bodyBoxBg);
@@ -770,7 +746,6 @@ public class PhantasiaGuideEditorScreen extends Screen {
         activeTextFocus = currentFocusBeforeRender;
         y += bodyAreaHeight + 8;
 
-        // ── 3. SCROLLABLE ITEM CARDS GRID (With Clamped Bound Scrolling Logic) ─────────────────────
         if (!p.items.isEmpty()) {
             g.fill(colX, y, colX + colW, y + 1, 0x334FC3F7);
             y += 4;
@@ -780,7 +755,6 @@ public class PhantasiaGuideEditorScreen extends Screen {
 
             int perRow = Math.max(1, (colW + 6) / (94 + 6));
 
-            // Dynamic bounds containment calculation
             int totalRows = (int) Math.ceil((double) p.items.size() / perRow);
             int maxScroll = Math.max(0, (totalRows * 94) - gridHeight);
             if (itemGridScrollOffset > maxScroll) {
@@ -822,8 +796,6 @@ public class PhantasiaGuideEditorScreen extends Screen {
         if (font.width(label) > 88) label = font.plainSubstrByWidth(label, 85) + "…";
         g.drawCenteredString(font, label, cx + 47, cy + 70, 0xFFDDDDDD);
     }
-
-    // ── Right panel ───────────────────────────────────────────────────────────
 
     private void renderRightPanel(GuiGraphics g, int mx, int my) {
         int px = width - rightWidth;
@@ -876,7 +848,6 @@ public class PhantasiaGuideEditorScreen extends Screen {
 
         if (data.pages.isEmpty()) return;
 
-        // ── ITEMS LIST ROW HEADER ──
         g.drawString(font,
                 String.format(Component.translatable("screen.phantasia.guide_editor.section_items").getString(),
                         page().items.size()),
@@ -889,11 +860,9 @@ public class PhantasiaGuideEditorScreen extends Screen {
         btns.add(new Btn(width - addItemW - 4, y - 1, addItemW, 12, this::addItem));
         y += font.lineHeight + 3;
 
-        // ── SCROLLABLE LIST CLIP-CONTAINER ENGINE ──
-        int itemBoxAreaH = 50; // Total screen space reserved for the items window list
+        int itemBoxAreaH = 50;
         g.enableScissor(px, y, width, y + itemBoxAreaH);
 
-        // Auto-adjusting max containment math to avoid scroll overshoot
         int maxItemsScroll = Math.max(0, (page().items.size() * 16) - itemBoxAreaH);
         if (rightItemsScrollOffset > maxItemsScroll) {
             rightItemsScrollOffset = maxItemsScroll;
@@ -905,7 +874,6 @@ public class PhantasiaGuideEditorScreen extends Screen {
             boolean isel = i == selectedItem;
             boolean ihov = over(mx, my, px + 4, renderY, rightWidth - 24, 14);
 
-            // Only process click buttons and text if visually inside the panel viewport boundaries
             if (renderY + 14 >= y && renderY <= y + itemBoxAreaH) {
                 g.fill(px + 4, renderY, width - 20, renderY + 14, isel ? C_SEL() : (ihov ? C_BTN_HOV() : C_BTN()));
                 if (isel) g.fill(px + 4, renderY, px + 6, renderY + 14, it.accentColor());
@@ -926,9 +894,8 @@ public class PhantasiaGuideEditorScreen extends Screen {
             renderY += 16;
         }
         g.disableScissor();
-        y += itemBoxAreaH + 4; // Shift static elements down below the clipping boundaries
+        y += itemBoxAreaH + 4;
 
-        // ── ITEM CONFIGURATION FORM FIELD INTERFACES ──
         g.drawString(font, Component.translatable("screen.phantasia.guide_editor.label_item_id").getString(), px + 4, y,
                 C_DIM(), false);
         placeBox(itemIdBox, px + 4 +
@@ -984,7 +951,6 @@ public class PhantasiaGuideEditorScreen extends Screen {
         g.fill(px + 4, y, width - 4, y + 1, 0x22FFFFFF);
         y += 6;
 
-        // ── LINKED REGISTRY ENTITY SELECTION BUTTONS ──
         String gl = page().guideId != null && !page().guideId.isBlank() &&
                 PhantasiaGuideRegistry.get(page().guideId) != null ? page().guideId : "None";
         boolean glHov = over(mx, my, px + 4, y, rightWidth - 8, 14);
@@ -1052,7 +1018,6 @@ public class PhantasiaGuideEditorScreen extends Screen {
         }));
         y += 18;
 
-        // ── GUIDE-LEVEL TOOLTIP ITEMS ──────────────────────────────────────────
         g.fill(px, y, width, y + 1, 0x22FFFFFF);
         y += 5;
         g.drawString(font,
@@ -1082,7 +1047,6 @@ public class PhantasiaGuideEditorScreen extends Screen {
             }
         }
 
-        // Add tooltip item input row
         placeBox(tooltipItemBox, px + 4, y - 1, rightWidth - 56, 12);
         tooltipItemBox.visible = true;
         tooltipItemBox.active = true;
@@ -1102,8 +1066,6 @@ public class PhantasiaGuideEditorScreen extends Screen {
         }));
         y += 16;
     }
-
-    // ── Button Actions ────────────────────────────────────────────────────────
 
     private void addPage() {
         checkpoint();
@@ -1197,8 +1159,6 @@ public class PhantasiaGuideEditorScreen extends Screen {
         if (undoStack.size() > MAX_UNDO) undoStack.removeLast();
     }
 
-    // ── Screen Overrides & Mouse Helpers ──────────────────────────────────────
-
     @Override
     public boolean mouseClicked(double mx, double my, int btn) {
         int dividerX = width - rightWidth;
@@ -1230,10 +1190,9 @@ public class PhantasiaGuideEditorScreen extends Screen {
             return true;
         }
 
-        // Handle drag-to-select logic for custom multi-line fields
         if (btn == 0 && !data.pages.isEmpty()) {
             if (activeTextFocus == 0) {
-                // Dragging selection inside Headline field
+
                 int boxYStart = this.hlBoxY + 14;
                 int relativeClickY = (int) (my - boxYStart);
                 int targetLineIdx = relativeClickY / (font.lineHeight + 2);
@@ -1243,7 +1202,7 @@ public class PhantasiaGuideEditorScreen extends Screen {
                 this.cursorColumn = findClosestColumnIndex(currentLines.get(this.cursorLine), mx, this.leftTextStartX);
                 return true;
             } else if (activeTextFocus == 1) {
-                // Dragging selection inside Body Text field
+
                 int boxYStart = this.bodyBoxY + 15;
                 int relativeClickY = (int) (my - boxYStart);
                 int wrappedLineIdx = relativeClickY / (font.lineHeight + 2);
@@ -1266,11 +1225,11 @@ public class PhantasiaGuideEditorScreen extends Screen {
     public boolean mouseScrolled(double mx, double my, double delta) {
         int previewW = width - rightWidth;
         if (mx < previewW) {
-            // Scroll the grid preview on the left side
+
             itemGridScrollOffset = Math.max(0, itemGridScrollOffset - (int) (delta * 16));
             return true;
         } else {
-            // Scroll the items list inside the sidebar on the right side
+
             rightItemsScrollOffset = Math.max(0, rightItemsScrollOffset - (int) (delta * 12));
             return true;
         }
@@ -1350,8 +1309,6 @@ public class PhantasiaGuideEditorScreen extends Screen {
         return addRenderableWidget(w);
     }
 
-    // ── Registry Search Screen (Self-Contained Lookup Window) ──────────────────
-
     private static class RegistrySearchScreen extends Screen {
 
         private final Screen parent;
@@ -1391,7 +1348,6 @@ public class PhantasiaGuideEditorScreen extends Screen {
         public void render(GuiGraphics g, int mx, int my, float pt) {
             g.fill(0, 0, width, height, 0xEE080812);
 
-            // Render explicit interactive Back Button
             int btnW = font.width(Component.translatable("screen.phantasia.guide_editor.btn_back").getString()) + 10;
             boolean backHov = mx > 10 && mx < 10 + btnW && my > 10 && my < 24;
             g.fill(10, 10, 10 + btnW, 24, backHov ? 0xBB1A2840 : 0xBB151528);
@@ -1415,7 +1371,7 @@ public class PhantasiaGuideEditorScreen extends Screen {
         @Override
         public boolean mouseClicked(double mx, double my, int btn) {
             if (btn == 0) {
-                // Handle header Back button interaction execution
+
                 int btnW = font.width(Component.translatable("screen.phantasia.guide_editor.btn_back").getString()) +
                         10;
                 if (mx > 10 && mx < 10 + btnW && my > 10 && my < 24) {

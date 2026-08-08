@@ -68,11 +68,10 @@ public class PhantasiaDummyWorld extends Level {
                 proxy.registryAccess(),
                 proxy.dimensionTypeRegistration(),
                 proxy::getProfiler,
-                true,   // isClientSide
-                false,  // isDebug
-                0L,     // biomeZoomSeed
-                0       // maxChainedNeighborUpdates
-        );
+                true,
+                false,
+                0L,
+                0);
         this.proxyLevel = new WeakReference<>(proxy);
         this.chunkSource = new PhantasiaDummyChunkSource(this);
         this.lightEngine = new LevelLightEngine(chunkSource, true, false);
@@ -86,8 +85,6 @@ public class PhantasiaDummyWorld extends Level {
         }
         return l;
     }
-
-    // ── Block/BE access (overridden in TrackedDummyWorld) ─────────────────────
 
     @Override
     public BlockState getBlockState(BlockPos pos) {
@@ -107,8 +104,6 @@ public class PhantasiaDummyWorld extends Level {
 
     @Override
     public void setBlockEntity(BlockEntity be) {}
-
-    // ── Light ─────────────────────────────────────────────────────────────────
 
     @Override
     public LevelLightEngine getLightEngine() {
@@ -140,8 +135,6 @@ public class PhantasiaDummyWorld extends Level {
         };
     }
 
-    // ── Chunk source ──────────────────────────────────────────────────────────
-
     @Override
     public ChunkSource getChunkSource() {
         return chunkSource;
@@ -152,14 +145,10 @@ public class PhantasiaDummyWorld extends Level {
         return true;
     }
 
-    // ── Fluids ────────────────────────────────────────────────────────────────
-
     @Override
     public FluidState getFluidState(BlockPos pos) {
         return Fluids.EMPTY.defaultFluidState();
     }
-
-    // ── Biome ─────────────────────────────────────────────────────────────────
 
     @Override
     public Holder<Biome> getBiome(BlockPos pos) {
@@ -181,8 +170,6 @@ public class PhantasiaDummyWorld extends Level {
         return getProxy().getNoiseBiome(x, y, z);
     }
 
-    // ── Registry / features ───────────────────────────────────────────────────
-
     @Override
     public RegistryAccess registryAccess() {
         return getProxy().registryAccess();
@@ -203,8 +190,6 @@ public class PhantasiaDummyWorld extends Level {
         return getProxy().getScoreboard();
     }
 
-    // ── Ticks ─────────────────────────────────────────────────────────────────
-
     @Override
     public LevelTickAccess<Block> getBlockTicks() {
         return getProxy().getBlockTicks();
@@ -214,8 +199,6 @@ public class PhantasiaDummyWorld extends Level {
     public LevelTickAccess<Fluid> getFluidTicks() {
         return getProxy().getFluidTicks();
     }
-
-    // ── Players / entities (empty) ────────────────────────────────────────────
 
     @Override
     public List<? extends Player> players() {
@@ -259,8 +242,6 @@ public class PhantasiaDummyWorld extends Level {
         };
     }
 
-    // ── Sound / events (no-op) ────────────────────────────────────────────────
-
     @Override
     public void playSound(@Nullable Player player, double x, double y, double z, SoundEvent sound, SoundSource cat,
                           float vol, float pitch) {}
@@ -293,8 +274,6 @@ public class PhantasiaDummyWorld extends Level {
     @Override
     public void gameEvent(@Nullable Entity entity, GameEvent event, BlockPos pos) {}
 
-    // ── Particles (no-op base; TrackedDummyWorld overrides) ───────────────────
-
     @Override
     public void addParticle(ParticleOptions data, double x, double y, double z, double vx, double vy, double vz) {}
 
@@ -309,8 +288,6 @@ public class PhantasiaDummyWorld extends Level {
     @Override
     public void addAlwaysVisibleParticle(ParticleOptions data, boolean force, double x, double y, double z, double vx,
                                          double vy, double vz) {}
-
-    // ── Map data (no-op) ──────────────────────────────────────────────────────
 
     @Override
     public int getFreeMapId() {

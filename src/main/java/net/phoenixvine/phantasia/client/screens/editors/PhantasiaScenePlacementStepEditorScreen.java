@@ -26,51 +26,34 @@ import java.util.Set;
 
 import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
 
-/**
- * Full-screen per-placement step override editor.
- *
- * Opens from the scene editor's placements panel ("Per-Step Config →") and
- * shows every scene step's override for one specific placement. The user can
- * switch between steps using the dot timeline at the bottom, and configure
- * show mode, layer/range, working state, fake recipe, and particles. When
- * the "pos" show mode is active a button opens {@link PhantasiaHidePosEditorScreen}
- * (which uses this screen as its {@link PhantasiaHidePosContext}).
- */
 @OnlyIn(Dist.CLIENT)
 public class PhantasiaScenePlacementStepEditorScreen extends PhantasiaScreen
                                                      implements PhantasiaHidePosContext {
 
     private static final int PANEL_W = 240;
-    private static final int STEP_H = 28;  // bottom timeline height
-    private static final int ITEM_H = 14;  // height of a single control row
+    private static final int STEP_H = 28;
+    private static final int ITEM_H = 14;
 
     private static final float CAM_ORBIT = 0.4f;
     private static final float CAM_PAN = 0.02f;
 
-    // ── References ───────────────────────────────────────────────────────────
     final PhantasiaSceneEditorScreen parent;
     private final PhantasiaSceneData data;
     private final int placementIndex;
 
-    // ── Camera (own, does not mutate parent camera) ───────────────────────────
     private PhantasiaCamera camera;
     private boolean isPanning = false;
 
-    // ── Selection ────────────────────────────────────────────────────────────
     private int selectedStep = 0;
 
-    // ── Layer slider ─────────────────────────────────────────────────────────
     private boolean draggingLayer = false;
     private boolean draggingLayerMax = false;
 
-    // ── Widgets ──────────────────────────────────────────────────────────────
     private EditBox layerBox;
     private EditBox layerMinBox;
     private EditBox layerMaxBox;
     private EditBox fakeRecipeBox;
     private EditBox particlesBox;
-
-    // ─────────────────────────────────────────────────────────────────────────
 
     public PhantasiaScenePlacementStepEditorScreen(PhantasiaSceneEditorScreen parent,
                                                    PhantasiaSceneData data,
@@ -80,10 +63,6 @@ public class PhantasiaScenePlacementStepEditorScreen extends PhantasiaScreen
         this.data = data;
         this.placementIndex = placementIndex;
     }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // Init
-    // ─────────────────────────────────────────────────────────────────────────
 
     @Override
     protected void init() {
@@ -181,20 +160,14 @@ public class PhantasiaScenePlacementStepEditorScreen extends PhantasiaScreen
         }
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Data helpers
-    // ─────────────────────────────────────────────────────────────────────────
-
     private PhantasiaSceneData.StepData step() {
         return data.steps.get(Mth.clamp(selectedStep, 0, data.steps.size() - 1));
     }
 
-    /** Returns the current step's override for this placement, or null if none. */
     private PhantasiaSceneData.MachineOverride ov() {
         return step().getOverride(placementIndex);
     }
 
-    /** Returns or creates the current step's override for this placement. */
     private PhantasiaSceneData.MachineOverride ensureOv() {
         PhantasiaSceneData.MachineOverride ov = step().getOverride(placementIndex);
         if (ov == null) {
@@ -209,7 +182,6 @@ public class PhantasiaScenePlacementStepEditorScreen extends PhantasiaScreen
         parent.applyActiveStateToScene(step().working);
     }
 
-    /** Returns [minY, maxY] for this placement, or null if not found. */
     private int[] placementYBounds() {
         if (parent.scenePattern == null) return null;
         for (PhantasiaScenePattern.PlacementEntry pe : parent.scenePattern.placements) {
@@ -235,19 +207,11 @@ public class PhantasiaScenePlacementStepEditorScreen extends PhantasiaScreen
         }
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Tick
-    // ─────────────────────────────────────────────────────────────────────────
-
     @Override
     public void tick() {
         super.tick();
         if (camera != null) camera.tick();
     }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // Render
-    // ─────────────────────────────────────────────────────────────────────────
 
     @Override
     public void render(GuiGraphics g, int mx, int my, float partial) {
@@ -255,10 +219,8 @@ public class PhantasiaScenePlacementStepEditorScreen extends PhantasiaScreen
         hideAllBoxes();
         pendingTooltip = null;
 
-        // Background
         g.fill(0, 0, width, height, C_BG());
 
-        // 3D viewport (left side minus panel)
         int viewW = width - PANEL_W;
         int viewY = TOP_BAR_H;
         int viewH = height - TOP_BAR_H - STEP_H;
@@ -276,8 +238,6 @@ public class PhantasiaScenePlacementStepEditorScreen extends PhantasiaScreen
         super.render(g, mx, my, partial);
         renderPendingTooltip(g, mx, my);
     }
-
-    // ── Top bar ───────────────────────────────────────────────────────────────
 
     private void renderTopBar(GuiGraphics g, int mx, int my) {
         g.fill(0, 0, width, TOP_BAR_H, C_BAR());
@@ -297,8 +257,6 @@ public class PhantasiaScenePlacementStepEditorScreen extends PhantasiaScreen
                 });
     }
 
-    // ── Right panel ───────────────────────────────────────────────────────────
-
     private static final String[] SHOW_MODES = { "all", "layer", "layers", "pos" };
     private static final String[] SHOW_LABELS = { "All", "Layer", "Range", "Pos" };
 
@@ -311,7 +269,7 @@ public class PhantasiaScenePlacementStepEditorScreen extends PhantasiaScreen
         g.fill(px, py, px + 1, py + ph, C_ACCENT());
 
         PhantasiaSceneData.MachineOverride ov = ov();
-        String curShow = ov != null && ov.show != null ? ov.show : null; // null = global
+        String curShow = ov != null && ov.show != null ? ov.show : null;
 
         int cy = py + 8;
 
@@ -319,10 +277,9 @@ public class PhantasiaScenePlacementStepEditorScreen extends PhantasiaScreen
                 px + 6, cy, C_ACCENT(), false);
         cy += 14;
 
-        // ── Show mode ─────────────────────────────────────────────────────────
         g.drawString(font, Component.translatable("screen.phantasia.placement_step_editor.label_show").getString(),
                 px + 6, cy + 2, C_DIM(), false);
-        // "Global" button (inherit from step)
+
         int bx = px + 6 +
                 font.width(Component.translatable("screen.phantasia.placement_step_editor.label_show").getString()) + 4;
         boolean gSel = (curShow == null);
@@ -357,9 +314,7 @@ public class PhantasiaScenePlacementStepEditorScreen extends PhantasiaScreen
                 parent.checkpoint();
                 PhantasiaSceneData.MachineOverride o = ensureOv();
                 o.show = fsm;
-                // Clamp/initialize layer values to valid bounds when switching into
-                // layer or layers mode — mirrors the script editor's behaviour so you
-                // never land on an out-of-bounds Y that shows nothing.
+
                 if ("layer".equals(fsm) || "layers".equals(fsm)) {
                     int[] bounds = placementYBounds();
                     if (bounds != null) {
@@ -387,7 +342,6 @@ public class PhantasiaScenePlacementStepEditorScreen extends PhantasiaScreen
         }
         cy += 17;
 
-        // ── Layer / Range inputs ──────────────────────────────────────────────
         if ("layer".equals(curShow) && ov != null) {
             g.drawString(font, "Y:", px + 6, cy + 2, C_DIM(), false);
             placeBox(layerBox, px + 6 + font.width("Y:") + 4, cy, 36, 12);
@@ -430,7 +384,6 @@ public class PhantasiaScenePlacementStepEditorScreen extends PhantasiaScreen
         g.fill(px + 6, cy, px + PANEL_W - 6, cy + 1, 0x22FFFFFF);
         cy += 8;
 
-        // ── Working state ─────────────────────────────────────────────────────
         g.drawString(font, Component.translatable("screen.phantasia.placement_step_editor.label_working").getString(),
                 px + 6, cy + 2, C_DIM(), false);
         Boolean curW = ov != null ? ov.machineWorking : null;
@@ -463,21 +416,18 @@ public class PhantasiaScenePlacementStepEditorScreen extends PhantasiaScreen
         g.fill(px + 6, cy, px + PANEL_W - 6, cy + 1, 0x22FFFFFF);
         cy += 8;
 
-        // ── Fake recipe ───────────────────────────────────────────────────────
         g.drawString(font, Component.translatable("screen.phantasia.placement_step_editor.label_recipe").getString(),
                 px + 6, cy + 2, C_DIM(), false);
         cy += 12;
         placeBox(fakeRecipeBox, px + 6, cy, PANEL_W - 14, 12);
         cy += 16;
 
-        // ── Particles ─────────────────────────────────────────────────────────
         g.drawString(font, Component.translatable("screen.phantasia.placement_step_editor.label_particles").getString(),
                 px + 6, cy + 2, C_DIM(), false);
         cy += 12;
         placeBox(particlesBox, px + 6, cy, PANEL_W - 14, 12);
         cy += 16;
 
-        // ── Edit placement / items ────────────────────────────────────────────
         cy += 4;
         g.fill(px + 6, cy, px + PANEL_W - 6, cy + 1, 0x22FFFFFF);
         cy += 8;
@@ -493,7 +443,6 @@ public class PhantasiaScenePlacementStepEditorScreen extends PhantasiaScreen
                 new PhantasiaPlacementEditorScreen(parent, data, placementIndex))));
         cy += ITEM_H + 4;
 
-        // ── Clear override ────────────────────────────────────────────────────
         if (ov != null) {
             cy += 6;
             int cbW = PANEL_W - 14;
@@ -513,8 +462,6 @@ public class PhantasiaScenePlacementStepEditorScreen extends PhantasiaScreen
         }
     }
 
-    // ── Layer slider ─────────────────────────────────────────────────────────
-
     private void renderLayerSlider(GuiGraphics g, int mx, int my) {
         PhantasiaSceneData.MachineOverride ov = ov();
         if (ov == null) return;
@@ -522,7 +469,6 @@ public class PhantasiaScenePlacementStepEditorScreen extends PhantasiaScreen
         if (!"layer".equals(show) && !"layers".equals(show)) return;
         if (parent.scenePattern == null) return;
 
-        // Find Y bounds for this placement
         int minY = Integer.MAX_VALUE, maxY = Integer.MIN_VALUE;
         for (PhantasiaScenePattern.PlacementEntry pe : parent.scenePattern.placements) {
             if (pe.index == placementIndex) {
@@ -666,8 +612,6 @@ public class PhantasiaScenePlacementStepEditorScreen extends PhantasiaScreen
         }
     }
 
-    // ── Step timeline ─────────────────────────────────────────────────────────
-
     private void renderStepTimeline(GuiGraphics g, int mx, int my) {
         int rowY = height - STEP_H;
         int padL = 30, padR = PANEL_W + 20;
@@ -716,18 +660,10 @@ public class PhantasiaScenePlacementStepEditorScreen extends PhantasiaScreen
         }
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Pos editor
-    // ─────────────────────────────────────────────────────────────────────────
-
     private void openPosEditor() {
-        ensureOv(); // guarantee the override + hidePositions list exists
+        ensureOv();
         Minecraft.getInstance().setScreen(new PhantasiaHidePosEditorScreen(this));
     }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // PhantasiaHidePosContext impl
-    // ─────────────────────────────────────────────────────────────────────────
 
     @Override
     public String getHidePosLabel() {
@@ -779,7 +715,6 @@ public class PhantasiaScenePlacementStepEditorScreen extends PhantasiaScreen
 
     @Override
     public List<int[]> getHidePositions() {
-        // "pos" mode in scene context is a SHOW list (positions), not a hide list
         return ensureOv().positions;
     }
 
@@ -798,7 +733,6 @@ public class PhantasiaScenePlacementStepEditorScreen extends PhantasiaScreen
         if (parent.renderer == null || parent.scenePattern == null) return;
         Set<BlockPos> visible = parent.scenePattern.computeVisible(step(), data);
 
-        // Hide blocks and baseplates belonging to other placements.
         Set<BlockPos> otherPositions = new java.util.HashSet<>();
         Set<BlockPos> selectedBaseplates = new java.util.HashSet<>();
         for (PhantasiaScenePattern.PlacementEntry pe : parent.scenePattern.placements) {
@@ -813,24 +747,17 @@ public class PhantasiaScenePlacementStepEditorScreen extends PhantasiaScreen
         Set<BlockPos> filtered = visible != null ? new java.util.HashSet<>(visible) : new java.util.HashSet<>();
         filtered.removeAll(otherPositions);
 
-        // Restrict the renderer's baseplatePositions to only the selected placement so that
-        // scheduleFullBake does not unconditionally include other placements' baseplates.
         parent.renderer.setBaseplatePositions(selectedBaseplates);
 
         parent.renderer.setVisible(filtered);
         parent.renderer.requestBake();
     }
 
-    /** Restores all baseplates when leaving this screen. */
     private void restoreAllBaseplates() {
         if (parent.renderer != null && parent.scenePattern != null) {
             parent.renderer.setBaseplatePositions(parent.scenePattern.allBaseplatePositions);
         }
     }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // Input
-    // ─────────────────────────────────────────────────────────────────────────
 
     @Override
     public boolean mouseClicked(double mx, double my, int btn) {

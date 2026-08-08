@@ -9,13 +9,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/**
- * Verifies that PhantasiaScriptData.fromJson() correctly deserializes all
- * fields used by scripts — including step items, guideId, hold, and cameras.
- */
 class ScriptDataJsonTest {
-
-    // ── fromJson / basic structure ──────────────────────────────────────────
 
     @Test
     void fromJsonParsesMinimalScript() {
@@ -142,7 +136,6 @@ class ScriptDataJsonTest {
 
     @Test
     void fromJsonNullInputReturnsNull() {
-        // Gson returns null for null input — confirm we don't NPE upstream
         assertNull(PhantasiaScriptData.fromJson((String) null));
     }
 }

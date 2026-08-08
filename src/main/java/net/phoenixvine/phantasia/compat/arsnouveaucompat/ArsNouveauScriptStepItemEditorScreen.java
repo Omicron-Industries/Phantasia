@@ -10,15 +10,9 @@ import net.phoenixvine.phantasia.common.data.script.PhantasiaScriptData;
 
 import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
 
-/**
- * AN-aware item editor subscreen.
- * Extends the generic editor with a quick-insert chip row of common AN items
- * so devs don't have to type full resource IDs by hand.
- */
 @OnlyIn(Dist.CLIENT)
 public class ArsNouveauScriptStepItemEditorScreen extends PhantasiaScriptStepItemEditorScreen {
 
-    // Quick-insert: { resourceLocation, displayLabel, type }
     private static final String[][] AN_QUICK_ITEMS = {
             { "ars_nouveau:source_jar", "Source Jar", "input" },
             { "ars_nouveau:spell_parchment", "Spell Parchment", "catalyst" },
@@ -74,7 +68,7 @@ public class ArsNouveauScriptStepItemEditorScreen extends PhantasiaScriptStepIte
             String type = chip[2];
             int chipW = font.width(label) + 10;
 
-            if (bx + chipW > width - 4) break;  // don't overflow
+            if (bx + chipW > width - 4) break;
 
             int ac = PhantasiaSceneData.ItemConditionData.staticAccentFor(type);
             boolean hov = isOver(mx, my, bx, barY + 7, chipW, CHIP_H);

@@ -29,11 +29,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-/**
- * Exposes Ars Nouveau setups as {@link IPhantasiaMultiblockDefinition} entries.
- * Recipe-based setups (apparatus, imbuement) come from {@link PhantasiaMultiSetupRegistry}.
- * Static layout setups (turrets, sourcelinks, summoning) are registered directly here.
- */
 public class ArsNouveauMultiblockProvider implements IPhantasiaMultiblockProvider {
 
     private final List<ArsNouveauStaticDefinition> staticDefs;
@@ -54,11 +49,10 @@ public class ArsNouveauMultiblockProvider implements IPhantasiaMultiblockProvide
 
     @Override
     public Optional<IPhantasiaMultiblockDefinition> resolve(String machineId) {
-        // Check static defs first
         for (ArsNouveauStaticDefinition def : staticDefs) {
             if (def.getId().toString().equals(machineId)) return Optional.of(def);
         }
-        // Fall back to recipe-based setups
+
         return PhantasiaMultiSetupRegistry.resolve(machineId)
                 .map(ArsNouveauSetupDefinition::new);
     }
@@ -71,11 +65,11 @@ public class ArsNouveauMultiblockProvider implements IPhantasiaMultiblockProvide
     @Override
     public List<IPhantasiaMultiblockDefinition> getAllDefinitions() {
         List<IPhantasiaMultiblockDefinition> all = new ArrayList<>();
-        // Recipe-based setups (apparatus, imbuement)
+
         PhantasiaMultiSetupRegistry.getAllSetups().stream()
                 .map(s -> (IPhantasiaMultiblockDefinition) new ArsNouveauSetupDefinition(s))
                 .forEach(all::add);
-        // Static layout setups
+
         all.addAll(staticDefs);
         return all;
     }
@@ -92,23 +86,19 @@ public class ArsNouveauMultiblockProvider implements IPhantasiaMultiblockProvide
 
     @Override
     public Optional<IPhantasiaMultiblockDefinition> resolveFromItem(ItemStack stack) {
-        // Check static defs
         for (ArsNouveauStaticDefinition def : staticDefs) {
             if (ItemStack.isSameItem(def.getIcon(), stack)) return Optional.of(def);
         }
-        // Recipe-based setups
+
         return PhantasiaMultiSetupRegistry.getAllSetups().stream()
                 .filter(s -> ItemStack.isSameItem(s.getIcon(), stack))
                 .findFirst()
                 .map(ArsNouveauSetupDefinition::new);
     }
 
-    // ── static definition registration ────────────────────────────────────────
-
     private static List<ArsNouveauStaticDefinition> buildStaticDefs() {
         List<ArsNouveauStaticDefinition> list = new ArrayList<>();
 
-        // ── Spell Turrets ──────────────────────────────────────────────────────
         list.add(new ArsNouveauStaticDefinition(
                 new ResourceLocation("ars_nouveau", "basic_spell_turret"),
                 "Basic Spell Turret",
@@ -138,7 +128,6 @@ public class ArsNouveauMultiblockProvider implements IPhantasiaMultiblockProvide
                 ArsNouveauStaticScripts::rotatingSpellTurret,
                 rotatingHandler()));
 
-        // ── Wixie Cauldron ─────────────────────────────────────────────────────
         list.add(new ArsNouveauStaticDefinition(
                 new ResourceLocation("ars_nouveau", "wixie_cauldron"),
                 "Wixie Cauldron",
@@ -147,7 +136,6 @@ public class ArsNouveauMultiblockProvider implements IPhantasiaMultiblockProvide
                 ArsNouveauStaticScripts::wixieCauldron,
                 sourceConsumerHandler()));
 
-        // ── Bookwyrm ───────────────────────────────────────────────────────────
         list.add(new ArsNouveauStaticDefinition(
                 new ResourceLocation("ars_nouveau", "bookwyrm"),
                 "Bookwyrm",
@@ -159,7 +147,6 @@ public class ArsNouveauMultiblockProvider implements IPhantasiaMultiblockProvide
                         (level, l2w) -> spawnEntity(level, l2w,
                                 ModEntities.ENTITY_BOOKWYRM_TYPE.get().create(level))));
 
-        // ── Summoning setups ───────────────────────────────────────────────────
         list.add(new ArsNouveauStaticDefinition(
                 new ResourceLocation("ars_nouveau", "drygmy"),
                 "Drygmy",
@@ -191,7 +178,6 @@ public class ArsNouveauMultiblockProvider implements IPhantasiaMultiblockProvide
                         (level, l2w) -> spawnEntity(level, l2w,
                                 ModEntities.STARBUNCLE_TYPE.get().create(level))));
 
-        // ── Ritual Brazier ─────────────────────────────────────────────────────
         list.add(new ArsNouveauStaticDefinition(
                 new ResourceLocation("ars_nouveau", "ritual_brazier"),
                 "Ritual Brazier",
@@ -201,7 +187,6 @@ public class ArsNouveauMultiblockProvider implements IPhantasiaMultiblockProvide
                 ritualBrazierTickHandler())
                 .withScriptAwareShapeLoadHandler(ArsNouveauMultiblockProvider::activateBrazierWithScript));
 
-        // ── Sourcelinks ────────────────────────────────────────────────────────
         ArsNouveauStaticDefinition.SceneTickHandler sourcelinkFill = sourcelinkFillHandler();
         list.add(new ArsNouveauStaticDefinition(
                 new ResourceLocation("ars_nouveau", "agronomic_sourcelink"),
@@ -242,35 +227,26 @@ public class ArsNouveauMultiblockProvider implements IPhantasiaMultiblockProvide
         return list;
     }
 
-    /**
-     * Every 40 ticks, triggers a recoil animation on the first BasicSpellTurretTile in the scene.
-     * EnchantedTurretTile and TimerSpellTurretTile both extend BasicSpellTurretTile, so this
-     * handler works for all three recoil-style turrets.
-     */
     private static ArsNouveauStaticDefinition.SceneTickHandler recoilHandler() {
         return (level, localToWorld, sceneTick) -> {
             if (sceneTick % 40 != 0) return;
             for (BlockPos worldPos : localToWorld.values()) {
                 BlockEntity be = level.getBlockEntity(worldPos);
                 if (be instanceof BasicSpellTurretTile turret) {
-                    turret.startAnimation(0); // sets playRecoil = true → GeckoLib "recoil" clip
+                    turret.startAnimation(0);
                     break;
                 }
             }
         };
     }
 
-    /**
-     * Each tick, increments the rotating turret's needed rotation and snaps the
-     * interpolated fields so the renderer sees smooth continuous rotation.
-     */
     private static ArsNouveauStaticDefinition.SceneTickHandler rotatingHandler() {
         return (level, localToWorld, sceneTick) -> {
             for (BlockPos worldPos : localToWorld.values()) {
                 BlockEntity be = level.getBlockEntity(worldPos);
                 if (be instanceof RotatingTurretTile turret) {
                     turret.neededRotationX += 2.0f;
-                    // Drive clientNeededX and rotationX directly since scene ticks don't call BE.tick()
+
                     turret.clientNeededX = turret.neededRotationX;
                     turret.rotationX = turret.neededRotationX;
                     break;
@@ -279,20 +255,12 @@ public class ArsNouveauMultiblockProvider implements IPhantasiaMultiblockProvide
         };
     }
 
-    /**
-     * Walks a single scene entity in a circle around the scene center.
-     * {@code radius} is in blocks, {@code speed} is radians per tick (~0.02 = one lap in ~5 seconds).
-     * xOld/zOld and yRotO are updated before each move so the renderer interpolates smoothly.
-     */
     private static ArsNouveauStaticDefinition.SceneTickHandler mobWalkTickHandler(double radius, double speed) {
         return (level, localToWorld, sceneTick) -> {
             var entities = new java.util.ArrayList<>(level.getAllEntities());
             if (entities.isEmpty()) return;
             net.minecraft.world.entity.Entity entity = entities.get(0);
 
-            // Compute the walk center from the first block in the world map
-            // (spawnEntity placed the mob at worldCenter + 0.5, + 1.0 y)
-            // We store center as the mob's spawn base, derived from localToWorld (2,1,2)
             BlockPos centerLocal = new BlockPos(2, 1, 2);
             BlockPos worldCenter = localToWorld.get(centerLocal);
             if (worldCenter == null) {
@@ -307,8 +275,6 @@ public class ArsNouveauMultiblockProvider implements IPhantasiaMultiblockProvide
             double newX = cx + radius * Math.cos(angle);
             double newZ = cz + radius * Math.sin(angle);
 
-            // Save previous position for interpolation
-            // Capture all interpolation anchors BEFORE making any change.
             entity.xOld = entity.getX();
             entity.yOld = entity.getY();
             entity.zOld = entity.getZ();
@@ -320,7 +286,6 @@ public class ArsNouveauMultiblockProvider implements IPhantasiaMultiblockProvide
 
             entity.setPos(newX, groundY, newZ);
 
-            // Face the direction of movement (tangent = angle + 90°)
             float yaw = (float) Math.toDegrees(angle + Math.PI / 2.0);
             entity.setYRot(yaw);
             if (entity instanceof net.minecraft.world.entity.LivingEntity living) {
@@ -330,11 +295,6 @@ public class ArsNouveauMultiblockProvider implements IPhantasiaMultiblockProvide
         };
     }
 
-    /**
-     * Animates the bookwyrm entity shuttling back and forth between the Storage
-     * Lectern (local 2,1,2) and the chest at (0,1,2), hovering slightly above each.
-     * Period: 120 ticks — 20 idle at lectern, 40 travel, 20 idle at chest, 40 return.
-     */
     private static ArsNouveauStaticDefinition.SceneTickHandler bookwyrmShuttleHandler() {
         return (level, localToWorld, sceneTick) -> {
             var entities = new java.util.ArrayList<>(level.getAllEntities());
@@ -347,15 +307,14 @@ public class ArsNouveauMultiblockProvider implements IPhantasiaMultiblockProvide
             BlockPos wChest = localToWorld.get(chestLocal);
             if (wLectern == null || wChest == null) return;
 
-            double hoverY = 1.2; // hover height above block top
+            double hoverY = 1.2;
             double ax = wLectern.getX() + 0.5, az = wLectern.getZ() + 0.5;
             double bx = wChest.getX() + 0.5, bz = wChest.getZ() + 0.5;
             double groundY = wLectern.getY();
 
-            // Phase within the 120-tick cycle
             int period = 120;
             int phase = (int) (sceneTick % period);
-            // 0-19: idle at lectern; 20-59: travel to chest; 60-79: idle at chest; 80-119: return
+
             double t;
             double entityX, entityZ, yaw;
             if (phase < 20) {
@@ -364,7 +323,7 @@ public class ArsNouveauMultiblockProvider implements IPhantasiaMultiblockProvide
                 yaw = (float) Math.toDegrees(Math.atan2(bz - az, bx - ax));
             } else if (phase < 60) {
                 t = (phase - 20) / 40.0;
-                t = t * t * (3 - 2 * t); // smoothstep
+                t = t * t * (3 - 2 * t);
                 entityX = ax + (bx - ax) * t;
                 entityZ = az + (bz - az) * t;
                 yaw = (float) Math.toDegrees(Math.atan2(bz - az, bx - ax));
@@ -374,7 +333,7 @@ public class ArsNouveauMultiblockProvider implements IPhantasiaMultiblockProvide
                 yaw = (float) Math.toDegrees(Math.atan2(az - bz, ax - bx));
             } else {
                 t = (phase - 80) / 40.0;
-                t = t * t * (3 - 2 * t); // smoothstep
+                t = t * t * (3 - 2 * t);
                 entityX = bx + (ax - bx) * t;
                 entityZ = bz + (az - bz) * t;
                 yaw = (float) Math.toDegrees(Math.atan2(az - bz, ax - bx));
@@ -398,10 +357,6 @@ public class ArsNouveauMultiblockProvider implements IPhantasiaMultiblockProvide
         };
     }
 
-    /**
-     * Drains source jars at a steady rate so the scene shows active Source consumption.
-     * Resets jars to full every SOURCE_CYCLE_TICKS. Used by the Wixie Cauldron.
-     */
     private static final int SOURCE_CYCLE_TICKS = 120;
     private static final int SOURCE_DRAIN_RATE = 8;
     private static final int SOURCE_JAR_MAX = 10_000;
@@ -424,11 +379,6 @@ public class ArsNouveauMultiblockProvider implements IPhantasiaMultiblockProvide
         };
     }
 
-    /**
-     * Gradually fills Source Jars (as if a Sourcelink is producing into them), and
-     * spawns a follow-projectile particle from the sourcelink toward each jar every
-     * 100 ticks so the flow is visually clear.
-     */
     private static ArsNouveauStaticDefinition.SceneTickHandler sourcelinkFillHandler() {
         return (level, localToWorld, sceneTick) -> {
             int phase = sceneTick % SOURCE_CYCLE_TICKS;
@@ -456,7 +406,7 @@ public class ArsNouveauMultiblockProvider implements IPhantasiaMultiblockProvide
                     } else {
                         setJarSource(jar, level, Math.min(SOURCE_JAR_MAX, jar.getSource() + SOURCE_DRAIN_RATE));
                     }
-                    // Particle burst every 100 ticks from sourcelink → jar
+
                     if (sourcelinkPos != null && sourcelinkTile != null && sceneTick % 100 == 0) {
                         try {
                             ParticleUtil.spawnFollowProjectile(level, sourcelinkPos, worldPos,
@@ -468,10 +418,6 @@ public class ArsNouveauMultiblockProvider implements IPhantasiaMultiblockProvide
         };
     }
 
-    /**
-     * Sets the ritual brazier tile to decorative (continuous glow particles)
-     * with a warm golden Sun colour, and ensures the LIT blockstate is applied.
-     */
     private static void activateBrazier(net.phoenixvine.phantasia.client.render.PhantasiaTrackedDummyWorld level,
                                         Map<BlockPos, BlockPos> localToWorld) {
         for (BlockPos worldPos : localToWorld.values()) {
@@ -479,7 +425,7 @@ public class ArsNouveauMultiblockProvider implements IPhantasiaMultiblockProvide
             if (be instanceof RitualBrazierTile brazier) {
                 if (brazier.getLevel() == null) brazier.setLevel(level);
                 brazier.isDecorative = true;
-                brazier.color = new ParticleColor(255, 220, 30); // warm sun-gold
+                brazier.color = new ParticleColor(255, 220, 30);
                 break;
             }
         }
@@ -509,10 +455,6 @@ public class ArsNouveauMultiblockProvider implements IPhantasiaMultiblockProvide
         }
     }
 
-    /**
-     * Each tick, calls RitualBrazierTile.tick() so the decorative particle effect runs.
-     * The tile's tick() emits glow particles when isDecorative && level.isClientSide.
-     */
     private static ArsNouveauStaticDefinition.SceneTickHandler ritualBrazierTickHandler() {
         return (level, localToWorld, sceneTick) -> {
             for (BlockPos worldPos : localToWorld.values()) {
@@ -528,16 +470,11 @@ public class ArsNouveauMultiblockProvider implements IPhantasiaMultiblockProvide
         };
     }
 
-    /**
-     * Places a creature entity at the scene center so the summoning setup
-     * shows the actual mob that would be summoned.
-     * The entity is placed on top of the drygmy/whirlisprig/starbuncle block (CY+1).
-     */
     private static void spawnEntity(net.phoenixvine.phantasia.client.render.PhantasiaTrackedDummyWorld level,
                                     Map<BlockPos, BlockPos> localToWorld,
                                     net.minecraft.world.entity.Entity entity) {
         if (entity == null) return;
-        // Find the world position of local (2,1,2) — the creature spawn point
+
         BlockPos centerLocal = new BlockPos(2, 1, 2);
         BlockPos worldCenter = localToWorld.get(centerLocal);
         if (worldCenter == null && !localToWorld.isEmpty()) {
@@ -550,8 +487,6 @@ public class ArsNouveauMultiblockProvider implements IPhantasiaMultiblockProvide
         entity.zOld = entity.getZ();
         level.addSceneEntity(entity);
     }
-
-    // ── shared source jar helper ───────────────────────────────────────────────
 
     private static void setJarSource(SourceJarTile jar,
                                      net.phoenixvine.phantasia.client.render.PhantasiaTrackedDummyWorld level,

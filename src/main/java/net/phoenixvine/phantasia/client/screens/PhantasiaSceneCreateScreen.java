@@ -16,13 +16,6 @@ import org.lwjgl.glfw.GLFW;
 
 import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
 
-/**
- * PhantasiaSceneCreateScreen
- *
- * Simple dialog for creating a new manual scene.
- * Collects a scene ID, display name, and a block/item stack icon identifier,
- * then writes a blank scene JSON and opens the editor.
- */
 @OnlyIn(Dist.CLIENT)
 public class PhantasiaSceneCreateScreen extends Screen {
 
@@ -114,12 +107,11 @@ public class PhantasiaSceneCreateScreen extends Screen {
         int py = (this.height - ph) / 2;
         int btnY = py + ph - 22;
 
-        // Create
         if (mx >= px + pw / 2 - 118 && mx < px + pw / 2 - 8 && my >= btnY && my < btnY + 14) {
             tryCreate();
             return true;
         }
-        // Cancel
+
         if (mx >= px + pw / 2 + 8 && mx < px + pw / 2 + 118 && my >= btnY && my < btnY + 14) {
             Minecraft.getInstance().setScreen(parent);
             return true;

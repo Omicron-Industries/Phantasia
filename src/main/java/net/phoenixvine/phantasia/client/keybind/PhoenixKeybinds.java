@@ -20,7 +20,6 @@ public class PhoenixKeybinds {
         event.register(OPEN_PHANTASIA_MENU);
     }
 
-    /** Returns the current display name of the Phantasia keybind wrapped in brackets, e.g. {@code [P]}. */
     public static String keyDisplay() {
         return "[" + OPEN_PHANTASIA_MENU.getTranslatedKeyMessage().getString() + "]";
     }

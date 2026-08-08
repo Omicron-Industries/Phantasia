@@ -6,37 +6,8 @@ import org.joml.Vector3f;
 
 import javax.annotation.Nullable;
 
-/**
- * PhantasiaCamera
- *
- * Single source of truth for all Phantasia scene camera state.
- * Contains NO OpenGL calls and holds NO renderer references — it is pure data + math.
- *
- * ── Ownership model ──────────────────────────────────────────────────────────
- *
- * locked scriptDrive() result
- * ──────── ─────────────────────────────────────────────────────────────────
- * true Lerp to script target. playerOwned cleared (unless softLock).
- * false Ignored — scripts never drive when unlocked, regardless of playerOwned.
- *
- * Any player input (orbit / zoom / pan) always sets playerOwned = true and
- * cancels any active lerp immediately.
- *
- * hardReset() always clears playerOwned and starts a fresh position.
- * save() / restore() round-trip the full snapshot without touching playerOwned.
- *
- * ── Threading ────────────────────────────────────────────────────────────────
- * All methods must be called from the render/main thread.
- */
 public class PhantasiaCamera {
 
-    // ── Lerp job record ───────────────────────────────────────────────────────
-
-    /**
-     * An in-progress camera interpolation.
-     * Elapsed advances in {@link #tick()}; the interpolated position is computed
-     * lazily in {@link #getView(float)} so partial-tick smoothness is free.
-     */
     public record LerpJob(
                           float fromYaw, float fromPitch, float fromZoom,
                           float fromTX, float fromTY, float fromTZ,
@@ -46,7 +17,6 @@ public class PhantasiaCamera {
                           int elapsed,
                           LerpType type) {
 
-        /** Returns a copy with elapsed incremented by one tick. */
         LerpJob advance() {
             return new LerpJob(fromYaw, fromPitch, fromZoom,
                     fromTX, fromTY, fromTZ,
@@ -60,54 +30,28 @@ public class PhantasiaCamera {
         }
     }
 
-    // ── Constants ─────────────────────────────────────────────────────────────
-
-    /** Field-of-view in degrees. */
     public static final float FOV = 60f;
 
-    // ── Authoritative state ───────────────────────────────────────────────────
-
-    private float yaw;         // degrees; 0 = north, +90 = west
-    private float pitch;       // degrees; 0 = horizontal, -90 = straight down
-    private float zoom;        // world units: distance from target to eye
+    private float yaw;
+    private float pitch;
+    private float zoom;
     private float targetX;
     private float targetY;
     private float targetZ;
 
-    // Baseplate floor Y so we never clip the camera underground.
     private float floorY = Float.NEGATIVE_INFINITY;
-
-    // ── Lerp ─────────────────────────────────────────────────────────────────
 
     @Nullable
     private LerpJob activeLerp;
 
-    // ── Ownership ─────────────────────────────────────────────────────────────
-
-    /** True once the player has dragged, scrolled, or panned. */
     private boolean playerOwned = false;
 
-    /**
-     * True = camera is "locked" (script drives it; the UI shows 🔒).
-     * False = player has released the lock (UI shows 🔓).
-     * Toggled by the lock button in the timeline bar.
-     */
     private boolean locked = true;
 
-    /**
-     * Soft-lock mode (used by the scene step viewer).
-     * When true, script drives the camera on step change but does NOT revoke
-     * player ownership — the player can still orbit/zoom/pan freely between drives.
-     * When false (default, script viewer), locked=true gives the script exclusive control.
-     */
     private boolean softLock = false;
-
-    // ── Sub-screen snapshot ───────────────────────────────────────────────────
 
     @Nullable
     private CameraSnapshot savedSnapshot;
-
-    // ── Constructor ───────────────────────────────────────────────────────────
 
     public PhantasiaCamera(float yaw, float pitch, float zoom,
                            float targetX, float targetY, float targetZ) {
@@ -119,17 +63,11 @@ public class PhantasiaCamera {
         this.targetZ = targetZ;
     }
 
-    // ── Tick ─────────────────────────────────────────────────────────────────
-
-    /**
-     * Called exactly once per game tick (20 Hz).
-     * Advances the active lerp and commits its endpoint when finished.
-     */
     public void tick() {
         if (activeLerp == null) return;
 
         if (activeLerp.finished()) {
-            // Commit the destination as authoritative state.
+
             commitLerpEnd();
             activeLerp = null;
             return;
@@ -137,7 +75,6 @@ public class PhantasiaCamera {
 
         activeLerp = activeLerp.advance();
 
-        // Also commit once the advanced job is done.
         if (activeLerp.finished()) {
             commitLerpEnd();
             activeLerp = null;
@@ -153,19 +90,11 @@ public class PhantasiaCamera {
         targetZ = activeLerp.toTZ();
     }
 
-    // ── View computation (called every render frame) ───────────────────────────
-
-    /**
-     * Computes the interpolated eye position and look-at point for the current
-     * render frame. This method is pure — it mutates nothing.
-     *
-     * @param partialTicks Minecraft partial tick in [0, 1).
-     */
     public CameraView getView(float partialTicks) {
         float ry, rp, rz, tx, ty, tz;
 
         if (activeLerp != null && !activeLerp.finished()) {
-            // Fractional progress within the current tick window.
+
             float t = (activeLerp.elapsed() + partialTicks) / (float) activeLerp.totalTicks();
             t = Mth.clamp(t, 0f, 1f);
             t = applyEasing(t, activeLerp.type());
@@ -188,17 +117,11 @@ public class PhantasiaCamera {
         return buildView(ry, rp, rz, tx, ty, tz);
     }
 
-    /**
-     * Converts spherical camera coordinates into Cartesian eye-pos / look-at vectors.
-     * The eye sits at distance {@code zoom} from the target along the direction
-     * described by yaw (azimuth) and pitch (elevation).
-     */
     private CameraView buildView(float yawDeg, float pitchDeg, float dist,
                                  float tx, float ty, float tz) {
         double yr = Math.toRadians(yawDeg);
         double pr = Math.toRadians(pitchDeg);
 
-        // Standard spherical → Cartesian (Y-up, Z-forward convention matching MC).
         float nx = (float) (Math.cos(pr) * Math.sin(yr));
         float ny = (float) Math.sin(pr);
         float nz = (float) (Math.cos(pr) * Math.cos(yr));
@@ -207,32 +130,18 @@ public class PhantasiaCamera {
         float eyeY = ty + ny * dist;
         float eyeZ = tz + nz * dist;
 
-        // Never clip below the baseplate surface.
         eyeY = Math.max(eyeY, floorY);
 
         return new CameraView(new Vector3f(eyeX, eyeY, eyeZ), new Vector3f(tx, ty, tz));
     }
 
-    // ── Script-driven camera ──────────────────────────────────────────────────
-
-    /**
-     * Called when a script step fires.
-     *
-     * Ownership rules (see class javadoc):
-     * - If {@code locked} is false and {@code playerOwned} is true → ignored.
-     * - Otherwise → starts a lerp. If {@code locked} is true, also clears
-     * {@code playerOwned} so subsequent player input starts from the script position.
-     */
     public void scriptDrive(float toYaw, float toPitch, float toZoom,
                             LerpType lerpType, int lerpTicks) {
-        if (!locked) return; // unlocked = scripts never drive, regardless of playerOwned
-        if (!softLock) playerOwned = false; // hard lock reclaims exclusive ownership
+        if (!locked) return;
+        if (!softLock) playerOwned = false;
         startLerp(toYaw, toPitch, toZoom, targetX, targetY, targetZ, lerpType, lerpTicks);
     }
 
-    /**
-     * Variant that also moves the look-at target (useful for "focus on this block" steps).
-     */
     public void scriptDrive(float toYaw, float toPitch, float toZoom,
                             float toTX, float toTY, float toTZ,
                             LerpType lerpType, int lerpTicks) {
@@ -241,35 +150,20 @@ public class PhantasiaCamera {
         startLerp(toYaw, toPitch, toZoom, toTX, toTY, toTZ, lerpType, lerpTicks);
     }
 
-    // ── Player input ──────────────────────────────────────────────────────────
-
     public void orbit(float dx, float dy) {
         cancelLerp();
         this.yaw -= dx;
-        // FIX: Clamp to -89.99f and 89.99f instead of -90f and 90f
-        // to prevent the direction matrix from collapsing into NaN
+
         this.pitch = Mth.clamp(this.pitch + dy, -89.99f, 89.99f);
         this.playerOwned = true;
     }
 
-    /**
-     * Zoom in or out by a multiplicative factor.
-     * factor < 1 zooms in; factor > 1 zooms out.
-     * Clamped to [{@code minZoom}, {@code maxZoom}].
-     */
     public void zoom(float factor, float minZoom, float maxZoom) {
         cancelLerp();
         zoom = Mth.clamp(zoom * factor, minZoom, maxZoom);
         playerOwned = true;
     }
 
-    /**
-     * Pan the look-at target in world space (middle-mouse drag).
-     *
-     * @param worldDX Delta along the camera's right axis.
-     * @param worldDY Delta along the camera's up axis.
-     * @param worldDZ Delta along the camera's forward axis (rarely used).
-     */
     public void pan(float worldDX, float worldDY, float worldDZ) {
         cancelLerp();
         targetX += worldDX;
@@ -278,17 +172,6 @@ public class PhantasiaCamera {
         playerOwned = true;
     }
 
-    // ── System resets ─────────────────────────────────────────────────────────
-
-    /**
-     * Hard reset: snap (or lerp) to an entirely new position.
-     * Clears playerOwned so the script can drive after this.
-     * Called when the viewed multiblock changes entirely, or when the player
-     * clicks "Center Camera".
-     *
-     * @param lerpType  Use {@link LerpType#SNAP} for an instant reset.
-     * @param lerpTicks Duration if not SNAP (ignored for SNAP).
-     */
     public void hardReset(float toYaw, float toPitch, float toZoom,
                           float toTX, float toTY, float toTZ,
                           LerpType lerpType, int lerpTicks) {
@@ -296,30 +179,16 @@ public class PhantasiaCamera {
         startLerp(toYaw, toPitch, toZoom, toTX, toTY, toTZ, lerpType, lerpTicks);
     }
 
-    /** Convenience overload: instant snap. */
     public void hardReset(float toYaw, float toPitch, float toZoom,
                           float toTX, float toTY, float toTZ) {
         hardReset(toYaw, toPitch, toZoom, toTX, toTY, toTZ, LerpType.SNAP, 0);
     }
 
-    // ── Sub-screen save / restore ─────────────────────────────────────────────
-
-    /**
-     * Snapshot the current camera before navigating to a sub-screen.
-     * Does NOT touch playerOwned — that is restored together with the position.
-     */
     public void save() {
         savedSnapshot = new CameraSnapshot(yaw, pitch, zoom,
                 targetX, targetY, targetZ, playerOwned);
     }
 
-    /**
-     * Restore a previously saved snapshot.
-     * Cancels any active lerp.
-     * playerOwned is restored from the snapshot.
-     *
-     * @return true if a snapshot existed and was restored, false if nothing was saved.
-     */
     public boolean restore() {
         if (savedSnapshot == null) return false;
         cancelLerp();
@@ -338,41 +207,17 @@ public class PhantasiaCamera {
         return savedSnapshot != null;
     }
 
-    /**
-     * Discard any saved snapshot without restoring it.
-     * Call before triggering an init() that should NOT restore the old camera
-     * position (e.g. switching structure size — the new pattern has a different
-     * centroid and the old position would point at empty space).
-     */
     public void clearSnapshot() {
         savedSnapshot = null;
     }
 
-    /**
-     * Clear the playerOwned flag so init()'s camera branch will call
-     * resetCameraToDefault() instead of keeping the player's current view.
-     *
-     * Use when the scene has changed so fundamentally (e.g. structure size switch)
-     * that the player's previous camera position is no longer meaningful — it
-     * would be pointing at the wrong region of the shared dummy world.
-     */
     public void clearPlayerOwned() {
         playerOwned = false;
     }
 
-    // ── Floor clamp ───────────────────────────────────────────────────────────
-
-    /**
-     * Set the minimum Y the eye position may occupy.
-     * Prevents the camera from clipping through the baseplate.
-     *
-     * @param y World Y of the top surface of the baseplate (origin.Y + 0.5 typically).
-     */
     public void setFloorY(float y) {
         this.floorY = y;
     }
-
-    // ── Lock toggle ───────────────────────────────────────────────────────────
 
     public boolean isLocked() {
         return locked;
@@ -394,19 +239,16 @@ public class PhantasiaCamera {
         return softLock;
     }
 
-    /** Force the camera into player-owned state so scripts are muted from the start. */
     public void setPlayerOwned(boolean owned) {
         this.playerOwned = owned;
     }
-
-    // ── Accessors (for the script editor "Capture Camera" feature) ────────────
 
     public float getYaw() {
         return yaw;
     }
 
     public void setYaw(float yaw) {
-        cancelLerp(); // Prevents the active interpolation from overwriting your change
+        cancelLerp();
         this.yaw = normYaw(yaw);
     }
 
@@ -434,7 +276,6 @@ public class PhantasiaCamera {
         return playerOwned;
     }
 
-    /** Direct setters used when restoring from a snapshot or building programmatically. */
     public void setPosition(float yaw, float pitch, float zoom) {
         this.yaw = normYaw(yaw);
         this.pitch = pitch;
@@ -447,17 +288,7 @@ public class PhantasiaCamera {
         this.targetZ = tz;
     }
 
-    // ── Pan helpers ───────────────────────────────────────────────────────────
-
-    /**
-     * Computes the camera's right and up axes from the current yaw/pitch.
-     * Used by the screen's middle-mouse pan handler to convert pixel delta → world delta.
-     *
-     * @param outRight receives the right axis (normalised)
-     * @param outUp    receives the up axis (normalised)
-     */
     public void getRightAndUp(Vector3f outRight, Vector3f outUp) {
-        // Forward direction (eye → target, same as buildView's n vector reversed)
         double yr = Math.toRadians(yaw);
         double pr = Math.toRadians(pitch);
         float fx = -(float) (Math.cos(pr) * Math.sin(yr));
@@ -471,12 +302,9 @@ public class PhantasiaCamera {
         outUp.normalize();
     }
 
-    // ── Internal helpers ──────────────────────────────────────────────────────
-
     private void startLerp(float toYaw, float toPitch, float toZoom,
                            float toTX, float toTY, float toTZ,
                            LerpType type, int durationTicks) {
-        // Snap: commit immediately, no lerp job needed.
         if (type == LerpType.SNAP || durationTicks <= 0) {
             activeLerp = null;
             yaw = normYaw(toYaw);
@@ -488,11 +316,9 @@ public class PhantasiaCamera {
             return;
         }
 
-        // Determine current visual state (may already be mid-lerp — use interpolated values
-        // so chained lerps don't visually jump).
         float curYaw, curPitch, curZoom, curTX, curTY, curTZ;
         if (activeLerp != null) {
-            // Sample at current elapsed + 0 partial to get the "right now" position.
+
             CameraView now = getView(0f);
             curYaw = yaw;
             curPitch = pitch;
@@ -500,7 +326,7 @@ public class PhantasiaCamera {
             curTX = targetX;
             curTY = targetY;
             curTZ = targetZ;
-            // Advance the previous lerp's committed state first.
+
             float t = Mth.clamp((float) activeLerp.elapsed() / activeLerp.totalTicks(), 0f, 1f);
             t = applyEasing(t, activeLerp.type());
             curYaw = lerpAngle(activeLerp.fromYaw(), activeLerp.toYaw(), t);
@@ -518,7 +344,6 @@ public class PhantasiaCamera {
             curTZ = targetZ;
         }
 
-        // Normalise the destination yaw to take the short arc.
         float normTo = shortArcYaw(curYaw, toYaw);
 
         activeLerp = new LerpJob(
@@ -529,7 +354,7 @@ public class PhantasiaCamera {
 
     private void cancelLerp() {
         if (activeLerp == null) return;
-        // Commit the current interpolated position so the view doesn't jump.
+
         float t = Mth.clamp((float) activeLerp.elapsed() / activeLerp.totalTicks(), 0f, 1f);
         t = applyEasing(t, activeLerp.type());
         yaw = lerpAngle(activeLerp.fromYaw(), activeLerp.toYaw(), t);
@@ -541,8 +366,6 @@ public class PhantasiaCamera {
         activeLerp = null;
     }
 
-    // ── Math utilities ────────────────────────────────────────────────────────
-
     private static float applyEasing(float t, LerpType type) {
         return switch (type) {
             case SNAP, LINEAR -> t;
@@ -551,27 +374,17 @@ public class PhantasiaCamera {
             case EASE_IN_OUT -> t < 0.5f ? 2f * t * t : 1f - (-2f * t + 2f) * (-2f * t + 2f) / 2f;
             case SMOOTHSTEP -> t * t * (3.0f - 2.0f * t);
 
-            // --- Sine math translations using java.lang.Math ---
             case SINE_IN -> 1.0f - (float) Math.cos(t * Math.PI / 2.0);
             case SINE_OUT -> (float) Math.sin(t * Math.PI / 2.0);
             case SINE_IN_OUT -> -((float) Math.cos(Math.PI * t) - 1.0f) / 2.0f;
         };
     }
 
-    /**
-     * Interpolates between two angles (degrees) taking the shortest arc.
-     * Always stays in [-360, 360].
-     */
     private static float lerpAngle(float from, float to, float t) {
-        float delta = ((to - from + 540f) % 360f) - 180f; // shortest arc delta
+        float delta = ((to - from + 540f) % 360f) - 180f;
         return from + delta * t;
     }
 
-    /**
-     * Returns the equivalent of {@code to} shifted so that lerpAngle travels
-     * the short arc from {@code from}. Used when building a LerpJob to normalise
-     * the destination yaw once (rather than recomputing each frame).
-     */
     private static float shortArcYaw(float from, float to) {
         float delta = ((to - from + 540f) % 360f) - 180f;
         return from + delta;

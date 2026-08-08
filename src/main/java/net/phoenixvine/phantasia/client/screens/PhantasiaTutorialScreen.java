@@ -6,7 +6,7 @@ import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.phoenixvine.phantasia.client.tutorial.TutorialSequence;
 import net.phoenixvine.phantasia.client.tutorial.TutorialSlide;
-import net.phoenixvine.phantasia.utils.PhantasiaTheme;
+import net.phoenixvine.wiki.theme.PhoenixTheme;
 
 import java.util.List;
 
@@ -15,28 +15,24 @@ import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
 @OnlyIn(Dist.CLIENT)
 public class PhantasiaTutorialScreen extends PhantasiaScreen {
 
-    // ── Layout ────────────────────────────────────────────────────────────────
     private static final int HEADER_H = 28;
-    private static final int TEXT_H = 160;  // bottom panel
+    private static final int TEXT_H = 160;
     private static final int MOCK_PAD = 10;
-    private static final int VW = 480;      // Virtual Width matching mock screen space
-    private static final int VH = 300;      // Virtual Height matching mock screen space
+    private static final int VW = 480;
+    private static final int VH = 300;
 
-    // ── State ─────────────────────────────────────────────────────────────────
     private final Screen parent;
     private final TutorialSequence sequence;
     private int slideIndex = 0;
-    private int animTick = 0;   // increments every render frame
-    private int typeChars = 0;   // characters revealed by typewriter
+    private int animTick = 0;
+    private int typeChars = 0;
     private boolean textDone = false;
 
-    // Cursor animation
-    private float cursorX = 0.5f, cursorY = 0.5f; // relative 0-1 within mock area
-    private float startX = 0.5f, startY = 0.5f;   // stable leg-start coordinates
+    private float cursorX = 0.5f, cursorY = 0.5f;
+    private float startX = 0.5f, startY = 0.5f;
     private int waypointIdx = 0;
-    private int waypointTicksIn = 0; // ticks spent in current waypoint phase
+    private int waypointTicksIn = 0;
 
-    // Click flash
     private int clickFlashTick = -1;
 
     public PhantasiaTutorialScreen(Screen parent, TutorialSequence sequence) {
@@ -53,30 +49,28 @@ public class PhantasiaTutorialScreen extends PhantasiaScreen {
     @Override
     public void hideAllInputs() {}
 
-    // ── Input ─────────────────────────────────────────────────────────────────
-
     @Override
     public boolean mouseClicked(double mx, double my, int btn) {
         if (btn != 0) return super.mouseClicked(mx, my, btn);
 
         int[] nav = navButtonBounds();
-        // Next
+
         if (nav[2] > 0 && isOver((int) mx, (int) my, nav[2], nav[3], 70, 18)) {
             advance();
             return true;
         }
-        // Prev
+
         if (nav[0] > 0 && isOver((int) mx, (int) my, nav[0], nav[1], 70, 18)) {
             retreat();
             return true;
         }
-        // Close
+
         int cx = this.width - 20, cy = 6;
         if (isOver((int) mx, (int) my, cx, cy, 14, 14)) {
             onClose();
             return true;
         }
-        // Click anywhere to rush typewriter
+
         if (!textDone) {
             typeChars = currentSlide().text.getString().length();
             textDone = true;
@@ -87,7 +81,7 @@ public class PhantasiaTutorialScreen extends PhantasiaScreen {
 
     @Override
     public boolean keyPressed(int key, int scan, int mods) {
-        if (key == 257 /* Enter */ || key == 32 /* Space */) {
+        if (key == 257 || key == 32) {
             if (!textDone) {
                 typeChars = currentSlide().text.getString().length();
                 textDone = true;
@@ -96,11 +90,11 @@ public class PhantasiaTutorialScreen extends PhantasiaScreen {
             advance();
             return true;
         }
-        if (key == 263 /* Left */) {
+        if (key == 263) {
             retreat();
             return true;
         }
-        if (key == 256 /* Escape */) {
+        if (key == 256) {
             onClose();
             return true;
         }
@@ -111,8 +105,6 @@ public class PhantasiaTutorialScreen extends PhantasiaScreen {
     public void onClose() {
         minecraft.setScreen(parent);
     }
-
-    // ── Slide control ─────────────────────────────────────────────────────────
 
     private TutorialSlide currentSlide() {
         return sequence.slides.get(slideIndex);
@@ -141,13 +133,11 @@ public class PhantasiaTutorialScreen extends PhantasiaScreen {
         if (slideIndex > 0) goToSlide(slideIndex - 1);
     }
 
-    // ── Render ────────────────────────────────────────────────────────────────
-
     @Override
     public void render(GuiGraphics g, int mx, int my, float partial) {
         tick();
 
-        PhantasiaTheme theme = PhantasiaTheme.current();
+        PhoenixTheme theme = PhoenixTheme.current();
         g.fillGradient(0, 0, this.width, this.height, C_BG(), 0xFF0B0B18);
 
         renderHeader(g, theme);
@@ -164,7 +154,6 @@ public class PhantasiaTutorialScreen extends PhantasiaScreen {
         renderTextPanel(g, theme);
         renderNavButtons(g, theme);
 
-        // Render the typewriter skip hint above the nav button row.
         if (!textDone) {
             g.drawString(font, "Click or [Space] to skip...", this.width - 130, this.height - 36, C_DIM(), false);
         }
@@ -175,7 +164,6 @@ public class PhantasiaTutorialScreen extends PhantasiaScreen {
     public void tick() {
         animTick++;
 
-        // Typewriter
         TutorialSlide slide = currentSlide();
         int textLen = slide.text.getString().length();
         if (!textDone) {
@@ -183,10 +171,9 @@ public class PhantasiaTutorialScreen extends PhantasiaScreen {
             if (typeChars >= textLen) textDone = true;
         }
 
-        // Cursor waypoints
         List<TutorialSlide.CursorWaypoint> path = slide.cursor;
         if (!path.isEmpty()) {
-            // Loop back around infinitely when the path finishes
+
             if (waypointIdx >= path.size()) {
                 waypointIdx = 0;
                 waypointTicksIn = 0;
@@ -198,14 +185,14 @@ public class PhantasiaTutorialScreen extends PhantasiaScreen {
             waypointTicksIn++;
 
             if (waypointTicksIn <= wp.travelTicks()) {
-                // Lerp towards waypoint using unmutated start coordinates
+
                 float t = (float) waypointTicksIn / Math.max(1, wp.travelTicks());
-                t = t < 0.5f ? 2 * t * t : 1 - (float) Math.pow(-2 * t + 2, 2) / 2; // ease in-out
+                t = t < 0.5f ? 2 * t * t : 1 - (float) Math.pow(-2 * t + 2, 2) / 2;
 
                 cursorX = startX + (wp.relX() - startX) * t;
                 cursorY = startY + (wp.relY() - startY) * t;
             } else {
-                // Dwelling
+
                 cursorX = wp.relX();
                 cursorY = wp.relY();
                 int dwellTick = waypointTicksIn - wp.travelTicks();
@@ -213,21 +200,20 @@ public class PhantasiaTutorialScreen extends PhantasiaScreen {
                 if (dwellTick >= wp.dwellTicks()) {
                     waypointIdx++;
                     waypointTicksIn = 0;
-                    startX = cursorX; // Establish current position as next leg's starting baseline
+                    startX = cursorX;
                     startY = cursorY;
                 }
             }
         }
     }
 
-    private void renderHeader(GuiGraphics g, PhantasiaTheme theme) {
+    private void renderHeader(GuiGraphics g, PhoenixTheme theme) {
         g.fill(0, 0, this.width, HEADER_H, 0xCC0A0A14);
         g.fill(0, HEADER_H - 1, this.width, HEADER_H, C_ACCENT());
 
         String title = sequence.title.getString() + "  ·  Slide " + (slideIndex + 1) + " of " + sequence.slides.size();
         g.drawCenteredString(font, title, this.width / 2, (HEADER_H - 8) / 2, C_ACCENT());
 
-        // Close button [×]
         int cx = this.width - 20, cy = 6;
         boolean hov = isOver(
                 (int) (minecraft.mouseHandler.xpos() * this.width / minecraft.getWindow().getScreenWidth()),
@@ -238,14 +224,13 @@ public class PhantasiaTutorialScreen extends PhantasiaScreen {
     }
 
     private void renderMock(GuiGraphics g, int mx, int my, int mw, int mh) {
-        // Background
         g.fill(mx, my, mx + mw, my + mh, 0xFF05050D);
         g.fill(mx, my, mx + mw, my + 1, 0x33FFFFFF);
         g.fill(mx, my, mx + 1, my + mh, 0x22FFFFFF);
 
         TutorialSlide slide = currentSlide();
         if (slide.mock != null) {
-            // Scissor to mock area
+
             g.enableScissor(mx, my, mx + mw, my + mh);
             slide.mock.render(g, mx, my, mw, mh, animTick);
             g.disableScissor();
@@ -256,10 +241,8 @@ public class PhantasiaTutorialScreen extends PhantasiaScreen {
         TutorialSlide slide = currentSlide();
         if (slide.highlights.isEmpty()) return;
 
-        // Dim overlay over entire mock area
         g.fill(mx, my, mx + mw, my + mh, 0x88000000);
 
-        // Compute aspect ratio letterbox scale dimensions to precisely track mock internal offsets
         float s = Math.min(mw / (float) VW, mh / (float) VH);
         int actualW = (int) (VW * s);
         int actualH = (int) (VH * s);
@@ -276,20 +259,17 @@ public class PhantasiaTutorialScreen extends PhantasiaScreen {
             int hw = (int) (h.relW() * actualW);
             int hh = (int) (h.relH() * actualH);
 
-            // Re-render mock clipped to highlighted rect (removes dim)
             if (slide.mock != null) {
                 g.enableScissor(hx, hy, hx + hw, hy + hh);
                 slide.mock.render(g, mx, my, mw, mh, animTick);
                 g.disableScissor();
             }
 
-            // Animated border
-            g.fill(hx - 1, hy - 1, hx + hw + 1, hy, borderColor); // top
-            g.fill(hx - 1, hy + hh, hx + hw + 1, hy + hh + 1, borderColor); // bottom
-            g.fill(hx - 1, hy, hx, hy + hh, borderColor); // left
-            g.fill(hx + hw, hy, hx + hw + 1, hy + hh, borderColor); // right
+            g.fill(hx - 1, hy - 1, hx + hw + 1, hy, borderColor);
+            g.fill(hx - 1, hy + hh, hx + hw + 1, hy + hh + 1, borderColor);
+            g.fill(hx - 1, hy, hx, hy + hh, borderColor);
+            g.fill(hx + hw, hy, hx + hw + 1, hy + hh, borderColor);
 
-            // Label above highlight
             if (h.label() != null) {
                 int lw = font.width(h.label()) + 8;
                 int lx = hx, ly = hy - 14;
@@ -304,7 +284,6 @@ public class PhantasiaTutorialScreen extends PhantasiaScreen {
         TutorialSlide slide = currentSlide();
         if (slide.cursor.isEmpty()) return;
 
-        // Compute aspect ratio letterbox scale dimensions to precisely track mock internal offsets
         float s = Math.min(mw / (float) VW, mh / (float) VH);
         int actualW = (int) (VW * s);
         int actualH = (int) (VH * s);
@@ -314,7 +293,6 @@ public class PhantasiaTutorialScreen extends PhantasiaScreen {
         int cx = ox + (int) (cursorX * actualW);
         int cy = oy + (int) (cursorY * actualH);
 
-        // Click flash ring
         if (clickFlashTick >= 0) {
             int age = animTick - clickFlashTick;
             if (age < 15) {
@@ -330,30 +308,27 @@ public class PhantasiaTutorialScreen extends PhantasiaScreen {
             }
         }
 
-        // Outer glow ring
         float pulse = (float) (Math.sin(animTick * 0.15) * 0.3 + 0.7);
         int ga = (int) (0xBB * pulse);
         int gCol = (ga << 24) | (C_ACCENT() & 0xFFFFFF);
         int r = 6;
-        g.fill(cx - r, cy - 1, cx + r + 1, cy, gCol); // top arm
-        g.fill(cx - r, cy + 1, cx + r + 1, cy + 2, gCol); // bottom arm
-        g.fill(cx - 1, cy - r, cx, cy + r + 1, gCol); // left arm
-        g.fill(cx + 1, cy - r, cx + 2, cy + r + 1, gCol); // right arm
+        g.fill(cx - r, cy - 1, cx + r + 1, cy, gCol);
+        g.fill(cx - r, cy + 1, cx + r + 1, cy + 2, gCol);
+        g.fill(cx - 1, cy - r, cx, cy + r + 1, gCol);
+        g.fill(cx + 1, cy - r, cx + 2, cy + r + 1, gCol);
 
-        // Core dot (white)
         g.fill(cx - 1, cy - 1, cx + 2, cy + 2, 0xFFFFFFFF);
         g.fill(cx, cy - 2, cx + 1, cy + 3, 0xFFFFFFFF);
         g.fill(cx - 2, cy, cx + 3, cy + 1, 0xFFFFFFFF);
     }
 
-    private void renderTextPanel(GuiGraphics g, PhantasiaTheme theme) {
+    private void renderTextPanel(GuiGraphics g, PhoenixTheme theme) {
         int panelY = this.height - TEXT_H;
         g.fill(0, panelY, this.width, this.height, 0xCC0A0A14);
         g.fill(0, panelY, this.width, panelY + 1, 0x44FFFFFF);
 
         TutorialSlide slide = currentSlide();
 
-        // Slide dots — fixed position top-right of text panel
         int dotY = panelY + 8;
         int dotStartX = this.width / 2 - sequence.slides.size() * 6;
         for (int i = 0; i < sequence.slides.size(); i++) {
@@ -362,7 +337,6 @@ public class PhantasiaTutorialScreen extends PhantasiaScreen {
                     active ? C_ACCENT() : C_DIM());
         }
 
-        // Slide title — wraps within left column so it never overlaps the dots
         int maxTitleW = dotStartX - 28;
         var titleLines = font.split(slide.title, maxTitleW);
         int titleY = panelY + 6;
@@ -371,11 +345,9 @@ public class PhantasiaTutorialScreen extends PhantasiaScreen {
             titleY += font.lineHeight + 1;
         }
 
-        // Separator adapts to title height
         int sepY = Math.max(panelY + 20, titleY + 3);
         g.fill(16, sepY, this.width - 16, sepY + 1, 0x33FFFFFF);
 
-        // Typewriter text — word-wrapped to screen width
         String fullText = slide.text.getString();
         String shown = fullText.substring(0, Math.min(typeChars, fullText.length()));
         int ty = sepY + 6;
@@ -390,7 +362,7 @@ public class PhantasiaTutorialScreen extends PhantasiaScreen {
         }
     }
 
-    private void renderNavButtons(GuiGraphics g, PhantasiaTheme theme) {
+    private void renderNavButtons(GuiGraphics g, PhoenixTheme theme) {
         int[] nav = navButtonBounds();
         int imx = (int) (minecraft.mouseHandler.xpos() * this.width / minecraft.getWindow().getScreenWidth());
         int imy = (int) (minecraft.mouseHandler.ypos() * this.height / minecraft.getWindow().getScreenHeight());
@@ -412,7 +384,6 @@ public class PhantasiaTutorialScreen extends PhantasiaScreen {
         }
     }
 
-    /** Returns [prevX, prevY, nextX, nextY] — value is -1 if button shouldn't show. */
     private int[] navButtonBounds() {
         int by = this.height - 24;
         int prevX = slideIndex > 0 ? 16 : -1;

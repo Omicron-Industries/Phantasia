@@ -29,24 +29,23 @@ public final class VanillaMultiblockDefinition implements IPhantasiaMultiblockDe
     private final PhantasiaScriptData defaultScript;
     @Nullable
     private final EntityType<? extends LivingEntity> mobType;
-    /** If true, a beacon beam is shown in the dummy world on the working step. */
+
     private final boolean showBeam;
-    /** If true, a conduit block entity is activated in the working step. */
+
     private final boolean showConduit;
 
-    /** World-space position of the beacon block, populated in onShapeLoaded. */
     @Nullable
     private BlockPos beaconWorldPos;
-    /** World-space position of the conduit block, populated in onShapeLoaded. */
+
     @Nullable
     private BlockPos conduitWorldPos;
-    /** World-space position where the mob should spawn (top-center of structure). */
+
     @Nullable
     private BlockPos mobWorldPos;
-    /** Currently spawned scene entity (null when not in working step). */
+
     @Nullable
     private LivingEntity cachedMob;
-    /** Tracks whether the working step is active so onSceneTick can re-apply the beam. */
+
     private boolean isWorking = false;
 
     VanillaMultiblockDefinition(ResourceLocation id, String displayName, ItemStack icon,
@@ -106,7 +105,6 @@ public final class VanillaMultiblockDefinition implements IPhantasiaMultiblockDe
     public void onShapeLoaded(PhantasiaTrackedDummyWorld level, BlockPos origin,
                               Map<BlockPos, PhantasiaBlockInfo> blockMap,
                               Map<BlockPos, BlockPos> localToWorld) {
-        // Called by PhantasiaScenePattern.build — delegate to the full overload with null script.
         onShapeLoaded(level, origin, blockMap, localToWorld, null);
     }
 
@@ -138,23 +136,19 @@ public final class VanillaMultiblockDefinition implements IPhantasiaMultiblockDe
                     conduitWorldPos);
         }
 
-        // Pre-render hooks fire right before drawTileEntities so the BER always reads up-to-date state,
-        // even if the bake thread evicted and recreated the cached BE since the last post-tick hook ran.
         level.clearPreRenderHooks();
         if (showBeam) level.addPreRenderHook(() -> applyBeamState(level));
         if (showConduit) level.addPreRenderHook(() -> applyConduitState(level));
 
-        // Post-tick hooks also run (after vanilla ticks reset conduit isActive) as a belt-and-suspenders.
         level.clearPostTickHooks();
         if (showBeam) level.addPostTickHook(() -> applyBeamState(level));
         if (showConduit) level.addPostTickHook(() -> applyConduitState(level));
 
         if (mobType != null) {
-            // Clear any previously spawned mob when shape reloads.
+
             level.clearSceneEntities();
             cachedMob = null;
 
-            // Compute spawn position: center (XZ) of all blocks, one above the highest Y.
             int maxY = Integer.MIN_VALUE;
             long sumX = 0, sumZ = 0;
             int count = 0;
@@ -177,8 +171,6 @@ public final class VanillaMultiblockDefinition implements IPhantasiaMultiblockDe
                                   java.util.Set<net.minecraft.core.BlockPos> positions,
                                   java.util.Map<net.minecraft.core.BlockPos, net.phoenixvine.phantasia.utils.PhantasiaBlockInfo> blockMap,
                                   boolean working) {
-        // Re-derive world positions from blockMap each call so this works even when
-        // onShapeLoaded wasn't called (e.g. guide viewer uses the 4-param path).
         if (showBeam && beaconWorldPos == null) {
             for (java.util.Map.Entry<BlockPos, PhantasiaBlockInfo> e : blockMap.entrySet()) {
                 if (e.getValue() != null && e.getValue().getBlockState().is(Blocks.BEACON)) {
@@ -205,7 +197,7 @@ public final class VanillaMultiblockDefinition implements IPhantasiaMultiblockDe
         applyConduitState(level);
 
         if (mobType == null) return;
-        // Remove any previously spawned mob.
+
         level.clearSceneEntities();
         cachedMob = null;
         if (!working || mobWorldPos == null) return;
@@ -228,7 +220,6 @@ public final class VanillaMultiblockDefinition implements IPhantasiaMultiblockDe
     @Override
     public void onSceneTick(PhantasiaTrackedDummyWorld level,
                             Map<BlockPos, BlockPos> localToWorld, int sceneTick) {
-        // Re-apply beam every tick: a partial bake can recreate the beacon BE, losing beam sections.
         if (showBeam) applyBeamState(level);
         if (showConduit) applyConduitState(level);
 
@@ -279,7 +270,7 @@ public final class VanillaMultiblockDefinition implements IPhantasiaMultiblockDe
                     conduitWorldPos, isWorking);
             return;
         }
-        // Try direct field name first, then scan all boolean fields as fallback.
+
         boolean applied = false;
         for (Class<?> cls = be.getClass(); cls != null && cls != Object.class; cls = cls.getSuperclass()) {
             for (java.lang.reflect.Field f : cls.getDeclaredFields()) {
@@ -302,11 +293,6 @@ public final class VanillaMultiblockDefinition implements IPhantasiaMultiblockDe
         }
     }
 
-    /**
-     * Returns a mutable beamSections list for the beacon.
-     * When setRemoved() is called on the BE, it replaces the ArrayList with ImmutableList.of().
-     * We detect this and swap in a fresh ArrayList via reflection so we can populate it.
-     */
     @SuppressWarnings("unchecked")
     private static List<BeaconBlockEntity.BeaconBeamSection> beamSectionsMutable(BeaconBlockEntity beacon) {
         var sections = beacon.getBeamSections();
@@ -318,7 +304,7 @@ public final class VanillaMultiblockDefinition implements IPhantasiaMultiblockDe
             if (current instanceof java.util.ArrayList) {
                 return (List<BeaconBlockEntity.BeaconBeamSection>) current;
             }
-            // Field holds ImmutableList.of() — replace with a fresh mutable list.
+
             java.util.ArrayList<BeaconBlockEntity.BeaconBeamSection> fresh = new java.util.ArrayList<>();
             f.set(beacon, fresh);
             return fresh;

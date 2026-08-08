@@ -39,7 +39,6 @@ public class PhantasiaWebExport {
         var gson = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().serializeNulls().create();
         Set<String> seenBlockIds = new HashSet<>();
 
-        // ── Scenes ─────────────────────────────────────────────────────────────
         try {
             Path scenesDir = docsDir.resolve("data/scenes");
             Path patternsDir = docsDir.resolve("data/patterns");
@@ -93,7 +92,6 @@ public class PhantasiaWebExport {
             errors.append("Fatal IO error (scenes): ").append(e.getMessage()).append("\n");
         }
 
-        // ── Scripts ────────────────────────────────────────────────────────────
         try {
             Path scriptDataDir = docsDir.resolve("data/script-data");
             Path scriptPatsDir = docsDir.resolve("data/script-patterns");
@@ -108,12 +106,11 @@ public class PhantasiaWebExport {
                 String safeId = machineId.getNamespace() + "/" + machineId.getPath();
 
                 try {
-                    // Script step data
+
                     Path dataFile = scriptDataDir.resolve(safeId + ".json");
                     Files.createDirectories(dataFile.getParent());
                     Files.writeString(dataFile, script.getSourceData().toJson());
 
-                    // Machine pattern (first shape)
                     var defOpt = net.phoenixvine.phantasia.common.multiblock.PhantasiaMultiblockRegistry
                             .resolve(machineId.toString());
                     boolean hasPattern = false;
@@ -150,7 +147,6 @@ public class PhantasiaWebExport {
             errors.append("Fatal IO error (scripts): ").append(e.getMessage()).append("\n");
         }
 
-        // ── Guides ─────────────────────────────────────────────────────────────
         try {
             Path guidesDir = docsDir.resolve("data/guides");
             Files.createDirectories(guidesDir);
@@ -185,7 +181,6 @@ public class PhantasiaWebExport {
             errors.append("Fatal IO error (guides): ").append(e.getMessage()).append("\n");
         }
 
-        // ── Synthetic blockstates for material-set blocks not in JAR ──────────────
         try {
             exportSyntheticBlockstates(seenBlockIds, docsDir, gson, errors);
         } catch (Exception e) {
@@ -194,8 +189,6 @@ public class PhantasiaWebExport {
 
         return new ExportResult(sceneCount, scriptCount, guideCount, blockCount, errors.toString());
     }
-
-    // ── Synthetic blockstates for blocks missing from extracted JAR assets ────────
 
     private static void exportSyntheticBlockstates(Set<String> blockIds, Path docsDir,
                                                    com.google.gson.Gson gson, StringBuilder errors) throws IOException {
@@ -208,7 +201,6 @@ public class PhantasiaWebExport {
                 String ns = rl.getNamespace();
                 String id = rl.getPath();
 
-                // Skip if blockstate already exists
                 Path bsPath = assetsBase.resolve(ns).resolve("blockstates").resolve(id + ".json");
                 if (Files.exists(bsPath)) continue;
 
@@ -220,7 +212,6 @@ public class PhantasiaWebExport {
                 var particle = bakedModel.getParticleIcon(ModelData.EMPTY);
                 ResourceLocation texName = particle.contents().name();
 
-                // Write synthetic blockstate
                 JsonObject bsJson = new JsonObject();
                 JsonObject variants = new JsonObject();
                 JsonObject variant = new JsonObject();
@@ -230,7 +221,6 @@ public class PhantasiaWebExport {
                 Files.createDirectories(bsPath.getParent());
                 Files.writeString(bsPath, gson.toJson(bsJson));
 
-                // Write synthetic cube_all model pointing to particle texture
                 Path modelPath = assetsBase.resolve(ns).resolve("models/block/_synth").resolve(id + ".json");
                 JsonObject modelJson = new JsonObject();
                 modelJson.addProperty("parent", "minecraft:block/cube_all");
@@ -245,8 +235,6 @@ public class PhantasiaWebExport {
             }
         }
     }
-
-    // ── Scene block map (with placement tags) ──────────────────────────────────
 
     private static JsonArray serializeBlockMap(PhantasiaScenePattern pattern, Set<String> seenBlockIds) {
         JsonArray blocks = new JsonArray();
@@ -294,8 +282,6 @@ public class PhantasiaWebExport {
 
         return blocks;
     }
-
-    // ── Raw PhantasiaBlockInfo[][][] → flat block list (for scripts) ───────────────────
 
     private static JsonArray serializeRawPattern(PhantasiaBlockInfo[][][] raw, Set<String> seenBlockIds) {
         JsonArray blocks = new JsonArray();

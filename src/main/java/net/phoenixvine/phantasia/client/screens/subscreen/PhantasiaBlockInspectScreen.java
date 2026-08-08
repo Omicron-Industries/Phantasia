@@ -215,12 +215,9 @@ public class PhantasiaBlockInspectScreen extends Screen {
         return false;
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
-
     private static final int BTN_W = 120;
     private static final int BTN_H = 20;
 
-    /** Returns {bxClose, bxEmi, by}. bxEmi is meaningful only when the block has an item form. */
     private int[] btnLayout() {
         int bxEmi = this.width - BTN_W - 30;
         int bxClose = new ItemStack(state.getBlock().asItem()).isEmpty() ? this.width - BTN_W - 30 :

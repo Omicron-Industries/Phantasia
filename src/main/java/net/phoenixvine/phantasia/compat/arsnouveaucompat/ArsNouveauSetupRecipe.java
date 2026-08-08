@@ -9,7 +9,6 @@ import net.phoenixvine.phantasia.utils.PhantasiaBlockInfo;
 import java.util.List;
 import java.util.Map;
 
-/** Wraps a single Ars Nouveau recipe as a Phantasia setup recipe. */
 public class ArsNouveauSetupRecipe implements IPhantasiaSetupRecipe {
 
     private final ResourceLocation id;

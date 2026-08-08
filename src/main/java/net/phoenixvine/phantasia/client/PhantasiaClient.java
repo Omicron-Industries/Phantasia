@@ -15,13 +15,12 @@ import net.minecraftforge.fml.loading.FMLPaths;
 import net.phoenixvine.phantasia.Phantasia;
 import net.phoenixvine.phantasia.client.event.PhantasiaClientEvents;
 import net.phoenixvine.phantasia.client.screens.*;
-import net.phoenixvine.phantasia.client.screens.editors.PhantasiaThemeEditorScreen;
 import net.phoenixvine.phantasia.client.web.PhantasiaWebExport;
 import net.phoenixvine.phantasia.common.PhantasiaKeybind;
 import net.phoenixvine.phantasia.common.data.guides.PhantasiaGuideLoader;
 import net.phoenixvine.phantasia.common.data.scene.PhantasiaSceneLoader;
 import net.phoenixvine.phantasia.common.data.script.PhantasiaScriptLoader;
-import net.phoenixvine.phantasia.utils.PhantasiaTheme;
+import net.phoenixvine.wiki.theme.PhoenixTheme;
 
 @Mod.EventBusSubscriber(modid = Phantasia.MOD_ID, bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
 public class PhantasiaClient {
@@ -61,7 +60,9 @@ public class PhantasiaClient {
                             .then(Commands.literal("theme")
                                     .executes(context -> {
                                         Minecraft.getInstance().tell(() -> {
-                                            Minecraft.getInstance().setScreen(new PhantasiaThemeEditorScreen(null));
+                                            Minecraft.getInstance().setScreen(
+                                                    new net.phoenixvine.wiki.theme.PhoenixThemeEditorScreen(null,
+                                                            "Phantasia"));
                                         });
                                         return 1;
                                     }))
@@ -104,8 +105,7 @@ public class PhantasiaClient {
             PhantasiaSceneLoader.load();
             PhantasiaGuideLoader.load();
 
-            // Initializing Custom Disk Themes
-            PhantasiaTheme.loadAllThemes();
+            PhoenixTheme.loadThemes();
 
             var resourceManager = Minecraft.getInstance().getResourceManager();
         });

@@ -27,7 +27,6 @@ import org.slf4j.LoggerFactory;
 
 import java.util.*;
 
-/** Wraps a GTCEu {@link MultiblockMachineDefinition} as an {@link IPhantasiaMultiblockDefinition}. */
 public class GTCEuMultiblockDefinition implements IPhantasiaMultiblockDefinition {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(GTCEuMultiblockDefinition.class);
@@ -42,8 +41,6 @@ public class GTCEuMultiblockDefinition implements IPhantasiaMultiblockDefinition
     public MultiblockMachineDefinition getDefinition() {
         return definition;
     }
-
-    // ── IPhantasiaMultiblockDefinition ────────────────────────────────────────
 
     @Override
     public ResourceLocation getId() {
@@ -86,10 +83,6 @@ public class GTCEuMultiblockDefinition implements IPhantasiaMultiblockDefinition
         }
     }
 
-    /**
-     * After blocks are placed in the dummy world, find the controller BE and fire
-     * {@code onStructureFormed()} on the render thread so GT machine state is correct.
-     */
     @Override
     public void onShapeLoaded(PhantasiaTrackedDummyWorld level, BlockPos origin,
                               Map<BlockPos, PhantasiaBlockInfo> blockMap,
@@ -158,7 +151,6 @@ public class GTCEuMultiblockDefinition implements IPhantasiaMultiblockDefinition
                                   boolean working) {
         if (level == null) return;
 
-        // Set RecipeLogic on all workable machines at positions in this placement
         try {
             for (var entry : level.blockEntities.entrySet()) {
                 if (!positions.contains(entry.getKey())) continue;
@@ -175,8 +167,6 @@ public class GTCEuMultiblockDefinition implements IPhantasiaMultiblockDefinition
             }
         } catch (Throwable ignored) {}
 
-        // Update ActiveBlock block states — renderedBlocks.put (not setBlock) keeps
-        // block entities alive so TESR and DynamicRender continue to fire.
         for (var e : blockMap.entrySet()) {
             net.minecraft.core.BlockPos worldPos = e.getKey();
             if (!positions.contains(worldPos)) continue;
@@ -198,8 +188,6 @@ public class GTCEuMultiblockDefinition implements IPhantasiaMultiblockDefinition
         }
     }
 
-    // ── GTCEu-specific variant detection ─────────────────────────────────────
-
     @Override
     public List<PhantasiaVariantGroup> detectProviderVariants(PhantasiaScriptData data,
                                                               PhantasiaLoadedPattern pattern,
@@ -208,15 +196,6 @@ public class GTCEuMultiblockDefinition implements IPhantasiaMultiblockDefinition
         return new ArrayList<>(detectPredicateVariants(machinePrefix, pattern, explicitIds));
     }
 
-    /**
-     * Reads the BlockPattern's TraceabilityPredicate grid directly.
-     * Any position whose predicate has multiple SimplePredicate components (i.e. was built
-     * with .or()) becomes a variant group — one option per SimplePredicate, using its
-     * candidates supplier for the block list.
-     *
-     * Groups are keyed by a sorted signature of all candidate block IDs so the ID is
-     * stable across world restarts regardless of predicate ordering.
-     */
     private List<PhantasiaVariantGroup> detectPredicateVariants(
                                                                 String machinePrefix, PhantasiaLoadedPattern pattern,
                                                                 Set<String> excludeIds) {
@@ -239,10 +218,8 @@ public class GTCEuMultiblockDefinition implements IPhantasiaMultiblockDefinition
             return List.of();
         }
 
-        // Signature → list of local positions that share the same predicate candidate set.
-        // Using LinkedHashMap for deterministic iteration order.
         Map<String, List<BlockPos>> sigToLocal = new LinkedHashMap<>();
-        // Signature → ordered list of candidate PhantasiaBlockInfo[] per SimplePredicate component.
+
         Map<String, List<PhantasiaBlockInfo[]>> sigToCandidates = new LinkedHashMap<>();
 
         for (int x = 0; x < grid.length; x++) {
@@ -253,7 +230,6 @@ public class GTCEuMultiblockDefinition implements IPhantasiaMultiblockDefinition
                     var tp = grid[x][y][z];
                     if (tp == null || tp.common == null || tp.common.size() < 2) continue;
 
-                    // Collect candidate blocks per component; skip if any has no candidates.
                     List<PhantasiaBlockInfo[]> componentCandidates = new ArrayList<>();
                     boolean valid = true;
                     for (var sp : tp.common) {
@@ -286,7 +262,6 @@ public class GTCEuMultiblockDefinition implements IPhantasiaMultiblockDefinition
                     }
                     if (!valid || componentCandidates.size() < 2) continue;
 
-                    // Build a deterministic signature from sorted block IDs across all components.
                     List<String> sigParts = new ArrayList<>();
                     for (PhantasiaBlockInfo[] cands : componentCandidates) {
                         List<String> ids = new ArrayList<>();
@@ -312,8 +287,7 @@ public class GTCEuMultiblockDefinition implements IPhantasiaMultiblockDefinition
 
         for (Map.Entry<String, List<BlockPos>> entry : sigToLocal.entrySet()) {
             String sig = entry.getKey();
-            // Use a stable hash of the signature so the ID is short but deterministic.
-            // String.hashCode() is specified in the Java Language Spec — stable across JVMs.
+
             String groupId = machinePrefix + "::predicate_" + Integer.toUnsignedString(sig.hashCode(), 16);
             if (excludeIds.contains(groupId)) continue;
 
@@ -321,7 +295,6 @@ public class GTCEuMultiblockDefinition implements IPhantasiaMultiblockDefinition
             List<BlockState> options = new ArrayList<>();
             List<String> labels = new ArrayList<>();
 
-            // Use the first candidate of each component as the representative block state.
             for (PhantasiaBlockInfo[] cands : componentCandidates) {
                 BlockState rep = null;
                 for (PhantasiaBlockInfo bi : cands) {
@@ -336,13 +309,10 @@ public class GTCEuMultiblockDefinition implements IPhantasiaMultiblockDefinition
             }
             if (options.size() < 2) continue;
 
-            // Skip groups where every option is a MetaMachine part (hatch, bus, muffler, etc.)
-            // — there's no visual difference between tiers so these aren't useful variants.
             boolean allParts = options.stream().allMatch(
                     s -> s.getBlock() instanceof com.gregtechceu.gtceu.api.block.MetaMachineBlock);
             if (allParts) continue;
 
-            // Map world positions and determine which option index is currently loaded.
             Map<BlockPos, Integer> posMap = new HashMap<>();
             int defaultIdx = 0;
             boolean foundDefault = false;
@@ -453,8 +423,6 @@ public class GTCEuMultiblockDefinition implements IPhantasiaMultiblockDefinition
 
         return result;
     }
-
-    // ── equals / hashCode based on GT definition identity ────────────────────
 
     @Override
     public boolean equals(Object o) {

@@ -15,10 +15,6 @@ import net.phoenixvine.phantasia.utils.PhantasiaBlockInfo;
 
 import java.util.*;
 
-/**
- * Provides GTCEu multiblock definitions to Phantasia's registry.
- * Only instantiated and registered when GTCEu is on the classpath.
- */
 public class GTCEuMultiblockProvider implements IPhantasiaMultiblockProvider {
 
     private final Map<ResourceLocation, GTCEuMultiblockDefinition> cache = new HashMap<>();
@@ -96,7 +92,6 @@ public class GTCEuMultiblockProvider implements IPhantasiaMultiblockProvider {
                 path.contains("maintenance");
     }
 
-    /** Resolve a looked-at block to its multiblock definition, if it's a GT controller. */
     public Optional<IPhantasiaMultiblockDefinition> resolveControllerFromBlock(BlockState state) {
         if (!(state.getBlock() instanceof MetaMachineBlock mmb)) return Optional.empty();
         if (!(mmb.getDefinition() instanceof MultiblockMachineDefinition multi)) return Optional.empty();

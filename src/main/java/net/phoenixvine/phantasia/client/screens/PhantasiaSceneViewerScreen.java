@@ -32,20 +32,6 @@ import java.util.*;
 
 import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
 
-/**
- * PhantasiaSceneViewerScreen
- *
- * Read-only viewer for {@link PhantasiaSceneData} multi-machine scenes.
- * Analogous to {@link PhantasiaSceneScreen} for GT machines — it loads the
- * merged pattern, plays through the scripted steps, and lets the user orbit,
- * zoom, and inspect blocks. An "Edit" button in the top-right opens
- * {@link PhantasiaSceneEditorScreen} for the full editing workflow.
- *
- * Layout:
- * - Full viewport (no side panel) with a minimal top bar.
- * - A thin timeline strip at the bottom for step playback.
- * - Block name tooltip on hover (right-click opens block inspector).
- */
 @OnlyIn(Dist.CLIENT)
 public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
 
@@ -56,7 +42,6 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
     private static final float ZOOM_IN = 0.9f;
     private static final float ZOOM_OUT = 1.1f;
 
-    // ── Core state ────────────────────────────────────────────────────────────
     private final Screen parent;
     private PhantasiaSceneData data;
 
@@ -67,7 +52,6 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
     private PhantasiaCamera camera;
     private boolean isPanning = false;
 
-    // ── Playback ──────────────────────────────────────────────────────────────
     private boolean playing = true;
     private int playbackTick = 0;
     private float tickAccum = 0f;
@@ -77,19 +61,12 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
 
     private int lastStepIndex = -1;
 
-    // ── Persisted world-item state (accumulated across steps) ─────────────────
-    /** Source amounts that were last applied by applyWorldItemsToLevel, keyed by world position. */
     private final java.util.Map<BlockPos, Integer> persistedSourceAmounts = new java.util.HashMap<>();
 
-    // ── Hover ─────────────────────────────────────────────────────────────────
     private BlockPos hoveredPos = null;
 
-    // ── Mistakes overlay ──────────────────────────────────────────────────────
     private boolean showMistakes = false;
 
-    // ── Button registry ───────────────────────────────────────────────────────
-
-    // ─────────────────────────────────────────────────────────────────────────
     public PhantasiaSceneViewerScreen(Screen parent, PhantasiaSceneData data) {
         super(Component.literal(data.name != null ? data.name : data.id));
         this.parent = parent;
@@ -98,10 +75,6 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
 
     @Override
     public void hideAllInputs() {}
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // Init
-    // ─────────────────────────────────────────────────────────────────────────
 
     @Override
     protected void init() {
@@ -120,7 +93,7 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
 
                 Set<BlockPos> fullBakeSet = new HashSet<>(level.renderedBlocks.keySet());
                 fullBakeSet.addAll(pattern.allBaseplatePositions);
-                // Belt-and-suspenders: also pull positions from computeVisible(all)
+
                 PhantasiaSceneData.StepData allStep = new PhantasiaSceneData.StepData();
                 allStep.show = "all";
                 Set<BlockPos> allVis = pattern.computeVisible(allStep, data);
@@ -128,8 +101,6 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
 
                 renderer.setPatternBlocks(fullBakeSet);
 
-                // Apply initial world items before the first bake so the bake thread
-                // sees correct BE state (e.g. source jar fill levels).
                 PhantasiaSceneData.StepData initialStep = activeStep();
                 if (initialStep != null) applyWorldItemsToLevel(initialStep);
 
@@ -171,10 +142,6 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
         }
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Visibility
-    // ─────────────────────────────────────────────────────────────────────────
-
     private void applyVisibility() {
         if (renderer == null || pattern == null) return;
         PhantasiaSceneData.StepData step = activeStep();
@@ -188,8 +155,6 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
 
         PhantasiaSceneActiveState.apply(level, pattern, step, globalWorking, renderer);
 
-        // For vanilla beacon blocks: vanilla tick resets beamSections every 80 game ticks.
-        // Register a post-tick hook on the dummy world to re-force the beam state after each tick.
         java.util.Map<BlockPos, Boolean> posWorking = new java.util.HashMap<>();
         for (net.phoenixvine.phantasia.common.data.pattern.PhantasiaScenePattern.PlacementEntry pe : pattern.placements) {
             PhantasiaSceneData.MachineOverride ov = step.getOverride(pe.index);
@@ -207,12 +172,11 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
                 if (!(be instanceof BeaconBlockEntity beacon)) return;
                 forceBeaconSections(beacon, beaconWorking);
             });
-            // Also apply immediately so the beam shows before the first tick.
+
             var be = level.getBlockEntity(bPos);
             if (be instanceof BeaconBlockEntity beacon) forceBeaconSections(beacon, beaconWorking);
         }
-        // For conduit blocks: ConduitBlockEntity.clientTick() resets isActive every 40 ticks.
-        // Register a post-tick hook to re-force the active state after each tick.
+
         for (java.util.Map.Entry<BlockPos, net.phoenixvine.phantasia.utils.PhantasiaBlockInfo> e : pattern.mergedBlockMap
                 .entrySet()) {
             if (!e.getValue().getBlockState().is(Blocks.CONDUIT)) continue;
@@ -223,7 +187,7 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
                 if (be == null) return;
                 forceConduitActive(be, conduitWorking);
             });
-            // Also apply immediately.
+
             var be = level.getBlockEntity(cPos);
             if (be instanceof ConduitBlockEntity) forceConduitActive(be, conduitWorking);
         }
@@ -256,11 +220,6 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
         } catch (Exception ignored) {}
     }
 
-    /**
-     * Called every render frame to guarantee source jar BEs have the accumulated
-     * source amount regardless of what ticks or bakes did to blockEntities.
-     * Uses persistedSourceAmounts which is built cumulatively by applyWorldItemsToLevel.
-     */
     private void forceSourceJarState() {
         if (level == null || persistedSourceAmounts.isEmpty()) return;
         for (java.util.Map.Entry<BlockPos, Integer> entry : persistedSourceAmounts.entrySet()) {
@@ -278,12 +237,9 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
     private void applyWorldItemsToLevel(PhantasiaSceneData.StepData activeStepData) {
         if (activeStepData == null || level == null || pattern == null) return;
 
-        // Determine the index of the active step so we can accumulate world items
-        // from all steps 0..activeIdx (earlier steps persist unless later overrides them).
         int activeIdx = data.steps.indexOf(activeStepData);
         if (activeIdx < 0) activeIdx = data.steps.size() - 1;
 
-        // Accumulate effective source amounts across steps 0..activeIdx (last write wins).
         java.util.Map<BlockPos, Integer> effectiveSources = new java.util.LinkedHashMap<>();
         java.util.Map<BlockPos, String> effectiveItems = new java.util.LinkedHashMap<>();
         for (int si = 0; si <= activeIdx; si++) {
@@ -299,13 +255,11 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
             }
         }
 
-        // Update persisted map so forceSourceJarState can re-apply every frame.
         persistedSourceAmounts.clear();
         persistedSourceAmounts.putAll(effectiveSources);
 
         java.util.Set<BlockPos> rebakePos = new java.util.HashSet<>();
 
-        // Apply source amounts.
         for (java.util.Map.Entry<BlockPos, Integer> entry : effectiveSources.entrySet()) {
             BlockPos worldPos = entry.getKey();
             net.minecraft.world.level.block.entity.BlockEntity be = level.getBlockEntity(worldPos);
@@ -324,7 +278,6 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
             } catch (Exception ignored) {}
         }
 
-        // Apply item states.
         for (java.util.Map.Entry<BlockPos, String> entry : effectiveItems.entrySet()) {
             BlockPos worldPos = entry.getKey();
             net.minecraft.world.level.block.entity.BlockEntity be = level.getBlockEntity(worldPos);
@@ -391,10 +344,6 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
         return s;
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Tick
-    // ─────────────────────────────────────────────────────────────────────────
-
     @Override
     public void tick() {
         super.tick();
@@ -411,7 +360,6 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
             playing = false;
         }
 
-        // Apply camera, visibility, and working states on step change
         int si = activeStepIndex();
         if (si != lastStepIndex) {
             lastStepIndex = si;
@@ -429,9 +377,6 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
             }
         }
 
-        // Re-apply vanilla-specific working state (beacon beam, conduit isActive) every tick.
-        // ConduitBlockEntity.clientTick() and BeaconBlockEntity.tick() reset these fields
-        // periodically; calling onSceneTick mirrors what PhantasiaSceneScreen does.
         if (level != null && pattern != null) {
             final int tick = sceneTick++;
             for (PhantasiaScenePattern.PlacementEntry pe : pattern.placements) {
@@ -440,10 +385,6 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
             }
         }
     }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // Render
-    // ─────────────────────────────────────────────────────────────────────────
 
     @Override
     public void render(GuiGraphics g, int mx, int my, float partial) {
@@ -458,7 +399,6 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
 
         int viewH = this.height - TOP_BAR_H - TIMELINE_H;
 
-        // ── Viewport ──────────────────────────────────────────────────────────
         if (renderer != null && camera != null) {
             forceSourceJarState();
             CameraView view = camera.getView(partial);
@@ -480,7 +420,6 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
 
         super.render(g, mx, my, partial);
 
-        // Block hover tooltip (drawn after super so it's on top)
         if (hoveredPos != null && level != null) {
             try {
                 BlockState bs = level.getBlockState(hoveredPos);
@@ -497,33 +436,28 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
         }
     }
 
-    // ── Top bar ───────────────────────────────────────────────────────────────
-
     private void renderTopBar(GuiGraphics g, int mx, int my) {
         g.fill(0, 0, this.width, TOP_BAR_H, C_BAR());
         g.fill(0, TOP_BAR_H - 1, this.width, TOP_BAR_H, C_ACCENT());
 
-        // Title centred
         String title = data.name != null && !data.name.isBlank() ? data.name : data.id;
         g.drawCenteredString(font, title, this.width / 2, (TOP_BAR_H - 8) / 2, C_ACCENT());
 
-        // Left: Back
         topBtn(g, mx, my, 4, Component.translatable("screen.phantasia.scene_viewer.btn_back").getString(),
                 this::onClose);
 
-        // Right: Edit (admin only), then camera reset
         int rx = this.width - 4;
         Minecraft mc = Minecraft.getInstance();
         if (mc.player != null && mc.player.getAbilities().instabuild) {
             rx = topBtnRight(g, mx, my, rx,
                     Component.translatable("screen.phantasia.scene_viewer.btn_edit").getString(), this::openEditor);
         }
-        // Show Guide button whenever there is guide content
+
         if (hasGuideContent()) {
             rx = topBtnRight(g, mx, my, rx,
                     Component.translatable("screen.phantasia.scene_viewer.btn_guide").getString(), this::openGuide);
         }
-        // Show Mistakes button when the scene has mistakes defined
+
         if (data.mistakes != null && !data.mistakes.isEmpty()) {
             rx = topBtnRight(g, mx, my, rx, showMistakes ? "⚠ Hide Mistakes" : "⚠ Mistakes",
                     () -> showMistakes = !showMistakes);
@@ -552,8 +486,6 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
         return x - 4;
     }
 
-    // ── Timeline strip ────────────────────────────────────────────────────────
-
     private void renderTimeline(GuiGraphics g, int mx, int my) {
         int tlY = this.height - TIMELINE_H;
         int tx = 80, tw = this.width - tx - 70;
@@ -562,7 +494,6 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
         g.fill(0, tlY, this.width, this.height, C_TL_BG());
         g.fill(0, tlY, this.width, tlY + 1, 0x33FFFFFF);
 
-        // ▶/⏸ button
         int pbW = font.width(playing ? "⏸" : "▶") + 10;
         boolean pbHov = isOver(mx, my, 6, tlY + 4, pbW, TIMELINE_H - 8);
         g.fill(6, tlY + 4, 6 + pbW, tlY + TIMELINE_H - 4, pbHov ? C_BTN_HOV() : C_BTN());
@@ -577,7 +508,6 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
             playing = !playing;
         }));
 
-        // Camera lock button (placed between play and speed, matching PhantasiaSceneScreen layout)
         int lkX = 6 + pbW + 4;
         String lockLabel = camera != null && camera.isLocked() ? "🔒" : "🔓";
         boolean lkHov = isOver(mx, my, lkX, tlY + 4, 18, TIMELINE_H - 8);
@@ -585,7 +515,6 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
                 lockLabel, lkHov, C_BTN());
         btns.add(new Btn(lkX, tlY + 4, 18, TIMELINE_H - 8, () -> { if (camera != null) camera.toggleLocked(); }));
 
-        // Speed toggle
         String spdLabel = speed == 0.5f ? "½×" : speed == 2f ? "2×" : "1×";
         int spdX = lkX + 18 + 4;
         int spdW = font.width(spdLabel) + 8;
@@ -596,10 +525,8 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
         btns.add(new Btn(spdX, tlY + 4, spdW, TIMELINE_H - 8,
                 () -> speed = speed == 1f ? 2f : speed == 2f ? 0.5f : 1f));
 
-        // Track
         g.fill(tx, midY - 1, tx + tw, midY + 1, 0xFF1A2C3C);
 
-        // Step dots
         int total = totalTicks();
         List<PhantasiaSceneData.StepData> steps = data.steps;
         if (steps != null) {
@@ -609,20 +536,14 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
             }
         }
 
-        // Progress bar + scrub head
         float prog = total > 0 ? (float) playbackTick / total : 0f;
         g.fill(tx, midY - 1, tx + (int) (tw * prog), midY + 1, C_PROG());
         int headX = tx + (int) (tw * prog);
         g.fill(headX - 3, midY - 5, headX + 3, midY + 5, C_ACCENT());
 
-        // Time label
         g.drawString(font, formatTicks(playbackTick), tx + tw + 6, tlY + (TIMELINE_H - 8) / 2 + 2,
                 C_DIM(), false);
     }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // Input
-    // ─────────────────────────────────────────────────────────────────────────
 
     @Override
     public boolean mouseClicked(double mx, double my, int btn) {
@@ -634,7 +555,6 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
         int tlY = this.height - TIMELINE_H;
         int tx = 80, tw = this.width - tx - 70;
 
-        // Timeline scrub
         if (btn == 0 && my >= tlY && mx >= tx && mx <= tx + tw) {
             playing = false;
             scrubbing = true;
@@ -709,13 +629,9 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
         if (kc == 256) {
             onClose();
             return true;
-        } // ESC
+        }
         return super.keyPressed(kc, sc, mod);
     }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // Actions
-    // ─────────────────────────────────────────────────────────────────────────
 
     private void scrubTo(float t) {
         playbackTick = (int) (Mth.clamp(t, 0f, 1f) * totalTicks());
@@ -730,7 +646,6 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
         if (data.mistakes == null || data.mistakes.isEmpty()) return;
         int overlayX = 8, maxW = 260, lineH = font.lineHeight + 2;
 
-        // Pre-compute wrapped lines for each mistake to size the background
         var allLines = new java.util.ArrayList<Pair<List<FormattedCharSequence>, Integer>>();
         for (var m : data.mistakes) {
             String prefix = "ERROR".equalsIgnoreCase(m.severity) ? "✖ " :
@@ -756,7 +671,7 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
                 g.drawString(font, line, overlayX + 2, y, col, false);
                 y += lineH;
             }
-            y += 4; // gap between mistakes
+            y += 4;
         }
     }
 
@@ -791,10 +706,6 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
         Minecraft.getInstance().setScreen(new PhantasiaGuideScreen(this, data));
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Lifecycle
-    // ─────────────────────────────────────────────────────────────────────────
-
     @Override
     public void onClose() {
         if (renderer != null) {
@@ -809,8 +720,6 @@ public class PhantasiaSceneViewerScreen extends PhantasiaScreen {
     public boolean isPauseScreen() {
         return false;
     }
-
-    // ── Helpers ───────────────────────────────────────────────────────────────
 
     private static String formatTicks(int t) {
         return String.format("%d.%02ds", t / 20, (t % 20) * 5);

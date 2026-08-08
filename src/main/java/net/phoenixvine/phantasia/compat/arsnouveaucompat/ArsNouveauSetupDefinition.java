@@ -27,28 +27,20 @@ import java.util.Optional;
 
 import javax.annotation.Nullable;
 
-/**
- * Bridges an {@link IPhantasiaMultiSetup} into the multiblock definition/script
- * system so Phantasia can run scene scripts against AN setups.
- */
 public class ArsNouveauSetupDefinition implements IPhantasiaMultiblockDefinition {
 
-    // Source jar drain cycle
     private static final int SOURCE_CYCLE_TICKS = 120;
     private static final int SOURCE_DRAIN_RATE = 8;
     private static final int SOURCE_JAR_MAX = 10_000;
 
-    // Sound repeat interval (~4 s)
     private static final int SOUND_REPEAT_TICKS = 80;
 
-    // Crafting animation durations (ticks), matching AN's internal values
-    private static final int APPARATUS_CRAFT_TICKS = EnchantingApparatusTile.craftingLength; // 210
-    private static final int IMBUEMENT_CRAFT_TICKS = 100; // ImbuementTile.craftTicks initial value
+    private static final int APPARATUS_CRAFT_TICKS = EnchantingApparatusTile.craftingLength;
+    private static final int IMBUEMENT_CRAFT_TICKS = 100;
 
     private final IPhantasiaMultiSetup setup;
     private final List<IPhantasiaMultiblockShape> shapes;
 
-    // Hold state — reset in onShapeLoaded so each scene open starts fresh
     private int holdStartSceneTick = -1;
 
     public ArsNouveauSetupDefinition(IPhantasiaMultiSetup setup) {
@@ -82,8 +74,6 @@ public class ArsNouveauSetupDefinition implements IPhantasiaMultiblockDefinition
         return shapes;
     }
 
-    // ── shape loaded ───────────────────────────────────────────────────────────
-
     @Override
     public void onShapeLoaded(PhantasiaTrackedDummyWorld level, BlockPos origin,
                               Map<BlockPos, PhantasiaBlockInfo> blockMap,
@@ -92,8 +82,6 @@ public class ArsNouveauSetupDefinition implements IPhantasiaMultiblockDefinition
         List<IPhantasiaSetupRecipe> recipes = setup.getRecipes();
         if (recipes.isEmpty()) return;
 
-        // If the script specifies a recipe, use it directly. Fall back to the
-        // hardcoded default so scenes without a recipeId still look reasonable.
         String recipeId = script != null ? script.getRecipeId() : null;
         IPhantasiaSetupRecipe recipe;
         if (recipeId != null) {
@@ -101,7 +89,7 @@ public class ArsNouveauSetupDefinition implements IPhantasiaMultiblockDefinition
                     .filter(r -> r.getId().toString().equals(recipeId))
                     .findFirst()
                     .orElse(null);
-            if (recipe == null) return; // recipeId set but not found — skip item setup
+            if (recipe == null) return;
         } else {
             String preferredPath = switch (setup.getId().getPath()) {
                 case "enchanting_apparatus" -> "magebloom_seed";
@@ -115,16 +103,11 @@ public class ArsNouveauSetupDefinition implements IPhantasiaMultiblockDefinition
 
         holdStartSceneTick = -1;
 
-        // Ensure every AN tile has its level set before anything can trigger a tick.
-        // TrackedDummyWorld does not call setLevel() when registering block entities,
-        // and EnchantingApparatusTile.tick() crashes immediately if level is null.
         for (BlockPos worldPos : localToWorld.values()) {
             BlockEntity be = level.getBlockEntity(worldPos);
             if (be != null && be.getLevel() == null) be.setLevel(level);
         }
 
-        // Set items — apparatus/pedestals use SingleItemTile;
-        // ImbuementTile extends AbstractSourceMachine directly so needs its own path.
         for (Map.Entry<BlockPos, ItemStack> entry : placements.entrySet()) {
             BlockPos worldPos = localToWorld.get(entry.getKey());
             if (worldPos == null) continue;
@@ -137,7 +120,6 @@ public class ArsNouveauSetupDefinition implements IPhantasiaMultiblockDefinition
             }
         }
 
-        // Fill source jars and activate crafting animations
         for (BlockPos worldPos : localToWorld.values()) {
             BlockEntity be = level.getBlockEntity(worldPos);
             if (be instanceof EnchantingApparatusTile apparatus) {
@@ -151,18 +133,15 @@ public class ArsNouveauSetupDefinition implements IPhantasiaMultiblockDefinition
         }
     }
 
-    // ── scene tick ─────────────────────────────────────────────────────────────
-
     @Override
     public void onSceneTick(PhantasiaTrackedDummyWorld level,
                             Map<BlockPos, BlockPos> localToWorld,
                             int sceneTick) {
-        // Drain source jars during the drain phase, then snap back to full
         int phase = sceneTick % SOURCE_CYCLE_TICKS;
         for (BlockPos worldPos : localToWorld.values()) {
             BlockEntity be = level.getBlockEntity(worldPos);
             if (be == null) continue;
-            // Defensively ensure level is set — TrackedDummyWorld skips setLevel()
+
             if (be.getLevel() == null) be.setLevel(level);
             if (be instanceof SourceJarTile jar) {
                 if (phase == 0) {
@@ -177,7 +156,6 @@ public class ArsNouveauSetupDefinition implements IPhantasiaMultiblockDefinition
             }
         }
 
-        // Play the apparatus channel sound periodically
         if (sceneTick % SOUND_REPEAT_TICKS == 0) {
             try {
                 Minecraft.getInstance().getSoundManager().play(
@@ -185,8 +163,6 @@ public class ArsNouveauSetupDefinition implements IPhantasiaMultiblockDefinition
             } catch (Exception ignored) {}
         }
     }
-
-    // ── hold ───────────────────────────────────────────────────────────────────
 
     @Override
     public boolean shouldHoldStep(PhantasiaTrackedDummyWorld level,
@@ -196,27 +172,22 @@ public class ArsNouveauSetupDefinition implements IPhantasiaMultiblockDefinition
         if (!holdId.startsWith("an_crafting")) return false;
 
         if (holdStartSceneTick < 0) {
-            // First call — record the start tick. The crafting flags are already
-            // live from onSceneTick, so the animation is already running.
+
             holdStartSceneTick = sceneTick;
         }
 
         int duration = holdId.equals("an_crafting_apparatus") ? APPARATUS_CRAFT_TICKS : IMBUEMENT_CRAFT_TICKS;
 
         boolean done = (sceneTick - holdStartSceneTick) >= duration;
-        if (done) holdStartSceneTick = -1; // reset so the hold can be re-used if script loops
+        if (done) holdStartSceneTick = -1;
         return !done;
     }
 
-    // ── source jar helpers ─────────────────────────────────────────────────────
-
     private static void setJarSource(SourceJarTile jar, PhantasiaTrackedDummyWorld level, int amount) {
         if (jar.getLevel() == null) jar.setLevel(level);
-        jar.setSource(amount); // internally calls updateBlock()
+        jar.setSource(amount);
         jar.setChanged();
     }
-
-    // ── recipe selection ───────────────────────────────────────────────────────
 
     private static IPhantasiaSetupRecipe preferredRecipe(List<IPhantasiaSetupRecipe> recipes,
                                                          @Nullable String outputPath) {
@@ -228,8 +199,6 @@ public class ArsNouveauSetupDefinition implements IPhantasiaMultiblockDefinition
         return found.orElseGet(() -> recipes.get(0));
     }
 
-    // ── builtin scripts ────────────────────────────────────────────────────────
-
     @Nullable
     @Override
     public PhantasiaScriptData getDefaultScriptData() {
@@ -240,9 +209,6 @@ public class ArsNouveauSetupDefinition implements IPhantasiaMultiblockDefinition
     }
 
     private static PhantasiaScriptData buildApparatusScript() {
-        // Layout: Arcane Core at (2,1,2); apparatus at (2,2,2); cardinal pedestals at y=1;
-        // diagonal pedestals at corners y=1; stone floor at y=0.
-        // Items are placed on all tiles in onShapeLoaded — revealing a pedestal shows its item.
         return PhantasiaScriptData.fromJson(
                 """
                         {
@@ -337,7 +303,6 @@ public class ArsNouveauSetupDefinition implements IPhantasiaMultiblockDefinition
     }
 
     private static PhantasiaScriptData buildImbuementScript() {
-        // Layout: chamber at (2,1,2); Source Jars at cardinal offsets (y=1); stone floor at y=0.
         return PhantasiaScriptData.fromJson(
                 """
                         {

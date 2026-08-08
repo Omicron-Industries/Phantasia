@@ -26,23 +26,19 @@ public class StructureAssetReader {
                     line = line.trim();
                     if (line.isEmpty()) continue;
 
-                    // Detect a new aisle marker
                     if (line.startsWith(".aisle(")) {
                         if (!currentAisle.isEmpty()) {
                             allAisles.add(currentAisle);
                             currentAisle = new ArrayList<>();
                         }
-                        // Remove the ".aisle(" prefix and any closing tokens at the very end
+
                         line = line.substring(7);
                     }
 
-                    // Strip trailing closing brackets/semicolons if this line ends the section
                     if (line.endsWith(");") || line.endsWith(")")) {
                         line = line.replaceAll("\\);|\\)$", "").trim();
                     }
 
-                    // Split rows separated by commas outside of quotes, or split by quotes
-                    // This regex specifically extracts strings wrapped in quotes: "abc", "def" -> [abc, def]
                     java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("\"([^\"]*)\"").matcher(line);
                     while (matcher.find()) {
                         String cleanRow = matcher.group(1);
@@ -52,7 +48,6 @@ public class StructureAssetReader {
                     }
                 }
 
-                // Add the trailing final aisle
                 if (!currentAisle.isEmpty()) {
                     allAisles.add(currentAisle);
                 }
@@ -62,7 +57,6 @@ public class StructureAssetReader {
             Phantasia.LOGGER.error("[Phantasia/StructureAsset] Failed to read {}: {}", assetPath, e.getMessage());
         }
 
-        // Convert the structural Lists back to String[][] for GTCEu's loop
         String[][] outcome = new String[allAisles.size()][];
         for (int i = 0; i < allAisles.size(); i++) {
             outcome[i] = allAisles.get(i).toArray(new String[0]);

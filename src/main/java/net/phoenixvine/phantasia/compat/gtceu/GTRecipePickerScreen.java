@@ -20,10 +20,6 @@ import java.util.function.Consumer;
 
 import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
 
-/**
- * Modal subscreen for picking a GTCEu recipe ID.
- * Shows all gtceu-namespaced recipes in a searchable, scrollable list.
- */
 @OnlyIn(Dist.CLIENT)
 public class GTRecipePickerScreen extends Screen {
 
@@ -96,7 +92,6 @@ public class GTRecipePickerScreen extends Screen {
 
     @Override
     public void render(GuiGraphics g, int mx, int my, float partial) {
-        // Render parent as background if possible
         if (parent instanceof PhantasiaScreen ps) {
             ps.renderAsBackground(g, partial);
         } else {
@@ -108,14 +103,12 @@ public class GTRecipePickerScreen extends Screen {
         g.fill(px, py, px + pw, py + 1, C_ACCENT());
         g.drawCenteredString(font, "Pick GT Recipe", px + pw / 2, py + 10, C_ACCENT());
 
-        // Search bar background
         int sbY = py + HEADER_H;
         g.fill(px + 4, sbY, px + pw - 4, sbY + 18, 0xFF111111);
         g.fill(px + 4, sbY, px + pw - 4, sbY + 1, 0xFF333333);
 
         super.render(g, mx, my, partial);
 
-        // List
         int listY = sbY + 18;
         int listH = ph - (listY - py) - 26;
         int maxRows = listH / ROW_H;
@@ -135,7 +128,6 @@ public class GTRecipePickerScreen extends Screen {
         }
         g.disableScissor();
 
-        // Scrollbar
         if (entries.size() > maxRows && maxRows > 0) {
             int sbX = px + pw - 5;
             float frac = (float) scrollOffset / Math.max(1, entries.size() - maxRows);
@@ -145,7 +137,6 @@ public class GTRecipePickerScreen extends Screen {
             g.fill(sbX, thumbY, sbX + 4, thumbY + thumbH, 0xFF555566);
         }
 
-        // Bottom bar
         int bbY = py + ph - 22;
         g.fill(px, bbY, px + pw, py + ph, 0xFF111111);
         boolean clearHov = isIn(mx, my, px + 8, bbY + 4, 60, 14);
@@ -155,7 +146,6 @@ public class GTRecipePickerScreen extends Screen {
         g.fill(px + pw - 68, bbY + 4, px + pw - 8, bbY + 18, closeHov ? C_BTN_HOV() : C_BTN());
         g.drawCenteredString(font, "Close", px + pw - 38, bbY + 7, closeHov ? C_ACCENT() : C_DIM());
 
-        // Result count
         g.drawString(font, entries.size() + " recipes", px + pw - 8 - font.width(entries.size() + " recipes"),
                 py + 10, C_DIM(), false);
     }

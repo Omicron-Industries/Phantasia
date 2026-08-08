@@ -15,26 +15,8 @@ import java.util.List;
 
 import static net.phoenixvine.phantasia.utils.PhantasiaThemeUtils.*;
 
-/**
- * PhantasiaPlacementEditorScreen
- *
- * Subscreen opened from {@link PhantasiaSceneEditorScreen} when the user clicks
- * "Edit placement / items →" for a selected placement.
- *
- * Lets the user:
- * - Change the machine ID (multiblock OR singleblock) and XYZ offset.
- * - Add, edit, and remove {@link PhantasiaSceneData.ItemConditionData} entries
- * that show recipe conditions alongside this machine in the scene viewer.
- *
- * Changes are written directly into the parent editor's {@code data} object
- * (same reference) so they're immediately reflected. The parent editor's
- * {@link PhantasiaSceneEditorScreen#checkpoint()} is called before mutating
- * so the undo stack stays consistent.
- */
 @OnlyIn(Dist.CLIENT)
 public class PhantasiaPlacementEditorScreen extends PhantasiaScreen {
-
-    // ── Theme ─────────────────────────────────────────────────────────────────
 
     private static final int PANEL_W = 420;
 
@@ -44,28 +26,18 @@ public class PhantasiaPlacementEditorScreen extends PhantasiaScreen {
     private static final String[] TRACKS = { "none", "left", "right", "up", "down", "pulse" };
     private static final String[] TRACK_LABELS = { "Fixed", "→", "←", "↑", "↓", "Pulse" };
 
-    // ── Parent ────────────────────────────────────────────────────────────────
     private final PhantasiaSceneEditorScreen parent;
     private final PhantasiaSceneData sceneData;
     private final int placementIndex;
 
-    // ── State ─────────────────────────────────────────────────────────────────
-    /** Index of item being edited in the existing-item form, -1 = none. */
     private int editingItem = -1;
-    /**
-     * Pending type/track for the add-new form. These are separate from the
-     * editing-form state so the two forms never bleed into each other.
-     */
+
     private String newItemType = "input";
     private String newItemTrack = "none";
 
-    // ── Pending tooltip ───────────────────────────────────────────────────────
-
-    // ── Widgets: machine / offset (always visible in the panel) ──────────────
     private EditBox machineIdBox;
     private EditBox offsetXBox, offsetYBox, offsetZBox;
 
-    // ── Widgets: add-new form (separate set, never shared with edit form) ─────
     private EditBox addItemIdBox;
     private EditBox addItemCountBox;
     private EditBox addItemLabelBox;
@@ -73,7 +45,6 @@ public class PhantasiaPlacementEditorScreen extends PhantasiaScreen {
     private EditBox addItemDescBox;
     private EditBox addItemMicrosceneBox;
 
-    // ── Widgets: inline edit form (populated from the selected item) ──────────
     private EditBox editItemIdBox;
     private EditBox editItemCountBox;
     private EditBox editItemLabelBox;
@@ -81,17 +52,11 @@ public class PhantasiaPlacementEditorScreen extends PhantasiaScreen {
     private EditBox editItemDescBox;
     private EditBox editItemMicrosceneBox;
 
-    // ── Button list ───────────────────────────────────────────────────────────
-
     private int lastMX, lastMY;
 
-    // ── Scroll ────────────────────────────────────────────────────────────────
-    /** Current scroll offset in pixels (positive = scrolled down). */
     private int scrollY = 0;
-    /** Total content height as measured during the last render pass. */
-    private int contentHeight = 0;
 
-    // ─────────────────────────────────────────────────────────────────────────
+    private int contentHeight = 0;
 
     public PhantasiaPlacementEditorScreen(PhantasiaSceneEditorScreen parent,
                                           PhantasiaSceneData sceneData,
@@ -109,10 +74,6 @@ public class PhantasiaPlacementEditorScreen extends PhantasiaScreen {
         return sceneData.placements.get(placementIndex);
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Init
-    // ─────────────────────────────────────────────────────────────────────────
-
     @Override
     protected void init() {
         super.init();
@@ -120,7 +81,6 @@ public class PhantasiaPlacementEditorScreen extends PhantasiaScreen {
 
         PhantasiaSceneData.PlacementData p = pd();
 
-        // Machine / offset widgets
         machineIdBox = addW(new EditBox(font, 0, 0, 260, 12, Component.empty()));
         machineIdBox.setMaxLength(128);
         machineIdBox.setHint(Component.translatable("screen.phantasia.placement_editor.hint_machine_id"));
@@ -133,7 +93,6 @@ public class PhantasiaPlacementEditorScreen extends PhantasiaScreen {
         offsetZBox = makeIntBox();
         offsetZBox.setValue(String.valueOf(p.z));
 
-        // Add-new form widgets
         addItemIdBox = addW(new EditBox(font, 0, 0, 200, 12, Component.empty()));
         addItemIdBox.setMaxLength(128);
         addItemIdBox.setHint(Component.translatable("screen.phantasia.placement_editor.hint_item_id"));
@@ -149,7 +108,6 @@ public class PhantasiaPlacementEditorScreen extends PhantasiaScreen {
         addItemDescBox = makeDescBox();
         addItemMicrosceneBox = makeMicrosceneBox();
 
-        // Edit form widgets (identical layout, independent instances)
         editItemIdBox = addW(new EditBox(font, 0, 0, 200, 12, Component.empty()));
         editItemIdBox.setMaxLength(128);
         editItemIdBox.setHint(Component.translatable("screen.phantasia.placement_editor.hint_item_id"));
@@ -197,10 +155,6 @@ public class PhantasiaPlacementEditorScreen extends PhantasiaScreen {
         return b;
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Render
-    // ─────────────────────────────────────────────────────────────────────────
-
     @Override
     public void render(GuiGraphics g, int mx, int my, float partial) {
         btns.clear();
@@ -214,7 +168,6 @@ public class PhantasiaPlacementEditorScreen extends PhantasiaScreen {
         renderPanel(g, mx, my);
         super.render(g, mx, my, partial);
 
-        // Floating tooltip — drawn last so it is always on top
         if (pendingTooltip != null) {
             int tw = font.width(pendingTooltip) + 8;
             int tx = Math.min(mx + 12, width - tw - 2);
@@ -224,8 +177,6 @@ public class PhantasiaPlacementEditorScreen extends PhantasiaScreen {
             g.drawString(font, pendingTooltip, tx + 4, ty + 2, 0xFFDDDDDD, false);
         }
     }
-
-    // ── Top bar ───────────────────────────────────────────────────────────────
 
     private void renderTopBar(GuiGraphics g, int mx, int my) {
         g.fill(0, 0, width, TOP_BAR_H, C_BAR());
@@ -240,30 +191,23 @@ public class PhantasiaPlacementEditorScreen extends PhantasiaScreen {
                 C_BTN(), "Return to the scene editor", this::goBack);
     }
 
-    // ── Main panel ────────────────────────────────────────────────────────────
-
     private void renderPanel(GuiGraphics g, int mx, int my) {
         int pw = Math.min(PANEL_W, width - 20);
         int px = (width - pw) / 2;
         int py = TOP_BAR_H + 8;
 
-        // Visible area for clipping (content scrolls within this)
         int clipTop = py;
         int clipBottom = height - 8;
         int clipH = clipBottom - clipTop;
 
-        // Constrain scroll
         int maxScroll = Math.max(0, contentHeight - clipH);
         scrollY = Math.max(0, Math.min(scrollY, maxScroll));
 
-        // We render at a virtual y that is offset by scroll
         int cy = clipTop - scrollY;
 
-        // Background — covers the full visible clip area regardless of content
         g.fill(px, clipTop, px + pw, clipBottom, C_PANEL());
         g.fill(px, clipTop, px + pw, clipTop + 1, C_ACCENT());
 
-        // ── Machine ID ───────────────────────────────────────────────────────
         cy += 8;
         drawIfVisible(g, Component.translatable("screen.phantasia.placement_editor.label_machine_id").getString(),
                 px + 8, cy + 2, C_DIM(), clipTop, clipBottom);
@@ -283,7 +227,6 @@ public class PhantasiaPlacementEditorScreen extends PhantasiaScreen {
         }
         cy += 16;
 
-        // Offset
         if (inClip(cy, clipTop, clipBottom)) {
             g.drawString(font, Component.translatable("screen.phantasia.placement_editor.label_offset").getString(),
                     px + 8, cy + 2, C_DIM(), false);
@@ -311,12 +254,10 @@ public class PhantasiaPlacementEditorScreen extends PhantasiaScreen {
         }
         cy += 20;
 
-        // ── Divider ──────────────────────────────────────────────────────────
         if (inClip(cy, clipTop, clipBottom))
             g.fill(px + 8, cy, px + pw - 8, cy + 1, 0x33FFFFFF);
         cy += 8;
 
-        // ── Recipe item conditions ────────────────────────────────────────────
         drawIfVisible(g, Component.translatable("screen.phantasia.placement_editor.section_recipe_items").getString(),
                 px + 8, cy + 2, C_ACCENT(), clipTop, clipBottom);
         cy += 12;
@@ -328,7 +269,6 @@ public class PhantasiaPlacementEditorScreen extends PhantasiaScreen {
 
         PhantasiaSceneData.PlacementData p = pd();
 
-        // Existing items
         for (int ii = 0; ii < p.items.size(); ii++) {
             cy = renderItemRow(g, mx, my, px, cy, pw, p, ii, clipTop, clipBottom);
         }
@@ -339,7 +279,6 @@ public class PhantasiaPlacementEditorScreen extends PhantasiaScreen {
             cy += 14;
         }
 
-        // ── Add item form ─────────────────────────────────────────────────────
         cy += 4;
         if (inClip(cy, clipTop, clipBottom))
             g.fill(px + 4, cy - 2, px + pw - 4, cy + 1, 0x22FFFFFF);
@@ -348,7 +287,6 @@ public class PhantasiaPlacementEditorScreen extends PhantasiaScreen {
                 px + 8, cy, C_ACCENT(), clipTop, clipBottom);
         cy += 12;
 
-        // Type selector for new item
         if (inClip(cy, clipTop, clipBottom)) {
             int bx = px + 8;
             for (int ti = 0; ti < TYPES.length; ti++) {
@@ -367,7 +305,6 @@ public class PhantasiaPlacementEditorScreen extends PhantasiaScreen {
         }
         cy += 18;
 
-        // Item ID row
         if (inClip(cy, clipTop, clipBottom)) {
             g.drawString(font, Component.translatable("screen.phantasia.placement_editor.label_item").getString(),
                     px + 8, cy + 2, C_DIM(), false);
@@ -382,7 +319,6 @@ public class PhantasiaPlacementEditorScreen extends PhantasiaScreen {
         }
         cy += 16;
 
-        // Count + Label row
         if (inClip(cy, clipTop, clipBottom)) {
             g.drawString(font, Component.translatable("screen.phantasia.placement_editor.label_count").getString(),
                     px + 8, cy + 2, C_DIM(), false);
@@ -406,7 +342,6 @@ public class PhantasiaPlacementEditorScreen extends PhantasiaScreen {
         }
         cy += 16;
 
-        // Track selector
         if (inClip(cy, clipTop, clipBottom)) {
             g.drawString(font, Component.translatable("screen.phantasia.placement_editor.label_track").getString(),
                     px + 8, cy + 2, C_DIM(), false);
@@ -438,7 +373,6 @@ public class PhantasiaPlacementEditorScreen extends PhantasiaScreen {
         }
         cy += 16;
 
-        // Description
         if (inClip(cy, clipTop, clipBottom)) {
             g.drawString(font, Component.translatable("screen.phantasia.placement_editor.label_desc").getString(),
                     px + 8, cy + 2, C_DIM(), false);
@@ -451,7 +385,6 @@ public class PhantasiaPlacementEditorScreen extends PhantasiaScreen {
         }
         cy += 16;
 
-        // Microscene ID
         if (inClip(cy, clipTop, clipBottom)) {
             g.drawString(font, Component.translatable("screen.phantasia.placement_editor.label_scene").getString(),
                     px + 8, cy + 2, C_DIM(), false);
@@ -467,7 +400,6 @@ public class PhantasiaPlacementEditorScreen extends PhantasiaScreen {
         }
         cy += 16;
 
-        // Add button
         if (inClip(cy, clipTop, clipBottom)) {
             int addBtnW = pw - 16;
             boolean addHov = isOver(mx, my, px + 8, cy, addBtnW, 14);
@@ -483,10 +415,8 @@ public class PhantasiaPlacementEditorScreen extends PhantasiaScreen {
         }
         cy += 18;
 
-        // Record total content height for scroll clamping next frame
         contentHeight = (cy + scrollY) - clipTop;
 
-        // Scrollbar
         if (contentHeight > clipH) {
             int sbX = px + pw - 4;
             int sbH = clipH;
@@ -496,8 +426,6 @@ public class PhantasiaPlacementEditorScreen extends PhantasiaScreen {
             g.fill(sbX, thumbY, sbX + 4, thumbY + thumbH, 0x88FFFFFF);
         }
     }
-
-    // ── Single item row ───────────────────────────────────────────────────────
 
     private int renderItemRow(GuiGraphics g, int mx, int my,
                               int px, int cy, int pw,
@@ -574,10 +502,6 @@ public class PhantasiaPlacementEditorScreen extends PhantasiaScreen {
         return cy;
     }
 
-    /**
-     * Renders the inline edit form for an existing item. Uses the dedicated
-     * {@code editItem*} boxes so it can never clobber the add-new form state.
-     */
     private int renderItemEditForm(GuiGraphics g, int mx, int my,
                                    int px, int cy, int pw,
                                    PhantasiaSceneData.PlacementData p, int ii,
@@ -588,7 +512,6 @@ public class PhantasiaPlacementEditorScreen extends PhantasiaScreen {
             g.fill(px + 4, cy, px + pw - 4, cy + 1, 0x22FFFFFF);
         cy += 4;
 
-        // Type selector
         if (inClip(cy, clipTop, clipBottom)) {
             int bx = px + 8;
             for (int ti = 0; ti < TYPES.length; ti++) {
@@ -611,7 +534,6 @@ public class PhantasiaPlacementEditorScreen extends PhantasiaScreen {
         }
         cy += 16;
 
-        // Item ID
         if (inClip(cy, clipTop, clipBottom)) {
             g.drawString(font, Component.translatable("screen.phantasia.placement_editor.label_item").getString(),
                     px + 8, cy + 2, C_DIM(), false);
@@ -624,7 +546,6 @@ public class PhantasiaPlacementEditorScreen extends PhantasiaScreen {
         }
         cy += 16;
 
-        // Count + Label
         if (inClip(cy, clipTop, clipBottom)) {
             g.drawString(font, Component.translatable("screen.phantasia.placement_editor.label_count").getString(),
                     px + 8, cy + 2, C_DIM(), false);
@@ -646,7 +567,6 @@ public class PhantasiaPlacementEditorScreen extends PhantasiaScreen {
         }
         cy += 16;
 
-        // Track selector
         if (inClip(cy, clipTop, clipBottom)) {
             g.drawString(font, Component.translatable("screen.phantasia.placement_editor.label_track").getString(),
                     px + 8, cy + 2, C_DIM(), false);
@@ -683,7 +603,6 @@ public class PhantasiaPlacementEditorScreen extends PhantasiaScreen {
         }
         cy += 16;
 
-        // Description
         if (inClip(cy, clipTop, clipBottom)) {
             g.drawString(font, Component.translatable("screen.phantasia.placement_editor.label_desc").getString(),
                     px + 8, cy + 2, C_DIM(), false);
@@ -696,7 +615,6 @@ public class PhantasiaPlacementEditorScreen extends PhantasiaScreen {
         }
         cy += 16;
 
-        // Microscene ID
         if (inClip(cy, clipTop, clipBottom)) {
             g.drawString(font, Component.translatable("screen.phantasia.placement_editor.label_scene").getString(),
                     px + 8, cy + 2, C_DIM(), false);
@@ -710,7 +628,6 @@ public class PhantasiaPlacementEditorScreen extends PhantasiaScreen {
         }
         cy += 16;
 
-        // Apply button — checkpoint BEFORE mutating, then close
         if (inClip(cy, clipTop, clipBottom)) {
             int applyW = pw - 16;
             boolean applyHov = isOver(mx, my, px + 8, cy, applyW, 12);
@@ -724,7 +641,7 @@ public class PhantasiaPlacementEditorScreen extends PhantasiaScreen {
                     px + 8 + applyW / 2, cy + 2,
                     applyHov ? C_ACCENT() : C_TEXT());
             btns.add(new Btn(px + 8, cy, applyW, 12, () -> {
-                // Checkpoint before any mutation so undo captures the pre-edit state
+
                 parent.checkpoint();
                 String newId = editItemIdBox.getValue().trim();
                 if (!newId.isEmpty()) item.item = newId;
@@ -749,10 +666,6 @@ public class PhantasiaPlacementEditorScreen extends PhantasiaScreen {
         cy += 16;
         return cy;
     }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // Actions
-    // ─────────────────────────────────────────────────────────────────────────
 
     private void applyMachineId() {
         String id = machineIdBox.getValue().trim();
@@ -797,7 +710,6 @@ public class PhantasiaPlacementEditorScreen extends PhantasiaScreen {
         item.microsceneId = scId.isEmpty() ? null : scId;
         pd().items.add(item);
 
-        // Reset add form only — the edit form is untouched
         addItemIdBox.setValue("");
         addItemCountBox.setValue("");
         addItemLabelBox.setValue("");
@@ -821,10 +733,6 @@ public class PhantasiaPlacementEditorScreen extends PhantasiaScreen {
     private void goBack() {
         Minecraft.getInstance().setScreen(parent);
     }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // Input
-    // ─────────────────────────────────────────────────────────────────────────
 
     @Override
     public boolean mouseClicked(double mx, double my, int button) {
@@ -856,10 +764,6 @@ public class PhantasiaPlacementEditorScreen extends PhantasiaScreen {
         return false;
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Helpers
-    // ─────────────────────────────────────────────────────────────────────────
-
     private void hideAll() {
         for (var box : List.of(machineIdBox, offsetXBox, offsetYBox, offsetZBox,
                 addItemIdBox, addItemCountBox, addItemLabelBox, addItemDurationBox, addItemDescBox,
@@ -882,7 +786,6 @@ public class PhantasiaPlacementEditorScreen extends PhantasiaScreen {
         box.active = true;
     }
 
-    /** Returns true when the given content y-coordinate is within the visible clip range. */
     private static boolean inClip(int cy, int clipTop, int clipBottom) {
         return cy + 14 >= clipTop && cy < clipBottom;
     }

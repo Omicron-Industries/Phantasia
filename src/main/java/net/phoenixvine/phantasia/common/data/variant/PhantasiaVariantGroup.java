@@ -7,7 +7,6 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.phoenixvine.phantasia.common.data.pattern.PhantasiaLoadedPattern;
-import net.phoenixvine.phantasia.common.data.script.PhantasiaScript;
 import net.phoenixvine.phantasia.common.data.script.PhantasiaScriptData;
 import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockDefinition;
 import net.phoenixvine.phantasia.common.multiblock.IPhantasiaMultiblockShape;
@@ -18,19 +17,6 @@ import lombok.Getter;
 
 import java.util.*;
 
-/**
- * Compiled runtime representation of a single variant group.
- *
- * A variant group is a named set of positions in the dummy world where one
- * of two (or more) {@link BlockState}s can be shown. Index 0 is the primary
- * (default shown when shownByDefault=true); remaining entries are alternatives.
- *
- * <p>
- * Instances are produced by {@link #compile} and stored in
- * {@link PhantasiaScript}. The active choice for each group is held in
- * {@link PhantasiaVariantState},
- * which the renderer queries per-position in {@code resolveState()}.
- */
 @Getter
 public final class PhantasiaVariantGroup {
 
@@ -60,36 +46,18 @@ public final class PhantasiaVariantGroup {
         }
     }
 
-    /** Stable identifier, used as key in PhantasiaVariantState. */
     private final String id;
 
-    /** Display label shown in the Variants subscreen. */
     private final String label;
 
-    /** Which section of the subscreen this group appears in. */
     private final Category category;
 
-    /**
-     * If true, {@code options.get(0)} (the primary) is shown by default.
-     * If false, {@code options.get(options.size()-1)} (the last / fallback) is default.
-     */
     private final boolean shownByDefault;
 
-    /**
-     * All valid block states for this group, in order.
-     * Index 0 is always the "primary" block. For binary groups (optional/casing),
-     * index 1 is the fallback. For tier groups (hatches), each tier is an entry.
-     */
     private final List<BlockState> options;
 
-    /** Display names for each option, parallel to {@link #options}. */
     private final List<String> optionLabels;
 
-    /**
-     * Maps world-space BlockPos → the index in {@link #options} that represents
-     * what the dummy world currently holds at that position (i.e. the "base" state
-     * as loaded).
-     */
     private final Map<BlockPos, Integer> positionBaseIndex;
 
     private PhantasiaVariantGroup(String id, String label, Category category,
@@ -108,10 +76,6 @@ public final class PhantasiaVariantGroup {
         this.forcedDefaultIndex = forcedDefaultIndex;
     }
 
-    /**
-     * Public factory used by provider implementations (e.g. {@code GTCEuMultiblockDefinition})
-     * to create groups for their custom variant types.
-     */
     public static PhantasiaVariantGroup create(String id, String label, Category category,
                                                boolean shownByDefault,
                                                List<BlockState> options, List<String> optionLabels,
@@ -121,12 +85,10 @@ public final class PhantasiaVariantGroup {
                 options, optionLabels, positionBaseIndex, forcedDefaultIndex);
     }
 
-    /** True if this group has more than one option (otherwise hidden in the UI). */
     public boolean hasChoice() {
         return options.size() > 1;
     }
 
-    /** Returns the index that should be selected by default. */
     public int defaultIndex() {
         if (forcedDefaultIndex != -1) {
             return forcedDefaultIndex;
@@ -134,15 +96,6 @@ public final class PhantasiaVariantGroup {
         return shownByDefault ? 0 : options.size() - 1;
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Entry point
-    // ─────────────────────────────────────────────────────────────────────────
-
-    /**
-     * Compiles all variant groups for the given script + pattern.
-     * Mod-agnostic: provider-specific groups (e.g. GTCEu PartAbility tiers) are
-     * contributed via {@link IPhantasiaMultiblockDefinition#detectProviderVariants}.
-     */
     public static List<PhantasiaVariantGroup> compile(
                                                       PhantasiaScriptData data,
                                                       IPhantasiaMultiblockDefinition definition,
@@ -152,7 +105,6 @@ public final class PhantasiaVariantGroup {
 
         String machinePrefix = definition.getId().toString();
 
-        // 1. Script-defined (manual) groups — highest priority
         for (PhantasiaScriptData.OptionalGroupData ogd : data.getOptionalGroups()) {
             PhantasiaVariantGroup group = compileManual(machinePrefix, ogd, pattern);
             if (group != null && group.hasChoice()) {
@@ -161,7 +113,6 @@ public final class PhantasiaVariantGroup {
             }
         }
 
-        // 2. Provider-specific auto-detection (e.g. GTCEu PartAbility tier groups)
         try {
             result.addAll(definition.detectProviderVariants(data, pattern, machinePrefix, explicitIds));
         } catch (Exception e) {
@@ -169,7 +120,6 @@ public final class PhantasiaVariantGroup {
                     definition.getId(), e.getMessage());
         }
 
-        // 3. Generic optional block detection — scans all shapes for positional variation
         if (definition.shouldAutoDetectVariants()) {
             try {
                 result.addAll(detectOptionalBlocks(machinePrefix, definition.getAllShapes(), pattern, explicitIds));
@@ -182,10 +132,6 @@ public final class PhantasiaVariantGroup {
 
         return Collections.unmodifiableList(result);
     }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // Manual compilation
-    // ─────────────────────────────────────────────────────────────────────────
 
     private static PhantasiaVariantGroup compileManual(
                                                        String machinePrefix,
@@ -231,10 +177,6 @@ public final class PhantasiaVariantGroup {
                 options, labels, posMap, -1);
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Generic optional block detection (e.g. fusion glass)
-    // ─────────────────────────────────────────────────────────────────────────
-
     public static List<PhantasiaVariantGroup> detectOptionalBlocks(
                                                                    String machinePrefix,
                                                                    List<IPhantasiaMultiblockShape> allShapes,
@@ -243,7 +185,6 @@ public final class PhantasiaVariantGroup {
         Map<BlockPos, Set<Block>> localPosToAllBlocks = new HashMap<>();
         Map<Block, List<BlockPos>> loadedShapeBlockToWorldPos = new HashMap<>();
 
-        // Index the currently-loaded shape
         for (Map.Entry<BlockPos, BlockPos> e : pattern.localToWorld.entrySet()) {
             BlockPos local = e.getKey();
             BlockPos world = e.getValue();
@@ -256,7 +197,6 @@ public final class PhantasiaVariantGroup {
             localPosToAllBlocks.computeIfAbsent(local, k -> new HashSet<>()).add(block);
         }
 
-        // Scan all shapes for block variation at each position
         for (IPhantasiaMultiblockShape shape : allShapes) {
             PhantasiaBlockInfo[][][] raw = shape.getBlocks();
             if (raw == null) continue;
@@ -308,9 +248,7 @@ public final class PhantasiaVariantGroup {
             List<BlockPos> localPositions = sigEntry.getValue();
 
             List<Block> sortedBlocks = new ArrayList<>(blocks);
-            // Sort primarily by count (loaded-shape blocks first), then by registry name as a
-            // stable tiebreaker so the ordering — and thus the group ID — is deterministic
-            // across world restarts regardless of how many blocks share the same count.
+
             sortedBlocks.sort(Comparator
                     .comparingInt((Block b) -> {
                         List<BlockPos> wp = loadedShapeBlockToWorldPos.get(b);
@@ -328,8 +266,6 @@ public final class PhantasiaVariantGroup {
                 labels.add(blockDisplayName(b.defaultBlockState()));
             }
 
-            // Use the sorted block-ID signature as the group ID so it is stable across
-            // world restarts (previously used primaryBlock which had non-deterministic ordering).
             String groupId = "optional_" + sigEntry.getKey().replace(":", "_").replace("|", "__");
             if (excludeIds.contains(groupId)) continue;
 
@@ -363,10 +299,6 @@ public final class PhantasiaVariantGroup {
 
         return result;
     }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // Helpers
-    // ─────────────────────────────────────────────────────────────────────────
 
     public static BlockState resolveBlock(String id) {
         if (id == null || id.isBlank()) return null;

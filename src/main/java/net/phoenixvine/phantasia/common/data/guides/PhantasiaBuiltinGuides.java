@@ -1,10 +1,5 @@
 package net.phoenixvine.phantasia.common.data.guides;
 
-/**
- * Registers guides that are shipped with Phantasia itself.
- * These are always present regardless of what a pack author provides,
- * and survive guide reloads.
- */
 public final class PhantasiaBuiltinGuides {
 
     private PhantasiaBuiltinGuides() {}

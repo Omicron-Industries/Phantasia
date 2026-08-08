@@ -28,9 +28,7 @@ public class PhantasiaGTAddon implements IGTAddon {
     }
 
     @Override
-    public void registerTagPrefixes() {
-        // CustomTagPrefixes.init();
-    }
+    public void registerTagPrefixes() {}
 
     @Override
     public void addRecipes(Consumer<FinishedRecipe> provider) {
@@ -38,7 +36,5 @@ public class PhantasiaGTAddon implements IGTAddon {
     }
 
     @Override
-    public void registerElements() {
-        // CustomElements.init();
-    }
+    public void registerElements() {}
 }

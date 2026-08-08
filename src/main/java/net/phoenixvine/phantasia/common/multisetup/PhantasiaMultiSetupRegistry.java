@@ -5,10 +5,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * Central registry for all multi-component setup providers (Ars Nouveau, etc.).
- * Parallel to {@link net.phoenixvine.phantasia.common.multiblock.PhantasiaMultiblockRegistry}.
- */
 public final class PhantasiaMultiSetupRegistry {
 
     private static final List<IPhantasiaMultiSetupProvider> PROVIDERS = new ArrayList<>();

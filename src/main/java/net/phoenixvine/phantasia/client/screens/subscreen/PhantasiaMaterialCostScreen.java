@@ -34,7 +34,6 @@ public class PhantasiaMaterialCostScreen extends Screen {
     private static final int PICKER_W = 280;
     private static final int PICKER_ROW = 20;
 
-    // ── Tabs ──────────────────────────────────────────────────────────────────
     private enum Tab {
         BLOCKS,
         INGREDIENTS,
@@ -43,7 +42,6 @@ public class PhantasiaMaterialCostScreen extends Screen {
 
     private Tab tab = Tab.BLOCKS;
 
-    // ── State ─────────────────────────────────────────────────────────────────
     private final Screen parent;
     private final PhantasiaLoadedPattern pattern;
 
@@ -55,7 +53,6 @@ public class PhantasiaMaterialCostScreen extends Screen {
     private int scrollIngredients = 0;
     private int scrollTotals = 0;
 
-    // Scrollbar Dragging State
     private boolean isDraggingScrollbar = false;
     private double dragSelectionOffset = 0.0;
 
@@ -68,14 +65,10 @@ public class PhantasiaMaterialCostScreen extends Screen {
     private EmiStack hoveredStack = null;
     private int hoveredX, hoveredY;
 
-    // Clipboard notification feedback tick counter
     private int clipboardFeedbackTicks = 0;
 
-    // State Self-Repair Variables
     private boolean recipesLoadedSuccessfully = false;
     private int retryTicks = 0;
-
-    // ── Data structures ───────────────────────────────────────────────────────
 
     private static class BlockEntry {
 
@@ -154,8 +147,6 @@ public class PhantasiaMaterialCostScreen extends Screen {
             this.totalCount = totalCount;
         }
     }
-
-    // ── Constructor ───────────────────────────────────────────────────────────
 
     public PhantasiaMaterialCostScreen(PhantasiaLoadedPattern pattern, Screen parent) {
         super(Component.translatable("screen.phantasia.material_cost.title"));
@@ -281,8 +272,6 @@ public class PhantasiaMaterialCostScreen extends Screen {
         }
     }
 
-    // ── EMI / recipe helpers ──────────────────────────────────────────────────
-
     private static Map<ResourceLocation, List<EmiRecipe>> lookupRecipes(Collection<EmiStack> stacks) {
         Map<ResourceLocation, List<EmiRecipe>> result = new HashMap<>();
         try {
@@ -372,8 +361,6 @@ public class PhantasiaMaterialCostScreen extends Screen {
         return new ArrayList<>(seen.values());
     }
 
-    // ── Tree operations ───────────────────────────────────────────────────────
-
     private void expandNode(IngredientNode node, EmiRecipe recipe) {
         node.children.clear();
         node.expanded = false;
@@ -459,10 +446,9 @@ public class PhantasiaMaterialCostScreen extends Screen {
             sb.append(String.format("- [ ] %d x %s\n", te.totalCount, te.displayName));
         }
         Minecraft.getInstance().keyboardHandler.setClipboard(sb.toString());
-        clipboardFeedbackTicks = 40; // Show a confirmation message for 2 seconds
+        clipboardFeedbackTicks = 40;
     }
 
-    // ── Recipe picker ─────────────────────────────────────────────────────────
     private void openPicker(IngredientNode node, int sx, int sy) {
         pickerNode = node;
         this.isPickerSearchFocused = false;
@@ -626,8 +612,6 @@ public class PhantasiaMaterialCostScreen extends Screen {
     private String pickerSearchQuery = "";
     private List<EmiRecipe> filteredPickerRecipes = List.of();
 
-    // ── Screen rendering ──────────────────────────────────────────────────────
-
     @Override
     public void render(GuiGraphics g, int mx, int my, float pt) {
         g.fill(0, 0, this.width, this.height, C_BG());
@@ -689,8 +673,6 @@ public class PhantasiaMaterialCostScreen extends Screen {
         }
     }
 
-    // ── BLOCKS tab ────────────────────────────────────────────────────────────
-
     private void renderBlocksTab(GuiGraphics g, int mx, int my, float pt) {
         int startY = HEADER_H, contentH = this.height - startY - FOOTER_H;
         g.fill(0, startY, this.width, startY + contentH, 0x22FFFFFF);
@@ -733,8 +715,6 @@ public class PhantasiaMaterialCostScreen extends Screen {
         g.disableScissor();
         renderScrollbar(g, startY, contentH, scrollBlocks, blockEntries.size() * ROW_H);
     }
-
-    // ── INGREDIENTS tab ───────────────────────────────────────────────────────
 
     private void renderIngredientsTab(GuiGraphics g, int mx, int my, float pt) {
         int startY = HEADER_H, contentH = this.height - startY - FOOTER_H;
@@ -810,8 +790,6 @@ public class PhantasiaMaterialCostScreen extends Screen {
         renderScrollbar(g, startY, contentH, scrollIngredients, ingredientRows.size() * ROW_H);
     }
 
-    // ── TOTALS tab ────────────────────────────────────────────────────────────
-
     private void renderTotalsTab(GuiGraphics g, int mx, int my, float pt) {
         int startY = HEADER_H, contentH = this.height - startY - FOOTER_H;
         g.fill(0, startY, this.width, startY + contentH, 0x22FFFFFF);
@@ -872,8 +850,6 @@ public class PhantasiaMaterialCostScreen extends Screen {
         renderScrollbar(g, startY + 14, contentH - 14, scrollTotals, totalRows * ROW_H);
     }
 
-    // ── Footer ────────────────────────────────────────────────────────────────
-
     private void renderFooter(GuiGraphics g, int mx, int my) {
         int fy = this.height - FOOTER_H;
         g.fill(0, fy, this.width, fy + 1, C_ACCENT());
@@ -886,7 +862,6 @@ public class PhantasiaMaterialCostScreen extends Screen {
                     8, fy + 9, C_DIM(), false);
         }
 
-        // Close Button
         int bw = 60, bh = 16, bx = this.width - bw - 8, by = fy + (FOOTER_H - bh) / 2;
         boolean hov = isOver(mx, my, bx, by, bw, bh);
         g.fill(bx, by, bx + bw, by + bh, hov ? C_BTN_HOV() : C_BTN());
@@ -894,7 +869,6 @@ public class PhantasiaMaterialCostScreen extends Screen {
         g.drawCenteredString(font, Component.translatable("ui.phantasia.btn_close_plain").getString(), bx + bw / 2,
                 by + 4, C_TEXT());
 
-        // Copy List Button
         int cbw = 90;
         int cbx = bx - cbw - 6;
         boolean cbHov = isOver(mx, my, cbx, by, cbw, bh);
@@ -903,8 +877,6 @@ public class PhantasiaMaterialCostScreen extends Screen {
         g.drawCenteredString(font, Component.translatable("screen.phantasia.material_cost.btn_copy_list").getString(),
                 cbx + cbw / 2, by + 4, totalEntries.isEmpty() ? C_DIM() : C_TEXT());
     }
-
-    // ── Scrollbar Helpers ─────────────────────────────────────────────────────
 
     private int getScrollbarTrackHeight(int contentH) {
         return contentH - 4;
@@ -965,8 +937,6 @@ public class PhantasiaMaterialCostScreen extends Screen {
         else if (tab == Tab.TOTALS) scrollTotals = targetScroll;
     }
 
-    // ── Input ─────────────────────────────────────────────────────────────────
-
     @Override
     public boolean mouseClicked(double mx, double my, int btn) {
         int imx = (int) mx, imy = (int) my;
@@ -1006,7 +976,6 @@ public class PhantasiaMaterialCostScreen extends Screen {
             return true;
         }
 
-        // Handle tabs click
         Tab[] tabs = Tab.values();
         int tw = this.width / tabs.length;
         for (int i = 0; i < tabs.length; i++) {
@@ -1017,7 +986,6 @@ public class PhantasiaMaterialCostScreen extends Screen {
             }
         }
 
-        // Handle footer clicks
         int fy = this.height - FOOTER_H, bw = 60, bh = 16;
         int bx = this.width - bw - 8, by = fy + (FOOTER_H - bh) / 2;
         if (isOver(imx, imy, bx, by, bw, bh)) {
@@ -1032,7 +1000,6 @@ public class PhantasiaMaterialCostScreen extends Screen {
             return true;
         }
 
-        // Test for scrollbar click & grab hook initiation
         int startY = HEADER_H;
         int contentH = this.height - startY - FOOTER_H;
         int totalH = 0;
@@ -1149,8 +1116,6 @@ public class PhantasiaMaterialCostScreen extends Screen {
     public boolean isPauseScreen() {
         return false;
     }
-
-    // ── Helpers ───────────────────────────────────────────────────────────────
 
     private int drawBadge(GuiGraphics g, String text, int cx, int y, int textColor) {
         int bw = font.width(text) + 8;

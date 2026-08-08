@@ -6,7 +6,6 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/** Verifies ItemConditionData field defaults, copy(), accentColor(), and displayLabel(). */
 class ItemConditionDataTest {
 
     @Test
@@ -79,7 +78,6 @@ class ItemConditionDataTest {
 
     @Test
     void accentColorHandlesNullType() {
-        // null type should default to input colour without throwing
         assertDoesNotThrow(() -> ItemConditionData.staticAccentFor(null));
         assertEquals(0xFF4FC3F7, ItemConditionData.staticAccentFor(null));
     }

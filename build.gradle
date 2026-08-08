@@ -164,6 +164,12 @@ dependencies {
 
     modImplementation 'local:spritekit-1.0-SNAPSHOT'
 
+    // Phoenix Wiki - jar-in-jar'd shared theme system (net.phoenixvine.wiki.theme.PhoenixTheme)
+    // and markdown/wiki engine (net.phoenixvine.wiki.PhoenixWikiAPI) - the same theme choice this
+    // library holds is shared with every other Phoenixvine mod that also embeds it. After changing
+    // anything in that project, run `./gradlew publishToPhantasia` there to refresh libs/phoenix_wiki-*.jar.
+    jarJar(modImplementation("local:phoenix_wiki:0.1.0"))
+
     // GregTech and dependencies
     modCompileOnly("com.gregtechceu.gtceu:gtceu-${minecraft_version}:${gtceu_version}:slim") { transitive = false }
     modRuntimeOnly("com.gregtechceu.gtceu:gtceu-${minecraft_version}:${gtceu_version}:slim") { transitive = false }
