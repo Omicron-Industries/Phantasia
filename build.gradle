@@ -233,10 +233,17 @@ dependencies {
 
 
     modRuntimeOnly("curse.maven:ai-improvements-233019:4578262")
-    modRuntimeOnly("curse.maven:oculus-581495:6020952")
+
+    boolean isServerRun = gradle.startParameter.taskNames.any { it.toLowerCase().contains("server") } ||
+            System.getProperty("forge.run.target") == "server"
+
+    if (!isServerRun) {
+        modRuntimeOnly("curse.maven:oculus-581495:6020952")
+        modCompileOnly("curse.maven:oculus-581495:6020952")
+    }
 
     modCompileOnly("curse.maven:ai-improvements-233019:4578262")
-    modCompileOnly("curse.maven:oculus-581495:6020952")
+
 
 
 

@@ -8,8 +8,8 @@
 import { MinecraftAssets }  from './mc-assets.js';
 import { McBlockRenderer }  from './mc-block-renderer.js';
 import { PhantasiaCamera, LerpType } from './phantasia-camera.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
-// ── Three.js (loaded via importmap in viewer.html) ─────────────────────────
 import * as THREE from 'three';
 
 // ── Globals ────────────────────────────────────────────────────────────────
@@ -48,7 +48,9 @@ const blockRenderer = new McBlockRenderer(THREE, assets);
 let sceneData    = null;   // parsed scene JSON
 let patternData  = null;   // array of block objects
 let stepList     = [];     // compiled step objects
-let blockMeshes  = [];     // { mesh, pos, placementIdx, isBaseplate }
+let blockMeshes  = [];     // { mesh: Group (not in scene), pos, isBaseplate }
+let pickMeshes   = [];     // { mesh: BoxMesh (not in scene), pos, isBaseplate } for raycasting
+let mergedObjects = [];    // merged Mesh[] currently in scene
 let visibleSet   = null;   // Set<string "x,y,z"> or null = all visible
 let playing      = true;
 let playbackTick = 0;
@@ -159,17 +161,99 @@ function posContains(list, x, y, z) {
 
 function applyVisibility(visible) {
   visibleSet = visible;
-  for (const { mesh, pos, isBaseplate } of blockMeshes) {
-    const key = `${pos.x},${pos.y},${pos.z}`;
-    mesh.visible = !visible || isBaseplate || visible.has(key);
-  }
+  rebuildMerged(visible);
   invalidateRaycastCache();
+}
+
+// ── Geometry helpers ───────────────────────────────────────────────────────
+
+/**
+ * Extract a single-material sub-geometry from a multi-material BoxGeometry
+ * for the given index range [start, start+count), applying a world transform.
+ */
+function extractSubGeo(geo, srcIdx, start, count, worldMatrix) {
+  const slice = srcIdx.subarray
+    ? Array.from(srcIdx.subarray(start, start + count))
+    : Array.from(srcIdx).slice(start, start + count);
+  const unique = [...new Set(slice)].sort((a, b) => a - b);
+  const remap = new Map(unique.map((v, i) => [v, i]));
+
+  const subGeo = new THREE.BufferGeometry();
+  for (const [name, attr] of Object.entries(geo.attributes)) {
+    const n = attr.itemSize;
+    const src = attr.array;
+    const dst = new Float32Array(unique.length * n);
+    for (let i = 0; i < unique.length; i++) {
+      const f = unique[i] * n, t = i * n;
+      for (let j = 0; j < n; j++) dst[t + j] = src[f + j];
+    }
+    subGeo.setAttribute(name, new THREE.BufferAttribute(dst, n));
+  }
+  const newIdx = new Uint16Array(count);
+  for (let i = 0; i < count; i++) newIdx[i] = remap.get(slice[i]);
+  subGeo.setIndex(new THREE.BufferAttribute(newIdx, 1));
+  if (worldMatrix) subGeo.applyMatrix4(worldMatrix);
+  return subGeo;
+}
+
+/**
+ * Merge all visible block geometry per material into a small set of draw calls.
+ * Blocks are NOT in the scene — only the resulting merged meshes are.
+ */
+function rebuildMerged(visible) {
+  // Dispose and remove previous merged objects
+  for (const m of mergedObjects) { scene.remove(m); m.geometry.dispose(); }
+  mergedObjects = [];
+
+  const byMat = new Map(); // matUUID → { mat, geos: [] }
+
+  function collect(geo, mat) {
+    const k = mat.uuid;
+    if (!byMat.has(k)) byMat.set(k, { mat, geos: [] });
+    byMat.get(k).geos.push(geo);
+  }
+
+  for (const { mesh: group, pos, isBaseplate } of blockMeshes) {
+    const key = `${pos.x},${pos.y},${pos.z}`;
+    if (visible && !isBaseplate && !visible.has(key)) continue;
+
+    group.traverse(child => {
+      if (!child.isMesh) return;
+      const geo  = child.geometry;
+      const mats = Array.isArray(child.material) ? child.material : [child.material];
+      const idx  = geo.index;
+      if (!idx) return;
+
+      if (mats.length === 1 || !geo.groups.length) {
+        const cloned = geo.clone();
+        cloned.applyMatrix4(child.matrixWorld);
+        collect(cloned, mats[0]);
+      } else {
+        for (const g of geo.groups) {
+          const mat = mats[g.materialIndex];
+          if (mat) collect(extractSubGeo(geo, idx.array, g.start, g.count, child.matrixWorld), mat);
+        }
+      }
+    });
+  }
+
+  for (const [, { mat, geos }] of byMat) {
+    const merged = mergeGeometries(geos, false);
+    for (const g of geos) g.dispose();
+    if (!merged) continue;
+    const mesh = new THREE.Mesh(merged, mat);
+    scene.add(mesh);
+    mergedObjects.push(mesh);
+  }
 }
 
 // ── Scene building ─────────────────────────────────────────────────────────
 
 async function buildScene() {
-  for (const { mesh } of blockMeshes) scene.remove(mesh);
+  for (const m of mergedObjects) { scene.remove(m); m.geometry.dispose(); }
+  mergedObjects = [];
+  for (const b of pickMeshes) b.mesh.geometry.dispose();
+  pickMeshes = [];
   blockMeshes = [];
   invalidateRaycastCache();
 
@@ -194,13 +278,12 @@ async function buildScene() {
   camera.zoom = Math.max(8, span * 1.8);
   camera.setTarget(cx, cy, -cz);
 
-  // Prefetch all blockstate + model JSON in parallel before building
   setLoading(true, 'Fetching assets…', `${patternData.length} blocks`);
   await assets.prefetchBlocks(patternData);
 
   setLoading(true, 'Building blocks…', `${patternData.length} blocks`);
 
-  // Build blocks in parallel batches to maximise throughput while keeping UI responsive
+  const _pickGeo = new THREE.BoxGeometry(1, 1, 1);
   const PARALLEL = 20;
   for (let i = 0; i < patternData.length; i += PARALLEL) {
     const batch = patternData.slice(i, i + PARALLEL);
@@ -210,25 +293,39 @@ async function buildScene() {
         const neighborChecker = (dx, dy, dz) =>
           posTypeMap.get(`${block.x+dx},${block.y+dy},${block.z+dz}`) === block.block;
         const obj = await blockRenderer.buildBlock(ns, blockId, block.props || {}, neighborChecker);
-        obj.position.set(block.x - cx, block.y - cy, -(block.z - cz));
         return { obj, block };
       } catch { return null; }
     }));
     for (const r of results) {
       if (!r) continue;
-      scene.add(r.obj);
-      blockMeshes.push({ mesh: r.obj, pos: r.block, isBaseplate: !!r.block.bp });
+      const { obj, block } = r;
+      const bx = block.x - cx, by = block.y - cy, bz = -(block.z - cz);
+      // Bake world matrices — group is NOT added to scene
+      obj.position.set(bx, by, bz);
+      obj.updateMatrixWorld(true);
+      blockMeshes.push({ mesh: obj, pos: block, isBaseplate: !!block.bp });
+      // Simple pick cube for hover raycasting
+      const pick = new THREE.Mesh(_pickGeo);
+      pick.position.set(bx, by, bz);
+      pick.updateMatrix();
+      pick.matrixWorld.copy(pick.matrix);
+      pickMeshes.push({ mesh: pick, pos: block, isBaseplate: !!block.bp });
     }
     setLoading(true, 'Building blocks…', `${Math.min(i + PARALLEL, patternData.length)} / ${patternData.length}`);
     await yieldFrame();
   }
 
-  setLoading(false);
+  setLoading(true, 'Merging geometry…', '');
+  await yieldFrame();
 
   if (stepList.length) {
     applyVisibility(computeVisible(0));
     applyCameraForStep(0, true);
+  } else {
+    applyVisibility(null);
   }
+
+  setLoading(false);
 }
 
 function applyCameraForStep(stepIdx, snap) {
@@ -392,18 +489,15 @@ const tooltip   = document.getElementById('block-tooltip');
 const raycaster = new THREE.Raycaster();
 const mouse     = new THREE.Vector2();
 
-// Cached flat list of {mesh, parent} for raycasting — rebuilt when visibility changes
+// Pick mesh list cached per visibility state — pickMeshes are NOT in scene
 let _raycastCache = null;
 function invalidateRaycastCache() { _raycastCache = null; }
-function getRaycastMeshes() {
+function getPickList() {
   if (_raycastCache) return _raycastCache;
-  _raycastCache = blockMeshes
-    .filter(b => b.mesh.visible)
-    .flatMap(b => {
-      const arr = [];
-      b.mesh.traverse(c => { if (c.isMesh) arr.push(c); });
-      return arr.map(m => ({ mesh: m, parent: b }));
-    });
+  _raycastCache = pickMeshes.filter(b => {
+    const key = `${b.pos.x},${b.pos.y},${b.pos.z}`;
+    return !visibleSet || b.isBaseplate || visibleSet.has(key);
+  });
   return _raycastCache;
 }
 
@@ -413,13 +507,12 @@ canvas.addEventListener('mousemove', e => {
   mouse.y = -((e.clientY - rect.top)   / rect.height) * 2 + 1;
 
   raycaster.setFromCamera(mouse, camera.cam);
-  const meshes = getRaycastMeshes();
-
-  const hits = raycaster.intersectObjects(meshes.map(m => m.mesh), false);
+  const picks = getPickList();
+  const hits = raycaster.intersectObjects(picks.map(p => p.mesh), false);
   if (hits.length) {
-    const hit = meshes.find(m => m.mesh === hits[0].object);
+    const hit = picks.find(p => p.mesh === hits[0].object);
     if (hit) {
-      const block = hit.parent.pos;
+      const block = hit.pos;
       tooltip.textContent = block.block + (block.props && Object.keys(block.props).length
         ? '[' + Object.entries(block.props).map(([k,v]) => `${k}=${v}`).join(',') + ']' : '');
       tooltip.style.display = 'block';

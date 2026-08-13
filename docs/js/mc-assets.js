@@ -13,6 +13,7 @@ export class MinecraftAssets {
   constructor(basePath = 'assets/mc') {
     this.base = basePath;
     this._jsonCache  = new Map();
+    this._jsonPending = new Map(); // path → Promise (in-flight dedup)
     this._texCache   = new Map();
     this._loader     = null;
     this._mcmetaCache = new Map(); // texPath → mcmeta JSON or null
@@ -57,13 +58,17 @@ export class MinecraftAssets {
 
   async fetchJson(path) {
     if (this._jsonCache.has(path)) return this._jsonCache.get(path);
-    try {
-      const res = await fetch(path);
-      if (!res.ok) return null;
-      const data = await res.json();
-      this._jsonCache.set(path, data);
-      return data;
-    } catch { return null; }
+    if (this._jsonPending.has(path)) return this._jsonPending.get(path);
+    const p = fetch(path)
+      .then(res => res.ok ? res.json() : null)
+      .catch(() => null)
+      .then(data => {
+        this._jsonCache.set(path, data);
+        this._jsonPending.delete(path);
+        return data;
+      });
+    this._jsonPending.set(path, p);
+    return p;
   }
 
   async blockstate(namespace, block) {
