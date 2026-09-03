@@ -58,3 +58,11 @@ Optional integration with GregTech CEu and Ars Nouveau with more to come soon!
     versionRange = "[4,)"
     ordering = "NONE"
     side = "BOTH"
+
+
+[[dependencies.${mod_id}]]
+modId = "configuration"
+mandatory = false
+versionRange = "[2,)"
+ordering = "NONE"
+side = "BOTH"
